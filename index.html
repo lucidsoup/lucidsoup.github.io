@@ -4,7 +4,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LucidSoup Visual Artist & Projection Mapping</title>
+    <title><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LucidSoup Logo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Orbitron', monospace;
+            overflow: hidden;
+        }
+
+        .logo-container {
+            position: relative;
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .logo-text {
+            position: relative;
+            color: #fff;
+            text-shadow: 
+                0 0 10px #00ffff,
+                0 0 20px #00ffff,
+                0 0 30px #00ffff;
+            animation: wave 2s ease-in-out infinite, glitch 0.3s linear infinite;
+        }
+
+        .logo-text::before,
+        .logo-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .logo-text::before {
+            color: #ff0040;
+            animation: glitch-red 0.4s linear infinite;
+            clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+        }
+
+        .logo-text::after {
+            color: #00ff40;
+            animation: glitch-green 0.5s linear infinite;
+            clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+        }
+
+        @keyframes wave {
+            0%, 100% {
+                transform: skew(0deg, 0deg) scale(1);
+            }
+            25% {
+                transform: skew(1deg, 1deg) scale(1.02);
+            }
+            50% {
+                transform: skew(-1deg, 0deg) scale(0.98);
+            }
+            75% {
+                transform: skew(0deg, -1deg) scale(1.01);
+            }
+        }
+
+        @keyframes glitch {
+            0%, 90%, 100% {
+                filter: hue-rotate(0deg) brightness(1);
+            }
+            10% {
+                filter: hue-rotate(90deg) brightness(1.2);
+            }
+            20% {
+                filter: hue-rotate(180deg) brightness(0.8);
+            }
+            30% {
+                filter: hue-rotate(270deg) brightness(1.1);
+            }
+        }
+
+        @keyframes glitch-red {
+            0% {
+                transform: translate(0);
+                opacity: 0.8;
+            }
+            10% {
+                transform: translate(-2px, 2px);
+                opacity: 1;
+            }
+            20% {
+                transform: translate(-4px, -2px);
+                opacity: 0.9;
+            }
+            30% {
+                transform: translate(2px, -4px);
+                opacity: 0.7;
+            }
+            40% {
+                transform: translate(-1px, 3px);
+                opacity: 1;
+            }
+            50% {
+                transform: translate(3px, -1px);
+                opacity: 0.8;
+            }
+            60% {
+                transform: translate(-2px, 1px);
+                opacity: 0.9;
+            }
+            70% {
+                transform: translate(1px, -3px);
+                opacity: 1;
+            }
+            80% {
+                transform: translate(-3px, 2px);
+                opacity: 0.7;
+            }
+            90% {
+                transform: translate(2px, -2px);
+                opacity: 0.9;
+            }
+            100% {
+                transform: translate(0);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes glitch-green {
+            0% {
+                transform: translate(0);
+                opacity: 0.7;
+            }
+            15% {
+                transform: translate(3px, -2px);
+                opacity: 1;
+            }
+            25% {
+                transform: translate(-1px, 4px);
+                opacity: 0.8;
+            }
+            35% {
+                transform: translate(-3px, -1px);
+                opacity: 0.9;
+            }
+            45% {
+                transform: translate(2px, 3px);
+                opacity: 0.6;
+            }
+            55% {
+                transform: translate(-2px, -3px);
+                opacity: 1;
+            }
+            65% {
+                transform: translate(4px, 1px);
+                opacity: 0.8;
+            }
+            75% {
+                transform: translate(-1px, -2px);
+                opacity: 0.9;
+            }
+            85% {
+                transform: translate(1px, 4px);
+                opacity: 0.7;
+            }
+            95% {
+                transform: translate(-4px, 1px);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(0);
+                opacity: 0.7;
+            }
+        }
+
+        .background-noise {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            background: 
+                radial-gradient(circle at 20% 20%, #ff0040 1px, transparent 1px),
+                radial-gradient(circle at 80% 80%, #00ff40 1px, transparent 1px),
+                radial-gradient(circle at 40% 60%, #0040ff 1px, transparent 1px);
+            background-size: 50px 50px, 30px 30px, 70px 70px;
+            animation: noise 0.1s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes noise {
+            0% { transform: translate(0, 0); }
+            10% { transform: translate(-1px, 1px); }
+            20% { transform: translate(1px, -1px); }
+            30% { transform: translate(-1px, -1px); }
+            40% { transform: translate(1px, 1px); }
+            50% { transform: translate(-1px, 0); }
+            60% { transform: translate(1px, 0); }
+            70% { transform: translate(0, -1px); }
+            80% { transform: translate(0, 1px); }
+            90% { transform: translate(-1px, 1px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                transparent 50%,
+                rgba(0, 255, 255, 0.03) 50%
+            );
+            background-size: 100% 4px;
+            animation: scan 0.1s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(4px); }
+        }
+
+        @media (max-width: 768px) {
+            .logo-container {
+                font-size: 2.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo-container {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-noise"></div>
+    <div class="scanlines"></div>
+    <div class="logo-container">
+        <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+    </div>
+</body>
+</html> Visual Artist & Projection Mapping</title>
     <style>
         * {
             margin: 0;
