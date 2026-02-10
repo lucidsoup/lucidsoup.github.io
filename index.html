@@ -1,622 +1,399 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visual Artist & Projection Mapping</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            cursor: none !important;
         }
 
-```
-    body {
-        font-family: 'Arial', sans-serif;
-        line-height: 1.6;
-        color: #fff;
-        background: #0a0a0a;
-        overflow-x: hidden;
-        min-height: 100vh;
-    }
-
-    /* Custom Eye Cursor */
-    .eye-cursor {
-        position: fixed;
-        width: 40px;
-        height: 40px;
-        pointer-events: none;
-        z-index: 10000;
-        transform: translate(-50%, -50%);
-        transition: none;
-    }
-
-    .eye {
-        width: 100%;
-        height: 70%;
-        background: radial-gradient(ellipse at 30% 30%, #fff, #f0f0f0);
-        border-radius: 50px / 25px;
-        position: relative;
-        box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.5),
-            inset 0 2px 4px rgba(0, 0, 0, 0.1);
-        transition: transform 0.1s ease;
-        top: 15%;
-    }
-
-    .pupil {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 12px;
-        height: 10px;
-        background: radial-gradient(ellipse at 30% 30%, #333, #000);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        transition: transform 0.1s ease;
-    }
-
-    .iris {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 20px;
-        height: 16px;
-        background: radial-gradient(ellipse at 40% 40%, #00ffff, #0080ff, #0040ff);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        transition: transform 0.1s ease;
-    }
-
-    .eye.blink {
-        animation: blink 0.15s ease-in-out;
-    }
-
-    @keyframes blink {
-        0%, 100% { transform: scaleY(1); }
-        50% { transform: scaleY(0.1); }
-    }
-
-    .trail {
-        position: fixed;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 9999;
-        opacity: 1;
-        transition: none;
-    }
-
-    /* Navigation */
-    nav {
-        position: fixed;
-        top: 0;
-        width: 100%;
-        padding: 1rem 2rem;
-        background: rgba(0, 0, 0, 0.9);
-        backdrop-filter: blur(10px);
-        z-index: 1000;
-        transition: all 0.3s ease;
-    }
-
-    nav ul {
-        display: flex;
-        justify-content: center;
-        list-style: none;
-    }
-
-    nav li {
-        margin: 0 2rem;
-    }
-
-    nav a {
-        color: #fff;
-        text-decoration: none;
-        font-weight: 300;
-        letter-spacing: 1px;
-        transition: all 0.3s ease;
-        position: relative;
-    }
-
-    nav a:hover {
-        color: #00ffff;
-    }
-
-    nav a::after {
-        content: '';
-        position: absolute;
-        width: 0;
-        height: 2px;
-        bottom: -5px;
-        left: 0;
-        background: linear-gradient(90deg, #00ffff, #ff00ff);
-        transition: width 0.3s ease;
-    }
-
-    nav a:hover::after {
-        width: 100%;
-    }
-
-    /* Import Orbitron font for logo */
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap');
-
-    /* Hero Section */
-    .hero {
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        background: #000;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .hero-content {
-        z-index: 2;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2rem;
-    }
-
-    /* LucidSoup Logo Styles */
-    .logo-container {
-        position: relative;
-        font-size: 4rem;
-        font-weight: 900;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        font-family: 'Orbitron', monospace;
-    }
-
-    .logo-text {
-        position: relative;
-        color: #fff;
-        text-shadow: 
-            0 0 10px #00ffff,
-            0 0 20px #00ffff,
-            0 0 30px #00ffff;
-        animation: wave 2s ease-in-out infinite, glitch 0.3s linear infinite;
-    }
-
-    .logo-text::before,
-    .logo-text::after {
-        content: attr(data-text);
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-    }
-
-    .logo-text::before {
-        color: #ff0040;
-        animation: glitch-red 0.4s linear infinite;
-        clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
-    }
-
-    .logo-text::after {
-        color: #00ff40;
-        animation: glitch-green 0.5s linear infinite;
-        clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
-    }
-
-    @keyframes wave {
-        0%, 100% {
-            transform: skew(0deg, 0deg) scale(1);
+        html {
+            scroll-behavior: smooth;
         }
-        25% {
-            transform: skew(1deg, 1deg) scale(1.02);
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #fff;
+            background: #0a0a0a;
+            overflow-x: hidden;
+            min-height: 100vh;
         }
-        50% {
-            transform: skew(-1deg, 0deg) scale(0.98);
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1rem 2rem;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            transition: background 0.3s ease;
         }
-        75% {
-            transform: skew(0deg, -1deg) scale(1.01);
-        }
-    }
 
-    @keyframes glitch {
-        0%, 90%, 100% {
-            filter: hue-rotate(0deg) brightness(1);
-        }
-        10% {
-            filter: hue-rotate(90deg) brightness(1.2);
-        }
-        20% {
-            filter: hue-rotate(180deg) brightness(0.8);
-        }
-        30% {
-            filter: hue-rotate(270deg) brightness(1.1);
-        }
-    }
-
-    @keyframes glitch-red {
-        0% {
-            transform: translate(0);
-            opacity: 0.8;
-        }
-        10% {
-            transform: translate(-2px, 2px);
-            opacity: 1;
-        }
-        20% {
-            transform: translate(-4px, -2px);
-            opacity: 0.9;
-        }
-        30% {
-            transform: translate(2px, -4px);
-            opacity: 0.7;
-        }
-        40% {
-            transform: translate(-1px, 3px);
-            opacity: 1;
-        }
-        50% {
-            transform: translate(3px, -1px);
-            opacity: 0.8;
-        }
-        60% {
-            transform: translate(-2px, 1px);
-            opacity: 0.9;
-        }
-        70% {
-            transform: translate(1px, -3px);
-            opacity: 1;
-        }
-        80% {
-            transform: translate(-3px, 2px);
-            opacity: 0.7;
-        }
-        90% {
-            transform: translate(2px, -2px);
-            opacity: 0.9;
-        }
-        100% {
-            transform: translate(0);
-            opacity: 0.8;
-        }
-    }
-
-    @keyframes glitch-green {
-        0% {
-            transform: translate(0);
-            opacity: 0.7;
-        }
-        15% {
-            transform: translate(3px, -2px);
-            opacity: 1;
-        }
-        25% {
-            transform: translate(-1px, 4px);
-            opacity: 0.8;
-        }
-        35% {
-            transform: translate(-3px, -1px);
-            opacity: 0.9;
-        }
-        45% {
-            transform: translate(2px, 3px);
-            opacity: 0.6;
-        }
-        55% {
-            transform: translate(-2px, -3px);
-            opacity: 1;
-        }
-        65% {
-            transform: translate(4px, 1px);
-            opacity: 0.8;
-        }
-        75% {
-            transform: translate(-1px, -2px);
-            opacity: 0.9;
-        }
-        85% {
-            transform: translate(1px, 4px);
-            opacity: 0.7;
-        }
-        95% {
-            transform: translate(-4px, 1px);
-            opacity: 1;
-        }
-        100% {
-            transform: translate(0);
-            opacity: 0.7;
-        }
-    }
-
-    .background-noise {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0.03;
-        background: 
-            radial-gradient(circle at 20% 20%, #ff0040 1px, transparent 1px),
-            radial-gradient(circle at 80% 80%, #00ff40 1px, transparent 1px),
-            radial-gradient(circle at 40% 60%, #0040ff 1px, transparent 1px);
-        background-size: 50px 50px, 30px 30px, 70px 70px;
-        animation: noise 0.1s linear infinite;
-        pointer-events: none;
-    }
-
-    @keyframes noise {
-        0% { transform: translate(0, 0); }
-        10% { transform: translate(-1px, 1px); }
-        20% { transform: translate(1px, -1px); }
-        30% { transform: translate(-1px, -1px); }
-        40% { transform: translate(1px, 1px); }
-        50% { transform: translate(-1px, 0); }
-        60% { transform: translate(1px, 0); }
-        70% { transform: translate(0, -1px); }
-        80% { transform: translate(0, 1px); }
-        90% { transform: translate(-1px, 1px); }
-        100% { transform: translate(0, 0); }
-    }
-
-    .scanlines {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(
-            transparent 50%,
-            rgba(0, 255, 255, 0.03) 50%
-        );
-        background-size: 100% 4px;
-        animation: scan 0.1s linear infinite;
-        pointer-events: none;
-    }
-
-    @keyframes scan {
-        0% { transform: translateY(0); }
-        100% { transform: translateY(4px); }
-    }
-
-    .hero p {
-        font-size: 1.2rem;
-        font-weight: 300;
-        letter-spacing: 2px;
-        opacity: 0.8;
-        z-index: 3;
-        position: relative;
-    }
-
-    /* Section Styles */
-    section {
-        padding: 5rem 2rem;
-        max-width: 1200px;
-        margin: 0 auto;
-        background: transparent;
-    }
-
-    /* Ensure body background covers everything */
-    body {
-        font-family: 'Arial', sans-serif;
-        line-height: 1.6;
-        color: #fff;
-        background: #0a0a0a;
-        overflow-x: hidden;
-        min-height: 100vh;
-    }
-
-    h2 {
-        font-size: 2.5rem;
-        font-weight: 100;
-        margin-bottom: 3rem;
-        text-align: center;
-        color: #00ffff;
-    }
-
-    /* Portfolio Grid */
-    .portfolio-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 2rem;
-        margin-bottom: 3rem;
-    }
-
-    .portfolio-item {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 15px;
-        overflow: hidden;
-        transition: all 0.3s ease;
-        position: relative;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .portfolio-item:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 20px 40px rgba(0, 255, 255, 0.2);
-    }
-
-    .portfolio-item-image {
-        width: 100%;
-        height: 250px;
-        background: linear-gradient(45deg, #1a1a1a, #333);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .portfolio-item-image::before {
-        content: '▶';
-        font-size: 3rem;
-        color: rgba(255, 255, 255, 0.7);
-        z-index: 2;
-        position: relative;
-    }
-
-    .portfolio-item-image::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(45deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .portfolio-item:hover .portfolio-item-image::after {
-        opacity: 1;
-    }
-
-    .portfolio-item-content {
-        padding: 1.5rem;
-    }
-
-    .portfolio-item h3 {
-        margin-bottom: 0.5rem;
-        color: #fff;
-        font-weight: 300;
-    }
-
-    .portfolio-item p {
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 0.9rem;
-        line-height: 1.5;
-    }
-
-    .tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
-
-    .tag {
-        padding: 0.3rem 0.8rem;
-        background: rgba(0, 255, 255, 0.2);
-        border-radius: 20px;
-        font-size: 0.8rem;
-        color: #00ffff;
-        border: 1px solid rgba(0, 255, 255, 0.3);
-    }
-
-    /* About Section */
-    .about {
-        background: rgba(255, 255, 255, 0.02);
-        border-radius: 20px;
-        padding: 3rem;
-        text-align: center;
-        margin: 3rem 0;
-    }
-
-    .about p {
-        font-size: 1.1rem;
-        line-height: 1.8;
-        color: rgba(255, 255, 255, 0.8);
-        max-width: 800px;
-        margin: 0 auto 2rem;
-    }
-
-    .skills {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-
-    .skill {
-        padding: 0.8rem 1.5rem;
-        background: linear-gradient(45deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
-        border-radius: 25px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #fff;
-        font-weight: 300;
-    }
-
-    /* Contact Section */
-    .contact {
-        text-align: center;
-        background: linear-gradient(45deg, rgba(0, 255, 255, 0.05), rgba(255, 0, 255, 0.05));
-        border-radius: 20px;
-        padding: 3rem;
-    }
-
-    .contact-links {
-        display: flex;
-        justify-content: center;
-        gap: 2rem;
-        margin-top: 2rem;
-    }
-
-    .contact-link {
-        padding: 1rem 2rem;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 30px;
-        color: #fff;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .contact-link:hover {
-        background: rgba(0, 255, 255, 0.2);
-        transform: translateY(-3px);
-        box-shadow: 0 10px 20px rgba(0, 255, 255, 0.2);
-    }
-
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .logo-container {
-            font-size: 2.5rem;
-        }
-        
         nav ul {
-            flex-direction: column;
-            gap: 1rem;
+            display: flex;
+            justify-content: center;
+            list-style: none;
         }
-        
+
         nav li {
-            margin: 0;
+            margin: 0 2rem;
         }
-        
-        section {
-            padding: 3rem 1rem;
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            font-weight: 300;
+            letter-spacing: 1px;
+            transition: color 0.3s ease;
+            position: relative;
         }
-        
-        .portfolio-grid {
-            grid-template-columns: 1fr;
+
+        nav a:hover {
+            color: #00ffff;
         }
-        
-        .contact-links {
+
+        nav a::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -5px;
+            left: 0;
+            background: linear-gradient(90deg, #00ffff, #ff00ff);
+            transition: width 0.3s ease;
+        }
+
+        nav a:hover::after {
+            width: 100%;
+        }
+
+        /* Hero Section */
+        .hero {
+            height: 100vh;
+            display: flex;
             flex-direction: column;
-            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: #000;
+            position: relative;
+            overflow: hidden;
         }
-    }
 
-    @media (max-width: 480px) {
+        .hero-content {
+            z-index: 2;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        /* LucidSoup Logo */
         .logo-container {
-            font-size: 2rem;
+            position: relative;
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-family: 'Orbitron', monospace;
         }
-    }
 
-    /* Smooth scrolling */
-    html {
-        scroll-behavior: smooth;
-    }
-</style>
-```
+        .logo-text {
+            position: relative;
+            color: #fff;
+            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff;
+            animation: wave 2s ease-in-out infinite, glitch 0.3s linear infinite;
+        }
 
+        .logo-text::before,
+        .logo-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .logo-text::before {
+            color: #ff0040;
+            animation: glitch-red 0.4s linear infinite;
+            clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+        }
+
+        .logo-text::after {
+            color: #00ff40;
+            animation: glitch-green 0.5s linear infinite;
+            clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+        }
+
+        @keyframes wave {
+            0%, 100% { transform: skew(0deg, 0deg) scale(1); }
+            25% { transform: skew(1deg, 1deg) scale(1.02); }
+            50% { transform: skew(-1deg, 0deg) scale(0.98); }
+            75% { transform: skew(0deg, -1deg) scale(1.01); }
+        }
+
+        @keyframes glitch {
+            0%, 90%, 100% { filter: hue-rotate(0deg) brightness(1); }
+            10% { filter: hue-rotate(90deg) brightness(1.2); }
+            20% { filter: hue-rotate(180deg) brightness(0.8); }
+            30% { filter: hue-rotate(270deg) brightness(1.1); }
+        }
+
+        @keyframes glitch-red {
+            0%, 100% { transform: translate(0); opacity: 0.8; }
+            10% { transform: translate(-2px, 2px); opacity: 1; }
+            30% { transform: translate(2px, -4px); opacity: 0.7; }
+            50% { transform: translate(3px, -1px); opacity: 0.8; }
+            70% { transform: translate(1px, -3px); opacity: 1; }
+            90% { transform: translate(2px, -2px); opacity: 0.9; }
+        }
+
+        @keyframes glitch-green {
+            0%, 100% { transform: translate(0); opacity: 0.7; }
+            15% { transform: translate(3px, -2px); opacity: 1; }
+            35% { transform: translate(-3px, -1px); opacity: 0.9; }
+            55% { transform: translate(-2px, -3px); opacity: 1; }
+            75% { transform: translate(-1px, -2px); opacity: 0.9; }
+            95% { transform: translate(-4px, 1px); opacity: 1; }
+        }
+
+        .background-noise {
+            position: absolute;
+            inset: 0;
+            opacity: 0.03;
+            background:
+                radial-gradient(circle at 20% 20%, #ff0040 1px, transparent 1px),
+                radial-gradient(circle at 80% 80%, #00ff40 1px, transparent 1px),
+                radial-gradient(circle at 40% 60%, #0040ff 1px, transparent 1px);
+            background-size: 50px 50px, 30px 30px, 70px 70px;
+            animation: noise 0.1s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes noise {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-1px, 1px); }
+            50% { transform: translate(1px, -1px); }
+            75% { transform: translate(-1px, -1px); }
+        }
+
+        .scanlines {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(transparent 50%, rgba(0, 255, 255, 0.03) 50%);
+            background-size: 100% 4px;
+            animation: scan 0.1s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(4px); }
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            z-index: 3;
+            position: relative;
+        }
+
+        /* Sections */
+        section {
+            padding: 5rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 100;
+            margin-bottom: 3rem;
+            text-align: center;
+            color: #00ffff;
+        }
+
+        /* Portfolio Grid */
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .portfolio-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .portfolio-item:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 255, 255, 0.2);
+        }
+
+        .portfolio-item-image {
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(45deg, #1a1a1a, #333);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .portfolio-item-image::before {
+            content: '▶';
+            font-size: 3rem;
+            color: rgba(255, 255, 255, 0.7);
+            z-index: 2;
+            position: relative;
+        }
+
+        .portfolio-item-image::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .portfolio-item:hover .portfolio-item-image::after {
+            opacity: 1;
+        }
+
+        .portfolio-item-content {
+            padding: 1.5rem;
+        }
+
+        .portfolio-item h3 {
+            margin-bottom: 0.5rem;
+            color: #fff;
+            font-weight: 300;
+        }
+
+        .portfolio-item p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .tag {
+            padding: 0.3rem 0.8rem;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #00ffff;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+
+        /* About Section */
+        .about {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            margin: 3rem 0;
+        }
+
+        .about p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: rgba(255, 255, 255, 0.8);
+            max-width: 800px;
+            margin: 0 auto 2rem;
+        }
+
+        .skills {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .skill {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(45deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-weight: 300;
+        }
+
+        /* Contact Section */
+        .contact {
+            text-align: center;
+            background: linear-gradient(45deg, rgba(0, 255, 255, 0.05), rgba(255, 0, 255, 0.05));
+            border-radius: 20px;
+            padding: 3rem;
+        }
+
+        .contact-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .contact-link {
+            padding: 1rem 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            color: #fff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .contact-link:hover {
+            background: rgba(0, 255, 255, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 255, 255, 0.2);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .logo-container { font-size: 2.5rem; }
+            nav ul { flex-direction: column; gap: 1rem; }
+            nav li { margin: 0; }
+            section { padding: 3rem 1rem; }
+            .portfolio-grid { grid-template-columns: 1fr; }
+            .contact-links { flex-direction: column; gap: 1rem; }
+        }
+
+        @media (max-width: 480px) {
+            .logo-container { font-size: 2rem; }
+        }
+    </style>
 </head>
 <body>
-    <!-- Navigation -->
     <nav id="navbar">
         <ul>
             <li><a href="#home">Home</a></li>
@@ -626,285 +403,139 @@
         </ul>
     </nav>
 
-```
-<!-- Hero Section -->
-<section id="home" class="hero">
-    <div class="background-noise"></div>
-    <div class="scanlines"></div>
-    <div class="hero-content">
-        <div class="logo-container">
-            <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+    <section id="home" class="hero">
+        <div class="background-noise"></div>
+        <div class="scanlines"></div>
+        <div class="hero-content">
+            <div class="logo-container">
+                <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+            </div>
+            <p>VISUAL ARTIST & PROJECTION MAPPING</p>
         </div>
-        <p>VISUAL ARTIST & PROJECTION MAPPING</p>
-    </div>
-</section>
+    </section>
 
-<!-- Portfolio Section -->
-<section id="portfolio">
-    <h2>Portfolio</h2>
-    <div class="portfolio-grid">
-        <div class="portfolio-item">
-            <div class="portfolio-item-image"></div>
-            <div class="portfolio-item-content">
-                <h3>Architectural Projection</h3>
-                <p>Large-scale building facade mapping for corporate event, transforming the exterior into an immersive visual experience with custom content synchronized to music.</p>
-                <div class="tags">
-                    <span class="tag">Architecture</span>
-                    <span class="tag">3D Mapping</span>
-                    <span class="tag">Live Event</span>
+    <section id="portfolio">
+        <h2>Portfolio</h2>
+        <div class="portfolio-grid">
+            <div class="portfolio-item">
+                <div class="portfolio-item-image"></div>
+                <div class="portfolio-item-content">
+                    <h3>Architectural Projection</h3>
+                    <p>Large-scale building facade mapping for corporate event, transforming the exterior into an immersive visual experience with custom content synchronized to music.</p>
+                    <div class="tags">
+                        <span class="tag">Architecture</span>
+                        <span class="tag">3D Mapping</span>
+                        <span class="tag">Live Event</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="portfolio-item">
+                <div class="portfolio-item-image"></div>
+                <div class="portfolio-item-content">
+                    <h3>Interactive Installation</h3>
+                    <p>Motion-responsive projection mapping installation using depth sensors to create real-time visual interactions with audience movement.</p>
+                    <div class="tags">
+                        <span class="tag">Interactive</span>
+                        <span class="tag">TouchDesigner</span>
+                        <span class="tag">Sensors</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="portfolio-item">
+                <div class="portfolio-item-image"></div>
+                <div class="portfolio-item-content">
+                    <h3>Concert Visuals</h3>
+                    <p>Custom visual content and projection mapping for live music performance, creating dynamic backdrops that respond to audio input in real-time.</p>
+                    <div class="tags">
+                        <span class="tag">Music</span>
+                        <span class="tag">Audio Reactive</span>
+                        <span class="tag">Live Performance</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="portfolio-item">
+                <div class="portfolio-item-image"></div>
+                <div class="portfolio-item-content">
+                    <h3>Art Gallery Installation</h3>
+                    <p>Immersive gallery installation combining sculptural elements with projected visuals, creating a multi-dimensional artistic experience.</p>
+                    <div class="tags">
+                        <span class="tag">Gallery</span>
+                        <span class="tag">Sculpture</span>
+                        <span class="tag">Art Installation</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="portfolio-item">
+                <div class="portfolio-item-image"></div>
+                <div class="portfolio-item-content">
+                    <h3>Product Launch Event</h3>
+                    <p>Brand activation using projection mapping to showcase product features and create memorable reveal moments for marketing campaign.</p>
+                    <div class="tags">
+                        <span class="tag">Branding</span>
+                        <span class="tag">Product Launch</span>
+                        <span class="tag">Marketing</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="portfolio-item">
+                <div class="portfolio-item-image"></div>
+                <div class="portfolio-item-content">
+                    <h3>Festival Stage Design</h3>
+                    <p>Multi-layered projection mapping for festival main stage, incorporating environmental elements and weather-responsive visuals.</p>
+                    <div class="tags">
+                        <span class="tag">Festival</span>
+                        <span class="tag">Stage Design</span>
+                        <span class="tag">Environmental</span>
+                    </div>
                 </div>
             </div>
         </div>
+    </section>
 
-        <div class="portfolio-item">
-            <div class="portfolio-item-image"></div>
-            <div class="portfolio-item-content">
-                <h3>Interactive Installation</h3>
-                <p>Motion-responsive projection mapping installation using depth sensors to create real-time visual interactions with audience movement.</p>
-                <div class="tags">
-                    <span class="tag">Interactive</span>
-                    <span class="tag">TouchDesigner</span>
-                    <span class="tag">Sensors</span>
-                </div>
+    <section id="about">
+        <h2>About</h2>
+        <div class="about">
+            <p>I'm a visual artist specializing in projection mapping and custom visual content creation. With a background in both fine arts and technology, I create immersive experiences that transform spaces and captivate audiences.</p>
+            <p>My work spans architectural projections, interactive installations, live performance visuals, and brand activations. I combine artistic vision with technical expertise to deliver unique visual experiences that push the boundaries of digital art.</p>
+            <div class="skills">
+                <div class="skill">Projection Mapping</div>
+                <div class="skill">TouchDesigner</div>
+                <div class="skill">Resolume</div>
+                <div class="skill">Davinci Resolve</div>
+                <div class="skill">Zbrush</div>
+                <div class="skill">Blender</div>
+                <div class="skill">Synesthesia</div>
+                <div class="skill">Maya</div>
+                <div class="skill">Interactive Design</div>
+                <div class="skill">3D Modeling</div>
             </div>
         </div>
+    </section>
 
-        <div class="portfolio-item">
-            <div class="portfolio-item-image"></div>
-            <div class="portfolio-item-content">
-                <h3>Concert Visuals</h3>
-                <p>Custom visual content and projection mapping for live music performance, creating dynamic backdrops that respond to audio input in real-time.</p>
-                <div class="tags">
-                    <span class="tag">Music</span>
-                    <span class="tag">Audio Reactive</span>
-                    <span class="tag">Live Performance</span>
-                </div>
+    <section id="contact">
+        <h2>Contact</h2>
+        <div class="contact">
+            <p>Ready to create something amazing together? Let's discuss your next visual project.</p>
+            <div class="contact-links">
+                <a href="mailto:mjavella8@gmail.com" class="contact-link">Email</a>
+                <a href="#" class="contact-link">Instagram</a>
+                <a href="#" class="contact-link">Vimeo</a>
+                <a href="#" class="contact-link">LinkedIn</a>
             </div>
         </div>
+    </section>
 
-        <div class="portfolio-item">
-            <div class="portfolio-item-image"></div>
-            <div class="portfolio-item-content">
-                <h3>Art Gallery Installation</h3>
-                <p>Immersive gallery installation combining sculptural elements with projected visuals, creating a multi-dimensional artistic experience.</p>
-                <div class="tags">
-                    <span class="tag">Gallery</span>
-                    <span class="tag">Sculpture</span>
-                    <span class="tag">Art Installation</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="portfolio-item">
-            <div class="portfolio-item-image"></div>
-            <div class="portfolio-item-content">
-                <h3>Product Launch Event</h3>
-                <p>Brand activation using projection mapping to showcase product features and create memorable reveal moments for marketing campaign.</p>
-                <div class="tags">
-                    <span class="tag">Branding</span>
-                    <span class="tag">Product Launch</span>
-                    <span class="tag">Marketing</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="portfolio-item">
-            <div class="portfolio-item-image"></div>
-            <div class="portfolio-item-content">
-                <h3>Festival Stage Design</h3>
-                <p>Multi-layered projection mapping for festival main stage, incorporating environmental elements and weather-responsive visuals.</p>
-                <div class="tags">
-                    <span class="tag">Festival</span>
-                    <span class="tag">Stage Design</span>
-                    <span class="tag">Environmental</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- About Section -->
-<section id="about">
-    <h2>About</h2>
-    <div class="about">
-        <p>
-            I'm a visual artist specializing in projection mapping and custom visual content creation. With a background in both fine arts and technology, I create immersive experiences that transform spaces and captivate audiences.
-        </p>
-        <p>
-            My work spans architectural projections, interactive installations, live performance visuals, and brand activations. I combine artistic vision with technical expertise to deliver unique visual experiences that push the boundaries of digital art.
-        </p>
-        <div class="skills">
-            <div class="skill">Projection Mapping</div>
-            <div class="skill">TouchDesigner</div>
-            <div class="skill">Resolume</div>
-            <div class="skill">Davinci Resolve</div>
-            <div class="skill">Zbrush</div>
-            <div class="skill">Blender</div>
-            <div class="skill">Synesthesia</div>
-            <div class="skill">Maya</div>
-            <div class="skill">Interactive Design</div>
-            <div class="skill">3D Modeling</div>
-        </div>
-    </div>
-</section>
-
-<!-- Contact Section -->
-<section id="contact">
-    <h2>Contact</h2>
-    <div class="contact">
-        <p>Ready to create something amazing together? Let's discuss your next visual project.</p>
-        <div class="contact-links">
-            <a href="mailto:mjavella8@gmail.com" class="contact-link">Email</a>
-            <a href="#" class="contact-link">Instagram</a>
-            <a href="#" class="contact-link">Vimeo</a>
-            <a href="#" class="contact-link">LinkedIn</a>
-        </div>
-    </div>
-</section>
-
-<!-- Custom Eye Cursor -->
-<div class="eye-cursor">
-    <div class="eye">
-        <div class="iris"></div>
-        <div class="pupil"></div>
-    </div>
-</div>
-
-<script>
-    // Custom Eye Cursor with RGB Trail
-    const eyeCursor = document.querySelector('.eye-cursor');
-    const eye = document.querySelector('.eye');
-    const pupil = document.querySelector('.pupil');
-    const iris = document.querySelector('.iris');
-    
-    let mouseX = 0;
-    let mouseY = 0;
-    let trails = [];
-    let trailId = 0;
-
-    // Create RGB trail effect
-    function createTrail(x, y) {
-        const trail = document.createElement('div');
-        trail.className = 'trail';
-        
-        // RGB color cycling based on time and position
-        const time = Date.now() * 0.005;
-        const r = Math.sin(time + x * 0.01) * 127 + 128;
-        const g = Math.sin(time + x * 0.01 + 2) * 127 + 128;
-        const b = Math.sin(time + x * 0.01 + 4) * 127 + 128;
-        
-        trail.style.background = `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
-        trail.style.boxShadow = `0 0 10px rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
-        trail.style.left = x + 'px';
-        trail.style.top = y + 'px';
-        
-        document.body.appendChild(trail);
-        
-        // Animate trail fade out
-        setTimeout(() => {
-            trail.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-            trail.style.opacity = '0';
-            trail.style.transform = 'scale(0.5)';
-            
-            setTimeout(() => {
-                if (trail.parentNode) {
-                    document.body.removeChild(trail);
-                }
-            }, 500);
-        }, 50);
-    }
-
-    // Mouse movement handler
-    document.addEventListener('mousemove', (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        
-        // Update eye cursor position
-        eyeCursor.style.left = mouseX + 'px';
-        eyeCursor.style.top = mouseY + 'px';
-        
-        // Create trail every few pixels of movement
-        if (Math.random() > 0.7) {
-            createTrail(mouseX, mouseY);
-        }
-        
-        // Eye tracking effect - pupils follow mouse relative to eye center
-        const eyeRect = eye.getBoundingClientRect();
-        const eyeCenterX = eyeRect.left + eyeRect.width / 2;
-        const eyeCenterY = eyeRect.top + eyeRect.height / 2;
-        
-        const angle = Math.atan2(mouseY - eyeCenterY, mouseX - eyeCenterX);
-        const distance = Math.min(6, Math.hypot(mouseX - eyeCenterX, mouseY - eyeCenterY) / 10);
-        
-        const pupilX = Math.cos(angle) * distance;
-        const pupilY = Math.sin(angle) * distance;
-        const irisX = Math.cos(angle) * (distance * 0.7);
-        const irisY = Math.sin(angle) * (distance * 0.7);
-        
-        pupil.style.transform = `translate(calc(-50% + ${pupilX}px), calc(-50% + ${pupilY}px))`;
-        iris.style.transform = `translate(calc(-50% + ${irisX}px), calc(-50% + ${irisY}px))`;
-    });
-
-    // Click to blink
-    document.addEventListener('click', () => {
-        eye.classList.add('blink');
-        
-        // Create burst of trails on click
-        for (let i = 0; i < 12; i++) {
-            setTimeout(() => {
-                const angle = (i / 12) * Math.PI * 2;
-                const distance = 30;
-                const x = mouseX + Math.cos(angle) * distance;
-                const y = mouseY + Math.sin(angle) * distance;
-                createTrail(x, y);
-            }, i * 20);
-        }
-        
-        setTimeout(() => {
-            eye.classList.remove('blink');
-        }, 150);
-    });
-
-    // Random blinks
-    setInterval(() => {
-        if (Math.random() > 0.7) {
-            eye.classList.add('blink');
-            setTimeout(() => {
-                eye.classList.remove('blink');
-            }, 150);
-        }
-    }, 3000);
-
-    // Smooth navbar behavior
-    window.addEventListener('scroll', function() {
-        const navbar = document.getElementById('navbar');
-        if (window.scrollY > 100) {
-            navbar.style.background = 'rgba(0, 0, 0, 0.95)';
-        } else {
-            navbar.style.background = 'rgba(0, 0, 0, 0.9)';
-        }
-    });
-
-    // Portfolio item interactions
-    document.querySelectorAll('.portfolio-item').forEach(item => {
-        item.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-10px) scale(1.02)';
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', () => {
+            document.getElementById('navbar').style.background =
+                window.scrollY > 100 ? 'rgba(0, 0, 0, 0.95)' : 'rgba(0, 0, 0, 0.9)';
         });
-        
-        item.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0) scale(1)';
-        });
-    });
-
-    // Add click handlers for portfolio items (you can link to detailed project pages)
-    document.querySelectorAll('.portfolio-item').forEach(item => {
-        item.addEventListener('click', function() {
-            // Add your navigation logic here
-            console.log('Portfolio item clicked:', this.querySelector('h3').textContent);
-        });
-    });
-</script>
-```
-
+    </script>
 </body>
 </html>
