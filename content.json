@@ -1,0 +1,71 @@
+{
+  "portfolio": [
+    {
+      "id": 1,
+      "title": "Architectural Projection",
+      "description": "Large-scale building facade mapping for corporate event — exterior transformed into an immersive visual canvas synchronized to live music.",
+      "tags": ["Architecture", "3D Mapping", "Live Event"],
+      "image": "",
+      "link": ""
+    },
+    {
+      "id": 2,
+      "title": "Interactive Installation",
+      "description": "Motion-responsive projection using depth sensors — visuals react in real-time to audience movement, making every visitor part of the piece.",
+      "tags": ["Interactive", "TouchDesigner", "Sensors"],
+      "image": "",
+      "link": ""
+    },
+    {
+      "id": 3,
+      "title": "Concert Visuals",
+      "description": "Audio-reactive visual content and projection for live performance — custom backdrops that breathe with the music in real-time.",
+      "tags": ["Audio Reactive", "Resolume", "Live Performance"],
+      "image": "",
+      "link": ""
+    },
+    {
+      "id": 4,
+      "title": "Art Gallery Installation",
+      "description": "Immersive gallery environment merging sculptural elements with projected light — a multi-dimensional space that shifts as you move through it.",
+      "tags": ["Gallery", "Sculpture", "Installation"],
+      "image": "",
+      "link": ""
+    },
+    {
+      "id": 5,
+      "title": "Product Launch Event",
+      "description": "Brand activation using projection to reveal product features — dramatic moments engineered to stick in memory long after the event ends.",
+      "tags": ["Branding", "Product Launch", "Marketing"],
+      "image": "",
+      "link": ""
+    },
+    {
+      "id": 6,
+      "title": "Festival Stage Design",
+      "description": "Multi-layer projection for a festival main stage — environmental and weather-responsive visuals that turn the stage into a living organism.",
+      "tags": ["Festival", "Stage Design", "Environmental"],
+      "image": "",
+      "link": ""
+    }
+  ],
+  "services": [
+    { "icon": "🏛️", "title": "Architectural Projection", "description": "Custom content designed for building facades and large-scale surfaces. From concept to on-site execution. Includes 3D mapping, content production, and projection setup.", "price": "Starting at $2,500" },
+    { "icon": "🎵", "title": "Concert & Live Visuals", "description": "Audio-reactive VJ sets, custom visual packs, and real-time performance visuals. Built in Resolume or Synesthesia, tailored to your set and aesthetic.", "price": "Starting at $800" },
+    { "icon": "🖼️", "title": "Interactive Installation", "description": "Sensor-driven, audience-responsive installations for galleries, events, and brand activations. TouchDesigner-based, depth cameras, MIDI, and more.", "price": "Starting at $3,500" },
+    { "icon": "🎨", "title": "Fine Art & Commissions", "description": "Original paintings, tufted rugs, mixed media, and 3D printed art. Hand-made, one-of-a-kind pieces built to your vision or my creative direction.", "price": "Starting at $350" },
+    { "icon": "📦", "title": "Brand Activation", "description": "Projection-driven product reveals, immersive launch experiences, and trade show installations that create lasting visual impressions.", "price": "Starting at $1,800" },
+    { "icon": "📸", "title": "Product Photography", "description": "Professional product and art photography with Nikon DSLR. Ideal for Etsy sellers, small businesses, and artists building their portfolio.", "price": "Starting at $150/session" }
+  ],
+  "shop": [
+    { "icon": "🎞️", "title": "VJ Visual Packs", "description": "Looping motion graphics and audio-reactive content sets for live performance. ProRes & HAP formats.", "label": "Browse on Gumroad", "url": "https://gumroad.com" },
+    { "icon": "🖼️", "title": "Digital Art Prints", "description": "High-resolution digital paintings and 3D renders. Print-at-home or send to your local printer.", "label": "Browse on Gumroad", "url": "https://gumroad.com" },
+    { "icon": "🧶", "title": "Tufted Rugs & Merch", "description": "Custom hand-tufted rugs, fine art prints, buttons, and one-of-a-kind physical pieces.", "label": "Browse on Etsy", "url": "https://etsy.com" },
+    { "icon": "👕", "title": "Print-on-Demand", "description": "Art-forward apparel, posters, phone cases, and home goods — fulfilled automatically, no inventory needed.", "label": "Browse on Society6", "url": "https://society6.com" }
+  ],
+  "social": {
+    "instagram": "https://instagram.com",
+    "vimeo": "https://vimeo.com",
+    "linkedin": "https://linkedin.com"
+  }
+}
