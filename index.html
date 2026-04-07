@@ -1081,8 +1081,8 @@ transform: translateY(0);
       Available for events, installations, commissions, and collaborations. Response within 24–48 hours. Rates vary by scope — always happy to talk through a project before committing.
     </p>
     <div class="contact-links">
-      <a href="mailto:mjavella8@gmail.com" class="contact-link">
-        <span class="contact-link-icon">✉️</span> mjavella8@gmail.com
+      <a href="/cdn-cgi/l/email-protection#096463687f6c65656831496e64686065276a6664" class="contact-link">
+        <span class="contact-link-icon">✉️</span> <span class="__cf_email__" data-cfemail="fb96919a8d9e97979ac3bb9c969a9297d5989496">[email&#160;protected]</span>
       </a>
       <!-- Replace # with your real Instagram URL -->
       <a href="https://instagram.com" target="_blank" rel="noopener" class="contact-link">
@@ -1099,10 +1099,31 @@ transform: translateY(0);
     </div>
   </div>
 
-  <!-- COMMISSION FORM — submits via mailto for now; wire to Formspree/Netlify for production -->
+  <!-- COMMISSION FORM — Web3Forms -->
   <div class="commission-form fade-in">
     <h3>Request a Quote</h3>
+
+    <!-- SUCCESS STATE -->
+    <div id="formSuccess" style="display:none; text-align:center; padding: 3rem 1rem;">
+      <div style="font-size:2.5rem; margin-bottom:1rem;">✅</div>
+      <p style="font-family:'Orbitron',monospace; font-size:0.8rem; letter-spacing:0.1em; color:#fff; margin-bottom:0.75rem;">Message Received</p>
+      <p style="font-size:0.78rem; color:var(--muted); line-height:1.7;">Thanks — I'll be in touch within 24–48 hours.</p>
+      <button onclick="document.getElementById('formSuccess').style.display='none'; document.getElementById('commissionForm').style.display='block';" class="btn btn-ghost" style="margin-top:1.5rem; display:inline-block;">Send Another</button>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div id="formError" style="display:none; padding: 1rem; background: rgba(255,0,64,0.08); border: 1px solid rgba(255,0,64,0.3); border-radius:2px; margin-bottom:1rem; font-size:0.78rem; color:#ff6680;">
+      Something went wrong. Please try emailing directly at <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="89e4e3e8ffece5e5e8b1c9eee4e8e0e5a7eae6e4">[email&#160;protected]</a>.
+    </div>
+
     <form id="commissionForm">
+      <!-- Web3Forms access key — replace YOUR_ACCESS_KEY with the key from web3forms.com -->
+      <input type="hidden" name="access_key" value="695f3ad4-bbe4-44df-8142-4fffc2e9b2c7">
+      <input type="hidden" name="subject" value="New Commission Inquiry — LucidSoup">
+      <input type="hidden" name="from_name" value="LucidSoup Website">
+      <!-- Honeypot spam protection -->
+      <input type="checkbox" name="botcheck" style="display:none">
+
       <div class="form-row">
         <div class="form-group">
           <label for="name">Name</label>
@@ -1141,7 +1162,7 @@ transform: translateY(0);
         <label for="message">Project Details</label>
         <textarea id="message" name="message" placeholder="Tell me about your project — dates, location, vision, references..."></textarea>
       </div>
-      <button type="submit" class="form-submit">Send Inquiry</button>
+      <button type="submit" id="formSubmitBtn" class="form-submit">Send Inquiry</button>
     </form>
   </div>
 
@@ -1159,44 +1180,59 @@ transform: translateY(0);
   <span>Built by hand.</span>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+
 // Navbar scroll
-window.addEventListener('scroll', () => {
-  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 60);
+window.addEventListener(‘scroll’, () => {
+document.getElementById(‘navbar’).classList.toggle(‘scrolled’, window.scrollY > 60);
 });
 
 // Scroll fade-in
 const observer = new IntersectionObserver((entries) => {
-  entries.forEach(el => {
-    if (el.isIntersecting) {
-      el.target.classList.add('visible');
-    }
-  });
+entries.forEach(el => {
+if (el.isIntersecting) {
+el.target.classList.add(‘visible’);
+}
+});
 }, { threshold: 0.12 });
 
-document.querySelectorAll('.fade-in').forEach((el, i) => {
-  el.style.transitionDelay = `${(i % 4) * 0.08}s`;
-  observer.observe(el);
+document.querySelectorAll(’.fade-in’).forEach((el, i) => {
+el.style.transitionDelay = `${(i % 4) * 0.08}s`;
+observer.observe(el);
 });
 
-// Commission form — mailto fallback
-// For production: replace with Formspree or Netlify Forms
-document.getElementById('commissionForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const name    = document.getElementById('name').value;
-  const email   = document.getElementById('email').value;
-  const service = document.getElementById('service').value;
-  const budget  = document.getElementById('budget').value;
-  const message = document.getElementById('message').value;
+// Commission form — Web3Forms
+document.getElementById(‘commissionForm’).addEventListener(‘submit’, async function(e) {
+e.preventDefault();
 
-  const subject = encodeURIComponent(`Commission Inquiry — ${service || 'General'}`);
-  const body    = encodeURIComponent(
-    `Name: ${name}\nEmail: ${email}\nService: ${service}\nBudget: ${budget}\n\n${message}`
-  );
+const btn = document.getElementById(‘formSubmitBtn’);
+const errorEl = document.getElementById(‘formError’);
+const successEl = document.getElementById(‘formSuccess’);
 
-  window.location.href = `mailto:mjavella8@gmail.com?subject=${subject}&body=${body}`;
+btn.textContent = ‘Sending…’;
+btn.disabled = true;
+btn.style.opacity = ‘0.7’;
+errorEl.style.display = ‘none’;
+
+const formData = new FormData(this);
+const object = Object.fromEntries(formData);
+const json = JSON.stringify(object);
+
+try {
+const res = await fetch(‘https://api.web3forms.com/submit’, {
+method: ‘POST’,
+headers: { ‘Content-Type’: ‘application/json’, ‘Accept’: ‘application/json’ },
+body: json
 });
-</script>
+const data = await res.json();
 
-</body>
-</html>
+```
+if (data.success) {
+  this.style.display = 'none';
+  successEl.style.display = 'block';
+  this.reset();
+} else {
+  errorEl.style.display = 'block';
+  btn.textContent = 'Send Inquiry';
+  btn.disabl
+```
