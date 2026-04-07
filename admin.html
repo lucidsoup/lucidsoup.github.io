@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LucidSoup Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --cyan: #00ffff; --magenta: #ff00ff; --bg: #070707;
+  --surface: rgba(255,255,255,0.04); --border: rgba(255,255,255,0.09);
+  --text: rgba(255,255,255,0.85); --muted: rgba(255,255,255,0.4);
+  --danger: #ff4060; --success: #00ff80;
+}
+body { font-family: 'Space Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── LOGIN ── */
+#loginScreen {
+min-height: 100vh; display: flex; align-items: center; justify-content: center;
+background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0,255,255,0.04), transparent);
+}
+.login-box {
+background: var(–surface); border: 1px solid var(–border);
+border-radius: 6px; padding: 3rem; width: 100%; max-width: 400px; text-align: center;
+}
+.login-box h1 {
+font-family: ‘Orbitron’, monospace; font-size: 1.2rem; letter-spacing: 0.15em;
+color: var(–cyan); margin-bottom: 0.4rem;
+text-shadow: 0 0 12px rgba(0,255,255,0.4);
+}
+.login-box p { font-size: 0.7rem; color: var(–muted); letter-spacing: 0.1em; margin-bottom: 2rem; }
+
+.login-field { margin-bottom: 1rem; text-align: left; }
+.login-field label { display: block; font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(–muted); margin-bottom: 0.4rem; }
+.login-field input {
+width: 100%; padding: 0.8rem 1rem;
+background: rgba(255,255,255,0.03); border: 1px solid var(–border);
+border-radius: 3px; color: #fff; font-family: ‘Space Mono’, monospace;
+font-size: 0.78rem; outline: none; transition: border-color 0.3s;
+}
+.login-field input:focus { border-color: var(–cyan); }
+
+.btn-login {
+width: 100%; padding: 0.9rem; background: var(–cyan); color: #000;
+font-family: ‘Orbitron’, monospace; font-size: 0.72rem; font-weight: 700;
+letter-spacing: 0.2em; text-transform: uppercase; border: none;
+border-radius: 3px; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem;
+}
+.btn-login:hover { background: #fff; box-shadow: 0 0 25px rgba(0,255,255,0.4); }
+
+.login-error { color: var(–danger); font-size: 0.72rem; margin-top: 1rem; display: none; }
+.login-hint { font-size: 0.62rem; color: var(–muted); margin-top: 1.5rem; line-height: 1.7; }
+.login-hint a { color: var(–cyan); }
+
+/* ── ADMIN LAYOUT ── */
+#adminApp { display: none; min-height: 100vh; }
+
+.admin-header {
+background: rgba(7,7,7,0.95); border-bottom: 1px solid var(–border);
+padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
+position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px);
+}
+.admin-header-brand { font-family: ‘Orbitron’, monospace; font-size: 0.85rem; color: var(–cyan); letter-spacing: 0.15em; }
+.admin-header-brand span { color: var(–muted); font-size: 0.65rem; }
+
+.admin-nav { display: flex; gap: 0.4rem; }
+.tab-btn {
+padding: 0.5rem 1rem; background: transparent; border: 1px solid var(–border);
+border-radius: 3px; color: var(–muted); font-family: ‘Space Mono’, monospace;
+font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+cursor: pointer; transition: all 0.2s;
+}
+.tab-btn:hover, .tab-btn.active { border-color: var(–cyan); color: var(–cyan); background: rgba(0,255,255,0.06); }
+
+.btn-logout {
+padding: 0.45rem 1rem; background: transparent; border: 1px solid rgba(255,64,96,0.3);
+border-radius: 3px; color: var(–danger); font-family: ‘Space Mono’, monospace;
+font-size: 0.65rem; letter-spacing: 0.1em; cursor: pointer; transition: all 0.2s;
+}
+.btn-logout:hover { background: rgba(255,64,96,0.1); }
+
+.admin-content { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem; }
+
+/* ── PANELS ── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+.panel-title {
+font-family: ‘Orbitron’, monospace; font-size: 1rem; letter-spacing: 0.1em;
+color: #fff; margin-bottom: 0.4rem;
+}
+.panel-sub { font-size: 0.72rem; color: var(–muted); margin-bottom: 2rem; }
+
+/* ── PORTFOLIO GRID ── */
+.portfolio-admin-grid {
+display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem;
+}
+
+.portfolio-card {
+background: var(–surface); border: 1px solid var(–border);
+border-radius: 4px; overflow: hidden;
+}
+
+.portfolio-card-thumb {
+height: 160px; background: #111; position: relative;
+display: flex; align-items: center; justify-content: center;
+overflow: hidden;
+}
+.portfolio-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.portfolio-card-thumb .no-img { font-size: 0.65rem; color: var(–muted); letter-spacing: 0.15em; }
+
+.upload-overlay {
+position: absolute; inset: 0; background: rgba(0,0,0,0.7);
+display: flex; flex-direction: column; align-items: center; justify-content: center;
+gap: 0.5rem; opacity: 0; transition: opacity 0.2s; cursor: pointer;
+}
+.portfolio-card-thumb:hover .upload-overlay { opacity: 1; }
+.upload-overlay span { font-size: 0.65rem; color: var(–cyan); letter-spacing: 0.1em; }
+
+.portfolio-card-body { padding: 1.2rem; }
+
+.field-group { margin-bottom: 0.9rem; }
+.field-group label { display: block; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(–muted); margin-bottom: 0.35rem; }
+.field-group input, .field-group textarea {
+width: 100%; padding: 0.6rem 0.8rem;
+background: rgba(255,255,255,0.03); border: 1px solid var(–border);
+border-radius: 2px; color: #fff; font-family: ‘Space Mono’, monospace;
+font-size: 0.74rem; outline: none; transition: border-color 0.2s; resize: vertical;
+}
+.field-group input:focus, .field-group textarea:focus { border-color: var(–cyan); }
+.field-group textarea { min-height: 70px; line-height: 1.6; }
+
+.tag-input-wrap { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.tag-pill {
+padding: 0.2rem 0.6rem; background: rgba(0,255,255,0.08);
+border: 1px solid rgba(0,255,255,0.25); border-radius: 2px;
+font-size: 0.65rem; color: var(–cyan); display: flex; align-items: center; gap: 0.3rem;
+}
+.tag-pill button { background: none; border: none; color: var(–cyan); cursor: pointer; font-size: 0.75rem; line-height: 1; padding: 0; }
+.tag-add-input {
+background: transparent; border: none; outline: none;
+color: var(–text); font-family: ‘Space Mono’, monospace; font-size: 0.72rem;
+min-width: 80px; flex: 1;
+}
+
+/* ── BUTTONS ── */
+.btn { padding: 0.6rem 1.2rem; border-radius: 2px; font-family: ‘Space Mono’, monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; border: none; }
+.btn-primary { background: var(–cyan); color: #000; font-weight: 700; }
+.btn-primary:hover { background: #fff; box-shadow: 0 0 20px rgba(0,255,255,0.3); }
+.btn-danger { background: transparent; border: 1px solid rgba(255,64,96,0.3); color: var(–danger); }
+.btn-danger:hover { background: rgba(255,64,96,0.1); }
+.btn-ghost { background: transparent; border: 1px solid var(–border); color: var(–text); }
+.btn-ghost:hover { border-color: var(–cyan); color: var(–cyan); }
+
+.card-actions { display: flex; gap: 0.6rem; padding: 0 1.2rem 1.2rem; }
+
+/* ── ADD NEW CARD ── */
+.add-card {
+background: transparent; border: 2px dashed rgba(255,255,255,0.1);
+border-radius: 4px; display: flex; flex-direction: column;
+align-items: center; justify-content: center; gap: 0.75rem;
+min-height: 200px; cursor: pointer; transition: all 0.2s; color: var(–muted);
+}
+.add-card:hover { border-color: var(–cyan); color: var(–cyan); }
+.add-card span { font-size: 2rem; }
+.add-card p { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; }
+
+/* ── SIMPLE LIST EDITOR (services, shop, social) ── */
+.list-card {
+background: var(–surface); border: 1px solid var(–border);
+border-radius: 4px; padding: 1.5rem; margin-bottom: 1rem;
+display: grid; grid-template-columns: auto 1fr; gap: 0 1.5rem; align-items: start;
+}
+.list-card-icon { font-size: 1.8rem; padding-top: 0.2rem; }
+.list-card-fields { display: grid; gap: 0.8rem; }
+.list-card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.list-card-actions { grid-column: 1/-1; display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+
+/* ── SOCIAL PANEL ── */
+.social-grid { display: grid; gap: 1rem; max-width: 500px; }
+.social-row { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 1rem; }
+.social-label { font-size: 0.68rem; color: var(–muted); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── SAVE BAR ── */
+.save-bar {
+position: fixed; bottom: 0; left: 0; right: 0;
+background: rgba(7,7,7,0.97); border-top: 1px solid var(–border);
+padding: 1rem 2rem; display: flex; justify-content: space-between;
+align-items: center; backdrop-filter: blur(10px); z-index: 200;
+transform: translateY(100%); transition: transform 0.3s;
+}
+.save-bar.visible { transform: translateY(0); }
+.save-bar-msg { font-size: 0.72rem; color: var(–muted); }
+.save-bar-msg.unsaved { color: #ffcc33; }
+.save-bar-msg.saved { color: var(–success); }
+.save-bar-msg.saving { color: var(–cyan); }
+.save-bar-msg.error { color: var(–danger); }
+
+.save-bar-actions { display: flex; gap: 0.8rem; }
+
+/* ── IMAGE UPLOAD PROGRESS ── */
+.upload-progress {
+position: fixed; bottom: 5rem; right: 2rem;
+background: rgba(7,7,7,0.95); border: 1px solid var(–cyan);
+border-radius: 4px; padding: 1rem 1.5rem; font-size: 0.72rem;
+color: var(–cyan); display: none; z-index: 300;
+min-width: 220px;
+}
+.upload-progress.visible { display: block; }
+
+/* ── HIDDEN FILE INPUT ── */
+input[type=“file”] { display: none; }
+
+/* ── TOKEN MGMT ── */
+.token-info {
+font-size: 0.68rem; color: var(–muted);
+padding: 0.8rem 1rem; background: rgba(0,255,255,0.04);
+border: 1px solid rgba(0,255,255,0.1); border-radius: 3px;
+margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;
+}
+.token-info span { color: var(–cyan); }
+</style>
+
+</head>
+<body>
+
+<!-- ════════════════════════════ LOGIN ════════════════════════════ -->
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>LucidSoup</h1>
+    <p>Admin Dashboard</p>
+
+```
+<div class="login-field">
+  <label>Site Password</label>
+  <input type="password" id="sitePassword" placeholder="Enter your admin password">
+</div>
+<div class="login-field">
+  <label>GitHub Token</label>
+  <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+</div>
+
+<button class="btn-login" onclick="login()">Access Dashboard</button>
+<p class="login-error" id="loginError">Incorrect password. Try again.</p>
+
+<p class="login-hint">
+  Need a token?
+  <a href="https://github.com/settings/tokens/new?scopes=repo&description=LucidSoup+Admin" target="_blank">Create one here</a>
+  — select <strong>repo</strong> scope only.<br><br>
+  Your token is stored locally in your browser and never sent anywhere except GitHub's API.
+</p>
+```
+
+  </div>
+</div>
+
+<!-- ════════════════════════════ APP ════════════════════════════ -->
+
+<div id="adminApp">
+
+  <header class="admin-header">
+    <div class="admin-header-brand">LucidSoup <span>/ Admin</span></div>
+    <nav class="admin-nav">
+      <button class="tab-btn active" onclick="switchTab('portfolio')">Portfolio</button>
+      <button class="tab-btn" onclick="switchTab('services')">Services</button>
+      <button class="tab-btn" onclick="switchTab('shop')">Shop</button>
+      <button class="tab-btn" onclick="switchTab('social')">Social</button>
+    </nav>
+    <button class="btn-logout" onclick="logout()">Log Out</button>
+  </header>
+
+  <div class="admin-content">
+    <div class="token-info">
+      <span>Connected to lucidsoup/lucidsoup.github.io</span>
+      <span id="tokenDisplay"></span>
+    </div>
+
+```
+<!-- PORTFOLIO -->
+<div id="panel-portfolio" class="panel active">
+  <h2 class="panel-title">Portfolio</h2>
+  <p class="panel-sub">Upload images and edit project details. Hover a thumbnail to replace the image.</p>
+  <div class="portfolio-admin-grid" id="portfolioGrid"></div>
+</div>
+
+<!-- SERVICES -->
+<div id="panel-services" class="panel">
+  <h2 class="panel-title">Services</h2>
+  <p class="panel-sub">Update service descriptions and pricing.</p>
+  <div id="servicesList"></div>
+  <button class="btn btn-ghost" onclick="addService()" style="margin-top:0.5rem">+ Add Service</button>
+</div>
+
+<!-- SHOP -->
+<div id="panel-shop" class="panel">
+  <h2 class="panel-title">Shop</h2>
+  <p class="panel-sub">Update your shop links and descriptions.</p>
+  <div id="shopList"></div>
+  <button class="btn btn-ghost" onclick="addShopItem()" style="margin-top:0.5rem">+ Add Shop Item</button>
+</div>
+
+<!-- SOCIAL -->
+<div id="panel-social" class="panel">
+  <h2 class="panel-title">Social Links</h2>
+  <p class="panel-sub">Update your social media and contact URLs.</p>
+  <div class="social-grid" id="socialGrid"></div>
+</div>
+```
+
+  </div>
+
+  <!-- SAVE BAR -->
+
+  <div class="save-bar" id="saveBar">
+    <span class="save-bar-msg" id="saveMsg">Unsaved changes</span>
+    <div class="save-bar-actions">
+      <button class="btn btn-ghost" onclick="discardChanges()">Discard</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveAll()">Save & Publish</button>
+    </div>
+  </div>
+
+  <!-- UPLOAD PROGRESS -->
+
+  <div class="upload-progress" id="uploadProgress">Uploading image...</div>
+
+</div>
+
+<!-- Hidden file inputs -->
+
+<input type="file" id="fileInput" accept="image/*">
+
+<script>
+// ══════════════════════════════════════════════
+// CONFIG — change ADMIN_PASSWORD to your own
+// ══════════════════════════════════════════════
+const ADMIN_PASSWORD = 'lucidsoup2026'; // ← CHANGE THIS
+const REPO_OWNER     = 'lucidsoup';
+const REPO_NAME      = 'lucidsoup.github.io';
+const CONTENT_FILE   = 'content.json';
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let TOKEN = '';
+let contentData = null;
+let originalData = '';
+let hasChanges = false;
+let pendingImageUpload = null; // { portfolioId, file }
+
+// ══════════════════════════════════════════════
+// LOGIN / LOGOUT
+// ══════════════════════════════════════════════
+function login() {
+  const pass  = document.getElementById('sitePassword').value;
+  const token = document.getElementById('githubToken').value.trim();
+
+  if (pass !== ADMIN_PASSWORD) {
+    const err = document.getElementById('loginError');
+    err.textContent = 'Incorrect password.';
+    err.style.display = 'block';
+    return;
+  }
+  if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+    const err = document.getElementById('loginError');
+    err.textContent = 'Invalid GitHub token format.';
+    err.style.display = 'block';
+    return;
+  }
+
+  TOKEN = token;
+  localStorage.setItem('ls_admin_token', token);
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('adminApp').style.display = 'block';
+  document.getElementById('tokenDisplay').textContent = token.slice(0,8) + '••••••••';
+  loadContent();
+}
+
+function logout() {
+  localStorage.removeItem('ls_admin_token');
+  TOKEN = '';
+  contentData = null;
+  document.getElementById('adminApp').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('sitePassword').value = '';
+  document.getElementById('githubToken').value = '';
+}
+
+// Auto-login if token saved
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('ls_admin_token');
+  if (saved) document.getElementById('githubToken').value = saved;
+  document.getElementById('sitePassword').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  document.getElementById('githubToken').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+});
+
+// ══════════════════════════════════════════════
+// GITHUB API
+// ══════════════════════════════════════════════
+async function ghFetch(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: {
+      'Authorization': `token ${TOKEN}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`, opts);
+  if (!res.ok) throw new Error(`GitHub API error: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+async function getFileSHA(path) {
+  try {
+    const data = await ghFetch(path);
+    return data.sha;
+  } catch { return null; }
+}
+
+async function commitFile(path, content, message, sha = null) {
+  const body = {
+    message,
+    content: btoa(unescape(encodeURIComponent(content))),
+    branch: 'main'
+  };
+  if (sha) body.sha = sha;
+  return ghFetch(path, 'PUT', body);
+}
+
+async function commitBinaryFile(path, base64Data, message, sha = null) {
+  const body = { message, content: base64Data, branch: 'main' };
+  if (sha) body.sha = sha;
+  return ghFetch(path, 'PUT', body);
+}
+
+// ══════════════════════════════════════════════
+// LOAD CONTENT
+// ══════════════════════════════════════════════
+async function loadContent() {
+  try {
+    const res = await ghFetch(CONTENT_FILE);
+    const decoded = decodeURIComponent(escape(atob(res.content.replace(/\n/g, ''))));
+    contentData = JSON.parse(decoded);
+    originalData = JSON.stringify(contentData);
+    renderAll();
+  } catch (e) {
+    alert('Could not load content.json from your repo. Make sure the file exists.\n\n' + e.message);
+  }
+}
+
+function renderAll() {
+  renderPortfolio();
+  renderServices();
+  renderShop();
+  renderSocial();
+}
+
+// ══════════════════════════════════════════════
+// PORTFOLIO
+// ══════════════════════════════════════════════
+function renderPortfolio() {
+  const grid = document.getElementById('portfolioGrid');
+  grid.innerHTML = '';
+
+  contentData.portfolio.forEach((item, idx) => {
+    const card = document.createElement('div');
+    card.className = 'portfolio-card';
+    card.innerHTML = `
+      <div class="portfolio-card-thumb" onclick="triggerImageUpload(${item.id})">
+        ${item.image
+          ? `<img src="${item.image}" alt="${item.title}">`
+          : `<span class="no-img">NO IMAGE</span>`}
+        <div class="upload-overlay">
+          <span>📁</span>
+          <span>Click to upload image</span>
+        </div>
+      </div>
+      <div class="portfolio-card-body">
+        <div class="field-group">
+          <label>Title</label>
+          <input type="text" value="${esc(item.title)}" oninput="updatePortfolio(${item.id}, 'title', this.value)">
+        </div>
+        <div class="field-group">
+          <label>Description</label>
+          <textarea oninput="updatePortfolio(${item.id}, 'description', this.value)">${esc(item.description)}</textarea>
+
+```
+    </div>
+    <div class="field-group">
+      <label>Tags (press Enter to add)</label>
+      <div class="tag-input-wrap" id="tags-${item.id}">
+        ${item.tags.map(t => `
+          <span class="tag-pill">${t}
+            <button onclick="removeTag(${item.id}, '${t}')">×</button>
+          </span>`).join('')}
+        <input class="tag-add-input" placeholder="Add tag..." onkeydown="addTag(event, ${item.id})">
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Project Link (optional)</label>
+      <input type="url" value="${esc(item.link || '')}" placeholder="https://..." oninput="updatePortfolio(${item.id}, 'link', this.value)">
+    </div>
+  </div>
+  <div class="card-actions">
+    <button class="btn btn-danger" onclick="deletePortfolioItem(${item.id})">Delete</button>
+  </div>
+`;
+grid.appendChild(card);
+```
+
+});
+
+// Add new card button
+const addCard = document.createElement(‘div’);
+addCard.className = ‘add-card’;
+addCard.innerHTML = `<span>+</span><p>Add Project</p>`;
+addCard.onclick = addPortfolioItem;
+grid.appendChild(addCard);
+}
+
+function updatePortfolio(id, field, value) {
+const item = contentData.portfolio.find(p => p.id === id);
+if (item) { item[field] = value; markChanged(); }
+}
+
+function addTag(e, id) {
+if (e.key !== ‘Enter’) return;
+const val = e.target.value.trim();
+if (!val) return;
+const item = contentData.portfolio.find(p => p.id === id);
+if (item && !item.tags.includes(val)) {
+item.tags.push(val);
+markChanged();
+renderPortfolio();
+}
+e.target.value = ‘’;
+}
+
+function removeTag(id, tag) {
+const item = contentData.portfolio.find(p => p.id === id);
+if (item) { item.tags = item.tags.filter(t => t !== tag); markChanged(); renderPortfolio(); }
+}
+
+function addPortfolioItem() {
+const newId = Math.max(…contentData.portfolio.map(p => p.id), 0) + 1;
+contentData.portfolio.push({ id: newId, title: ‘New Project’, description: ‘’, tags: [], image: ‘’, link: ‘’ });
+markChanged(); renderPortfolio();
+}
+
+function deletePortfolioItem(id) {
+if (!confirm(‘Delete this project?’)) return;
+contentData.portfolio = contentData.portfolio.filter(p => p.id !== id);
+markChanged(); renderPortfolio();
+}
+
+// Image upload
+function triggerImageUpload(portfolioId) {
+pendingImageUpload = portfolioId;
+document.getElementById(‘fileInput’).click();
+}
+
+document.getElementById(‘fileInput’).addEventListener(‘change’, async function() {
+const file = this.files[0];
+if (!file || pendingImageUpload === null) return;
+
+const progress = document.getElementById(‘uploadProgress’);
+progress.textContent = `Uploading ${file.name}...`;
+progress.classList.add(‘visible’);
+
+try {
+const base64 = await fileToBase64(file);
+const imagePath = `images/${Date.now()}-${file.name.replace(/\s/g, '-')}`;
+const sha = await getFileSHA(imagePath);
+await commitBinaryFile(imagePath, base64, `Upload image: ${file.name}`, sha);
+
+```
+const imageUrl = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${imagePath}`;
+const item = contentData.portfolio.find(p => p.id === pendingImageUpload);
+if (item) { item.image = imageUrl; markChanged(); renderPortfolio(); }
+
+progress.textContent = '✓ Image uploaded!';
+setTimeout(() => progress.classList.remove('visible'), 2500);
+```
+
+} catch (e) {
+progress.textContent = ’✗ Upload failed: ’ + e.message;
+setTimeout(() => progress.classList.remove(‘visible’), 4000);
+}
+
+this.value = ‘’;
+pendingImageUpload = null;
+});
+
+function fileToBase64(file) {
+return new Promise((resolve, reject) => {
+const reader = new FileReader();
+reader.onload = () => resolve(reader.result.split(’,’)[1]);
+reader.onerror = reject;
+reader.readAsDataURL(file);
+});
+}
+
+// ══════════════════════════════════════════════
+// SERVICES
+// ══════════════════════════════════════════════
+function renderServices() {
+const list = document.getElementById(‘servicesList’);
+list.innerHTML = ‘’;
+contentData.services.forEach((s, idx) => {
+const div = document.createElement(‘div’);
+div.className = ‘list-card’;
+div.innerHTML = `<div class="list-card-icon">${s.icon}</div> <div class="list-card-fields"> <div class="list-card-row"> <div class="field-group"> <label>Icon (emoji)</label> <input type="text" value="${esc(s.icon)}" oninput="updateService(${idx}, 'icon', this.value); this.closest('.list-card').querySelector('.list-card-icon').textContent=this.value"> </div> <div class="field-group"> <label>Title</label> <input type="text" value="${esc(s.title)}" oninput="updateService(${idx}, 'title', this.value)"> </div> </div> <div class="field-group"> <label>Description</label> <textarea oninput="updateService(${idx}, 'description', this.value)">${esc(s.description)}</textarea> </div> <div class="field-group"> <label>Starting Price</label> <input type="text" value="${esc(s.price)}" placeholder="Starting at $..." oninput="updateService(${idx}, 'price', this.value)"> </div> <div class="list-card-actions"> <button class="btn btn-danger" onclick="deleteService(${idx})">Delete</button> </div> </div>`;
+list.appendChild(div);
+});
+}
+
+function updateService(idx, field, value) { contentData.services[idx][field] = value; markChanged(); }
+function deleteService(idx) {
+if (!confirm(‘Delete this service?’)) return;
+contentData.services.splice(idx, 1); markChanged(); renderServices();
+}
+function addService() {
+contentData.services.push({ icon: ‘✨’, title: ‘New Service’, description: ‘’, price: ‘Contact for pricing’ });
+markChanged(); renderServices();
+}
+
+// ══════════════════════════════════════════════
+// SHOP
+// ══════════════════════════════════════════════
+function renderShop() {
+const list = document.getElementById(‘shopList’);
+list.innerHTML = ‘’;
+contentData.shop.forEach((s, idx) => {
+const div = document.createElement(‘div’);
+div.className = ‘list-card’;
+div.innerHTML = `<div class="list-card-icon">${s.icon}</div> <div class="list-card-fields"> <div class="list-card-row"> <div class="field-group"> <label>Icon (emoji)</label> <input type="text" value="${esc(s.icon)}" oninput="updateShop(${idx}, 'icon', this.value); this.closest('.list-card').querySelector('.list-card-icon').textContent=this.value"> </div> <div class="field-group"> <label>Title</label> <input type="text" value="${esc(s.title)}" oninput="updateShop(${idx}, 'title', this.value)"> </div> </div> <div class="field-group"> <label>Description</label> <textarea oninput="updateShop(${idx}, 'description', this.value)">${esc(s.description)}</textarea> </div> <div class="list-card-row"> <div class="field-group"> <label>Button Label</label> <input type="text" value="${esc(s.label)}" oninput="updateShop(${idx}, 'label', this.value)"> </div> <div class="field-group"> <label>URL</label> <input type="url" value="${esc(s.url)}" oninput="updateShop(${idx}, 'url', this.value)"> </div> </div> <div class="list-card-actions"> <button class="btn btn-danger" onclick="deleteShopItem(${idx})">Delete</button> </div> </div>`;
+list.appendChild(div);
+});
+}
+
+function updateShop(idx, field, value) { contentData.shop[idx][field] = value; markChanged(); }
+function deleteShopItem(idx) {
+if (!confirm(‘Delete this item?’)) return;
+contentData.shop.splice(idx, 1); markChanged(); renderShop();
+}
+function addShopItem() {
+contentData.shop.push({ icon: ‘🛍️’, title: ‘New Item’, description: ‘’, label: ‘Shop Now’, url: ‘https://’ });
+markChanged(); renderShop();
+}
+
+// ══════════════════════════════════════════════
+// SOCIAL
+// ══════════════════════════════════════════════
+function renderSocial() {
+const grid = document.getElementById(‘socialGrid’);
+grid.innerHTML = ‘’;
+const icons = { instagram: ‘📸’, vimeo: ‘🎬’, linkedin: ‘💼’ };
+Object.entries(contentData.social).forEach(([key, val]) => {
+const row = document.createElement(‘div’);
+row.className = ‘social-row’;
+row.innerHTML = `<div class="social-label">${icons[key] || '🔗'} ${key}</div> <div class="field-group" style="margin:0"> <input type="url" value="${esc(val)}" placeholder="https://..." oninput="updateSocial('${key}', this.value)"> </div>`;
+grid.appendChild(row);
+});
+}
+
+function updateSocial(key, value) { contentData.social[key] = value; markChanged(); }
+
+// ══════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════
+function switchTab(name) {
+document.querySelectorAll(’.panel’).forEach(p => p.classList.remove(‘active’));
+document.querySelectorAll(’.tab-btn’).forEach(b => b.classList.remove(‘active’));
+document.getElementById(`panel-${name}`).classList.add(‘active’);
+event.target.classList.add(‘active’);
+}
+
+// ══════════════════════════════════════════════
+// SAVE
+// ══════════════════════════════════════════════
+function markChanged() {
+hasChanges = true;
+document.getElementById(‘saveBar’).classList.add(‘visible’);
+document.getElementById(‘saveMsg’).textContent = ‘Unsaved changes’;
+document.getElementById(‘saveMsg’).className = ‘save-bar-msg unsaved’;
+}
+
+async function saveAll() {
+const btn = document.getElementById(‘saveBtn’);
+const msg = document.getElementById(‘saveMsg’);
+btn.textContent = ‘Saving…’;
+btn.disabled = true;
+msg.textContent = ‘Publishing to GitHub…’;
+msg.className = ‘save-bar-msg saving’;
+
+try {
+const jsonStr = JSON.stringify(contentData, null, 2);
+const sha = await getFileSHA(CONTENT_FILE);
+await commitFile(CONTENT_FILE, jsonStr, ‘Update site content via admin’, sha);
+originalData = jsonStr;
+hasChanges = false;
+msg.textContent = ‘✓ Published! Site will update in ~30 seconds.’;
+msg.className = ‘save-bar-msg saved’;
+btn.textContent = ‘Save & Publish’;
+btn.disabled = false;
+setTimeout(() => {
+if (!hasChanges) document.getElementById(‘saveBar’).classList.remove(‘visible’);
+}, 4000);
+} catch (e) {
+msg.textContent = ’✗ Save failed: ’ + e.message;
+msg.className = ‘save-bar-msg error’;
+btn.textContent = ‘Save & Publish’;
+btn.disabled = false;
+}
+}
+
+function discardChanges() {
+if (!confirm(‘Discard all unsaved changes?’)) return;
+contentData = JSON.parse(originalData);
+hasChanges = false;
+renderAll();
+document.getElementById(‘saveBar’).classList.remove(‘visible’);
+}
+
+// ══════════════════════════════════════════════
+// UTIL
+// ══════════════════════════════════════════════
+function esc(str) {
+return String(str || ‘’).replace(/&/g,’&’).replace(/”/g,’"’).replace(/</g,’<’).replace(/>/g,’>’);
+}
+
+window.addEventListener(‘beforeunload’, e => {
+if (hasChanges) { e.preventDefault(); e.returnValue = ‘’; }
+});
+</script>
+
+</body>
+</html>
