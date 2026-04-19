@@ -2,1116 +2,316 @@
 
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LucidSoup — Visual Artist & Projection Mapping</title>
-<meta name="description" content="LucidSoup — Visual artist specializing in projection mapping, interactive installations, concert visuals, and immersive experiences.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-:root {
-–cyan: #00ffff;
-–magenta: #ff00ff;
-–green: #00ff40;
-–red: #ff0040;
-–bg: #070707;
-–surface: rgba(255,255,255,0.04);
-–border: rgba(255,255,255,0.08);
-–text: rgba(255,255,255,0.85);
-–muted: rgba(255,255,255,0.45);
-}
-
-html { scroll-behavior: smooth; color-scheme: dark; }
-
-body {
-font-family: ‘Space Mono’, monospace;
-line-height: 1.6;
-color: var(–text);
-background: var(–bg);
-overflow-x: hidden;
-}
-
-/* ── SCROLLBAR ── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(–bg); }
-::-webkit-scrollbar-thumb { background: var(–cyan); }
-
-/* ── NAV ── */
-nav {
-position: fixed; top: 0; width: 100%;
-padding: 1.2rem 3rem;
-background: rgba(7,7,7,0.92);
-backdrop-filter: blur(12px);
-z-index: 1000;
-display: flex;
-justify-content: space-between;
-align-items: center;
-border-bottom: 1px solid var(–border);
-transition: border-color 0.3s;
-}
-
-nav.scrolled { border-bottom-color: rgba(0,255,255,0.2); }
-
-.nav-brand {
-font-family: ‘Orbitron’, monospace;
-font-weight: 900;
-font-size: 1rem;
-letter-spacing: 0.15em;
-color: var(–cyan);
-text-shadow: 0 0 8px rgba(0,255,255,0.5);
-}
-
-nav ul { display: flex; list-style: none; gap: 2.5rem; align-items: center; }
-
-nav a {
-color: var(–muted);
-text-decoration: none;
-font-size: 0.75rem;
-letter-spacing: 0.12em;
-text-transform: uppercase;
-transition: color 0.3s;
-position: relative;
-}
-
-nav a:hover { color: #fff; }
-
-nav a::after {
-content: ‘’;
-position: absolute;
-width: 0; height: 1px;
-bottom: -4px; left: 0;
-background: var(–cyan);
-transition: width 0.3s;
-}
-nav a:hover::after { width: 100%; }
-
-.nav-cta {
-padding: 0.5rem 1.2rem;
-border: 1px solid var(–cyan);
-border-radius: 2px;
-color: var(–cyan) !important;
-font-size: 0.7rem !important;
-letter-spacing: 0.15em !important;
-transition: all 0.3s !important;
-}
-.nav-cta:hover {
-background: var(–cyan) !important;
-color: #000 !important;
-}
-.nav-cta::after { display: none !important; }
-
-/* ── HERO ── */
-.hero {
-height: 100vh;
-display: flex; flex-direction: column;
-align-items: center; justify-content: center;
-text-align: center;
-background: #000;
-position: relative; overflow: hidden;
-}
-
-.hero-bg {
-position: absolute; inset: 0;
-background:
-radial-gradient(ellipse 60% 40% at 50% 50%, rgba(0,255,255,0.04) 0%, transparent 70%),
-radial-gradient(ellipse 40% 60% at 20% 80%, rgba(255,0,255,0.03) 0%, transparent 70%);
-}
-
-.scanlines {
-position: absolute; inset: 0;
-background: repeating-linear-gradient(
-0deg,
-transparent,
-transparent 2px,
-rgba(0,255,255,0.015) 2px,
-rgba(0,255,255,0.015) 4px
-);
-pointer-events: none;
-animation: scan 8s linear infinite;
-}
-@keyframes scan {
-0% { background-position: 0 0; }
-100% { background-position: 0 100px; }
-}
-
-.noise {
-position: absolute; inset: 0; opacity: 0.025;
-background-image: url(“data:image/svg+xml,%3Csvg viewBox=‘0 0 256 256’ xmlns=‘http://www.w3.org/2000/svg’%3E%3Cfilter id=‘noise’%3E%3CfeTurbulence type=‘fractalNoise’ baseFrequency=‘0.9’ numOctaves=‘4’ stitchTiles=‘stitch’/%3E%3C/filter%3E%3Crect width=‘100%25’ height=‘100%25’ filter=‘url(%23noise)’/%3E%3C/svg%3E”);
-background-size: 150px 150px;
-pointer-events: none;
-}
-
-.hero-content {
-z-index: 2; position: relative;
-display: flex; flex-direction: column;
-align-items: center; gap: 2rem;
-}
-
-/* LOGO */
-.logo-container {
-font-family: ‘Orbitron’, monospace;
-font-weight: 900;
-font-size: clamp(2.5rem, 8vw, 5.5rem);
-letter-spacing: 0.05em;
-text-transform: uppercase;
-position: relative;
-}
-
-.logo-text {
-color: #fff;
-text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 40px rgba(0,255,255,0.4);
-animation: logowave 3s ease-in-out infinite, logoglitch 6s steps(1) infinite;
-display: block;
-}
-
-.logo-text::before,
-.logo-text::after {
-content: attr(data-text);
-position: absolute; top: 0; left: 0;
-width: 100%; height: 100%;
-}
-
-.logo-text::before {
-color: var(–red);
-animation: glitch-r 6s steps(1) infinite;
-clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
-}
-
-.logo-text::after {
-color: var(–green);
-animation: glitch-g 6s steps(1) infinite;
-clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
-}
-
-@keyframes logowave {
-0%, 100% { transform: skew(0deg) scale(1); }
-33% { transform: skew(0.5deg, 0.3deg) scale(1.01); }
-66% { transform: skew(-0.3deg, 0deg) scale(0.99); }
-}
-
-@keyframes logoglitch {
-0%, 88%, 100% { filter: none; }
-90% { filter: hue-rotate(90deg) brightness(1.3); }
-92% { filter: none; }
-94% { filter: hue-rotate(200deg) brightness(0.8); }
-96% { filter: none; }
-}
-
-@keyframes glitch-r {
-0%, 88%, 100% { transform: translate(0); opacity: 0; }
-90% { transform: translate(-3px, 2px); opacity: 0.8; }
-92% { transform: translate(3px, -2px); opacity: 0.6; }
-94% { transform: translate(0); opacity: 0; }
-}
-
-@keyframes glitch-g {
-0%, 88%, 100% { transform: translate(0); opacity: 0; }
-91% { transform: translate(3px, -2px); opacity: 0.7; }
-93% { transform: translate(-2px, 1px); opacity: 0.5; }
-95% { transform: translate(0); opacity: 0; }
-}
-
-.hero-tagline {
-font-size: 0.75rem;
-letter-spacing: 0.35em;
-color: var(–muted);
-text-transform: uppercase;
-z-index: 3;
-}
-
-.hero-tagline span {
-color: var(–cyan);
-animation: blink 2s step-end infinite;
-}
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-
-.hero-ctas {
-display: flex; gap: 1.2rem; margin-top: 1rem; z-index: 3;
-}
-
-.btn {
-padding: 0.85rem 2.2rem;
-font-family: ‘Space Mono’, monospace;
-font-size: 0.72rem;
-letter-spacing: 0.15em;
-text-transform: uppercase;
-text-decoration: none;
-border-radius: 2px;
-transition: all 0.3s;
-cursor: pointer;
-border: none;
-}
-
-.btn-primary {
-background: var(–cyan);
-color: #000;
-font-weight: 700;
-}
-.btn-primary:hover {
-background: #fff;
-box-shadow: 0 0 30px rgba(0,255,255,0.5);
-transform: translateY(-2px);
-}
-
-.btn-ghost {
-background: transparent;
-color: var(–text);
-border: 1px solid var(–border);
-}
-.btn-ghost:hover {
-border-color: var(–cyan);
-color: var(–cyan);
-transform: translateY(-2px);
-}
-
-.scroll-hint {
-position: absolute; bottom: 2rem;
-display: flex; flex-direction: column;
-align-items: center; gap: 0.5rem;
-opacity: 0.4; z-index: 3;
-animation: floatdown 2s ease-in-out infinite;
-}
-@keyframes floatdown {
-0%, 100% { transform: translateY(0); }
-50% { transform: translateY(6px); }
-}
-.scroll-hint span { font-size: 0.6rem; letter-spacing: 0.2em; }
-.scroll-arrow { width: 1px; height: 40px; background: linear-gradient(var(–cyan), transparent); }
-
-/* ── SECTIONS ── */
-section { padding: 6rem 2rem; }
-.section-inner { max-width: 1200px; margin: 0 auto; }
-
-.section-label {
-font-size: 0.65rem;
-letter-spacing: 0.4em;
-color: var(–cyan);
-text-transform: uppercase;
-margin-bottom: 0.75rem;
-opacity: 0.7;
-}
-
-h2 {
-font-family: ‘Orbitron’, monospace;
-font-size: clamp(1.6rem, 4vw, 2.4rem);
-font-weight: 700;
-margin-bottom: 3.5rem;
-letter-spacing: 0.05em;
-}
-
-/* ── PORTFOLIO ── */
-#portfolio { background: var(–bg); }
-
-.portfolio-grid {
-display: grid;
-grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-gap: 1.5rem;
-}
-
-.portfolio-item {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 4px;
-overflow: hidden;
-transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
-cursor: pointer;
-}
-
-.portfolio-item:hover {
-transform: translateY(-6px);
-border-color: rgba(0,255,255,0.3);
-box-shadow: 0 20px 50px rgba(0,255,255,0.08);
-}
-
-.portfolio-thumb {
-width: 100%;
-height: 220px;
-background: linear-gradient(135deg, #111 0%, #1a1a1a 100%);
-display: flex; align-items: center; justify-content: center;
-position: relative; overflow: hidden;
-}
-
-/* When you add real images, use: <img src="your-image.jpg" alt="Project name"> */
-.portfolio-thumb img {
-width: 100%; height: 100%;
-object-fit: cover;
-display: block;
-transition: transform 0.5s;
-}
-.portfolio-item:hover .portfolio-thumb img { transform: scale(1.05); }
-
-.portfolio-thumb-placeholder {
-display: flex; flex-direction: column;
-align-items: center; gap: 0.75rem;
-opacity: 0.2;
-}
-.portfolio-thumb-placeholder svg { width: 40px; height: 40px; }
-.portfolio-thumb-placeholder span { font-size: 0.65rem; letter-spacing: 0.2em; }
-
-.portfolio-thumb-overlay {
-position: absolute; inset: 0;
-background: linear-gradient(135deg, rgba(0,255,255,0.05), rgba(255,0,255,0.05));
-opacity: 0;
-transition: opacity 0.3s;
-display: flex; align-items: center; justify-content: center;
-}
-.portfolio-item:hover .portfolio-thumb-overlay { opacity: 1; }
-
-.play-btn {
-width: 52px; height: 52px;
-border-radius: 50%;
-background: rgba(0,255,255,0.15);
-border: 1px solid var(–cyan);
-display: flex; align-items: center; justify-content: center;
-color: var(–cyan);
-font-size: 1.2rem;
-}
-
-.portfolio-content { padding: 1.4rem; }
-
-.portfolio-content h3 {
-font-family: ‘Orbitron’, monospace;
-font-size: 0.85rem;
-font-weight: 700;
-letter-spacing: 0.08em;
-margin-bottom: 0.5rem;
-color: #fff;
-}
-
-.portfolio-content p {
-font-size: 0.78rem;
-color: var(–muted);
-line-height: 1.7;
-margin-bottom: 1rem;
-}
-
-.tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-
-.tag {
-padding: 0.25rem 0.65rem;
-background: rgba(0,255,255,0.07);
-border: 1px solid rgba(0,255,255,0.2);
-border-radius: 2px;
-font-size: 0.65rem;
-color: var(–cyan);
-letter-spacing: 0.08em;
-text-transform: uppercase;
-}
-
-/* ── SERVICES ── */
-#services {
-background: linear-gradient(180deg, #050505 0%, #080808 100%);
-border-top: 1px solid var(–border);
-border-bottom: 1px solid var(–border);
-}
-
-.services-grid {
-display: grid;
-grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-gap: 1.5rem;
-}
-
-.service-card {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 4px;
-padding: 2rem;
-transition: border-color 0.3s, transform 0.3s;
-position: relative; overflow: hidden;
-}
-
-.service-card::before {
-content: ‘’;
-position: absolute; top: 0; left: 0;
-width: 100%; height: 2px;
-background: linear-gradient(90deg, transparent, var(–cyan), transparent);
-opacity: 0;
-transition: opacity 0.3s;
-}
-
-.service-card:hover { border-color: rgba(0,255,255,0.25); transform: translateY(-4px); }
-.service-card:hover::before { opacity: 1; }
-
-.service-icon {
-font-size: 1.5rem;
-margin-bottom: 1rem;
-display: block;
-}
-
-.service-card h3 {
-font-family: ‘Orbitron’, monospace;
-font-size: 0.8rem;
-font-weight: 700;
-letter-spacing: 0.1em;
-color: #fff;
-margin-bottom: 0.6rem;
-}
-
-.service-card p {
-font-size: 0.78rem;
-color: var(–muted);
-line-height: 1.7;
-margin-bottom: 1.2rem;
-}
-
-.service-price {
-font-family: ‘Orbitron’, monospace;
-font-size: 0.7rem;
-color: var(–cyan);
-letter-spacing: 0.15em;
-border-top: 1px solid var(–border);
-padding-top: 1rem;
-}
-
-/* ── SHOP ── */
-#shop { background: var(–bg); }
-
-.shop-intro {
-max-width: 600px;
-margin-bottom: 3rem;
-font-size: 0.85rem;
-color: var(–muted);
-line-height: 1.8;
-}
-
-.shop-grid {
-display: grid;
-grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-gap: 1.5rem;
-margin-bottom: 2.5rem;
-}
-
-.shop-card {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 4px;
-padding: 2rem;
-text-align: center;
-text-decoration: none;
-color: inherit;
-transition: all 0.3s;
-display: block;
-}
-
-.shop-card:hover {
-border-color: var(–magenta);
-box-shadow: 0 0 30px rgba(255,0,255,0.08);
-transform: translateY(-4px);
-}
-
-.shop-card-icon { font-size: 2.5rem; margin-bottom: 1rem; display: block; }
-
-.shop-card h3 {
-font-family: ‘Orbitron’, monospace;
-font-size: 0.78rem;
-letter-spacing: 0.1em;
-color: #fff;
-margin-bottom: 0.5rem;
-}
-
-.shop-card p {
-font-size: 0.75rem;
-color: var(–muted);
-line-height: 1.6;
-margin-bottom: 1rem;
-}
-
-.shop-card-link {
-font-size: 0.65rem;
-letter-spacing: 0.2em;
-text-transform: uppercase;
-color: var(–magenta);
-}
-
-/* ── ABOUT ── */
-#about { background: linear-gradient(180deg, #050505 0%, var(–bg) 100%); }
-
-.about-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 5rem;
-align-items: center;
-}
-
-.about-text p {
-font-size: 0.85rem;
-color: var(–muted);
-line-height: 1.9;
-margin-bottom: 1.2rem;
-}
-
-.about-text p strong { color: #fff; font-weight: 700; }
-
-.skills-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 0.6rem;
-}
-
-.skill-item {
-padding: 0.6rem 0.9rem;
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 2px;
-font-size: 0.7rem;
-color: var(–muted);
-letter-spacing: 0.08em;
-transition: border-color 0.3s, color 0.3s;
-}
-
-.skill-item:hover {
-border-color: rgba(0,255,255,0.3);
-color: var(–cyan);
-}
-
-/* ── CONTACT / COMMISSIONS ── */
-#contact {
-background: var(–bg);
-border-top: 1px solid var(–border);
-}
-
-.contact-grid {
-display: grid;
-grid-template-columns: 1fr 1.2fr;
-gap: 5rem;
-align-items: start;
-}
-
-.contact-info h3 {
-font-family: ‘Orbitron’, monospace;
-font-size: 0.8rem;
-letter-spacing: 0.1em;
-color: var(–cyan);
-margin-bottom: 1rem;
-}
-
-.contact-info p {
-font-size: 0.82rem;
-color: var(–muted);
-line-height: 1.8;
-margin-bottom: 2rem;
-}
-
-.contact-links { display: flex; flex-direction: column; gap: 0.8rem; }
-
-.contact-link {
-display: flex; align-items: center; gap: 1rem;
-padding: 0.9rem 1.2rem;
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 2px;
-color: var(–text);
-text-decoration: none;
-font-size: 0.78rem;
-letter-spacing: 0.1em;
-transition: all 0.3s;
-}
-
-.contact-link:hover {
-border-color: var(–cyan);
-color: var(–cyan);
-transform: translateX(4px);
-}
-
-.contact-link-icon { font-size: 1.1rem; width: 20px; text-align: center; }
-
-/* COMMISSION FORM */
-.commission-form {
-background: var(–surface);
-border: 1px solid var(–border);
-border-radius: 4px;
-padding: 2.5rem;
-}
-
-.commission-form h3 {
-font-family: ‘Orbitron’, monospace;
-font-size: 0.8rem;
-letter-spacing: 0.12em;
-color: #fff;
-margin-bottom: 1.5rem;
-}
-
-.form-group { margin-bottom: 1.2rem; }
-
-.form-group label {
-display: block;
-font-size: 0.65rem;
-letter-spacing: 0.2em;
-text-transform: uppercase;
-color: var(–muted);
-margin-bottom: 0.4rem;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-width: 100%;
-padding: 0.8rem 1rem;
-background: #0f0f0f;
-border: 1px solid var(–border);
-border-radius: 2px;
-color: #fff;
-font-family: ‘Space Mono’, monospace;
-font-size: 0.78rem;
-transition: border-color 0.3s;
-outline: none;
-appearance: none;
--webkit-appearance: none;
--moz-appearance: none;
-color-scheme: dark;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-border-color: var(–cyan);
-box-shadow: 0 0 0 2px rgba(0,255,255,0.06);
-}
-
-.form-group select option { background: #0f0f0f; color: #fff; }
-
-.form-group textarea {
-resize: vertical;
-min-height: 100px;
-line-height: 1.6;
-}
-
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-
-.form-submit {
-width: 100%;
-padding: 1rem;
-background: var(–cyan);
-color: #000;
-font-family: ‘Orbitron’, monospace;
-font-size: 0.72rem;
-font-weight: 700;
-letter-spacing: 0.2em;
-text-transform: uppercase;
-border: none;
-border-radius: 2px;
-cursor: pointer;
-transition: all 0.3s;
-margin-top: 0.5rem;
-}
-
-.form-submit:hover {
-background: #fff;
-box-shadow: 0 0 30px rgba(0,255,255,0.4);
-transform: translateY(-1px);
-}
-
-/* ── FOOTER ── */
-footer {
-padding: 2rem 3rem;
-border-top: 1px solid var(–border);
-display: flex;
-justify-content: space-between;
-align-items: center;
-font-size: 0.68rem;
-color: var(–muted);
-letter-spacing: 0.1em;
-}
-
-footer .footer-brand {
-font-family: ‘Orbitron’, monospace;
-font-weight: 900;
-font-size: 0.8rem;
-color: var(–cyan);
-}
-
-/* ── RESPONSIVE ── */
-@media (max-width: 900px) {
-.about-grid,
-.contact-grid { grid-template-columns: 1fr; gap: 3rem; }
-nav { padding: 1rem 1.5rem; }
-nav ul { gap: 1.5rem; }
-.nav-brand { display: none; }
-}
-
-@media (max-width: 640px) {
-nav ul { gap: 1rem; }
-.nav-cta { display: none; }
-section { padding: 4rem 1.2rem; }
-.hero-ctas { flex-direction: column; align-items: center; }
-.form-row { grid-template-columns: 1fr; }
-.skills-grid { grid-template-columns: 1fr; }
-footer { flex-direction: column; gap: 0.5rem; text-align: center; }
-}
-
-/* ── FADE IN ANIMATION ── */
-.fade-in {
-opacity: 0;
-transform: translateY(24px);
-transition: opacity 0.7s ease, transform 0.7s ease;
-}
-.fade-in.visible {
-opacity: 1;
-transform: translateY(0);
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LucidSoup — Visual Artist & Projection Mapping</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        html{scroll-behavior:smooth}
+        body{font-family:'Arial',sans-serif;line-height:1.6;color:#fff;background:#0a0a0a;overflow-x:hidden;min-height:100vh}
+
+```
+    nav{position:fixed;top:0;width:100%;padding:1rem 2rem;background:rgba(0,0,0,0.9);backdrop-filter:blur(10px);z-index:1000;transition:background .3s ease}
+    nav ul{display:flex;justify-content:center;list-style:none}
+    nav li{margin:0 2rem}
+    nav a{color:#fff;text-decoration:none;font-weight:300;letter-spacing:1px;transition:color .3s ease;position:relative}
+    nav a:hover{color:#00ffff}
+    nav a::after{content:'';position:absolute;width:0;height:2px;bottom:-5px;left:0;background:linear-gradient(90deg,#00ffff,#ff00ff);transition:width .3s ease}
+    nav a:hover::after{width:100%}
+
+    .hero{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#000;position:relative;overflow:hidden}
+    .hero-content{z-index:2;position:relative;display:flex;flex-direction:column;align-items:center;gap:2rem}
+    .logo-container{position:relative;font-size:4rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;font-family:'Orbitron',monospace}
+    .logo-text{position:relative;color:#fff;text-shadow:0 0 10px #00ffff,0 0 20px #00ffff,0 0 30px #00ffff;animation:wave 2s ease-in-out infinite,glitch .3s linear infinite}
+    .logo-text::before,.logo-text::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%}
+    .logo-text::before{color:#ff0040;animation:glitch-red .4s linear infinite;clip-path:polygon(0 0,100% 0,100% 45%,0 45%)}
+    .logo-text::after{color:#00ff40;animation:glitch-green .5s linear infinite;clip-path:polygon(0 55%,100% 55%,100% 100%,0 100%)}
+    @keyframes wave{0%,100%{transform:skew(0,0) scale(1)}25%{transform:skew(1deg,1deg) scale(1.02)}50%{transform:skew(-1deg,0) scale(.98)}75%{transform:skew(0,-1deg) scale(1.01)}}
+    @keyframes glitch{0%,90%,100%{filter:hue-rotate(0) brightness(1)}10%{filter:hue-rotate(90deg) brightness(1.2)}20%{filter:hue-rotate(180deg) brightness(.8)}30%{filter:hue-rotate(270deg) brightness(1.1)}}
+    @keyframes glitch-red{0%,100%{transform:translate(0);opacity:.8}10%{transform:translate(-2px,2px);opacity:1}30%{transform:translate(2px,-4px);opacity:.7}50%{transform:translate(3px,-1px);opacity:.8}70%{transform:translate(1px,-3px);opacity:1}90%{transform:translate(2px,-2px);opacity:.9}}
+    @keyframes glitch-green{0%,100%{transform:translate(0);opacity:.7}15%{transform:translate(3px,-2px);opacity:1}35%{transform:translate(-3px,-1px);opacity:.9}55%{transform:translate(-2px,-3px);opacity:1}75%{transform:translate(-1px,-2px);opacity:.9}95%{transform:translate(-4px,1px);opacity:1}}
+    .background-noise{position:absolute;inset:0;opacity:.03;background:radial-gradient(circle at 20% 20%,#ff0040 1px,transparent 1px),radial-gradient(circle at 80% 80%,#00ff40 1px,transparent 1px),radial-gradient(circle at 40% 60%,#0040ff 1px,transparent 1px);background-size:50px 50px,30px 30px,70px 70px;animation:noise .1s linear infinite;pointer-events:none}
+    @keyframes noise{0%,100%{transform:translate(0,0)}25%{transform:translate(-1px,1px)}50%{transform:translate(1px,-1px)}75%{transform:translate(-1px,-1px)}}
+    .scanlines{position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,255,255,.03) 50%);background-size:100% 4px;animation:scan .1s linear infinite;pointer-events:none}
+    @keyframes scan{0%{transform:translateY(0)}100%{transform:translateY(4px)}}
+    .hero p{font-size:1.2rem;font-weight:300;letter-spacing:2px;opacity:.8;z-index:3;position:relative}
+
+    section{padding:5rem 2rem;max-width:1400px;margin:0 auto}
+    h2{font-size:2.5rem;font-weight:100;margin-bottom:3rem;text-align:center;color:#00ffff}
+
+    .portfolio-category{margin-bottom:4rem}
+    .portfolio-category h3{font-size:1.1rem;font-weight:300;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:1.5rem;padding-left:.5rem;border-left:2px solid #00ffff}
+    .portfolio-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
+    .portfolio-item{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:16/9;background:#111;border:1px solid rgba(255,255,255,.08);transition:transform .4s ease,box-shadow .4s ease;cursor:pointer}
+    .portfolio-item.portrait{aspect-ratio:9/16;grid-row:span 2}
+    .portfolio-item:hover{transform:translateY(-6px) scale(1.015);box-shadow:0 20px 50px rgba(0,255,255,.15),0 0 1px rgba(0,255,255,.4)}
+    .portfolio-item video{width:100%;height:100%;object-fit:cover;display:block}
+    .portfolio-item .overlay{position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.7) 100%);display:flex;align-items:flex-end;padding:1.2rem;opacity:0;transition:opacity .3s ease;pointer-events:none}
+    .portfolio-item:hover .overlay{opacity:1}
+    .overlay-text h4{font-weight:400;font-size:.95rem;margin-bottom:.3rem}
+    .overlay-text p{font-size:.8rem;color:rgba(255,255,255,.6);line-height:1.4}
+    .play-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:50px;height:50px;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.6);border-radius:50%;display:flex;align-items:center;justify-content:center;transition:opacity .3s ease,transform .3s ease;pointer-events:none}
+    .play-icon::after{content:'';display:block;width:0;height:0;border-style:solid;border-width:8px 0 8px 14px;border-color:transparent transparent transparent rgba(255,255,255,.9);margin-left:3px}
+    .portfolio-item.playing .play-icon{opacity:0;transform:translate(-50%,-50%) scale(.5)}
+
+    .about{background:rgba(255,255,255,.02);border-radius:20px;padding:3rem;text-align:center;margin:3rem 0}
+    .about p{font-size:1.1rem;line-height:1.8;color:rgba(255,255,255,.8);max-width:800px;margin:0 auto 2rem}
+    .skills{display:flex;justify-content:center;flex-wrap:wrap;gap:1rem;margin-top:2rem}
+    .skill{padding:.8rem 1.5rem;background:linear-gradient(45deg,rgba(0,255,255,.1),rgba(255,0,255,.1));border-radius:25px;border:1px solid rgba(255,255,255,.1);color:#fff;font-weight:300}
+
+    .contact{text-align:center;background:linear-gradient(45deg,rgba(0,255,255,.05),rgba(255,0,255,.05));border-radius:20px;padding:3rem}
+    .contact-links{display:flex;justify-content:center;gap:2rem;margin-top:2rem}
+    .contact-link{padding:1rem 2rem;background:rgba(255,255,255,.1);border-radius:30px;color:#fff;text-decoration:none;transition:all .3s ease;border:1px solid rgba(255,255,255,.2)}
+    .contact-link:hover{background:rgba(0,255,255,.2);transform:translateY(-3px);box-shadow:0 10px 20px rgba(0,255,255,.2)}
+
+    .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:none;align-items:center;justify-content:center;padding:2rem}
+    .lightbox.active{display:flex}
+    .lightbox video{max-width:90vw;max-height:85vh;border-radius:8px;box-shadow:0 0 60px rgba(0,255,255,.1)}
+    .lightbox-close{position:absolute;top:1.5rem;right:2rem;color:#fff;font-size:2rem;background:none;border:none;cursor:pointer;opacity:.7;transition:opacity .2s;z-index:10000}
+    .lightbox-close:hover{opacity:1}
+
+    @media(max-width:768px){
+        .logo-container{font-size:2.5rem}
+        nav ul{flex-direction:column;gap:1rem;text-align:center}
+        nav li{margin:0}
+        section{padding:3rem 1rem}
+        .portfolio-grid{grid-template-columns:1fr}
+        .portfolio-item.portrait{grid-row:span 1;aspect-ratio:9/12}
+        .contact-links{flex-direction:column;gap:1rem}
+        .portfolio-item .overlay{opacity:1!important}
+    }
+    @media(max-width:480px){.logo-container{font-size:2rem}}
 </style>
+```
 
 </head>
 <body>
+    <nav id="navbar">
+        <ul>
+            <li><a href="#home">Home</a></li>
+            <li><a href="#portfolio">Portfolio</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+    </nav>
 
-<!-- NAV -->
-
-<nav id="navbar">
-  <div class="nav-brand">LS</div>
-  <ul>
-    <li><a href="#portfolio">Work</a></li>
-    <li><a href="#services">Services</a></li>
-    <li><a href="#shop">Shop</a></li>
-    <li><a href="#about">About</a></li>
-    <li><a href="#contact" class="nav-cta">Commission</a></li>
-  </ul>
-</nav>
-
-<!-- HERO -->
-
+```
 <section id="home" class="hero">
-  <div class="hero-bg"></div>
-  <div class="scanlines"></div>
-  <div class="noise"></div>
-  <div class="hero-content">
-    <div class="logo-container">
-      <span class="logo-text" data-text="LucidSoup">LucidSoup</span>
+    <div class="background-noise"></div>
+    <div class="scanlines"></div>
+    <div class="hero-content">
+        <div class="logo-container">
+            <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+        </div>
+        <p>VISUAL ARTIST &amp; PROJECTION MAPPING</p>
     </div>
-    <p class="hero-tagline">Visual Artist &amp; Projection Mapping<span>_</span></p>
-    <div class="hero-ctas">
-      <a href="#portfolio" class="btn btn-primary">View Work</a>
-      <a href="#contact" class="btn btn-ghost">Get a Quote</a>
-    </div>
-  </div>
-  <div class="scroll-hint">
-    <div class="scroll-arrow"></div>
-    <span>Scroll</span>
-  </div>
 </section>
-
-<!-- PORTFOLIO -->
 
 <section id="portfolio">
-  <div class="section-inner">
-    <p class="section-label fade-in">Selected Projects</p>
-    <h2 class="fade-in">Portfolio</h2>
-    <div class="portfolio-grid" id="portfolioGrid"></div>
-  </div>
+    <h2>Portfolio</h2>
+
+    <div class="portfolio-category">
+        <h3>Immersive Spaces</h3>
+        <div class="portfolio-grid">
+            <div class="portfolio-item portrait" data-src="videos/IMG_3341.mp4">
+                <video src="videos/IMG_3341.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Immersive Venue Projection</h4><p>Full-space projection mapping with dynamic visuals across walls and suspended elements</p></div></div>
+            </div>
+            <div class="portfolio-item portrait" data-src="videos/IMG_3337.mp4">
+                <video src="videos/IMG_3337.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Spatial Mapping</h4><p>Multi-surface projection across architectural features and decorative orbs</p></div></div>
+            </div>
+            <div class="portfolio-item portrait" data-src="videos/IMG_3338.mp4">
+                <video src="videos/IMG_3338.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Setup &amp; Projection Rig</h4><p>Multi-projector setup with living wall integration and ceiling-to-floor coverage</p></div></div>
+            </div>
+            <div class="portfolio-item portrait" data-src="videos/IMG_3343.mp4">
+                <video src="videos/IMG_3343.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Immersive Dining</h4><p>Psychedelic generative visuals enveloping a full dining space</p></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="portfolio-category">
+        <h3>Club &amp; Event Visuals</h3>
+        <div class="portfolio-grid">
+            <div class="portfolio-item" data-src="videos/IMG_0620.mp4">
+                <video src="videos/IMG_0620.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Underground — Live Set</h4><p>Custom visuals and laser integration for electronic music event</p></div></div>
+            </div>
+            <div class="portfolio-item" data-src="videos/IMG_0622.mp4">
+                <video src="videos/IMG_0622.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Underground — Stage Design</h4><p>Full stage visual design with tropical staging and LED backdrop</p></div></div>
+            </div>
+            <div class="portfolio-item" data-src="videos/IMG_2878.mp4">
+                <video src="videos/IMG_2878.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Underground — Main Room</h4><p>Branded projection and lighting design for main room DJ sets</p></div></div>
+            </div>
+            <div class="portfolio-item" data-src="videos/IMG_2874.mp4">
+                <video src="videos/IMG_2874.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Behind the Booth</h4><p>VJ control station — real-time visual mixing with multi-screen output</p></div></div>
+            </div>
+            <div class="portfolio-item" data-src="videos/IMG_0860.mp4">
+                <video src="videos/IMG_0860.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Immersive Event</h4><p>Projection mapping on surfaces and attendees at a live event</p></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="portfolio-category">
+        <h3>Concert Visuals</h3>
+        <div class="portfolio-grid">
+            <div class="portfolio-item" data-src="videos/IMG_2056.mp4">
+                <video src="videos/IMG_2056.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Gaslight — Live Band</h4><p>Real-time visuals projected behind a live band performance</p></div></div>
+            </div>
+            <div class="portfolio-item portrait" data-src="videos/IMG_2281.mp4">
+                <video src="videos/IMG_2281.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Live Band Projection</h4><p>Full-wall projection mapping layered over stage during live performance</p></div></div>
+            </div>
+            <div class="portfolio-item" data-src="videos/IMG_2282.mp4">
+                <video src="videos/IMG_2282.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Stage Wash Mapping</h4><p>Generative visuals washing across walls and band members during live set</p></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="portfolio-category">
+        <h3>Art Installations</h3>
+        <div class="portfolio-grid">
+            <div class="portfolio-item" data-src="videos/IMG_0851.mp4">
+                <video src="videos/IMG_0851.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Sculptural Screen Installation</h4><p>Embedded display within sculptural art piece playing generative visuals</p></div></div>
+            </div>
+            <div class="portfolio-item" data-src="videos/IMG_0864.mp4">
+                <video src="videos/IMG_0864.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Sculptural Screen — Night</h4><p>Kaleidoscopic fractal visuals displayed within sculptural art piece</p></div></div>
+            </div>
+            <div class="portfolio-item portrait" data-src="videos/IMG_2992.mp4">
+                <video src="videos/IMG_2992.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Gallery Exhibition</h4><p>Live visual performance and CRT art at gallery event</p></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="portfolio-category">
+        <h3>Generative Visuals</h3>
+        <div class="portfolio-grid">
+            <div class="portfolio-item" data-src="videos/IMG_0858.mp4">
+                <video src="videos/IMG_0858.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Fractal Explorations</h4><p>Real-time fractal rendering with psychedelic color manipulation</p></div></div>
+            </div>
+            <div class="portfolio-item" data-src="videos/IMG_0863.mp4">
+                <video src="videos/IMG_0863.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>Generative Feedback</h4><p>Algorithmic visual generation with feedback loop processing</p></div></div>
+            </div>
+            <div class="portfolio-item" data-src="videos/IMG_0627.mp4">
+                <video src="videos/IMG_0627.mp4" muted loop playsinline preload="metadata"></video>
+                <div class="play-icon"></div>
+                <div class="overlay"><div class="overlay-text"><h4>The Rig</h4><p>Multi-screen VJ setup — laptops, MIDI controllers, and visual synthesis hardware</p></div></div>
+            </div>
+        </div>
+    </div>
 </section>
-
-<!-- SERVICES -->
-
-<section id="services">
-  <div class="section-inner">
-    <p class="section-label fade-in">What I Offer</p>
-    <h2 class="fade-in">Services</h2>
-    <div class="services-grid" id="servicesGrid"></div>
-  </div>
-</section>
-
-<!-- SHOP -->
-
-<section id="shop">
-  <div class="section-inner">
-    <p class="section-label fade-in">Digital &amp; Physical Goods</p>
-    <h2 class="fade-in">Shop</h2>
-    <p class="shop-intro fade-in">
-      Download ready-to-use visual packs, VJ loops, and digital art — or shop physical prints, tufted rugs, and custom merch.
-      Instant delivery on all digital products.
-    </p>
-    <div class="shop-grid" id="shopGrid"></div>
-  </div>
-</section>
-
-<!-- ABOUT -->
 
 <section id="about">
-  <div class="section-inner">
-    <p class="section-label fade-in">The Artist</p>
-    <h2 class="fade-in">About</h2>
-    <div class="about-grid">
-      <div class="about-text fade-in">
-        <p>
-          I'm a <strong>visual artist and projection designer</strong> working at the intersection of fine art, technology, and live experience. I build things that make people stop and look twice — whether that's a building coming alive with light, a rug that belongs in a museum, or a concert stage that breathes.
-        </p>
-        <p>
-          My background spans <strong>classical painting, 3D animation, interactive installation, and real-time visuals</strong>. I've worked across architectural projections, gallery shows, festival stages, and brand activations — translating ideas into immersive moments.
-        </p>
-        <p>
-          I work out of a fully-equipped studio and bring the full pipeline in-house: concept, design, production, and on-site execution. No handoffs, no middlemen.
-        </p>
-        <div style="margin-top: 1.5rem;">
-          <a href="#contact" class="btn btn-primary">Start a Project</a>
+    <h2>About</h2>
+    <div class="about">
+        <p>I'm a visual artist specializing in projection mapping and custom visual content creation. With a background in both fine arts and technology, I create immersive experiences that transform spaces and captivate audiences.</p>
+        <p>My work spans architectural projections, interactive installations, live performance visuals, and brand activations. I combine artistic vision with technical expertise to deliver unique visual experiences that push the boundaries of digital art.</p>
+        <div class="skills">
+            <div class="skill">Projection Mapping</div>
+            <div class="skill">TouchDesigner</div>
+            <div class="skill">Resolume</div>
+            <div class="skill">Davinci Resolve</div>
+            <div class="skill">Zbrush</div>
+            <div class="skill">Blender</div>
+            <div class="skill">Synesthesia</div>
+            <div class="skill">Maya</div>
+            <div class="skill">Interactive Design</div>
+            <div class="skill">3D Modeling</div>
         </div>
-      </div>
-      <div class="skills-grid fade-in">
-        <div class="skill-item">Projection Mapping</div>
-        <div class="skill-item">TouchDesigner</div>
-        <div class="skill-item">Resolume</div>
-        <div class="skill-item">Synesthesia</div>
-        <div class="skill-item">Blender</div>
-        <div class="skill-item">ZBrush</div>
-        <div class="skill-item">Maya</div>
-        <div class="skill-item">DaVinci Resolve</div>
-        <div class="skill-item">Photoshop / AI</div>
-        <div class="skill-item">3D Modeling</div>
-        <div class="skill-item">Fine Art Painting</div>
-        <div class="skill-item">Tufting / Textile</div>
-      </div>
     </div>
-  </div>
 </section>
-
-<!-- CONTACT -->
 
 <section id="contact">
-  <div class="section-inner">
-    <p class="section-label fade-in">Let's Build Something</p>
-    <h2 class="fade-in">Commission &amp; Contact</h2>
-    <div class="contact-grid">
-
-```
-  <div class="fade-in">
-    <h3>Get in Touch</h3>
-    <p>
-      Available for events, installations, commissions, and collaborations. Response within 24–48 hours. Rates vary by scope — always happy to talk through a project before committing.
-    </p>
-    <div class="contact-links">
-      <a href="mailto:mjavella8@gmail.com" class="contact-link">
-        <span class="contact-link-icon">✉️</span> mjavella8@gmail.com
-      </a>
-      <!-- Replace # with your real Instagram URL -->
-      <a href="https://instagram.com" target="_blank" rel="noopener" class="contact-link">
-        <span class="contact-link-icon">📸</span> Instagram
-      </a>
-      <!-- Replace # with your real Vimeo URL -->
-      <a href="https://vimeo.com" target="_blank" rel="noopener" class="contact-link">
-        <span class="contact-link-icon">🎬</span> Vimeo
-      </a>
-      <!-- Replace # with your LinkedIn URL -->
-      <a href="https://linkedin.com" target="_blank" rel="noopener" class="contact-link">
-        <span class="contact-link-icon">💼</span> LinkedIn
-      </a>
-    </div>
-  </div>
-
-  <!-- COMMISSION FORM — Web3Forms -->
-  <div class="commission-form fade-in">
-    <h3>Request a Quote</h3>
-
-    <!-- SUCCESS STATE -->
-    <div id="formSuccess" style="display:none; text-align:center; padding: 3rem 1rem;">
-      <div style="font-size:2.5rem; margin-bottom:1rem;">✅</div>
-      <p style="font-family:'Orbitron',monospace; font-size:0.8rem; letter-spacing:0.1em; color:#fff; margin-bottom:0.75rem;">Message Received</p>
-      <p style="font-size:0.78rem; color:var(--muted); line-height:1.7;">Thanks — I'll be in touch within 24–48 hours.</p>
-      <button onclick="document.getElementById('formSuccess').style.display='none'; document.getElementById('commissionForm').style.display='block';" class="btn btn-ghost" style="margin-top:1.5rem; display:inline-block;">Send Another</button>
-    </div>
-
-    <!-- ERROR STATE -->
-    <div id="formError" style="display:none; padding: 1rem; background: rgba(255,0,64,0.08); border: 1px solid rgba(255,0,64,0.3); border-radius:2px; margin-bottom:1rem; font-size:0.78rem; color:#ff6680;">
-      Something went wrong. Please email directly at mjavella8@gmail.com.
-    </div>
-
-    <form id="commissionForm">
-      <!-- Web3Forms access key — replace YOUR_ACCESS_KEY with the key from web3forms.com -->
-      <input type="hidden" name="access_key" value="695f3ad4-bbe4-44df-8142-4fffc2e9b2c7">
-      <input type="hidden" name="subject" value="New Commission Inquiry — LucidSoup">
-      <input type="hidden" name="from_name" value="LucidSoup Website">
-      <!-- Honeypot spam protection -->
-      <input type="checkbox" name="botcheck" style="display:none">
-
-      <div class="form-row">
-        <div class="form-group">
-          <label for="name">Name</label>
-          <input type="text" id="name" name="name" placeholder="Your name" required>
+    <h2>Contact</h2>
+    <div class="contact">
+        <p>Ready to create something amazing together? Let's discuss your next visual project.</p>
+        <div class="contact-links">
+            <a href="mailto:mjavella8@gmail.com" class="contact-link">Email</a>
+            <a href="#" class="contact-link">Instagram</a>
+            <a href="#" class="contact-link">Vimeo</a>
+            <a href="#" class="contact-link">LinkedIn</a>
         </div>
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" placeholder="your@email.com" required>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="service">Service Type</label>
-        <select id="service" name="service">
-          <option value="">Select a service...</option>
-          <option>Architectural Projection</option>
-          <option>Concert / Live Visuals</option>
-          <option>Interactive Installation</option>
-          <option>Fine Art Commission</option>
-          <option>Brand Activation</option>
-          <option>Product Photography</option>
-          <option>Other / Not Sure</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="budget">Approximate Budget</label>
-        <select id="budget" name="budget">
-          <option value="">Select range...</option>
-          <option>Under $500</option>
-          <option>$500 – $1,500</option>
-          <option>$1,500 – $5,000</option>
-          <option>$5,000 – $15,000</option>
-          <option>$15,000+</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="message">Project Details</label>
-        <textarea id="message" name="message" placeholder="Tell me about your project — dates, location, vision, references..."></textarea>
-      </div>
-      <button type="submit" id="formSubmitBtn" class="form-submit">Send Inquiry</button>
-    </form>
-  </div>
-
-</div>
-```
-
-  </div>
+    </div>
 </section>
 
-<!-- FOOTER -->
-
-<footer>
-  <span class="footer-brand">LucidSoup</span>
-  <span>© 2026 LucidSoup. All rights reserved.</span>
-  <span>Built by hand.</span>
-</footer>
+<div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightbox-close">&times;</button>
+    <video id="lightbox-video" controls playsinline></video>
+</div>
 
 <script>
-// ── Navbar ──
-window.addEventListener('scroll', () => {
-  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 60);
-});
-
-// ── Fade-in observer ──
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach(el => { if (el.isIntersecting) el.target.classList.add('visible'); });
-}, { threshold: 0.12 });
-
-function initFadeIns() {
-  document.querySelectorAll('.fade-in:not(.observed)').forEach((el, i) => {
-    el.classList.add('observed');
-    el.style.transitionDelay = `${(i % 4) * 0.08}s`;
-    observer.observe(el);
-  });
-}
-initFadeIns();
-
-// ── Content loader ──
-const PLACEHOLDER_SVG = `<div class="portfolio-thumb-placeholder">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-  <span>Coming soon</span>
-</div>`;
-
-async function loadContent() {
-  try {
-    const res = await fetch('content.json?v=' + Date.now());
-    const data = await res.json();
-    renderPortfolio(data.portfolio);
-    renderServices(data.services);
-    renderShop(data.shop);
-    applySocial(data.social);
-    initFadeIns();
-  } catch(e) {
-    console.warn('Could not load content.json:', e);
-  }
-}
-
-function renderPortfolio(items) {
-  const grid = document.getElementById('portfolioGrid');
-  if (!grid || !items) return;
-  grid.innerHTML = items.map(item => `
-    <div class="portfolio-item fade-in">
-      <div class="portfolio-thumb">
-        ${item.image
-          ? `<img src="${item.image}" alt="${item.title}" loading="lazy">`
-          : PLACEHOLDER_SVG}
-        <div class="portfolio-thumb-overlay"><div class="play-btn">▶</div></div>
-      </div>
-      <div class="portfolio-content">
-        <h3>${item.title}</h3>
-        <p>${item.description}</p>
-        <div class="tags">${item.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderServices(items) {
-  const grid = document.getElementById('servicesGrid');
-  if (!grid || !items) return;
-  grid.innerHTML = items.map(s => `
-    <div class="service-card fade-in">
-      <span class="service-icon">${s.icon}</span>
-      <h3>${s.title}</h3>
-      <p>${s.description}</p>
-      <div class="service-price">${s.price}</div>
-    </div>
-  `).join('');
-}
-
-function renderShop(items) {
-  const grid = document.getElementById('shopGrid');
-  if (!grid || !items) return;
-  grid.innerHTML = items.map(s => `
-    <a href="${s.url}" target="_blank" rel="noopener" class="shop-card fade-in">
-      <span class="shop-card-icon">${s.icon}</span>
-      <h3>${s.title}</h3>
-      <p>${s.description}</p>
-      <span class="shop-card-link">${s.label} →</span>
-    </a>
-  `).join('');
-}
-
-function applySocial(social) {
-  if (!social) return;
-  const map = { instagram: 'Instagram', vimeo: 'Vimeo', linkedin: 'LinkedIn' };
-  document.querySelectorAll('.contact-link').forEach(link => {
-    const label = link.textContent.trim();
-    const key = Object.keys(map).find(k => map[k] === label);
-    if (key && social[key]) link.href = social[key];
-  });
-}
-
-loadContent();
-
-// ── Commission form — Web3Forms ──
-document.getElementById('commissionForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const btn = document.getElementById('formSubmitBtn');
-  const errorEl = document.getElementById('formError');
-  const successEl = document.getElementById('formSuccess');
-  btn.textContent = 'Sending...';
-  btn.disabled = true;
-  btn.style.opacity = '0.7';
-  errorEl.style.display = 'none';
-  const json = JSON.stringify(Object.fromEntries(new FormData(this)));
-  try {
-    const res = await fetch('https://api.web3forms.com/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: json
+    window.addEventListener('scroll',()=>{
+        document.getElementById('navbar').style.background=window.scrollY>100?'rgba(0,0,0,.95)':'rgba(0,0,0,.9)';
     });
-    const data = await res.json();
-    if (data.success) {
-      this.style.display = 'none';
-      successEl.style.display = 'block';
-      this.reset();
-    } else {
-      errorEl.style.display = 'block';
-      btn.textContent = 'Send Inquiry';
-      btn.disabled = false;
-      btn.style.opacity = '1';
-    }
-  } catch (err) {
-    errorEl.style.display = 'block';
-    btn.textContent = 'Send Inquiry';
-    btn.disabled = false;
-    btn.style.opacity = '1';
-  }
-});
+
+    const items=document.querySelectorAll('.portfolio-item');
+    const isMobile='ontouchstart' in window||navigator.maxTouchPoints>0;
+
+    items.forEach(item=>{
+        const video=item.querySelector('video');
+        if(isMobile){
+            let lastTap=0;
+            item.addEventListener('click',e=>{
+                const now=Date.now();
+                if(now-lastTap<300){openLightbox(item.dataset.src)}
+                else{
+                    if(video.paused){pauseAll();video.play();item.classList.add('playing')}
+                    else{video.pause();item.classList.remove('playing')}
+                }
+                lastTap=now;
+            });
+        }else{
+            item.addEventListener('mouseenter',()=>{video.play().catch(()=>{});item.classList.add('playing')});
+            item.addEventListener('mouseleave',()=>{video.pause();video.currentTime=0;item.classList.remove('playing')});
+            item.addEventListener('click',()=>{openLightbox(item.dataset.src)});
+        }
+    });
+
+    function pauseAll(){items.forEach(i=>{i.querySelector('video').pause();i.classList.remove('playing')})}
+
+    const lightbox=document.getElementById('lightbox');
+    const lbVideo=document.getElementById('lightbox-video');
+
+    function openLightbox(src){pauseAll();lbVideo.src=src;lightbox.classList.add('active');lbVideo.play()}
+    function closeLightbox(){lbVideo.pause();lbVideo.src='';lightbox.classList.remove('active')}
+
+    document.getElementById('lightbox-close').addEventListener('click',closeLightbox);
+    lightbox.addEventListener('click',e=>{if(e.target===lightbox)closeLightbox()});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox()});
 </script>
+```
 
 </body>
 </html>
