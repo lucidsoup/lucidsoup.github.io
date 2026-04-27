@@ -19,6 +19,13 @@
         nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, #00ffff, #ff00ff); transition: width .3s ease; }
         nav a:hover::after { width: 100%; }
 
+        /* hamburger button */
+        .nav-toggle { display: none; background: none; border: 0; width: 44px; height: 44px; padding: 8px; cursor: pointer; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); z-index: 1002; }
+        .nav-toggle .bar { display: block; width: 26px; height: 2px; background: #fff; margin: 5px 0; transition: transform .25s ease, opacity .25s ease; }
+        nav.menu-open .nav-toggle .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        nav.menu-open .nav-toggle .bar:nth-child(2) { opacity: 0; }
+        nav.menu-open .nav-toggle .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
         .hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: #000; position: relative; overflow: hidden; }
         .hero-content { z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
         .logo-container { position: relative; font-size: 4rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; font-family: 'Orbitron', monospace; }
@@ -74,11 +81,11 @@
         .lightbox-close { position: absolute; top: 1.5rem; right: 2rem; color: #fff; font-size: 2rem; background: none; border: none; cursor: pointer; opacity: .7; transition: opacity .2s; z-index: 10001; }
         .lightbox-close:hover { opacity: 1; }
 
-        /* Mobile-friendly navbar: keep links as tappable inline words instead of a stacked dropdown that takes a lot of vertical space */
+        /* Mobile-friendly navbar: keep links inline on medium screens; switch to hamburger on small screens */
         @media (max-width: 768px) {
             .logo-container { font-size: 2.5rem; }
             nav { padding: .6rem 1rem; }
-            /* Keep links in a single row that wraps if needed, with smaller gaps and touch-friendly padding */
+            /* keep links inline and compact */
             nav ul { flex-direction: row; gap: .75rem; justify-content: center; }
             nav a { padding: .5rem .7rem; font-size: .95rem; }
 
@@ -89,6 +96,18 @@
             .portfolio-item .overlay { opacity: 1 !important; }
             #drumseek-embed { min-height: 600px; }
         }
+
+        /* small screens: hide inline links and show a hamburger that toggles a dropdown */
+        @media (max-width: 600px) {
+            .nav-toggle { display: block; }
+            /* hide inline nav list by default on very small screens */
+            nav ul { display: none; position: absolute; right: 1rem; top: calc(100% + 0.5rem); background: rgba(0,0,0,0.95); flex-direction: column; gap: 0; padding: .5rem; border-radius: 8px; min-width: 160px; box-shadow: 0 6px 20px rgba(0,0,0,.6); }
+            nav ul li { margin: 0; }
+            nav ul a { display: block; padding: .75rem 1rem; }
+            /* when menu is open, show the list */
+            nav.menu-open ul { display: flex; }
+        }
+
         @media (max-width: 480px) { 
             .logo-container { font-size: 2rem; }
             nav a { font-size: .9rem; padding: .5rem .6rem; }
@@ -97,6 +116,11 @@
 </head>
 <body>
     <nav id="navbar">
+        <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-label="Open navigation menu">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </button>
         <ul>
             <li><a href="#home">Home</a></li>
             <li><a href="#portfolio">Portfolio</a></li>
@@ -296,6 +320,42 @@
             document.getElementById('navbar').style.background =
                 window.scrollY > 100 ? 'rgba(0,0,0,.95)' : 'rgba(0,0,0,.9)';
         });
+
+        // Hamburger menu toggle for small screens
+        (function(){
+            var nav = document.getElementById('navbar');
+            var toggle = document.getElementById('nav-toggle');
+            var links = nav.querySelectorAll('ul a');
+
+            function setExpanded(val){
+                toggle.setAttribute('aria-expanded', String(val));
+                if(val){ nav.classList.add('menu-open'); }
+                else { nav.classList.remove('menu-open'); }
+            }
+
+            toggle.addEventListener('click', function(e){
+                var expanded = toggle.getAttribute('aria-expanded') === 'true';
+                setExpanded(!expanded);
+            });
+
+            // close menu when a link is clicked (mobile)
+            links.forEach(function(a){
+                a.addEventListener('click', function(){
+                    // allow default anchor behavior, but close the menu
+                    setExpanded(false);
+                });
+            });
+
+            // close on escape
+            document.addEventListener('keydown', function(e){
+                if(e.key === 'Escape') setExpanded(false);
+            });
+
+            // close menu when clicking outside (for small screens)
+            document.addEventListener('click', function(e){
+                if(!nav.contains(e.target)) setExpanded(false);
+            });
+        })();
 
         // Video hover play / tap play
         var items = document.querySelectorAll('.portfolio-item');
