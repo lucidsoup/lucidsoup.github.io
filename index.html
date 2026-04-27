@@ -12,9 +12,9 @@
         body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #fff; background: #0a0a0a; overflow-x: hidden; min-height: 100vh; }
 
         nav { position: fixed; top: 0; width: 100%; padding: 1rem 2rem; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); z-index: 1000; transition: background .3s ease; }
-        nav ul { display: flex; justify-content: center; list-style: none; }
-        nav li { margin: 0 2rem; }
-        nav a { color: #fff; text-decoration: none; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; }
+        nav ul { display: flex; justify-content: center; align-items: center; list-style: none; gap: 2rem; }
+        nav li { margin: 0; }
+        nav a { color: #fff; text-decoration: none; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; }
         nav a:hover { color: #00ffff; }
         nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, #00ffff, #ff00ff); transition: width .3s ease; }
         nav a:hover::after { width: 100%; }
@@ -28,11 +28,11 @@
         .logo-text::after { color: #00ff40; animation: glitch-green .5s linear infinite; clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%); }
 
         @keyframes wave { 0%,100%{transform:skew(0,0) scale(1)} 25%{transform:skew(1deg,1deg) scale(1.02)} 50%{transform:skew(-1deg,0) scale(.98)} 75%{transform:skew(0,-1deg) scale(1.01)} }
-        @keyframes glitch { 0%,90%,100%{filter:hue-rotate(0) brightness(1)} 10%{filter:hue-rotate(90deg) brightness(1.2)} 20%{filter:hue-rotate(180deg) brightness(.8)} 30%{filter:hue-rotate(270deg) brightness(.9)} 40%{filter:hue-rotate(360deg) brightness(1.1)} }
-        @keyframes glitch-red { 0%,100%{transform:translate(0);opacity:.8} 10%{transform:translate(-2px,2px);opacity:1} 30%{transform:translate(2px,-4px);opacity:.7} 50%{transform:translate(3px,-1px);opacity:.9} 70%{transform:translate(-2px,3px);opacity:.8} }
-        @keyframes glitch-green { 0%,100%{transform:translate(0);opacity:.7} 15%{transform:translate(3px,-2px);opacity:1} 35%{transform:translate(-3px,-1px);opacity:.9} 55%{transform:translate(-2px,-3px);opacity:.8} 75%{transform:translate(4px,2px);opacity:.7} }
+        @keyframes glitch { 0%,90%,100%{filter:hue-rotate(0) brightness(1)} 10%{filter:hue-rotate(90deg) brightness(1.2)} 20%{filter:hue-rotate(180deg) brightness(.8)} 30%{filter:hue-rotate(270deg) brightness(1.1)} }
+        @keyframes glitch-red { 0%,100%{transform:translate(0);opacity:.8} 10%{transform:translate(-2px,2px);opacity:1} 30%{transform:translate(2px,-4px);opacity:.7} 50%{transform:translate(3px,-1px);opacity:.85} }
+        @keyframes glitch-green { 0%,100%{transform:translate(0);opacity:.7} 15%{transform:translate(3px,-2px);opacity:1} 35%{transform:translate(-3px,-1px);opacity:.9} 55%{transform:translate(-2px,-3px);opacity:.75} }
 
-        .background-noise { position: absolute; inset: 0; opacity: .03; background: radial-gradient(circle at 20% 20%, #ff0040 1px, transparent 1px), radial-gradient(circle at 80% 80%, #00ff40 1px, transparent 1px); animation: noise 2s ease-in-out infinite; }
+        .background-noise { position: absolute; inset: 0; opacity: .03; background: radial-gradient(circle at 20% 20%, #ff0040 1px, transparent 1px), radial-gradient(circle at 80% 80%, #00ff40 1px, transparent 1px); animation: noise 6s linear infinite; }
         @keyframes noise { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-1px,1px)} 50%{transform:translate(1px,-1px)} 75%{transform:translate(-1px,-1px)} }
         .scanlines { position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(0,255,255,.03) 50%); background-size: 100% 4px; animation: scan .1s linear infinite; pointer-events: none; }
         @keyframes scan { 0%{transform:translateY(0)} 100%{transform:translateY(4px)} }
@@ -42,7 +42,7 @@
         h2 { font-size: 2.5rem; font-weight: 100; margin-bottom: 3rem; text-align: center; color: #00ffff; }
 
         .portfolio-category { margin-bottom: 4rem; }
-        .portfolio-category h3 { font-size: 1.1rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 1.5rem; padding-left: .5rem; border-left: 2px solid #00ffff; }
+        .portfolio-category h3 { font-size: 1.1rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 1.5rem; padding-left: .5rem; border-left: 3px solid rgba(0,255,255,.06); }
         .portfolio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
         .portfolio-item { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; background: #111; border: 1px solid rgba(255,255,255,.08); transition: transform .4s ease, box-shadow .4s ease; }
         .portfolio-item.portrait { aspect-ratio: 9/16; grid-row: span 2; }
@@ -52,8 +52,8 @@
         .portfolio-item:hover .overlay { opacity: 1; }
         .overlay-text h4 { font-weight: 400; font-size: .95rem; margin-bottom: .3rem; }
         .overlay-text p { font-size: .8rem; color: rgba(255,255,255,.6); line-height: 1.4; }
-        .play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 50px; height: 50px; background: rgba(0,0,0,.5); border: 2px solid rgba(255,255,255,.6); border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: 1; transition: all .3s ease; z-index: 10; }
-        .play-icon::after { content: ''; display: block; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 14px; border-color: transparent transparent transparent rgba(255,255,255,.9); margin-left: 3px; }
+        .play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 50px; height: 50px; background: rgba(0,0,0,.5); border: 2px solid rgba(255,255,255,.6); border-radius: 50%; display: flex; align-items: center; justify-content: center; opacity: .95; }
+        .play-icon::after { content: ''; display: block; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 14px; border-color: transparent transparent transparent rgba(255,255,255,.9); margin-left: 4px; }
         .portfolio-item.playing .play-icon { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
 
         #drumseek-embed { width: 100%; min-height: 800px; border: none; border-radius: 12px; }
@@ -61,7 +61,7 @@
         .about { background: rgba(255,255,255,.02); border-radius: 20px; padding: 3rem; text-align: center; margin: 3rem 0; }
         .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 800px; margin: 0 auto 2rem; }
         .skills { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
-        .skill { padding: .8rem 1.5rem; background: linear-gradient(45deg, rgba(0,255,255,.1), rgba(255,0,255,.1)); border-radius: 25px; border: 1px solid rgba(255,255,255,.1); color: #fff; font-weight: 300; font-size: .9rem; }
+        .skill { padding: .8rem 1.5rem; background: linear-gradient(45deg, rgba(0,255,255,.1), rgba(255,0,255,.1)); border-radius: 25px; border: 1px solid rgba(255,255,255,.1); color: #fff; font-weight: 400; }
 
         .contact { text-align: center; background: linear-gradient(45deg, rgba(0,255,255,.05), rgba(255,0,255,.05)); border-radius: 20px; padding: 3rem; }
         .contact-links { display: flex; justify-content: center; gap: 2rem; margin-top: 2rem; }
@@ -71,13 +71,17 @@
         .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 2rem; }
         .lightbox.active { display: flex; }
         .lightbox video { max-width: 90vw; max-height: 85vh; border-radius: 8px; box-shadow: 0 0 60px rgba(0,255,255,.1); }
-        .lightbox-close { position: absolute; top: 1.5rem; right: 2rem; color: #fff; font-size: 2rem; background: none; border: none; cursor: pointer; opacity: .7; transition: opacity .2s; z-index: 10000; }
+        .lightbox-close { position: absolute; top: 1.5rem; right: 2rem; color: #fff; font-size: 2rem; background: none; border: none; cursor: pointer; opacity: .7; transition: opacity .2s; z-index: 10001; }
         .lightbox-close:hover { opacity: 1; }
 
+        /* Mobile-friendly navbar: keep links as tappable inline words instead of a stacked dropdown that takes a lot of vertical space */
         @media (max-width: 768px) {
             .logo-container { font-size: 2.5rem; }
-            nav ul { flex-direction: column; gap: 1rem; text-align: center; }
-            nav li { margin: 0; }
+            nav { padding: .6rem 1rem; }
+            /* Keep links in a single row that wraps if needed, with smaller gaps and touch-friendly padding */
+            nav ul { flex-direction: row; gap: .75rem; justify-content: center; }
+            nav a { padding: .5rem .7rem; font-size: .95rem; }
+
             section { padding: 3rem 1rem; }
             .portfolio-grid { grid-template-columns: 1fr; }
             .portfolio-item.portrait { grid-row: span 1; aspect-ratio: 9/12; }
@@ -85,7 +89,10 @@
             .portfolio-item .overlay { opacity: 1 !important; }
             #drumseek-embed { min-height: 600px; }
         }
-        @media (max-width: 480px) { .logo-container { font-size: 2rem; } }
+        @media (max-width: 480px) { 
+            .logo-container { font-size: 2rem; }
+            nav a { font-size: .9rem; padding: .5rem .6rem; }
+        }
     </style>
 </head>
 <body>
@@ -247,8 +254,8 @@
     <section id="about">
         <h2>About</h2>
         <div class="about">
-            <p>I'm a visual artist specializing in projection mapping and custom visual content creation. With a background in both fine arts and technology, I create immersive experiences that transform spaces and engage audiences.</p>
-            <p>My work spans architectural projections, interactive installations, live performance visuals, and brand activations. I combine artistic vision with technical expertise to deliver unique and memorable visual experiences.</p>
+            <p>I'm a visual artist specializing in projection mapping and custom visual content creation. With a background in both fine arts and technology, I create immersive experiences that transform spaces and tell a story through light and movement.</p>
+            <p>My work spans architectural projections, interactive installations, live performance visuals, and brand activations. I combine artistic vision with technical expertise to deliver unique and memorable experiences.</p>
             <div class="skills">
                 <div class="skill">Projection Mapping</div>
                 <div class="skill">TouchDesigner</div>
