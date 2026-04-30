@@ -815,43 +815,81 @@
             if (e.key === 'Escape') closeLightbox();
         });
 
-        // ===== DRUMSEEK IFRAME — one-shot height fit =====
-        // Measure DrumSeek's natural content height ONCE after it loads,
-        // set the iframe to exactly that height, then disable iframe scrolling.
-        // No ResizeObserver, no polling — no infinite resize loop.
+        // ===== DRUMSEEK IFRAME — robust auto-fit =====
+        // Strategy:
+        //   1. Override DrumSeek's `min-h-screen` (100vh) which causes the
+        //      "iframe grows -> body grows -> iframe grows" feedback loop.
+        //   2. Force body overflow:hidden so DrumSeek can never scroll inside.
+        //   3. Use ResizeObserver on the React root (not body!) to track
+        //      ACTUAL content height as DrumSeek opens/closes panels.
+        //   4. Match the wrapper div height to the content — NO loop because
+        //      the React root has no min-height tied to viewport.
         (function fitDrumSeek() {
             const frame = document.getElementById('drumseek-frame');
             const iframe = document.getElementById('drumseek-embed');
             if (!frame || !iframe) return;
 
-            iframe.addEventListener('load', () => {
-                // Wait for React inside DrumSeek to render
-                setTimeout(() => {
-                    try {
-                        const doc = iframe.contentDocument;
-                        if (!doc || !doc.body) return;
+            function setupAfterLoad() {
+                try {
+                    const doc = iframe.contentDocument;
+                    if (!doc || !doc.body) return false;
 
-                        // Disable internal scroll inside DrumSeek
-                        doc.body.style.overflow = 'hidden';
-                        doc.documentElement.style.overflow = 'hidden';
+                    // Inject CSS that overrides DrumSeek's viewport-tied heights.
+                    // This is THE fix for the feedback loop: without 100vh,
+                    // the body height equals content height, not iframe height.
+                    const fixCss = doc.createElement('style');
+                    fixCss.textContent = `
+                        html, body { 
+                            min-height: 0 !important; 
+                            height: auto !important;
+                            overflow: hidden !important;
+                        }
+                        /* DrumSeek root uses min-h-screen — override */
+                        #root > div { 
+                            min-height: 0 !important; 
+                            height: auto !important;
+                        }
+                    `;
+                    doc.head.appendChild(fixCss);
 
-                        // Measure DrumSeek's actual content height
-                        const root = doc.getElementById('root') || doc.body;
-                        const naturalHeight = Math.max(
-                            root.scrollHeight,
-                            doc.body.scrollHeight,
-                            doc.documentElement.scrollHeight
-                        );
+                    const root = doc.getElementById('root');
+                    if (!root) return false;
 
-                        // Set the FRAME (the wrapper div) to exactly that height + small buffer.
-                        // This is a one-shot measurement, never updated again.
-                        frame.style.height = (naturalHeight + 8) + 'px';
-
-                        console.log('[LucidSoup] DrumSeek fit to ' + (naturalHeight + 8) + 'px (one-shot, no scroll)');
-                    } catch (e) {
-                        console.warn('[LucidSoup] Could not auto-size DrumSeek:', e.message);
+                    function syncHeight() {
+                        // Measure ACTUAL content height (no longer tied to iframe size)
+                        const h = root.scrollHeight;
+                        if (h > 100) {
+                            frame.style.height = (h + 4) + 'px';
+                        }
                     }
-                }, 400);
+
+                    // Initial measurement
+                    syncHeight();
+                    setTimeout(syncHeight, 100);
+                    setTimeout(syncHeight, 500);
+
+                    // Watch for changes (FX rack open/close, MIDI panel, etc.)
+                    if (window.ResizeObserver) {
+                        const ro = new ResizeObserver(syncHeight);
+                        ro.observe(root);
+                    }
+
+                    console.log('[LucidSoup] DrumSeek auto-fit installed');
+                    return true;
+                } catch (e) {
+                    console.warn('[LucidSoup] Could not setup DrumSeek fit:', e.message);
+                    return false;
+                }
+            }
+
+            iframe.addEventListener('load', () => {
+                // Try multiple times in case React isn't done rendering
+                let attempts = 0;
+                const tryFit = () => {
+                    if (setupAfterLoad()) return;
+                    if (++attempts < 10) setTimeout(tryFit, 200);
+                };
+                setTimeout(tryFit, 100);
             });
         })();
 
