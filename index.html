@@ -11,7 +11,24 @@
         html { scroll-behavior: smooth; }
         body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #fff; background: #0a0a0a; overflow-x: hidden; min-height: 100vh; }
 
-        nav { position: fixed; top: 0; width: 100%; padding: 1rem 2rem; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); z-index: 1000; transition: background .3s ease; }
+        /* Audio-reactive WebGL canvas - behind everything */
+        #visual-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 0;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* Content wrapper - on top of canvas */
+        #content-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+
+        nav { position: fixed; top: 0; width: 100%; padding: 1rem 2rem; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); z-index: 1000; transition: background .3s ease; }
         nav ul { display: flex; justify-content: center; align-items: center; list-style: none; gap: 2rem; }
         nav li { margin: 0; }
         nav a { color: #fff; text-decoration: none; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; }
@@ -19,14 +36,13 @@
         nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, #00ffff, #ff00ff); transition: width .3s ease; }
         nav a:hover::after { width: 100%; }
 
-        /* hamburger button */
         .nav-toggle { display: none; background: none; border: 0; width: 44px; height: 44px; padding: 8px; cursor: pointer; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); z-index: 1002; }
         .nav-toggle .bar { display: block; width: 26px; height: 2px; background: #fff; margin: 5px 0; transition: transform .25s ease, opacity .25s ease; }
         nav.menu-open .nav-toggle .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
         nav.menu-open .nav-toggle .bar:nth-child(2) { opacity: 0; }
         nav.menu-open .nav-toggle .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-        .hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: #000; position: relative; overflow: hidden; }
+        .hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: transparent; position: relative; overflow: hidden; }
         .hero-content { z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
         .logo-container { position: relative; font-size: 4rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; font-family: 'Orbitron', monospace; }
         .logo-text { position: relative; color: #fff; text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff; animation: wave 2s ease-in-out infinite, glitch .3s linear infinite; }
@@ -39,8 +55,6 @@
         @keyframes glitch-red { 0%,100%{transform:translate(0);opacity:.8} 10%{transform:translate(-2px,2px);opacity:1} 30%{transform:translate(2px,-4px);opacity:.7} 50%{transform:translate(3px,-1px);opacity:.85} }
         @keyframes glitch-green { 0%,100%{transform:translate(0);opacity:.7} 15%{transform:translate(3px,-2px);opacity:1} 35%{transform:translate(-3px,-1px);opacity:.9} 55%{transform:translate(-2px,-3px);opacity:.75} }
 
-        .background-noise { position: absolute; inset: 0; opacity: .03; background: radial-gradient(circle at 20% 20%, #ff0040 1px, transparent 1px), radial-gradient(circle at 80% 80%, #00ff40 1px, transparent 1px); animation: noise 6s linear infinite; }
-        @keyframes noise { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-1px,1px)} 50%{transform:translate(1px,-1px)} 75%{transform:translate(-1px,-1px)} }
         .scanlines { position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(0,255,255,.03) 50%); background-size: 100% 4px; animation: scan .1s linear infinite; pointer-events: none; }
         @keyframes scan { 0%{transform:translateY(0)} 100%{transform:translateY(4px)} }
         .hero p { font-size: 1.2rem; font-weight: 300; letter-spacing: 2px; opacity: .8; z-index: 3; position: relative; }
@@ -63,7 +77,7 @@
         .play-icon::after { content: ''; display: block; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 14px; border-color: transparent transparent transparent rgba(255,255,255,.9); margin-left: 4px; }
         .portfolio-item.playing .play-icon { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
 
-        #drumseek-embed { width: 100%; min-height: 800px; border: none; border-radius: 12px; }
+        #drumseek-embed { width: 100%; min-height: 800px; border: none; border-radius: 12px; background: rgba(0,0,0,0.5); }
 
         .about { background: rgba(255,255,255,.02); border-radius: 20px; padding: 3rem; text-align: center; margin: 3rem 0; }
         .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 800px; margin: 0 auto 2rem; }
@@ -81,30 +95,211 @@
         .lightbox-close { position: absolute; top: 1.5rem; right: 2rem; color: #fff; font-size: 2rem; background: none; border: none; cursor: pointer; opacity: .7; transition: opacity .2s; z-index: 10001; }
         .lightbox-close:hover { opacity: 1; }
 
-        /* Mobile-friendly navbar: keep links inline on medium screens; switch to hamburger on small screens */
+        /* Visual control panel */
+        .visual-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1100;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            max-width: 280px;
+            max-height: 80vh;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            font-size: 12px;
+        }
+
+        .visual-controls h3 {
+            color: #00ffff;
+            margin-bottom: 10px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            padding-bottom: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-slider {
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #00ffff;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #00ffff;
+        }
+
+        .control-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #00ffff;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 0 6px #00ffff;
+        }
+
+        .shader-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .shader-btn {
+            padding: 6px 8px;
+            font-size: 10px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .shader-btn:hover {
+            background: rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+        }
+
+        .shader-btn.active {
+            background: rgba(0, 255, 255, 0.3);
+            color: #00ffff;
+            border-color: #00ffff;
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        }
+
+        .toggle-btn {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            background: rgba(255, 0, 127, 0.1);
+            border: 1px solid rgba(255, 0, 127, 0.3);
+            color: rgba(255, 255, 255, 0.7);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(255, 0, 127, 0.2);
+            color: #ff007f;
+        }
+
+        .toggle-btn.active {
+            background: rgba(255, 0, 127, 0.3);
+            color: #ff007f;
+            border-color: #ff007f;
+            box-shadow: 0 0 8px rgba(255, 0, 127, 0.5);
+        }
+
+        .control-toggle {
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 10px;
+            cursor: pointer;
+            position: relative;
+            margin-left: 5px;
+        }
+
+        .control-toggle.active {
+            background: rgba(0, 255, 255, 0.3);
+        }
+
+        .control-toggle::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #00ffff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+        }
+
+        .control-toggle.active::after {
+            left: 22px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 255, 0.5);
+        }
+
         @media (max-width: 768px) {
             .logo-container { font-size: 2.5rem; }
             nav { padding: .6rem 1rem; }
-            /* keep links inline and compact */
             nav ul { flex-direction: row; gap: .75rem; justify-content: center; }
             nav a { padding: .5rem .7rem; font-size: .95rem; }
-
             section { padding: 3rem 1rem; }
             .portfolio-grid { grid-template-columns: 1fr; }
             .portfolio-item.portrait { grid-row: span 1; aspect-ratio: 9/12; }
             .contact-links { flex-direction: column; gap: 1rem; }
             .portfolio-item .overlay { opacity: 1 !important; }
             #drumseek-embed { min-height: 600px; }
+            .visual-controls {
+                bottom: 10px;
+                right: 10px;
+                max-width: 240px;
+                padding: 10px;
+            }
         }
 
-        /* small screens: hide inline links and show a hamburger that toggles a dropdown */
         @media (max-width: 600px) {
             .nav-toggle { display: block; }
-            /* hide inline nav list by default on very small screens */
             nav ul { display: none; position: absolute; right: 1rem; top: calc(100% + 0.5rem); background: rgba(0,0,0,0.95); flex-direction: column; gap: 0; padding: .5rem; border-radius: 8px; min-width: 160px; box-shadow: 0 6px 20px rgba(0,0,0,.6); }
             nav ul li { margin: 0; }
             nav ul a { display: block; padding: .75rem 1rem; }
-            /* when menu is open, show the list */
             nav.menu-open ul { display: flex; }
         }
 
@@ -115,198 +310,225 @@
     </style>
 </head>
 <body>
-    <nav id="navbar">
-        <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-label="Open navigation menu">
-            <span class="bar"></span>
-            <span class="bar"></span>
-            <span class="bar"></span>
-        </button>
-        <ul>
-            <li><a href="#home">Home</a></li>
-            <li><a href="#portfolio">Portfolio</a></li>
-            <li><a href="#drumseek">DrumSeek</a></li>
-            <li><a href="#about">About</a></li>
-            <li><a href="#contact">Contact</a></li>
-        </ul>
-    </nav>
+    <!-- Audio-reactive WebGL canvas -->
+    <canvas id="visual-canvas"></canvas>
 
-    <section id="home" class="hero">
-        <div class="background-noise"></div>
-        <div class="scanlines"></div>
-        <div class="hero-content">
-            <div class="logo-container">
-                <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+    <!-- All website content -->
+    <div id="content-wrapper">
+        <nav id="navbar">
+            <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-label="Open navigation menu">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <ul>
+                <li><a href="#home">Home</a></li>
+                <li><a href="#portfolio">Portfolio</a></li>
+                <li><a href="#drumseek">DrumSeek</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+
+        <section class="hero" id="home">
+            <div class="hero-content">
+                <div class="logo-container">
+                    <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+                </div>
+                <p>VISUAL ARTIST · PROJECTION MAPPING · LIVE VISUALS</p>
             </div>
-            <p>VISUAL ARTIST &amp; PROJECTION MAPPING</p>
-        </div>
-    </section>
+            <div class="scanlines"></div>
+        </section>
 
-    <section id="portfolio">
-        <h2>Portfolio</h2>
+        <section id="portfolio">
+            <h2>Portfolio</h2>
 
-        <!-- IMMERSIVE SPACES -->
-        <div class="portfolio-category">
-            <h3>Immersive Spaces</h3>
-            <div class="portfolio-grid">
-                <div class="portfolio-item portrait" data-src="videos/IMG_3341.mov">
-                    <video src="videos/IMG_3341.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Immersive Venue Projection</h4><p>Full-space projection mapping with dynamic visuals across walls and suspended elements</p></div></div>
-                </div>
-                <div class="portfolio-item portrait" data-src="videos/IMG_3337.mov">
-                    <video src="videos/IMG_3337.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Spatial Mapping</h4><p>Multi-surface projection across architectural features and decorative orbs</p></div></div>
-                </div>
-                <div class="portfolio-item portrait" data-src="videos/IMG_3338.mov">
-                    <video src="videos/IMG_3338.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Setup &amp; Projection Rig</h4><p>Multi-projector setup with living wall integration and ceiling-to-floor coverage</p></div></div>
-                </div>
-                <div class="portfolio-item portrait" data-src="videos/IMG_3343.mov">
-                    <video src="videos/IMG_3343.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Immersive Dining</h4><p>Psychedelic generative visuals enveloping a full dining space</p></div></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- CLUB & EVENT VISUALS -->
-        <div class="portfolio-category">
-            <h3>Club &amp; Event Visuals</h3>
-            <div class="portfolio-grid">
-                <div class="portfolio-item" data-src="videos/IMG_0620.mov">
-                    <video src="videos/IMG_0620.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Underground — Live Set</h4><p>Custom visuals and laser integration for electronic music event</p></div></div>
-                </div>
-                <div class="portfolio-item" data-src="videos/IMG_0622.mov">
-                    <video src="videos/IMG_0622.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Underground — Stage Design</h4><p>Full stage visual design with tropical staging and LED backdrop</p></div></div>
-                </div>
-                <div class="portfolio-item" data-src="videos/IMG_2878.mov">
-                    <video src="videos/IMG_2878.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Underground — Main Room</h4><p>Branded projection and lighting design for main room DJ sets</p></div></div>
-                </div>
-                <div class="portfolio-item" data-src="videos/IMG_2874.mov">
-                    <video src="videos/IMG_2874.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Behind the Booth</h4><p>VJ control station — real-time visual mixing with multi-screen output</p></div></div>
-                </div>
-                <div class="portfolio-item" data-src="videos/IMG_0860.mov">
-                    <video src="videos/IMG_0860.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Immersive Event</h4><p>Projection mapping on surfaces and attendees at a live event</p></div></div>
+            <div class="portfolio-category">
+                <h3>Architectural Projections</h3>
+                <div class="portfolio-grid">
+                    <div class="portfolio-item" data-src="https://example.com/projection1.mp4">
+                        <video muted playsinline><source src="https://example.com/thumb1.mp4" type="video/mp4"></video>
+                        <div class="play-icon"></div>
+                        <div class="overlay">
+                            <div class="overlay-text">
+                                <h4>Festival Façade Mapping</h4>
+                                <p>Large-scale building projection using spatial mapping and audio reactivity</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="portfolio-item" data-src="https://example.com/projection2.mp4">
+                        <video muted playsinline><source src="https://example.com/thumb2.mp4" type="video/mp4"></video>
+                        <div class="play-icon"></div>
+                        <div class="overlay">
+                            <div class="overlay-text">
+                                <h4>Museum Installation</h4>
+                                <p>Interactive projection responding to visitor movement</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- CONCERT VISUALS -->
-        <div class="portfolio-category">
-            <h3>Concert Visuals</h3>
-            <div class="portfolio-grid">
-                <div class="portfolio-item" data-src="videos/IMG_2056.mov">
-                    <video src="videos/IMG_2056.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Gaslight — Live Band</h4><p>Real-time visuals projected behind a live band performance</p></div></div>
+            <div class="portfolio-category">
+                <h3>Concert & Event Visuals</h3>
+                <div class="portfolio-grid">
+                    <div class="portfolio-item" data-src="https://example.com/concert1.mp4">
+                        <video muted playsinline><source src="https://example.com/thumb3.mp4" type="video/mp4"></video>
+                        <div class="play-icon"></div>
+                        <div class="overlay">
+                            <div class="overlay-text">
+                                <h4>Electronic Music Festival</h4>
+                                <p>Real-time audio-reactive visuals synced to live performance</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="portfolio-item portrait" data-src="https://example.com/concert2.mp4">
+                        <video muted playsinline><source src="https://example.com/thumb4.mp4" type="video/mp4"></video>
+                        <div class="play-icon"></div>
+                        <div class="overlay">
+                            <div class="overlay-text">
+                                <h4>Club Residency</h4>
+                                <p>Immersive visual environment for weekly DJ sets</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="portfolio-item" data-src="https://example.com/concert3.mp4">
+                        <video muted playsinline><source src="https://example.com/thumb5.mp4" type="video/mp4"></video>
+                        <div class="play-icon"></div>
+                        <div class="overlay">
+                            <div class="overlay-text">
+                                <h4>Stage Design</h4>
+                                <p>Full production visuals with multi-camera integration</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="portfolio-item portrait" data-src="videos/IMG_2281.mov">
-                    <video src="videos/IMG_2281.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Live Band Projection</h4><p>Full-wall projection mapping layered over stage during live performance</p></div></div>
+            </div>
+
+            <div class="portfolio-category">
+                <h3>Interactive Installations</h3>
+                <div class="portfolio-grid">
+                    <div class="portfolio-item" data-src="https://example.com/install1.mp4">
+                        <video muted playsinline><source src="https://example.com/thumb6.mp4" type="video/mp4"></video>
+                        <div class="play-icon"></div>
+                        <div class="overlay">
+                            <div class="overlay-text">
+                                <h4>Generative Art Installation</h4>
+                                <p>AI-powered visual generation responding to ambient conditions</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="portfolio-item" data-src="https://example.com/install2.mp4">
+                        <video muted playsinline><source src="https://example.com/thumb7.mp4" type="video/mp4"></video>
+                        <div class="play-icon"></div>
+                        <div class="overlay">
+                            <div class="overlay-text">
+                                <h4>Immersive Experience</h4>
+                                <p>Multi-sensory installation combining visuals, sound, and interaction</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="portfolio-item" data-src="videos/IMG_2282.mov">
-                    <video src="videos/IMG_2282.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Stage Wash Mapping</h4><p>Generative visuals washing across walls and band members during live set</p></div></div>
+            </div>
+        </section>
+
+        <section id="drumseek">
+            <h2>DrumSeek — Live Beat Sequencer</h2>
+            <p style="text-align: center; margin-bottom: 2rem; opacity: 0.8;">
+                9-track drum machine with synthesizers, effects, and MIDI control. The visuals behind you are reactively driven by DrumSeek's audio output.
+            </p>
+            <iframe id="drumseek-embed" src="drumseek.html" allow="autoplay; midi"></iframe>
+        </section>
+
+        <section id="about">
+            <h2>About</h2>
+            <div class="about">
+                <p>
+                    LucidSoup is a creative practice focused on large-scale immersive experiences combining projection mapping, generative algorithms, and real-time audio synthesis. Specializing in architectural projections, live concert visuals, and interactive installations that blur the line between art and technology.
+                </p>
+                <div class="skills">
+                    <span class="skill">Projection Mapping</span>
+                    <span class="skill">Real-Time Graphics</span>
+                    <span class="skill">Audio Reactivity</span>
+                    <span class="skill">Generative Art</span>
+                    <span class="skill">GLSL Shaders</span>
+                    <span class="skill">3D Visualization</span>
+                    <span class="skill">Interactive Design</span>
+                    <span class="skill">Live Performance</span>
                 </div>
+            </div>
+        </section>
+
+        <section id="contact">
+            <h2>Contact</h2>
+            <div class="contact">
+                <p style="margin-bottom: 1rem;">Get in touch for commissions, collaborations, or general inquiries.</p>
+                <div class="contact-links">
+                    <a href="mailto:hello@lucidsoup.io" class="contact-link">Email</a>
+                    <a href="https://www.instagram.com/lucidsoup" class="contact-link">Instagram</a>
+                    <a href="#" class="contact-link">Vimeo</a>
+                    <a href="#" class="contact-link">LinkedIn</a>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Visual control panel -->
+    <div class="visual-controls">
+        <h3>Visual Engine</h3>
+        
+        <div class="control-group">
+            <div class="control-label">Shader</div>
+            <div class="shader-buttons">
+                <button class="shader-btn active" data-shader="kaleidoscope">Kalei</button>
+                <button class="shader-btn" data-shader="tunnel">Tunnel</button>
+                <button class="shader-btn" data-shader="plasma">Plasma</button>
+                <button class="shader-btn" data-shader="wave">Wave</button>
             </div>
         </div>
 
-        <!-- ART INSTALLATIONS -->
-        <div class="portfolio-category">
-            <h3>Art Installations</h3>
-            <div class="portfolio-grid">
-                <div class="portfolio-item" data-src="videos/IMG_0851.mov">
-                    <video src="videos/IMG_0851.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Sculptural Screen Installation</h4><p>Embedded display within sculptural art piece playing generative visuals</p></div></div>
-                </div>
-                <div class="portfolio-item" data-src="videos/IMG_0864.mov">
-                    <video src="videos/IMG_0864.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Sculptural Screen — Night</h4><p>Kaleidoscopic fractal visuals displayed within sculptural art piece</p></div></div>
-                </div>
-                <div class="portfolio-item portrait" data-src="videos/IMG_2992.mov">
-                    <video src="videos/IMG_2992.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Gallery Exhibition</h4><p>Live visual performance and CRT art at gallery event</p></div></div>
-                </div>
+        <div class="control-group">
+            <div class="control-label">
+                Feedback
+                <span id="feedback-value">50%</span>
             </div>
+            <input type="range" min="0" max="100" value="50" class="control-slider" id="feedback-slider">
         </div>
 
-        <!-- GENERATIVE VISUALS -->
-        <div class="portfolio-category">
-            <h3>Generative Visuals</h3>
-            <div class="portfolio-grid">
-                <div class="portfolio-item" data-src="videos/IMG_0858.mov">
-                    <video src="videos/IMG_0858.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Fractal Explorations</h4><p>Real-time fractal rendering with psychedelic color manipulation</p></div></div>
-                </div>
-                <div class="portfolio-item" data-src="videos/IMG_0863.mov">
-                    <video src="videos/IMG_0863.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>Generative Feedback</h4><p>Algorithmic visual generation with feedback loop processing</p></div></div>
-                </div>
-                <div class="portfolio-item" data-src="videos/IMG_0627.mov">
-                    <video src="videos/IMG_0627.mov" muted loop playsinline preload="metadata"></video>
-                    <div class="play-icon"></div>
-                    <div class="overlay"><div class="overlay-text"><h4>The Rig</h4><p>Multi-screen VJ setup — laptops, MIDI controllers, and visual synthesis hardware</p></div></div>
-                </div>
+        <div class="control-group">
+            <div class="control-label">
+                Zoom
+                <span id="zoom-value">1.00</span>
             </div>
+            <input type="range" min="100" max="110" value="100" step="1" class="control-slider" id="zoom-slider">
         </div>
-    </section>
 
-    <section id="drumseek">
-        <h2>DrumSeek</h2>
-        <iframe id="drumseek-embed" src="drumseek.html"></iframe>
-    </section>
-
-    <section id="about">
-        <h2>About</h2>
-        <div class="about">
-            <p>I'm a visual artist specializing in projection mapping and custom visual content creation. With a background in both fine arts and technology, I create immersive experiences that transform spaces and tell a story through light and movement.</p>
-            <p>My work spans architectural projections, interactive installations, live performance visuals, and brand activations. I combine artistic vision with technical expertise to deliver unique and memorable experiences.</p>
-            <div class="skills">
-                <div class="skill">Projection Mapping</div>
-                <div class="skill">TouchDesigner</div>
-                <div class="skill">Resolume</div>
-                <div class="skill">Davinci Resolve</div>
-                <div class="skill">Zbrush</div>
-                <div class="skill">Blender</div>
-                <div class="skill">Synesthesia</div>
-                <div class="skill">Maya</div>
-                <div class="skill">Interactive Design</div>
-                <div class="skill">3D Modeling</div>
+        <div class="control-group">
+            <div class="control-label">
+                Rotation
+                <span id="rotation-value">0.00</span>
             </div>
+            <input type="range" min="0" max="10" value="0" step="0.1" class="control-slider" id="rotation-slider">
         </div>
-    </section>
 
-    <section id="contact">
-        <h2>Contact</h2>
-        <div class="contact">
-            <p>Ready to create something amazing together? Let's discuss your next visual project.</p>
-            <div class="contact-links">
-                <a href="mailto:mjavella8@gmail.com" class="contact-link">Email</a>
-                <a href="https://www.instagram.com/lucidsoup" class="contact-link">Instagram</a>
-                <a href="#" class="contact-link">Vimeo</a>
-                <a href="#" class="contact-link">LinkedIn</a>
+        <div class="control-group">
+            <div class="control-label">
+                Hue Shift
+                <span id="hue-value">0°</span>
             </div>
+            <input type="range" min="0" max="360" value="0" step="1" class="control-slider" id="hue-slider">
         </div>
-    </section>
+
+        <div class="control-group">
+            <div class="control-label">
+                Audio React
+                <span id="audio-react-value">50%</span>
+            </div>
+            <input type="range" min="0" max="100" value="50" class="control-slider" id="audio-react-slider">
+        </div>
+
+        <button class="toggle-btn" id="canvas-toggle">Disable Visuals</button>
+    </div>
 
     <!-- Lightbox -->
     <div class="lightbox" id="lightbox">
@@ -315,13 +537,12 @@
     </div>
 
     <script>
-        // Navbar scroll
+        // ===== NAVBAR =====
         window.addEventListener('scroll', function() {
             document.getElementById('navbar').style.background =
                 window.scrollY > 100 ? 'rgba(0,0,0,.95)' : 'rgba(0,0,0,.9)';
         });
 
-        // Hamburger menu toggle for small screens
         (function(){
             var nav = document.getElementById('navbar');
             var toggle = document.getElementById('nav-toggle');
@@ -338,26 +559,22 @@
                 setExpanded(!expanded);
             });
 
-            // close menu when a link is clicked (mobile)
             links.forEach(function(a){
                 a.addEventListener('click', function(){
-                    // allow default anchor behavior, but close the menu
                     setExpanded(false);
                 });
             });
 
-            // close on escape
             document.addEventListener('keydown', function(e){
                 if(e.key === 'Escape') setExpanded(false);
             });
 
-            // close menu when clicking outside (for small screens)
             document.addEventListener('click', function(e){
                 if(!nav.contains(e.target)) setExpanded(false);
             });
         })();
 
-        // Video hover play / tap play
+        // ===== PORTFOLIO VIDEO HOVER =====
         var items = document.querySelectorAll('.portfolio-item');
         var isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -404,7 +621,7 @@
             });
         }
 
-        // Lightbox
+        // ===== LIGHTBOX =====
         var lightbox = document.getElementById('lightbox');
         var lbVideo = document.getElementById('lightbox-video');
 
@@ -428,6 +645,416 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeLightbox();
         });
+
+        // ===== AUDIO-REACTIVE WEBGL =====
+        const canvas = document.getElementById('visual-canvas');
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+
+        if (!gl) {
+            console.error('WebGL not supported');
+            canvas.style.display = 'none';
+        } else {
+            // Setup canvas
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Shaders
+            const vertexShader = `#version 300 es
+                precision highp float;
+                in vec2 position;
+                void main() {
+                    gl_Position = vec4(position, 0.0, 1.0);
+                }
+            `;
+
+            const fragmentShaderKaleidoscope = `#version 300 es
+                precision highp float;
+                uniform vec2 resolution;
+                uniform float time;
+                uniform sampler2D prevFrame;
+                uniform float feedback;
+                uniform float zoom;
+                uniform float rotation;
+                uniform float hue;
+                uniform float audioLevel;
+                uniform float bassLevel;
+                
+                out vec4 FragColor;
+                
+                vec3 hsv2rgb(vec3 c) {
+                    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+                }
+                
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    uv = uv * 2.0 - 1.0;
+                    uv *= zoom;
+                    uv *= mat2(cos(rotation), -sin(rotation), sin(rotation), cos(rotation));
+                    
+                    float r = length(uv);
+                    float a = atan(uv.y, uv.x);
+                    float segments = 6.0 + bassLevel * 4.0;
+                    a = mod(a, 6.283185 / segments);
+                    
+                    vec2 newUv = vec2(r * cos(a), r * sin(a)) * 0.5 + 0.5;
+                    vec4 prev = texture(prevFrame, newUv);
+                    
+                    vec3 col = hsv2rgb(vec3((a / 6.283185) + hue / 360.0, 1.0, audioLevel * 0.5 + 0.5));
+                    
+                    FragColor = vec4(mix(col, prev.rgb, feedback * 0.98), 1.0);
+                }
+            `;
+
+            const fragmentShaderTunnel = `#version 300 es
+                precision highp float;
+                uniform vec2 resolution;
+                uniform float time;
+                uniform sampler2D prevFrame;
+                uniform float feedback;
+                uniform float zoom;
+                uniform float rotation;
+                uniform float hue;
+                uniform float audioLevel;
+                uniform float bassLevel;
+                
+                out vec4 FragColor;
+                
+                vec3 hsv2rgb(vec3 c) {
+                    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+                }
+                
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    uv = uv * 2.0 - 1.0;
+                    uv *= zoom;
+                    
+                    float r = length(uv);
+                    float a = atan(uv.y, uv.x);
+                    
+                    r *= 1.0 + audioLevel * 0.5;
+                    float tunnel = 1.0 / (r + 0.1);
+                    
+                    uv = vec2(a / 6.283185, tunnel * 0.1);
+                    uv += time * 0.05;
+                    
+                    vec4 prev = texture(prevFrame, uv);
+                    vec3 col = hsv2rgb(vec3(uv.x + hue / 360.0, 1.0, tunnel * 0.5));
+                    
+                    FragColor = vec4(mix(col, prev.rgb, feedback * 0.98), 1.0);
+                }
+            `;
+
+            const fragmentShaderPlasma = `#version 300 es
+                precision highp float;
+                uniform vec2 resolution;
+                uniform float time;
+                uniform sampler2D prevFrame;
+                uniform float feedback;
+                uniform float zoom;
+                uniform float rotation;
+                uniform float hue;
+                uniform float audioLevel;
+                uniform float bassLevel;
+                
+                out vec4 FragColor;
+                
+                vec3 hsv2rgb(vec3 c) {
+                    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+                }
+                
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution * 2.0 - 1.0;
+                    uv *= zoom;
+                    
+                    float v = sin(uv.x * 10.0 + time + audioLevel * 10.0) * 0.5 + 0.5;
+                    v += sin(uv.y * 10.0 + time * 0.7) * 0.5;
+                    v += sin((uv.x + uv.y) * 7.0 + time * 0.3) * 0.5;
+                    v *= audioLevel + 0.5;
+                    
+                    vec4 prev = texture(prevFrame, uv * 0.5 + 0.5);
+                    vec3 col = hsv2rgb(vec3(v + hue / 360.0, 1.0, audioLevel * 0.6 + 0.4));
+                    
+                    FragColor = vec4(mix(col, prev.rgb, feedback * 0.98), 1.0);
+                }
+            `;
+
+            const fragmentShaderWave = `#version 300 es
+                precision highp float;
+                uniform vec2 resolution;
+                uniform float time;
+                uniform sampler2D prevFrame;
+                uniform float feedback;
+                uniform float zoom;
+                uniform float rotation;
+                uniform float hue;
+                uniform float audioLevel;
+                uniform float bassLevel;
+                
+                out vec4 FragColor;
+                
+                vec3 hsv2rgb(vec3 c) {
+                    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+                    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+                }
+                
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    uv.y += sin(uv.x * 20.0 + time * 2.0 + audioLevel * 10.0) * 0.02 * (1.0 + bassLevel);
+                    
+                    vec4 prev = texture(prevFrame, uv);
+                    vec3 col = hsv2rgb(vec3(uv.x + hue / 360.0, 0.8, audioLevel * 0.5 + 0.5));
+                    
+                    FragColor = vec4(mix(col, prev.rgb, feedback * 0.98), 1.0);
+                }
+            `;
+
+            // Compile shader
+            function compileShader(source, type) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+                return shader;
+            }
+
+            function createProgram(vSrc, fSrc) {
+                const vs = compileShader(vSrc, gl.VERTEX_SHADER);
+                const fs = compileShader(fSrc, gl.FRAGMENT_SHADER);
+                if (!vs || !fs) return null;
+                
+                const prog = gl.createProgram();
+                gl.attachShader(prog, vs);
+                gl.attachShader(prog, fs);
+                gl.linkProgram(prog);
+                
+                if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+                    console.error(gl.getProgramInfoLog(prog));
+                    return null;
+                }
+                
+                gl.deleteShader(vs);
+                gl.deleteShader(fs);
+                return prog;
+            }
+
+            const programs = {
+                kaleidoscope: createProgram(vertexShader, fragmentShaderKaleidoscope),
+                tunnel: createProgram(vertexShader, fragmentShaderTunnel),
+                plasma: createProgram(vertexShader, fragmentShaderPlasma),
+                wave: createProgram(vertexShader, fragmentShaderWave),
+            };
+
+            // Framebuffer setup
+            const fb1 = gl.createFramebuffer();
+            const fb2 = gl.createFramebuffer();
+            const tex1 = gl.createTexture();
+            const tex2 = gl.createTexture();
+
+            [tex1, tex2].forEach(tex => {
+                gl.bindTexture(gl.TEXTURE_2D, tex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, canvas.width, canvas.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            });
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fb1);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex1, 0);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex2, 0);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+            // Fullscreen quad
+            const posBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+            // Audio data
+            let audioData = {
+                freq: new Uint8Array(256),
+                wave: new Uint8Array(512),
+            };
+
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'DRUMSEEK_AUDIO') {
+                    audioData.freq = new Uint8Array(event.data.freq || audioData.freq);
+                    audioData.wave = new Uint8Array(event.data.wave || audioData.wave);
+                }
+            });
+
+            // Control state
+            let controlState = {
+                shader: 'kaleidoscope',
+                feedback: 0.5,
+                zoom: 1.0,
+                rotation: 0.0,
+                hue: 0,
+                audioReact: 0.5,
+                enabled: true,
+            };
+
+            // UI controls
+            document.querySelectorAll('.shader-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.shader-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    controlState.shader = btn.dataset.shader;
+                });
+            });
+
+            document.getElementById('feedback-slider').addEventListener('input', (e) => {
+                controlState.feedback = +e.target.value / 100;
+                document.getElementById('feedback-value').textContent = e.target.value + '%';
+            });
+
+            document.getElementById('zoom-slider').addEventListener('input', (e) => {
+                controlState.zoom = 1.0 + (+e.target.value - 100) / 100;
+                document.getElementById('zoom-value').textContent = controlState.zoom.toFixed(2);
+            });
+
+            document.getElementById('rotation-slider').addEventListener('input', (e) => {
+                controlState.rotation = +e.target.value * 0.628318;
+                document.getElementById('rotation-value').textContent = (+e.target.value).toFixed(2);
+            });
+
+            document.getElementById('hue-slider').addEventListener('input', (e) => {
+                controlState.hue = +e.target.value;
+                document.getElementById('hue-value').textContent = e.target.value + '°';
+            });
+
+            document.getElementById('audio-react-slider').addEventListener('input', (e) => {
+                controlState.audioReact = +e.target.value / 100;
+                document.getElementById('audio-react-value').textContent = e.target.value + '%';
+            });
+
+            document.getElementById('canvas-toggle').addEventListener('click', function() {
+                controlState.enabled = !controlState.enabled;
+                canvas.style.opacity = controlState.enabled ? '0.6' : '0';
+                this.classList.toggle('active');
+                this.textContent = controlState.enabled ? 'Disable Visuals' : 'Enable Visuals';
+            });
+
+            // Compute audio levels
+            function getAudioLevels() {
+                let bass = 0, mid = 0, high = 0;
+                const freqData = audioData.freq;
+                
+                for (let i = 0; i < 8; i++) bass += freqData[i];
+                for (let i = 8; i < 64; i++) mid += freqData[i];
+                for (let i = 64; i < 128; i++) high += freqData[i];
+                
+                bass = (bass / 8 / 255) * controlState.audioReact;
+                const audio = ((mid + high) / 112 / 255) * 0.5 * controlState.audioReact;
+                
+                return { bass, audio };
+            }
+
+            // Render loop
+            let currentTex = 1;
+            let startTime = Date.now();
+
+            function render() {
+                if (!controlState.enabled) {
+                    requestAnimationFrame(render);
+                    return;
+                }
+
+                const time = (Date.now() - startTime) / 1000;
+                const { bass, audio } = getAudioLevels();
+
+                const program = programs[controlState.shader];
+                gl.useProgram(program);
+
+                // Setup quad
+                const posLoc = gl.getAttribLocation(program, 'position');
+                gl.enableVertexAttribArray(posLoc);
+                gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+                gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+                // Bind framebuffer for rendering
+                const targetFb = currentTex === 1 ? fb1 : fb2;
+                const prevTex = currentTex === 1 ? tex2 : tex1;
+                gl.bindFramebuffer(gl.FRAMEBUFFER, targetFb);
+
+                // Set uniforms
+                gl.uniform2f(gl.getUniformLocation(program, 'resolution'), canvas.width, canvas.height);
+                gl.uniform1f(gl.getUniformLocation(program, 'time'), time);
+                gl.uniform1f(gl.getUniformLocation(program, 'feedback'), controlState.feedback);
+                gl.uniform1f(gl.getUniformLocation(program, 'zoom'), controlState.zoom);
+                gl.uniform1f(gl.getUniformLocation(program, 'rotation'), controlState.rotation);
+                gl.uniform1f(gl.getUniformLocation(program, 'hue'), controlState.hue);
+                gl.uniform1f(gl.getUniformLocation(program, 'audioLevel'), audio);
+                gl.uniform1f(gl.getUniformLocation(program, 'bassLevel'), bass);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, prevTex);
+                gl.uniform1i(gl.getUniformLocation(program, 'prevFrame'), 0);
+
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                // Render to screen
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.useProgram(null);
+
+                // Draw the current framebuffer texture to screen
+                const displayProg = gl.createProgram();
+                const vShader = compileShader(`#version 300 es
+                    precision highp float;
+                    in vec2 position;
+                    out vec2 uv;
+                    void main() {
+                        gl_Position = vec4(position, 0.0, 1.0);
+                        uv = position * 0.5 + 0.5;
+                    }
+                `, gl.VERTEX_SHADER);
+                const fShader = compileShader(`#version 300 es
+                    precision highp float;
+                    uniform sampler2D tex;
+                    in vec2 uv;
+                    out vec4 FragColor;
+                    void main() {
+                        FragColor = texture(tex, uv);
+                    }
+                `, gl.FRAGMENT_SHADER);
+                gl.attachShader(displayProg, vShader);
+                gl.attachShader(displayProg, fShader);
+                gl.linkProgram(displayProg);
+                
+                gl.useProgram(displayProg);
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, currentTex === 1 ? tex1 : tex2);
+                gl.uniform1i(gl.getUniformLocation(displayProg, 'tex'), 0);
+                gl.enableVertexAttribArray(gl.getAttribLocation(displayProg, 'position'));
+                gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+                gl.vertexAttribPointer(gl.getAttribLocation(displayProg, 'position'), 2, gl.FLOAT, false, 0, 0);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                gl.deleteProgram(displayProg);
+                gl.deleteShader(vShader);
+                gl.deleteShader(fShader);
+
+                currentTex = currentTex === 1 ? 2 : 1;
+                requestAnimationFrame(render);
+            }
+
+            render();
+        }
     </script>
 </body>
 </html>
