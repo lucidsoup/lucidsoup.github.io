@@ -77,7 +77,7 @@
         .play-icon::after { content: ''; display: block; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 14px; border-color: transparent transparent transparent rgba(255,255,255,.9); margin-left: 4px; }
         .portfolio-item.playing .play-icon { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
 
-        #drumseek-embed { width: 100%; min-height: 800px; border: none; border-radius: 12px; background: rgba(0,0,0,0.5); }
+        #drumseek-embed { width: 100%; height: 1100px; border: none; border-radius: 12px; background: rgba(0,0,0,0.5); display: block; transition: height 0.2s ease; }
 
         .about { background: rgba(255,255,255,.02); border-radius: 20px; padding: 3rem; text-align: center; margin: 3rem 0; }
         .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 800px; margin: 0 auto 2rem; }
@@ -110,6 +110,44 @@
             overflow-y: auto;
             backdrop-filter: blur(10px);
             font-size: 12px;
+            transition: transform 0.25s ease, opacity 0.25s ease;
+        }
+
+        .visual-controls.collapsed {
+            transform: translateY(120%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Floating toggle button (always visible) */
+        .vfx-fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1101;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            color: #00ffff;
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .vfx-fab:hover, .vfx-fab:active {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(0, 255, 255, 0.4);
+        }
+
+        .vfx-fab.panel-open {
+            transform: rotate(45deg);
         }
 
         .visual-controls h3 {
@@ -120,7 +158,23 @@
             letter-spacing: 1px;
             border-bottom: 1px solid rgba(0, 255, 255, 0.2);
             padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+
+        .panel-close {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            width: 24px;
+            height: 24px;
+        }
+        .panel-close:hover { color: #00ffff; }
 
         .control-group {
             margin-bottom: 12px;
@@ -138,19 +192,20 @@
 
         .control-slider {
             width: 100%;
-            height: 4px;
+            height: 6px;
             background: rgba(0, 255, 255, 0.1);
-            border-radius: 2px;
+            border-radius: 3px;
             outline: none;
             -webkit-appearance: none;
             appearance: none;
+            margin: 4px 0;
         }
 
         .control-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 12px;
-            height: 12px;
+            width: 18px;
+            height: 18px;
             background: #00ffff;
             cursor: pointer;
             border-radius: 50%;
@@ -158,8 +213,8 @@
         }
 
         .control-slider::-moz-range-thumb {
-            width: 12px;
-            height: 12px;
+            width: 18px;
+            height: 18px;
             background: #00ffff;
             cursor: pointer;
             border-radius: 50%;
@@ -175,8 +230,8 @@
         }
 
         .shader-btn {
-            padding: 6px 8px;
-            font-size: 10px;
+            padding: 10px 8px;
+            font-size: 11px;
             background: rgba(0, 255, 255, 0.1);
             border: 1px solid rgba(0, 255, 255, 0.3);
             color: rgba(255, 255, 255, 0.7);
@@ -185,6 +240,7 @@
             transition: all 0.2s;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            min-height: 38px;
         }
 
         .shader-btn:hover {
@@ -277,24 +333,63 @@
         }
 
         @media (max-width: 768px) {
-            .logo-container { font-size: 2.5rem; }
-            nav { padding: .6rem 1rem; }
-            nav ul { flex-direction: row; gap: .75rem; justify-content: center; }
-            nav a { padding: .5rem .7rem; font-size: .95rem; }
+            /* Reduce canvas opacity behind content for readability */
+            #visual-canvas { opacity: 0.4; }
+
+            /* Hero - smaller logo, smaller subtitle */
+            .hero { padding: 0 1rem; }
+            .logo-container { font-size: 2.4rem; letter-spacing: 0.06em; }
+            .hero p { font-size: 0.9rem; letter-spacing: 1.5px; padding: 0 0.5rem; }
+
+            /* Headings - much smaller on mobile */
+            h2 { font-size: 1.75rem; margin-bottom: 1.75rem; }
+
+            /* Tighter section spacing */
             section { padding: 3rem 1rem; }
+
+            nav { padding: .6rem 1rem; }
+            nav ul { flex-direction: row; gap: .5rem; justify-content: center; }
+            nav a { padding: .5rem .55rem; font-size: .9rem; letter-spacing: 0.5px; }
+
             .portfolio-grid { grid-template-columns: 1fr; }
             .portfolio-item.portrait { grid-row: span 1; aspect-ratio: 9/12; }
             .contact-links { flex-direction: column; gap: 1rem; }
             .portfolio-item .overlay { opacity: 1 !important; }
-            #drumseek-embed { min-height: 600px; }
+            .portfolio-category h3 { font-size: 0.95rem; letter-spacing: 2px; }
+
+            /* DrumSeek section - tighter, smaller intro */
+            #drumseek p { font-size: 0.95rem; line-height: 1.5; padding: 0 0.5rem; }
+            #drumseek-embed { height: 1500px; }
+
+            /* About */
+            .about { padding: 1.75rem 1.25rem; margin: 1.5rem 0; }
+            .about p { font-size: 0.95rem; line-height: 1.65; }
+            .skill { padding: .55rem 1rem; font-size: 0.85rem; }
+
+            /* Contact */
+            .contact { padding: 2rem 1.25rem; }
+            .contact-link { padding: 0.85rem 1.5rem; font-size: 0.95rem; }
+
+            /* Visual controls - more compact, narrower */
             .visual-controls {
-                bottom: 10px;
-                right: 10px;
-                max-width: 240px;
-                padding: 10px;
+                bottom: 78px;  /* leave room above for FAB */
+                right: 12px;
+                left: 12px;
+                max-width: none;
+                width: auto;
+                padding: 12px;
+                max-height: 65vh;
             }
+            .visual-controls h3 { font-size: 12px; }
+            .control-group { margin-bottom: 14px; }
+            .control-label { font-size: 10px; }
+            .toggle-btn { padding: 11px; font-size: 11px; }
+
+            /* FAB position */
+            .vfx-fab { bottom: 14px; right: 14px; }
         }
 
+        /* small screens: hide inline links and show a hamburger that toggles a dropdown */
         @media (max-width: 600px) {
             .nav-toggle { display: block; }
             nav ul { display: none; position: absolute; right: 1rem; top: calc(100% + 0.5rem); background: rgba(0,0,0,0.95); flex-direction: column; gap: 0; padding: .5rem; border-radius: 8px; min-width: 160px; box-shadow: 0 6px 20px rgba(0,0,0,.6); }
@@ -304,8 +399,11 @@
         }
 
         @media (max-width: 480px) { 
-            .logo-container { font-size: 2rem; }
-            nav a { font-size: .9rem; padding: .5rem .6rem; }
+            .logo-container { font-size: 2rem; letter-spacing: 0.04em; }
+            .hero p { font-size: 0.82rem; letter-spacing: 1px; }
+            h2 { font-size: 1.5rem; }
+            #drumseek-embed { height: 1500px; }
+            section { padding: 2.5rem 0.875rem; }
         }
     </style>
 </head>
@@ -444,7 +542,7 @@
             <h2>About</h2>
             <div class="about">
                 <p>
-                    LucidSoup is a creative practice focused on large-scale immersive experiences combining projection mapping, and real-time audio synthesis. Specializing in architectural projections, live concert visuals, and interactive installations that blur the line between art and technology.
+                    LucidSoup is a creative practice focused on large-scale immersive experiences combining projection mapping, generative algorithms, and real-time audio synthesis. Specializing in architectural projections, live concert visuals, and interactive installations that blur the line between art and technology.
                 </p>
                 <div class="skills">
                     <span class="skill">Projection Mapping</span>
@@ -474,8 +572,14 @@
     </div>
 
     <!-- Visual control panel -->
-    <div class="visual-controls">
-        <h3>Visual Engine</h3>
+    <!-- Floating action button to open/close visual controls -->
+    <button class="vfx-fab" id="vfx-fab" aria-label="Toggle visual controls" title="Visual Controls">⚙</button>
+
+    <div class="visual-controls collapsed" id="visual-controls">
+        <h3>
+            <span>Visual Engine</span>
+            <button class="panel-close" id="panel-close" aria-label="Close panel">×</button>
+        </h3>
         
         <div class="control-group">
             <div class="control-label">Shader</div>
@@ -646,8 +750,121 @@
             if (e.key === 'Escape') closeLightbox();
         });
 
+        // ===== DRUMSEEK IFRAME AUTO-HEIGHT =====
+        // Since both files are same-origin, we can read DrumSeek's actual content
+        // height and resize the iframe to fit, eliminating internal scrolling.
+        (function initIframeAutoHeight() {
+            const iframe = document.getElementById('drumseek-embed');
+            if (!iframe) return;
+
+            let lastHeight = 0;
+
+            function updateHeight() {
+                try {
+                    const doc = iframe.contentDocument;
+                    if (!doc || !doc.body) return;
+
+                    // Use the full content height. DrumSeek's body uses overflow:auto,
+                    // so scrollHeight gives the real content size.
+                    const root = doc.getElementById('root') || doc.body;
+                    const height = Math.max(
+                        root.scrollHeight,
+                        doc.body.scrollHeight,
+                        doc.documentElement.scrollHeight
+                    );
+
+                    // Add a small buffer so nothing gets clipped at the bottom
+                    const target = height + 24;
+
+                    // Only resize if the change is meaningful (avoids thrashing)
+                    if (Math.abs(target - lastHeight) > 8) {
+                        iframe.style.height = target + 'px';
+                        lastHeight = target;
+                    }
+                } catch (e) {
+                    // Cross-origin or transient error — leave fallback height in place
+                    console.warn('[DrumSeek] iframe sizing failed (cross-origin?):', e.message);
+                }
+            }
+
+            // Trigger on load
+            iframe.addEventListener('load', () => {
+                // First measurement after a brief delay so React has rendered
+                setTimeout(updateHeight, 100);
+                setTimeout(updateHeight, 500);
+                setTimeout(updateHeight, 1500);
+
+                // Use ResizeObserver if available - reacts to FX rack opening etc.
+                try {
+                    const doc = iframe.contentDocument;
+                    if (doc && doc.body && window.ResizeObserver) {
+                        const ro = new ResizeObserver(() => updateHeight());
+                        ro.observe(doc.body);
+                        const root = doc.getElementById('root');
+                        if (root) ro.observe(root);
+                    }
+                } catch (e) {
+                    // Fall back to polling
+                }
+
+                // Polling fallback - covers cases where ResizeObserver doesn't fire
+                // (e.g. when the user toggles FX rack which adds tall children)
+                setInterval(updateHeight, 800);
+            });
+
+            // Also recompute on window resize since the iframe's flex children may reflow
+            window.addEventListener('resize', () => {
+                setTimeout(updateHeight, 100);
+            });
+        })();
+
         // ===== AUDIO-REACTIVE WEBGL VISUAL ENGINE =====
         // Robust WebGL1-compatible implementation with error reporting
+
+        // Detect mobile (used for perf tuning + default panel state)
+        const isSmallScreen = window.matchMedia('(max-width: 768px)').matches;
+
+        // ===== Visual control panel toggle =====
+        (function initPanelToggle() {
+            const panel = document.getElementById('visual-controls');
+            const fab = document.getElementById('vfx-fab');
+            const closeBtn = document.getElementById('panel-close');
+            if (!panel || !fab) return;
+
+            // On desktop, panel is open by default; on mobile, collapsed
+            if (!isSmallScreen) {
+                panel.classList.remove('collapsed');
+                fab.classList.add('panel-open');
+            }
+
+            function setOpen(open) {
+                if (open) {
+                    panel.classList.remove('collapsed');
+                    fab.classList.add('panel-open');
+                } else {
+                    panel.classList.add('collapsed');
+                    fab.classList.remove('panel-open');
+                }
+            }
+
+            fab.addEventListener('click', () => {
+                setOpen(panel.classList.contains('collapsed'));
+            });
+
+            if (closeBtn) closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setOpen(false);
+            });
+
+            // Close panel when tapping outside on mobile
+            document.addEventListener('click', (e) => {
+                if (!isSmallScreen) return;
+                if (panel.classList.contains('collapsed')) return;
+                if (!panel.contains(e.target) && !fab.contains(e.target)) {
+                    setOpen(false);
+                }
+            });
+        })();
 
         (function initVisualEngine() {
             const canvas = document.getElementById('visual-canvas');
@@ -663,10 +880,13 @@
                 return;
             }
 
-            console.log('[Visuals] WebGL initialized:', gl.getParameter(gl.VERSION));
+            console.log('[Visuals] WebGL initialized:', gl.getParameter(gl.VERSION),
+                        '| Mobile mode:', isSmallScreen);
 
             function resizeCanvas() {
-                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                // Cap DPR more aggressively on mobile (1.5 vs 2) to save GPU
+                const dprCap = isSmallScreen ? 1.5 : 2;
+                const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
                 canvas.width = Math.floor(window.innerWidth * dpr);
                 canvas.height = Math.floor(window.innerHeight * dpr);
                 canvas.style.width = window.innerWidth + 'px';
@@ -867,8 +1087,8 @@
             const displayPosLoc = gl.getAttribLocation(displayProgram, 'position');
             const displayTexLoc = gl.getUniformLocation(displayProgram, 'tex');
 
-            // ===== Framebuffers (use canvas resolution / 2 for performance) =====
-            const fbScale = 0.75;  // render at 75% resolution for better perf
+            // ===== Framebuffers (lower res on mobile for performance) =====
+            const fbScale = isSmallScreen ? 0.5 : 0.75;
             let fbWidth = Math.floor(canvas.width * fbScale);
             let fbHeight = Math.floor(canvas.height * fbScale);
             const fb1 = gl.createFramebuffer();
