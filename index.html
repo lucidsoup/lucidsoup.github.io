@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LucidSoup — Visual Art &amp; Projection Mapping</title>
+    <title>LucidSoup — Visual Artist &amp; Projection Mapping</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
     <style>
@@ -77,7 +77,23 @@
         .play-icon::after { content: ''; display: block; width: 0; height: 0; border-style: solid; border-width: 8px 0 8px 14px; border-color: transparent transparent transparent rgba(255,255,255,.9); margin-left: 4px; }
         .portfolio-item.playing .play-icon { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
 
-        #drumseek-embed { width: 100%; height: 1100px; border: none; border-radius: 12px; background: rgba(0,0,0,0.5); display: block; transition: height 0.2s ease; }
+        #drumseek-section { position: relative; }
+        #drumseek-frame {
+            width: 100%;
+            height: 720px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            position: relative;
+        }
+        #drumseek-embed {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+            background: transparent;
+        }
 
         .about { background: rgba(255,255,255,.02); border-radius: 20px; padding: 3rem; text-align: center; margin: 3rem 0; }
         .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 800px; margin: 0 auto 2rem; }
@@ -101,11 +117,11 @@
             bottom: 20px;
             right: 20px;
             z-index: 1100;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.92);
             border: 1px solid rgba(0, 255, 255, 0.3);
             border-radius: 12px;
-            padding: 15px;
-            max-width: 280px;
+            padding: 14px;
+            width: 300px;
             max-height: 80vh;
             overflow-y: auto;
             backdrop-filter: blur(10px);
@@ -224,14 +240,14 @@
 
         .shader-buttons {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
             margin-bottom: 10px;
         }
 
         .shader-btn {
-            padding: 10px 8px;
-            font-size: 11px;
+            padding: 8px 4px;
+            font-size: 10px;
             background: rgba(0, 255, 255, 0.1);
             border: 1px solid rgba(0, 255, 255, 0.3);
             color: rgba(255, 255, 255, 0.7);
@@ -239,8 +255,8 @@
             cursor: pointer;
             transition: all 0.2s;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            min-height: 38px;
+            letter-spacing: 0.3px;
+            min-height: 34px;
         }
 
         .shader-btn:hover {
@@ -359,7 +375,7 @@
 
             /* DrumSeek section - tighter, smaller intro */
             #drumseek p { font-size: 0.95rem; line-height: 1.5; padding: 0 0.5rem; }
-            #drumseek-embed { height: 1500px; }
+            #drumseek-frame { height: 600px; }
 
             /* About */
             .about { padding: 1.75rem 1.25rem; margin: 1.5rem 0; }
@@ -402,7 +418,7 @@
             .logo-container { font-size: 2rem; letter-spacing: 0.04em; }
             .hero p { font-size: 0.82rem; letter-spacing: 1px; }
             h2 { font-size: 1.5rem; }
-            #drumseek-embed { height: 1500px; }
+            #drumseek-frame { height: 560px; }
             section { padding: 2.5rem 0.875rem; }
         }
     </style>
@@ -531,10 +547,13 @@
         </section>
 
         <section id="drumseek">
-            <h2></h2>
+            <h2>DrumSeek — Live Beat Sequencer</h2>
             <p style="text-align: center; margin-bottom: 2rem; opacity: 0.8;">
+                9-track drum machine with synthesizers, effects, and MIDI control. The visuals behind you are reactively driven by DrumSeek's audio output.
             </p>
-            <iframe id="drumseek-embed" src="drumseek.html" allow="autoplay; midi"></iframe>
+            <div id="drumseek-frame">
+                <iframe id="drumseek-embed" src="drumseek.html" allow="autoplay; midi"></iframe>
+            </div>
         </section>
 
         <section id="about">
@@ -571,6 +590,9 @@
     </div>
 
     <!-- Visual control panel -->
+    <!-- Hidden video element for camera input -->
+    <video id="camera-feed" autoplay playsinline muted style="display:none;"></video>
+
     <!-- Floating action button to open/close visual controls -->
     <button class="vfx-fab" id="vfx-fab" aria-label="Toggle visual controls" title="Visual Controls">⚙</button>
 
@@ -587,6 +609,12 @@
                 <button class="shader-btn" data-shader="tunnel">Tunnel</button>
                 <button class="shader-btn" data-shader="plasma">Plasma</button>
                 <button class="shader-btn" data-shader="wave">Wave</button>
+                <button class="shader-btn" data-shader="fractal">Fractal</button>
+                <button class="shader-btn" data-shader="warp">Warp</button>
+                <button class="shader-btn" data-shader="liquid">Liquid</button>
+                <button class="shader-btn" data-shader="grid">Grid</button>
+                <button class="shader-btn" data-shader="vortex">Vortex</button>
+                <button class="shader-btn" data-shader="bloom">Bloom</button>
             </div>
         </div>
 
@@ -603,15 +631,39 @@
                 Zoom
                 <span id="zoom-value">1.00</span>
             </div>
-            <input type="range" min="100" max="110" value="100" step="1" class="control-slider" id="zoom-slider">
+            <input type="range" min="80" max="130" value="100" step="1" class="control-slider" id="zoom-slider">
         </div>
 
         <div class="control-group">
             <div class="control-label">
                 Rotation
-                <span id="rotation-value">0.00</span>
+                <span id="rotation-value">0°</span>
             </div>
-            <input type="range" min="0" max="10" value="0" step="0.1" class="control-slider" id="rotation-slider">
+            <input type="range" min="-180" max="180" value="0" step="1" class="control-slider" id="rotation-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Offset X
+                <span id="offsetx-value">0.00</span>
+            </div>
+            <input type="range" min="-50" max="50" value="0" step="1" class="control-slider" id="offsetx-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Offset Y
+                <span id="offsety-value">0.00</span>
+            </div>
+            <input type="range" min="-50" max="50" value="0" step="1" class="control-slider" id="offsety-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Spin Rate
+                <span id="spin-value">0.00</span>
+            </div>
+            <input type="range" min="-100" max="100" value="0" step="1" class="control-slider" id="spin-slider">
         </div>
 
         <div class="control-group">
@@ -630,6 +682,15 @@
             <input type="range" min="0" max="100" value="50" class="control-slider" id="audio-react-slider">
         </div>
 
+        <div class="control-group">
+            <div class="control-label">
+                Camera Mix
+                <span id="camera-mix-value">0%</span>
+            </div>
+            <input type="range" min="0" max="100" value="0" class="control-slider" id="camera-mix-slider">
+        </div>
+
+        <button class="toggle-btn" id="camera-toggle">Enable Camera</button>
         <button class="toggle-btn" id="canvas-toggle">Disable Visuals</button>
     </div>
 
@@ -749,76 +810,15 @@
             if (e.key === 'Escape') closeLightbox();
         });
 
-        // ===== DRUMSEEK IFRAME AUTO-HEIGHT =====
-        // Since both files are same-origin, we can read DrumSeek's actual content
-        // height and resize the iframe to fit, eliminating internal scrolling.
-        (function initIframeAutoHeight() {
-            const iframe = document.getElementById('drumseek-embed');
-            if (!iframe) return;
-
-            let lastHeight = 0;
-
-            function updateHeight() {
-                try {
-                    const doc = iframe.contentDocument;
-                    if (!doc || !doc.body) return;
-
-                    // Use the full content height. DrumSeek's body uses overflow:auto,
-                    // so scrollHeight gives the real content size.
-                    const root = doc.getElementById('root') || doc.body;
-                    const height = Math.max(
-                        root.scrollHeight,
-                        doc.body.scrollHeight,
-                        doc.documentElement.scrollHeight
-                    );
-
-                    // Add a small buffer so nothing gets clipped at the bottom
-                    const target = height + 24;
-
-                    // Only resize if the change is meaningful (avoids thrashing)
-                    if (Math.abs(target - lastHeight) > 8) {
-                        iframe.style.height = target + 'px';
-                        lastHeight = target;
-                    }
-                } catch (e) {
-                    // Cross-origin or transient error — leave fallback height in place
-                    console.warn('[DrumSeek] iframe sizing failed (cross-origin?):', e.message);
-                }
-            }
-
-            // Trigger on load
-            iframe.addEventListener('load', () => {
-                // First measurement after a brief delay so React has rendered
-                setTimeout(updateHeight, 100);
-                setTimeout(updateHeight, 500);
-                setTimeout(updateHeight, 1500);
-
-                // Use ResizeObserver if available - reacts to FX rack opening etc.
-                try {
-                    const doc = iframe.contentDocument;
-                    if (doc && doc.body && window.ResizeObserver) {
-                        const ro = new ResizeObserver(() => updateHeight());
-                        ro.observe(doc.body);
-                        const root = doc.getElementById('root');
-                        if (root) ro.observe(root);
-                    }
-                } catch (e) {
-                    // Fall back to polling
-                }
-
-                // Polling fallback - covers cases where ResizeObserver doesn't fire
-                // (e.g. when the user toggles FX rack which adds tall children)
-                setInterval(updateHeight, 800);
-            });
-
-            // Also recompute on window resize since the iframe's flex children may reflow
-            window.addEventListener('resize', () => {
-                setTimeout(updateHeight, 100);
-            });
-        })();
+        // ===== DRUMSEEK IFRAME =====
+        // Iframe has a fixed height (set in CSS). DrumSeek will scroll internally
+        // if the user opens FX RACK or MIDI panel and the content is taller than
+        // the iframe. This avoids the feedback loop where min-height:100vh inside
+        // the iframe causes the content to keep growing as the iframe grows.
 
         // ===== AUDIO-REACTIVE WEBGL VISUAL ENGINE =====
-        // Robust WebGL1-compatible implementation with error reporting
+        // Robust WebGL1-compatible implementation with 10 shaders, camera input,
+        // and full XYZ feedback transform controls.
 
         // Detect mobile (used for perf tuning + default panel state)
         const isSmallScreen = window.matchMedia('(max-width: 768px)').matches;
@@ -855,7 +855,6 @@
                 setOpen(false);
             });
 
-            // Close panel when tapping outside on mobile
             document.addEventListener('click', (e) => {
                 if (!isSmallScreen) return;
                 if (panel.classList.contains('collapsed')) return;
@@ -869,7 +868,6 @@
             const canvas = document.getElementById('visual-canvas');
             if (!canvas) { console.warn('[Visuals] No canvas element'); return; }
 
-            // Try WebGL1 first (max compatibility), fall back to WebGL2
             const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: false })
                     || canvas.getContext('experimental-webgl');
 
@@ -883,7 +881,6 @@
                         '| Mobile mode:', isSmallScreen);
 
             function resizeCanvas() {
-                // Cap DPR more aggressively on mobile (1.5 vs 2) to save GPU
                 const dprCap = isSmallScreen ? 1.5 : 2;
                 const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
                 canvas.width = Math.floor(window.innerWidth * dpr);
@@ -894,7 +891,7 @@
             }
             resizeCanvas();
 
-            // ===== WebGL1 GLSL (works in EVERY browser including Safari, mobile, etc) =====
+            // ===== Shaders =====
             const vertexShaderSrc = `
                 attribute vec2 position;
                 varying vec2 vUv;
@@ -904,7 +901,6 @@
                 }
             `;
 
-            // Common HSV helper used in all shaders
             const hsv2rgb = `
                 vec3 hsv2rgb(vec3 c) {
                     vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
@@ -913,97 +909,337 @@
                 }
             `;
 
+            // Common transform: all shaders use this to apply zoom/rotation/offset
+            // to the FEEDBACK SAMPLE coordinates (not the output)
+            const transformFn = `
+                vec2 applyTransform(vec2 uv) {
+                    // Center
+                    vec2 p = uv - 0.5 - vec2(offsetX, offsetY);
+                    // Zoom in on the center (zoom > 1 = zoom in)
+                    p /= zoom;
+                    // Rotate
+                    float ca = cos(rotation), sa = sin(rotation);
+                    p = mat2(ca, -sa, sa, ca) * p;
+                    return p + 0.5;
+                }
+            `;
+
             const commonUniforms = `
                 precision mediump float;
                 uniform vec2 resolution;
                 uniform float time;
                 uniform sampler2D prevFrame;
+                uniform sampler2D camera;
+                uniform float useCamera;     // 0..1, mix amount
                 uniform float feedback;
                 uniform float zoom;
                 uniform float rotation;
+                uniform float offsetX;
+                uniform float offsetY;
                 uniform float hue;
                 uniform float audioLevel;
                 uniform float bassLevel;
                 varying vec2 vUv;
             `;
 
-            const fragKaleidoscope = commonUniforms + hsv2rgb + `
-                void main() {
-                    vec2 uv = gl_FragCoord.xy / resolution;
-                    uv = uv * 2.0 - 1.0;
-                    uv *= zoom;
-                    float ca = cos(rotation), sa = sin(rotation);
-                    uv = mat2(ca, -sa, sa, ca) * uv;
-                    
-                    float r = length(uv);
-                    float a = atan(uv.y, uv.x);
-                    float segments = 6.0 + bassLevel * 4.0;
-                    a = mod(a, 6.283185 / segments);
-                    
-                    vec2 newUv = vec2(r * cos(a), r * sin(a)) * 0.5 + 0.5;
-                    vec4 prev = texture2D(prevFrame, newUv);
-                    
-                    float energy = audioLevel * 0.6 + 0.3;
-                    vec3 col = hsv2rgb(vec3((a/6.283185) + time*0.05 + hue/360.0, 1.0, energy));
-                    
-                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
+            // Camera sampling helper — produces a HSV-shifted sample
+            const cameraSample = `
+                vec3 sampleCamera(vec2 uv) {
+                    // Mirror horizontally so it feels natural (selfie style)
+                    vec2 cuv = vec2(1.0 - uv.x, uv.y);
+                    vec3 c = texture2D(camera, cuv).rgb;
+                    // Apply slight saturation boost
+                    float lum = dot(c, vec3(0.299, 0.587, 0.114));
+                    return mix(vec3(lum), c, 1.4);
                 }
             `;
 
-            const fragTunnel = commonUniforms + hsv2rgb + `
-                void main() {
-                    vec2 uv = gl_FragCoord.xy / resolution;
-                    uv = uv * 2.0 - 1.0;
-                    uv *= zoom;
-                    
-                    float r = length(uv);
-                    float a = atan(uv.y, uv.x);
-                    r *= 1.0 + audioLevel * 0.5;
-                    
-                    vec2 tunUv = vec2(a/6.283185 + time*0.05, log(r + 0.1) - time * 0.3);
-                    vec4 prev = texture2D(prevFrame, fract(tunUv));
-                    
-                    float v = sin(tunUv.y * 8.0) * 0.5 + 0.5;
-                    vec3 col = hsv2rgb(vec3(tunUv.x + hue/360.0, 0.9, v * (audioLevel + 0.4)));
-                    
-                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
-                }
-            `;
-
-            const fragPlasma = commonUniforms + hsv2rgb + `
+            // === SHADER 1: KALEIDOSCOPE ===
+            const fragKaleidoscope = commonUniforms + hsv2rgb + transformFn + cameraSample + `
                 void main() {
                     vec2 uv = gl_FragCoord.xy / resolution;
                     vec2 cuv = uv * 2.0 - 1.0;
-                    cuv *= zoom;
+                    cuv /= zoom;
+                    cuv -= vec2(offsetX, offsetY) * 2.0;
                     float ca = cos(rotation), sa = sin(rotation);
                     cuv = mat2(ca, -sa, sa, ca) * cuv;
-                    
+
+                    float r = length(cuv);
+                    float a = atan(cuv.y, cuv.x);
+                    float segments = 6.0 + bassLevel * 4.0;
+                    a = mod(a, 6.283185 / segments);
+
+                    vec2 newUv = vec2(r * cos(a), r * sin(a)) * 0.5 + 0.5;
+                    vec4 prev = texture2D(prevFrame, newUv);
+
+                    float energy = audioLevel * 0.6 + 0.3;
+                    vec3 col = hsv2rgb(vec3((a/6.283185) + time*0.05 + hue/360.0, 1.0, energy));
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(newUv);
+                        col = mix(col, cam * (energy + 0.6), useCamera);
+                    }
+
+                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
+                }
+            `;
+
+            // === SHADER 2: TUNNEL ===
+            const fragTunnel = commonUniforms + hsv2rgb + cameraSample + `
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    vec2 cuv = uv * 2.0 - 1.0;
+                    cuv -= vec2(offsetX, offsetY) * 2.0;
+                    cuv /= zoom;
+
+                    float r = length(cuv);
+                    float a = atan(cuv.y, cuv.x) + rotation;
+                    r *= 1.0 + audioLevel * 0.5;
+
+                    vec2 tunUv = vec2(a/6.283185 + time*0.05, log(r + 0.1) - time * 0.3);
+                    vec4 prev = texture2D(prevFrame, fract(tunUv));
+
+                    float v = sin(tunUv.y * 8.0) * 0.5 + 0.5;
+                    vec3 col = hsv2rgb(vec3(tunUv.x + hue/360.0, 0.9, v * (audioLevel + 0.4)));
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(fract(tunUv));
+                        col = mix(col, cam, useCamera);
+                    }
+
+                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
+                }
+            `;
+
+            // === SHADER 3: PLASMA ===
+            const fragPlasma = commonUniforms + hsv2rgb + cameraSample + `
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    vec2 cuv = uv * 2.0 - 1.0;
+                    cuv /= zoom;
+                    cuv -= vec2(offsetX, offsetY) * 2.0;
+                    float ca = cos(rotation), sa = sin(rotation);
+                    cuv = mat2(ca, -sa, sa, ca) * cuv;
+
                     float v = sin(cuv.x * 10.0 + time + audioLevel * 8.0) * 0.5 + 0.5;
                     v += sin(cuv.y * 10.0 + time * 0.7) * 0.5;
                     v += sin((cuv.x + cuv.y) * 7.0 + time * 0.3 + bassLevel * 5.0) * 0.5;
                     v *= 0.33;
-                    
+
                     vec4 prev = texture2D(prevFrame, uv);
                     vec3 col = hsv2rgb(vec3(v + hue/360.0, 0.9, audioLevel * 0.6 + 0.4));
-                    
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(uv);
+                        col = mix(col, cam * (v * 1.5 + 0.5), useCamera);
+                    }
+
                     gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
                 }
             `;
 
-            const fragWave = commonUniforms + hsv2rgb + `
+            // === SHADER 4: WAVE ===
+            const fragWave = commonUniforms + hsv2rgb + cameraSample + `
                 void main() {
                     vec2 uv = gl_FragCoord.xy / resolution;
-                    uv.y += sin(uv.x * 20.0 + time * 2.0 + audioLevel * 10.0) * 0.02 * (1.0 + bassLevel);
-                    uv.x += cos(uv.y * 15.0 + time + bassLevel * 5.0) * 0.02;
-                    
-                    vec4 prev = texture2D(prevFrame, uv);
+                    vec2 sampleUv = uv;
+                    sampleUv.y += sin(sampleUv.x * 20.0 + time * 2.0 + audioLevel * 10.0) * 0.02 * (1.0 + bassLevel);
+                    sampleUv.x += cos(sampleUv.y * 15.0 + time + bassLevel * 5.0) * 0.02;
+                    sampleUv -= vec2(offsetX, offsetY);
+
+                    vec4 prev = texture2D(prevFrame, sampleUv);
                     vec3 col = hsv2rgb(vec3(uv.x + time * 0.05 + hue/360.0, 0.8, audioLevel * 0.6 + 0.4));
-                    
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(sampleUv);
+                        col = mix(col, cam, useCamera);
+                    }
+
                     gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
                 }
             `;
 
-            // Display pass: just copies a texture to the screen
+            // === SHADER 5: FRACTAL (Mandelbrot-flavored) ===
+            const fragFractal = commonUniforms + hsv2rgb + cameraSample + `
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    vec2 c = (uv - 0.5) * 4.0 / zoom + vec2(offsetX, offsetY) * 4.0;
+                    float ca = cos(rotation), sa = sin(rotation);
+                    c = mat2(ca, -sa, sa, ca) * c;
+                    c += vec2(sin(time*0.13)*0.3, cos(time*0.17)*0.3);
+
+                    vec2 z = vec2(0.0);
+                    float iter = 0.0;
+                    const float MAX = 50.0;
+                    for (float i = 0.0; i < MAX; i++) {
+                        if (dot(z, z) > 4.0) break;
+                        z = vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y) + c;
+                        iter = i;
+                    }
+                    float v = iter / MAX;
+
+                    vec4 prev = texture2D(prevFrame, uv);
+                    vec3 col = hsv2rgb(vec3(v + time*0.03 + hue/360.0, 0.9, v * (audioLevel + 0.4)));
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(uv);
+                        col = mix(col, cam * (v + 0.5), useCamera);
+                    }
+
+                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.96), 1.0);
+                }
+            `;
+
+            // === SHADER 6: WARP (domain-warped noise) ===
+            const fragWarp = commonUniforms + hsv2rgb + cameraSample + transformFn + `
+                float hash(vec2 p) {
+                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+                }
+                float noise(vec2 p) {
+                    vec2 i = floor(p);
+                    vec2 f = fract(p);
+                    f = f*f*(3.0-2.0*f);
+                    return mix(mix(hash(i), hash(i+vec2(1,0)), f.x),
+                               mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
+                }
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    vec2 q = vec2(noise(uv*3.0 + time*0.2), noise(uv*3.0 + vec2(5.2, 1.3) + time*0.2));
+                    vec2 r = vec2(noise(uv*4.0 + 4.0*q + vec2(1.7,9.2) + bassLevel*2.0),
+                                  noise(uv*4.0 + 4.0*q + vec2(8.3,2.8) + audioLevel*2.0));
+                    float v = noise(uv*4.0 + 4.0*r);
+
+                    vec2 sampleUv = applyTransform(uv);
+                    vec4 prev = texture2D(prevFrame, sampleUv);
+
+                    vec3 col = hsv2rgb(vec3(v + time*0.05 + hue/360.0, 0.8, v * (audioLevel + 0.4)));
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(uv + (r - 0.5) * 0.1);
+                        col = mix(col, cam, useCamera);
+                    }
+
+                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
+                }
+            `;
+
+            // === SHADER 7: LIQUID (smooth flowing displacement) ===
+            const fragLiquid = commonUniforms + hsv2rgb + cameraSample + `
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    vec2 cuv = (uv - 0.5) / zoom + 0.5;
+                    cuv -= vec2(offsetX, offsetY);
+
+                    float t = time * 0.4;
+                    vec2 flow = vec2(
+                        sin(cuv.y * 6.0 + t + bassLevel * 3.0) * 0.04,
+                        cos(cuv.x * 6.0 + t * 1.3 + audioLevel * 3.0) * 0.04
+                    );
+                    vec2 sampleUv = cuv + flow;
+                    float ca = cos(rotation), sa = sin(rotation);
+                    sampleUv = (mat2(ca, -sa, sa, ca) * (sampleUv - 0.5)) + 0.5;
+
+                    vec4 prev = texture2D(prevFrame, sampleUv);
+
+                    float ripple = sin(length(cuv - 0.5) * 20.0 - t * 3.0) * 0.5 + 0.5;
+                    vec3 col = hsv2rgb(vec3(ripple + hue/360.0, 0.7, audioLevel * 0.7 + 0.3));
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(sampleUv);
+                        col = mix(col, cam, useCamera);
+                    }
+
+                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
+                }
+            `;
+
+            // === SHADER 8: GRID (pulsing geometric grid) ===
+            const fragGrid = commonUniforms + hsv2rgb + cameraSample + transformFn + `
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    vec2 cuv = (uv - 0.5) / zoom * 8.0;
+                    float ca = cos(rotation), sa = sin(rotation);
+                    cuv = mat2(ca, -sa, sa, ca) * cuv;
+                    cuv -= vec2(offsetX, offsetY) * 8.0;
+
+                    vec2 cell = floor(cuv);
+                    vec2 f = fract(cuv);
+                    float d = min(min(f.x, f.y), min(1.0 - f.x, 1.0 - f.y));
+                    float grid = smoothstep(0.0, 0.05, d);
+
+                    float pulse = sin(cell.x * 0.5 + cell.y * 0.7 + time * 2.0 + bassLevel * 4.0) * 0.5 + 0.5;
+                    pulse *= audioLevel + 0.3;
+
+                    vec2 sampleUv = applyTransform(uv);
+                    vec4 prev = texture2D(prevFrame, sampleUv);
+
+                    vec3 col = hsv2rgb(vec3(pulse + hue/360.0, 0.9, (1.0 - grid) * pulse * 1.5));
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(uv);
+                        col = mix(col, cam * pulse, useCamera);
+                    }
+
+                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
+                }
+            `;
+
+            // === SHADER 9: VORTEX (spiraling pull-in feedback) ===
+            const fragVortex = commonUniforms + hsv2rgb + cameraSample + `
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    vec2 cuv = uv - 0.5 - vec2(offsetX, offsetY);
+                    float r = length(cuv);
+                    float a = atan(cuv.y, cuv.x);
+                    a += rotation + (1.0 / (r + 0.2)) * 0.05 + bassLevel * 0.3;
+                    r *= 0.99 - audioLevel * 0.02;
+                    vec2 sampleUv = vec2(cos(a), sin(a)) * r / zoom + 0.5;
+
+                    vec4 prev = texture2D(prevFrame, sampleUv);
+
+                    float energy = audioLevel * 0.5 + 0.3;
+                    vec3 col = hsv2rgb(vec3(a/6.283185 + r*2.0 + time*0.1 + hue/360.0, 0.9, energy));
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(sampleUv);
+                        col = mix(col, cam * (energy + 0.5), useCamera);
+                    }
+
+                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.98), 1.0);
+                }
+            `;
+
+            // === SHADER 10: BLOOM (radial bloom centered on offset) ===
+            const fragBloom = commonUniforms + hsv2rgb + cameraSample + `
+                void main() {
+                    vec2 uv = gl_FragCoord.xy / resolution;
+                    vec2 cuv = (uv - 0.5 - vec2(offsetX, offsetY)) / zoom;
+                    float ca = cos(rotation), sa = sin(rotation);
+                    cuv = mat2(ca, -sa, sa, ca) * cuv;
+
+                    float r = length(cuv);
+                    float petals = 5.0 + floor(bassLevel * 8.0);
+                    float a = atan(cuv.y, cuv.x);
+                    float bloom = sin(a * petals + time + r * 8.0) * 0.5 + 0.5;
+                    bloom *= smoothstep(0.6, 0.0, r);
+
+                    // Sample previous frame slightly inward for inward-rushing feedback
+                    vec2 sampleUv = (cuv * 0.97 + 0.5) + vec2(offsetX, offsetY);
+                    vec4 prev = texture2D(prevFrame, sampleUv);
+
+                    float energy = audioLevel * 0.7 + 0.3;
+                    vec3 col = hsv2rgb(vec3(bloom + time*0.05 + hue/360.0, 0.9, bloom * energy * 1.5));
+
+                    if (useCamera > 0.01) {
+                        vec3 cam = sampleCamera(sampleUv);
+                        col = mix(col, cam * (bloom + 0.5), useCamera);
+                    }
+
+                    gl_FragColor = vec4(mix(col, prev.rgb, feedback * 0.97), 1.0);
+                }
+            `;
+
+            // Display pass
             const displayFrag = `
                 precision mediump float;
                 uniform sampler2D tex;
@@ -1020,7 +1256,6 @@
                 gl.compileShader(sh);
                 if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
                     console.error('[Visuals] Shader compile error:', gl.getShaderInfoLog(sh));
-                    console.error('Source:', src);
                     return null;
                 }
                 return sh;
@@ -1043,12 +1278,16 @@
 
             const programs = {
                 kaleidoscope: makeProgram(vertexShaderSrc, fragKaleidoscope),
-                tunnel: makeProgram(vertexShaderSrc, fragTunnel),
-                plasma: makeProgram(vertexShaderSrc, fragPlasma),
-                wave: makeProgram(vertexShaderSrc, fragWave),
+                tunnel:       makeProgram(vertexShaderSrc, fragTunnel),
+                plasma:       makeProgram(vertexShaderSrc, fragPlasma),
+                wave:         makeProgram(vertexShaderSrc, fragWave),
+                fractal:      makeProgram(vertexShaderSrc, fragFractal),
+                warp:         makeProgram(vertexShaderSrc, fragWarp),
+                liquid:       makeProgram(vertexShaderSrc, fragLiquid),
+                grid:         makeProgram(vertexShaderSrc, fragGrid),
+                vortex:       makeProgram(vertexShaderSrc, fragVortex),
+                bloom:        makeProgram(vertexShaderSrc, fragBloom),
             };
-
-            // Verify at least one shader compiled
             const validShaders = Object.entries(programs).filter(([k,v]) => v != null);
             if (validShaders.length === 0) {
                 console.error('[Visuals] No shaders compiled. Disabling visuals.');
@@ -1058,13 +1297,9 @@
             console.log('[Visuals] Shaders compiled:', validShaders.map(([k]) => k).join(', '));
 
             const displayProgram = makeProgram(vertexShaderSrc, displayFrag);
-            if (!displayProgram) {
-                console.error('[Visuals] Display program failed.');
-                canvas.style.display = 'none';
-                return;
-            }
+            if (!displayProgram) { console.error('[Visuals] Display program failed.'); return; }
 
-            // Cache uniform locations
+            // Cache uniforms
             function cacheUniforms(prog) {
                 return {
                     posLoc: gl.getAttribLocation(prog, 'position'),
@@ -1073,10 +1308,14 @@
                     feedback: gl.getUniformLocation(prog, 'feedback'),
                     zoom: gl.getUniformLocation(prog, 'zoom'),
                     rotation: gl.getUniformLocation(prog, 'rotation'),
+                    offsetX: gl.getUniformLocation(prog, 'offsetX'),
+                    offsetY: gl.getUniformLocation(prog, 'offsetY'),
                     hue: gl.getUniformLocation(prog, 'hue'),
                     audioLevel: gl.getUniformLocation(prog, 'audioLevel'),
                     bassLevel: gl.getUniformLocation(prog, 'bassLevel'),
                     prevFrame: gl.getUniformLocation(prog, 'prevFrame'),
+                    camera: gl.getUniformLocation(prog, 'camera'),
+                    useCamera: gl.getUniformLocation(prog, 'useCamera'),
                 };
             }
             const uniformCache = {};
@@ -1086,7 +1325,7 @@
             const displayPosLoc = gl.getAttribLocation(displayProgram, 'position');
             const displayTexLoc = gl.getUniformLocation(displayProgram, 'tex');
 
-            // ===== Framebuffers (lower res on mobile for performance) =====
+            // Framebuffers
             const fbScale = isSmallScreen ? 0.5 : 0.75;
             let fbWidth = Math.floor(canvas.width * fbScale);
             let fbHeight = Math.floor(canvas.height * fbScale);
@@ -1114,23 +1353,28 @@
             }
             setupTextures();
 
-            window.addEventListener('resize', () => {
-                resizeCanvas();
-                setupTextures();
-            });
+            window.addEventListener('resize', () => { resizeCanvas(); setupTextures(); });
+
+            // Camera texture (1px until camera enabled)
+            const cameraTex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, cameraTex);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,255]));
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
             // Fullscreen quad
             const posBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
 
-            // ===== Audio data from DrumSeek iframe =====
+            // ===== Audio data from DrumSeek =====
             let audioData = {
                 freq: new Uint8Array(256),
                 wave: new Uint8Array(512),
                 lastReceived: 0,
             };
-
             window.addEventListener('message', (event) => {
                 if (event.data && event.data.type === 'DRUMSEEK_AUDIO') {
                     if (event.data.freq) audioData.freq = new Uint8Array(event.data.freq);
@@ -1144,13 +1388,18 @@
                 shader: 'kaleidoscope',
                 feedback: 0.5,
                 zoom: 1.0,
-                rotation: 0.0,
+                rotation: 0.0,           // radians, applied as constant rotation
+                offsetX: 0.0,
+                offsetY: 0.0,
+                spinRate: 0.0,           // radians per second auto-rotation
                 hue: 0,
                 audioReact: 0.5,
+                cameraMix: 0.0,
+                cameraEnabled: false,
                 enabled: true,
             };
 
-            // Hook up control panel
+            // ===== Hook up controls =====
             document.querySelectorAll('.shader-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.shader-btn').forEach(b => b.classList.remove('active'));
@@ -1159,45 +1408,82 @@
                 });
             });
 
-            const fbSlider = document.getElementById('feedback-slider');
-            if (fbSlider) fbSlider.addEventListener('input', (e) => {
-                controlState.feedback = +e.target.value / 100;
-                document.getElementById('feedback-value').textContent = e.target.value + '%';
-            });
+            const bind = (id, valId, fn, fmt) => {
+                const el = document.getElementById(id);
+                const valEl = document.getElementById(valId);
+                if (!el) return;
+                el.addEventListener('input', (e) => {
+                    fn(+e.target.value);
+                    if (valEl) valEl.textContent = fmt(+e.target.value);
+                });
+            };
+            bind('feedback-slider', 'feedback-value', v => controlState.feedback = v/100, v => v + '%');
+            bind('zoom-slider', 'zoom-value', v => controlState.zoom = v/100, v => (v/100).toFixed(2));
+            bind('rotation-slider', 'rotation-value', v => controlState.rotation = v * Math.PI / 180, v => v + '°');
+            bind('offsetx-slider', 'offsetx-value', v => controlState.offsetX = v/100, v => (v/100).toFixed(2));
+            bind('offsety-slider', 'offsety-value', v => controlState.offsetY = v/100, v => (v/100).toFixed(2));
+            bind('spin-slider', 'spin-value', v => controlState.spinRate = v/100, v => (v/100).toFixed(2));
+            bind('hue-slider', 'hue-value', v => controlState.hue = v, v => v + '°');
+            bind('audio-react-slider', 'audio-react-value', v => controlState.audioReact = v/100, v => v + '%');
+            bind('camera-mix-slider', 'camera-mix-value', v => controlState.cameraMix = v/100, v => v + '%');
 
-            const zoomSlider = document.getElementById('zoom-slider');
-            if (zoomSlider) zoomSlider.addEventListener('input', (e) => {
-                controlState.zoom = 1.0 + (+e.target.value - 100) / 100;
-                document.getElementById('zoom-value').textContent = controlState.zoom.toFixed(2);
-            });
-
-            const rotSlider = document.getElementById('rotation-slider');
-            if (rotSlider) rotSlider.addEventListener('input', (e) => {
-                controlState.rotation = +e.target.value * 0.628318;
-                document.getElementById('rotation-value').textContent = (+e.target.value).toFixed(2);
-            });
-
-            const hueSlider = document.getElementById('hue-slider');
-            if (hueSlider) hueSlider.addEventListener('input', (e) => {
-                controlState.hue = +e.target.value;
-                document.getElementById('hue-value').textContent = e.target.value + '°';
-            });
-
-            const audioSlider = document.getElementById('audio-react-slider');
-            if (audioSlider) audioSlider.addEventListener('input', (e) => {
-                controlState.audioReact = +e.target.value / 100;
-                document.getElementById('audio-react-value').textContent = e.target.value + '%';
-            });
-
+            // Canvas on/off
             const toggleBtn = document.getElementById('canvas-toggle');
             if (toggleBtn) toggleBtn.addEventListener('click', function() {
                 controlState.enabled = !controlState.enabled;
-                canvas.style.opacity = controlState.enabled ? '0.6' : '0';
+                canvas.style.opacity = controlState.enabled ? '' : '0';
                 this.classList.toggle('active');
                 this.textContent = controlState.enabled ? 'Disable Visuals' : 'Enable Visuals';
             });
 
-            // Audio level extraction with smoothing (envelope follower)
+            // ===== Camera =====
+            const camVideo = document.getElementById('camera-feed');
+            const cameraToggleBtn = document.getElementById('camera-toggle');
+            let cameraStream = null;
+
+            async function startCamera() {
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'user', width: 640, height: 480 },
+                        audio: false
+                    });
+                    camVideo.srcObject = cameraStream;
+                    await camVideo.play();
+                    controlState.cameraEnabled = true;
+                    cameraToggleBtn.textContent = 'Disable Camera';
+                    cameraToggleBtn.classList.add('active');
+                    // Auto-set camera mix to 50% if it was 0
+                    if (controlState.cameraMix < 0.05) {
+                        controlState.cameraMix = 0.5;
+                        const sl = document.getElementById('camera-mix-slider');
+                        const vl = document.getElementById('camera-mix-value');
+                        if (sl) sl.value = 50;
+                        if (vl) vl.textContent = '50%';
+                    }
+                    console.log('[Visuals] Camera started');
+                } catch (e) {
+                    console.error('[Visuals] Camera failed:', e);
+                    alert('Could not access camera: ' + e.message + '\n\nMake sure you allow camera permission and are on HTTPS or localhost.');
+                }
+            }
+
+            function stopCamera() {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(t => t.stop());
+                    cameraStream = null;
+                }
+                camVideo.srcObject = null;
+                controlState.cameraEnabled = false;
+                cameraToggleBtn.textContent = 'Enable Camera';
+                cameraToggleBtn.classList.remove('active');
+            }
+
+            if (cameraToggleBtn) cameraToggleBtn.addEventListener('click', () => {
+                if (controlState.cameraEnabled) stopCamera();
+                else startCamera();
+            });
+
+            // Smoothed audio levels
             let smoothedBass = 0, smoothedAudio = 0;
             function getAudioLevels() {
                 let bass = 0, mid = 0, high = 0;
@@ -1205,11 +1491,8 @@
                 for (let i = 0; i < 8; i++) bass += fd[i];
                 for (let i = 8; i < 64; i++) mid += fd[i];
                 for (let i = 64; i < 128; i++) high += fd[i];
-                
                 const bassRaw = (bass / 8 / 255) * controlState.audioReact;
                 const audioRaw = ((mid + high) / 112 / 255) * controlState.audioReact;
-                
-                // Smooth attack/release
                 smoothedBass = smoothedBass * 0.6 + bassRaw * 0.4;
                 smoothedAudio = smoothedAudio * 0.6 + audioRaw * 0.4;
                 return { bass: smoothedBass, audio: smoothedAudio };
@@ -1220,15 +1503,17 @@
             const startTime = Date.now();
             let frameCount = 0;
             let lastFpsCheck = Date.now();
+            let autoSpin = 0;
 
             function render() {
                 requestAnimationFrame(render);
                 if (!controlState.enabled) return;
 
                 const time = (Date.now() - startTime) / 1000;
+                const dt = 1/60;
+                autoSpin += controlState.spinRate * dt;
+
                 const { bass, audio } = getAudioLevels();
-                
-                // Add a subtle baseline so visuals are always visible (even without audio)
                 const baseLevel = 0.15;
                 const audioLevel = Math.max(audio, baseLevel);
                 const bassLevel = Math.max(bass, baseLevel * 0.5);
@@ -1236,6 +1521,14 @@
                 const program = programs[controlState.shader];
                 if (!program) return;
                 const u = uniformCache[controlState.shader];
+
+                // Update camera texture if enabled
+                if (controlState.cameraEnabled && camVideo.readyState >= 2) {
+                    gl.bindTexture(gl.TEXTURE_2D, cameraTex);
+                    try {
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camVideo);
+                    } catch (e) { /* video not ready */ }
+                }
 
                 // PASS 1: Render shader to off-screen FB
                 const targetFb = currentTex === 1 ? fb1 : fb2;
@@ -1252,18 +1545,25 @@
                 gl.uniform1f(u.time, time);
                 gl.uniform1f(u.feedback, controlState.feedback);
                 gl.uniform1f(u.zoom, controlState.zoom);
-                gl.uniform1f(u.rotation, controlState.rotation);
+                gl.uniform1f(u.rotation, controlState.rotation + autoSpin);
+                gl.uniform1f(u.offsetX, controlState.offsetX);
+                gl.uniform1f(u.offsetY, controlState.offsetY);
                 gl.uniform1f(u.hue, controlState.hue);
                 gl.uniform1f(u.audioLevel, audioLevel);
                 gl.uniform1f(u.bassLevel, bassLevel);
+                gl.uniform1f(u.useCamera, controlState.cameraEnabled ? controlState.cameraMix : 0);
 
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, prevTex);
                 gl.uniform1i(u.prevFrame, 0);
 
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, cameraTex);
+                gl.uniform1i(u.camera, 1);
+
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-                // PASS 2: Display FB to screen
+                // PASS 2: Display to screen
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
                 gl.viewport(0, 0, canvas.width, canvas.height);
                 gl.clearColor(0, 0, 0, 1);
@@ -1280,12 +1580,11 @@
 
                 currentTex = currentTex === 1 ? 2 : 1;
 
-                // FPS log every 5 seconds
                 frameCount++;
                 if (Date.now() - lastFpsCheck > 5000) {
                     const fps = frameCount / 5;
                     const audioActive = (Date.now() - audioData.lastReceived) < 500;
-                    console.log(`[Visuals] FPS: ${fps.toFixed(0)} | Audio: ${audioActive ? 'YES' : 'no'} | Bass: ${bass.toFixed(2)} | Audio: ${audio.toFixed(2)}`);
+                    console.log(`[Visuals] FPS: ${fps.toFixed(0)} | Audio: ${audioActive ? 'YES' : 'no'} | Shader: ${controlState.shader} | Camera: ${controlState.cameraEnabled ? 'on' : 'off'}`);
                     frameCount = 0;
                     lastFpsCheck = Date.now();
                 }
