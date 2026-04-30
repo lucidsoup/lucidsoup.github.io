@@ -22,10 +22,17 @@
             pointer-events: none;
         }
 
-        /* Content wrapper - on top of canvas */
+        /* Content wrapper - on top of canvas, fully manipulable via CSS */
         #content-wrapper {
             position: relative;
             z-index: 1;
+            transition: opacity 0.2s ease;
+            transform-origin: center center;
+            will-change: filter, transform, opacity;
+        }
+        /* Canvas blend mode is set via JS at runtime */
+        #visual-canvas {
+            transition: opacity 0.2s ease;
         }
 
         nav { position: fixed; top: 0; width: 100%; padding: 1rem 2rem; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); z-index: 1000; transition: background .3s ease; }
@@ -691,6 +698,114 @@
             <input type="range" min="0" max="100" value="0" class="control-slider" id="camera-mix-slider">
         </div>
 
+        <!-- ===== LAYER MIX SECTION ===== -->
+        <div style="border-top: 1px solid rgba(255,0,255,0.2); margin: 14px 0 10px; padding-top: 10px;">
+            <div style="color:#ff00ff; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
+                Layer Mix
+            </div>
+            <div style="font-size: 9px; color: rgba(255,255,255,0.4); margin-bottom: 10px; line-height: 1.4;">
+                Mix the live website (page) with the visuals. Like Resolume layers.
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Page Opacity
+                <span id="page-opacity-value">100%</span>
+            </div>
+            <input type="range" min="0" max="100" value="100" class="control-slider" id="page-opacity-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Visuals Opacity
+                <span id="visuals-opacity-value">60%</span>
+            </div>
+            <input type="range" min="0" max="100" value="60" class="control-slider" id="visuals-opacity-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">Canvas Blend Mode</div>
+            <select id="canvas-blend-mode" style="width:100%; padding:8px 6px; background: rgba(255,0,255,0.05); border:1px solid rgba(255,0,255,0.3); color:#fff; border-radius:4px; font-size:11px;">
+                <option value="normal">Normal</option>
+                <option value="multiply">Multiply</option>
+                <option value="screen" selected>Screen</option>
+                <option value="overlay">Overlay</option>
+                <option value="darken">Darken</option>
+                <option value="lighten">Lighten</option>
+                <option value="color-dodge">Color Dodge</option>
+                <option value="color-burn">Color Burn</option>
+                <option value="hard-light">Hard Light</option>
+                <option value="soft-light">Soft Light</option>
+                <option value="difference">Difference</option>
+                <option value="exclusion">Exclusion</option>
+                <option value="hue">Hue</option>
+                <option value="saturation">Saturation</option>
+                <option value="color">Color</option>
+                <option value="luminosity">Luminosity</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Page Hue
+                <span id="page-hue-value">0°</span>
+            </div>
+            <input type="range" min="0" max="360" value="0" class="control-slider" id="page-hue-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Page Invert
+                <span id="page-invert-value">0%</span>
+            </div>
+            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-invert-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Page Saturation
+                <span id="page-sat-value">100%</span>
+            </div>
+            <input type="range" min="0" max="300" value="100" class="control-slider" id="page-sat-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Page Contrast
+                <span id="page-contrast-value">100%</span>
+            </div>
+            <input type="range" min="0" max="300" value="100" class="control-slider" id="page-contrast-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Page Blur
+                <span id="page-blur-value">0px</span>
+            </div>
+            <input type="range" min="0" max="40" value="0" class="control-slider" id="page-blur-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Page Displace (audio)
+                <span id="page-displace-value">0%</span>
+            </div>
+            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-displace-slider">
+        </div>
+
+        <div class="control-group">
+            <div class="control-label">
+                Page Scale (bass-react)
+                <span id="page-scale-value">0%</span>
+            </div>
+            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-scale-slider">
+        </div>
+
+        <button class="toggle-btn" id="reset-layer-btn" style="background: rgba(255,0,255,0.1); border-color: rgba(255,0,255,0.3); color: rgba(255,0,255,0.8); margin-top: 4px;">Reset Layer</button>
+
+        <div style="border-top: 1px solid rgba(0,255,255,0.2); margin: 14px 0 10px; padding-top: 4px;"></div>
+
         <button class="toggle-btn" id="camera-toggle">Enable Camera</button>
         <button class="toggle-btn" id="canvas-toggle">Disable Visuals</button>
     </div>
@@ -1316,13 +1431,103 @@
                 }
             `;
 
-            // Display pass
+            // ===== COMPOSITOR PASS =====
+            // Mixes the visual texture with the page-layer (DOM capture) using
+            // selectable blend modes and applies layer effects.
             const displayFrag = `
                 precision mediump float;
-                uniform sampler2D tex;
+                uniform sampler2D tex;          // visual texture (shader output)
+                uniform sampler2D pageTex;      // DOM capture texture
+                uniform float pageMix;          // 0..1 — opacity of page layer
+                uniform float blendMode;        // 0..8 — which blend formula
+                uniform float displaceAmt;      // 0..1 — displacement amount
+                uniform float lumakey;          // 0..1 — luma threshold for cutting darks
+                uniform float chromakey;        // 0..1 — chromakey threshold (0=off)
+                uniform vec3 chromakeyColor;    // RGB of color to key out
+                uniform float layerHue;         // 0..1 — hue rotation
+                uniform float layerInvert;      // 0..1 — invert amount
+                uniform float audioLevel;       // for audio-driven displacement
                 varying vec2 vUv;
+
+                vec3 hsv2rgb(vec3 c) {
+                    vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+                    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+                    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+                }
+                vec3 rgb2hsv(vec3 c) {
+                    vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+                    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+                    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+                    float d = q.x - min(q.w, q.y);
+                    float e = 1.0e-10;
+                    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+                }
+
+                vec3 blend(vec3 base, vec3 layer, float mode) {
+                    if (mode < 0.5)      return layer;                                              // 0 normal
+                    if (mode < 1.5)      return base + layer;                                       // 1 add
+                    if (mode < 2.5)      return base * layer;                                       // 2 multiply
+                    if (mode < 3.5)      return 1.0 - (1.0 - base) * (1.0 - layer);                 // 3 screen
+                    if (mode < 4.5)      return mix(2.0*base*layer, 1.0 - 2.0*(1.0-base)*(1.0-layer), step(0.5, base));  // 4 overlay
+                    if (mode < 5.5)      return abs(base - layer);                                  // 5 difference
+                    if (mode < 6.5)      return max(base, layer);                                   // 6 lighten
+                    if (mode < 7.5)      return min(base, layer);                                   // 7 darken
+                                         return base / max(1.0 - layer, 0.001);                     // 8 color dodge
+                }
+
                 void main() {
-                    gl_FragColor = texture2D(tex, vUv);
+                    vec2 uv = vUv;
+
+                    // Sample the visual texture (always)
+                    vec3 visual = texture2D(tex, uv).rgb;
+
+                    if (pageMix < 0.001) {
+                        gl_FragColor = vec4(visual, 1.0);
+                        return;
+                    }
+
+                    // Sample the page layer with optional displacement driven by visuals
+                    vec2 displaceUv = uv;
+                    if (displaceAmt > 0.001) {
+                        // Use the visual as a displacement map
+                        vec2 disp = (visual.rg - 0.5) * displaceAmt * 0.15 * (1.0 + audioLevel);
+                        displaceUv += disp;
+                    }
+                    vec4 pageRaw = texture2D(pageTex, displaceUv);
+                    vec3 page = pageRaw.rgb;
+                    float pageA = pageRaw.a;
+
+                    // Layer effects (applied to the page color before blending)
+                    if (layerInvert > 0.001) {
+                        page = mix(page, 1.0 - page, layerInvert);
+                    }
+                    if (layerHue > 0.001) {
+                        vec3 hsv = rgb2hsv(page);
+                        hsv.x = fract(hsv.x + layerHue);
+                        page = hsv2rgb(hsv);
+                    }
+
+                    // Lumakey: remove pixels below a luma threshold (cuts dark backgrounds)
+                    float lum = dot(page, vec3(0.299, 0.587, 0.114));
+                    float lumaMask = smoothstep(lumakey * 0.5, lumakey * 0.5 + 0.05, lum);
+
+                    // Chromakey: remove pixels close to a target color
+                    float chromaMask = 1.0;
+                    if (chromakey > 0.001) {
+                        float d = distance(page, chromakeyColor);
+                        chromaMask = smoothstep(chromakey * 0.3, chromakey * 0.3 + 0.1, d);
+                    }
+
+                    float mask = lumaMask * chromaMask * pageA;
+
+                    // Blend
+                    vec3 blended = blend(visual, page, blendMode);
+                    blended = clamp(blended, 0.0, 1.0);
+
+                    // Final mix using mask × pageMix
+                    vec3 outCol = mix(visual, blended, mask * pageMix);
+
+                    gl_FragColor = vec4(outCol, 1.0);
                 }
             `;
 
@@ -1400,7 +1605,19 @@
                 if (prog) uniformCache[name] = cacheUniforms(prog);
             }
             const displayPosLoc = gl.getAttribLocation(displayProgram, 'position');
-            const displayTexLoc = gl.getUniformLocation(displayProgram, 'tex');
+            const displayUniforms = {
+                tex: gl.getUniformLocation(displayProgram, 'tex'),
+                pageTex: gl.getUniformLocation(displayProgram, 'pageTex'),
+                pageMix: gl.getUniformLocation(displayProgram, 'pageMix'),
+                blendMode: gl.getUniformLocation(displayProgram, 'blendMode'),
+                displaceAmt: gl.getUniformLocation(displayProgram, 'displaceAmt'),
+                lumakey: gl.getUniformLocation(displayProgram, 'lumakey'),
+                chromakey: gl.getUniformLocation(displayProgram, 'chromakey'),
+                chromakeyColor: gl.getUniformLocation(displayProgram, 'chromakeyColor'),
+                layerHue: gl.getUniformLocation(displayProgram, 'layerHue'),
+                layerInvert: gl.getUniformLocation(displayProgram, 'layerInvert'),
+                audioLevel: gl.getUniformLocation(displayProgram, 'audioLevel'),
+            };
 
             // Framebuffers
             const fbScale = isSmallScreen ? 0.5 : 0.75;
@@ -1441,6 +1658,15 @@
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+            // Page capture texture (1px transparent until layer enabled)
+            const pageTex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, pageTex);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,0]));
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
             // Fullscreen quad
             const posBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
@@ -1476,6 +1702,11 @@
                 enabled: true,
             };
 
+            // Note: DOM-to-texture capture was removed. The new layer mix system
+            // uses pure CSS (filter, mix-blend-mode, transform, opacity) which is
+            // far more reliable across browsers and works with iframes/external
+            // resources without taint issues.
+
             // ===== Hook up controls =====
             document.querySelectorAll('.shader-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1503,6 +1734,131 @@
             bind('hue-slider', 'hue-value', v => controlState.hue = v, v => v + '°');
             bind('audio-react-slider', 'audio-react-value', v => controlState.audioReact = v/100, v => v + '%');
             bind('camera-mix-slider', 'camera-mix-value', v => controlState.cameraMix = v/100, v => v + '%');
+
+            // ===== LAYER MIX (CSS-based, works reliably without DOM capture) =====
+            // Get references to the page wrapper and canvas for direct CSS manipulation
+            const pageWrapper = document.getElementById('content-wrapper');
+            const visualCanvas = document.getElementById('visual-canvas');
+
+            // Layer state — applied to CSS every frame for smooth audio-reactive effects
+            const layerState = {
+                pageOpacity: 1.0,
+                visualsOpacity: 0.6,
+                blendMode: 'screen',
+                pageHue: 0,           // degrees
+                pageInvert: 0,        // 0..1
+                pageSat: 1.0,         // 0..3
+                pageContrast: 1.0,    // 0..3
+                pageBlur: 0,          // px
+                pageDisplace: 0,      // 0..1, audio-reactive translate
+                pageScale: 0,         // 0..1, bass-reactive scale
+            };
+
+            // Initial canvas blend mode
+            if (visualCanvas) visualCanvas.style.mixBlendMode = layerState.blendMode;
+            if (visualCanvas) visualCanvas.style.opacity = layerState.visualsOpacity;
+
+            // Apply CSS filter & transform to the page wrapper
+            // Audio-reactive effects update every frame via the render loop
+            function applyLayerCSS(audioLvl, bassLvl) {
+                if (!pageWrapper) return;
+                
+                // Build CSS filter string
+                let filter = '';
+                if (layerState.pageHue) filter += `hue-rotate(${layerState.pageHue}deg) `;
+                if (layerState.pageInvert > 0.001) filter += `invert(${layerState.pageInvert}) `;
+                if (Math.abs(layerState.pageSat - 1.0) > 0.001) filter += `saturate(${layerState.pageSat}) `;
+                if (Math.abs(layerState.pageContrast - 1.0) > 0.001) filter += `contrast(${layerState.pageContrast}) `;
+                if (layerState.pageBlur > 0) filter += `blur(${layerState.pageBlur}px) `;
+                pageWrapper.style.filter = filter || 'none';
+                
+                // Audio-reactive transform (displace + scale)
+                let transform = '';
+                if (layerState.pageDisplace > 0.001) {
+                    const dx = (Math.sin(performance.now() * 0.003) * audioLvl * layerState.pageDisplace * 30);
+                    const dy = (Math.cos(performance.now() * 0.0025) * audioLvl * layerState.pageDisplace * 30);
+                    transform += `translate(${dx}px, ${dy}px) `;
+                }
+                if (layerState.pageScale > 0.001) {
+                    const s = 1.0 + bassLvl * layerState.pageScale * 0.15;
+                    transform += `scale(${s}) `;
+                }
+                pageWrapper.style.transform = transform || '';
+                
+                // Page opacity is set directly (not in render loop, so no flicker)
+                pageWrapper.style.opacity = layerState.pageOpacity;
+            }
+
+            // Wire the layer mix sliders
+            const layerBindings = [
+                ['page-opacity-slider', 'page-opacity-value', v => { layerState.pageOpacity = v/100; }, v => v + '%'],
+                ['visuals-opacity-slider', 'visuals-opacity-value', v => {
+                    layerState.visualsOpacity = v/100;
+                    if (visualCanvas && controlState.enabled) visualCanvas.style.opacity = v/100;
+                }, v => v + '%'],
+                ['page-hue-slider', 'page-hue-value', v => { layerState.pageHue = v; }, v => v + '°'],
+                ['page-invert-slider', 'page-invert-value', v => { layerState.pageInvert = v/100; }, v => v + '%'],
+                ['page-sat-slider', 'page-sat-value', v => { layerState.pageSat = v/100; }, v => v + '%'],
+                ['page-contrast-slider', 'page-contrast-value', v => { layerState.pageContrast = v/100; }, v => v + '%'],
+                ['page-blur-slider', 'page-blur-value', v => { layerState.pageBlur = v; }, v => v + 'px'],
+                ['page-displace-slider', 'page-displace-value', v => { layerState.pageDisplace = v/100; }, v => v + '%'],
+                ['page-scale-slider', 'page-scale-value', v => { layerState.pageScale = v/100; }, v => v + '%'],
+            ];
+            layerBindings.forEach(([id, valId, fn, fmt]) => bind(id, valId, fn, fmt));
+
+            // Blend mode dropdown
+            const blendSel = document.getElementById('canvas-blend-mode');
+            if (blendSel) {
+                blendSel.value = layerState.blendMode;
+                blendSel.addEventListener('change', e => {
+                    layerState.blendMode = e.target.value;
+                    if (visualCanvas) visualCanvas.style.mixBlendMode = e.target.value;
+                });
+            }
+
+            // Reset button
+            const resetBtn = document.getElementById('reset-layer-btn');
+            if (resetBtn) resetBtn.addEventListener('click', () => {
+                layerState.pageOpacity = 1.0;
+                layerState.visualsOpacity = 0.6;
+                layerState.blendMode = 'screen';
+                layerState.pageHue = 0;
+                layerState.pageInvert = 0;
+                layerState.pageSat = 1.0;
+                layerState.pageContrast = 1.0;
+                layerState.pageBlur = 0;
+                layerState.pageDisplace = 0;
+                layerState.pageScale = 0;
+                
+                // Reset slider UI
+                const setSlider = (id, val, fmt) => {
+                    const el = document.getElementById(id);
+                    const valEl = document.getElementById(id.replace('-slider', '-value'));
+                    if (el) el.value = val;
+                    if (valEl) valEl.textContent = fmt;
+                };
+                setSlider('page-opacity-slider', 100, '100%');
+                setSlider('visuals-opacity-slider', 60, '60%');
+                setSlider('page-hue-slider', 0, '0°');
+                setSlider('page-invert-slider', 0, '0%');
+                setSlider('page-sat-slider', 100, '100%');
+                setSlider('page-contrast-slider', 100, '100%');
+                setSlider('page-blur-slider', 0, '0px');
+                setSlider('page-displace-slider', 0, '0%');
+                setSlider('page-scale-slider', 0, '0%');
+                if (blendSel) blendSel.value = 'screen';
+                
+                // Apply
+                if (visualCanvas) {
+                    visualCanvas.style.mixBlendMode = 'screen';
+                    visualCanvas.style.opacity = 0.6;
+                }
+                if (pageWrapper) {
+                    pageWrapper.style.filter = 'none';
+                    pageWrapper.style.transform = '';
+                    pageWrapper.style.opacity = '1';
+                }
+            });
 
             // Canvas on/off
             const toggleBtn = document.getElementById('canvas-toggle');
@@ -1595,6 +1951,9 @@
                 const audioLevel = Math.max(audio, baseLevel);
                 const bassLevel = Math.max(bass, baseLevel * 0.5);
 
+                // Apply CSS-based layer mixing every frame (cheap)
+                applyLayerCSS(audio, bass);
+
                 const program = programs[controlState.shader];
                 if (!program) return;
                 const u = uniformCache[controlState.shader];
@@ -1640,7 +1999,7 @@
 
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-                // PASS 2: Display to screen
+                // PASS 2: Composite + display to screen
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
                 gl.viewport(0, 0, canvas.width, canvas.height);
                 gl.clearColor(0, 0, 0, 1);
@@ -1650,9 +2009,29 @@
                 gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
                 gl.enableVertexAttribArray(displayPosLoc);
                 gl.vertexAttribPointer(displayPosLoc, 2, gl.FLOAT, false, 0, 0);
+
+                // Visual texture -> unit 0
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, currentTex === 1 ? tex1 : tex2);
-                gl.uniform1i(displayTexLoc, 0);
+                gl.uniform1i(displayUniforms.tex, 0);
+
+                // Page texture -> unit 1
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, pageTex);
+                gl.uniform1i(displayUniforms.pageTex, 1);
+
+                // Compositor uniforms — pageMix forced to 0 since DOM capture
+                // was replaced by CSS-based mixing (which doesn't go through the shader)
+                gl.uniform1f(displayUniforms.pageMix, 0);
+                gl.uniform1f(displayUniforms.blendMode, 0);
+                gl.uniform1f(displayUniforms.displaceAmt, 0);
+                gl.uniform1f(displayUniforms.lumakey, 0);
+                gl.uniform1f(displayUniforms.chromakey, 0);
+                gl.uniform3f(displayUniforms.chromakeyColor, 0, 0, 0);
+                gl.uniform1f(displayUniforms.layerHue, 0);
+                gl.uniform1f(displayUniforms.layerInvert, 0);
+                gl.uniform1f(displayUniforms.audioLevel, audioLevel);
+
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
                 currentTex = currentTex === 1 ? 2 : 1;
