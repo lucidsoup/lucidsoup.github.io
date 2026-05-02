@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LucidSoup — Visual Artist &amp; Projection Mapping (v3.0)</title>
+    <script>
+        // Redirect HTTP -> HTTPS so camera and microphone access work.
+        // GitHub Pages serves HTTPS, so we should always be there.
+        // Skip on localhost so dev still works.
+        (function() {
+            if (location.protocol === 'http:' &&
+                location.hostname !== 'localhost' &&
+                location.hostname !== '127.0.0.1') {
+                location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+            }
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
     <style>
@@ -1875,6 +1887,22 @@
             let cameraStream = null;
 
             async function startCamera() {
+                // Check if mediaDevices is available — requires HTTPS or localhost
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    const isInsecure = location.protocol === 'http:' &&
+                                       location.hostname !== 'localhost' &&
+                                       location.hostname !== '127.0.0.1';
+                    if (isInsecure) {
+                        alert(
+                            'Camera requires a secure connection (HTTPS).\n\n' +
+                            'This page is loaded over HTTP, so the browser blocks camera access.\n\n' +
+                            'Try opening the site at https://' + location.host + location.pathname + ' instead.'
+                        );
+                    } else {
+                        alert('Camera is not supported in this browser.');
+                    }
+                    return;
+                }
                 try {
                     cameraStream = await navigator.mediaDevices.getUserMedia({
                         video: { facingMode: 'user', width: 640, height: 480 },
@@ -1896,7 +1924,17 @@
                     console.log('[Visuals] Camera started');
                 } catch (e) {
                     console.error('[Visuals] Camera failed:', e);
-                    alert('Could not access camera: ' + e.message + '\n\nMake sure you allow camera permission and are on HTTPS or localhost.');
+                    let msg = 'Could not start camera.';
+                    if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+                        msg = 'Camera permission was denied.\n\nClick the lock/info icon in your browser address bar and allow camera access for this site, then try again.';
+                    } else if (e.name === 'NotFoundError') {
+                        msg = 'No camera found on this device.';
+                    } else if (e.name === 'NotReadableError') {
+                        msg = 'The camera is in use by another application.';
+                    } else if (e.message) {
+                        msg = 'Could not access camera:\n' + e.message;
+                    }
+                    alert(msg);
                 }
             }
 
