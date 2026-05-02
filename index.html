@@ -457,8 +457,8 @@
             </button>
             <ul>
                 <li><a href="#home">Home</a></li>
-                <li><a href="#portfolio">Portfolio</a></li>
                 <li><a href="#drumseek">DrumSeek</a></li>
+                <li><a href="#portfolio">Portfolio</a></li>
                 <li><a href="#about">About</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
@@ -472,6 +472,16 @@
                 <p>VISUAL ARTIST · PROJECTION MAPPING · LIVE VISUALS</p>
             </div>
             <div class="scanlines"></div>
+        </section>
+
+        <section id="drumseek">
+            <h2>DrumSeek — Live Beat Sequencer</h2>
+            <p style="text-align: center; margin-bottom: 2rem; opacity: 0.8;">
+                9-track drum machine with synthesizers, effects, and MIDI control. The visuals behind you are reactively driven by DrumSeek's audio output.
+            </p>
+            <div id="drumseek-frame">
+                <iframe id="drumseek-embed" src="drumseek.html" allow="autoplay; midi"></iframe>
+            </div>
         </section>
 
         <section id="portfolio">
@@ -563,16 +573,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <section id="drumseek">
-            <h2>DrumSeek — Live Beat Sequencer</h2>
-            <p style="text-align: center; margin-bottom: 2rem; opacity: 0.8;">
-                9-track drum machine with synthesizers, effects, and MIDI control. The visuals behind you are reactively driven by DrumSeek's audio output.
-            </p>
-            <div id="drumseek-frame">
-                <iframe id="drumseek-embed" src="drumseek.html" allow="autoplay; midi"></iframe>
             </div>
         </section>
 
@@ -1699,20 +1699,55 @@
             });
 
             // ===== Control state =====
+            // Random initial state on each page load — keeps the site feeling fresh
+            const ALL_SHADERS = ['kaleidoscope', 'tunnel', 'plasma', 'wave', 'fractal', 'warp', 'liquid', 'grid', 'vortex', 'bloom'];
+            const randShader = ALL_SHADERS[Math.floor(Math.random() * ALL_SHADERS.length)];
+            const randHue = Math.floor(Math.random() * 360);
+            const randFeedback = 0.35 + Math.random() * 0.45;          // 0.35-0.80 — meaningful trails
+            const randZoom = 0.90 + Math.random() * 0.30;              // 0.90-1.20
+            const randSpin = (Math.random() - 0.5) * 0.30;             // -0.15 to +0.15
+            const randOffsetX = (Math.random() - 0.5) * 0.20;          // -0.10 to +0.10
+            const randOffsetY = (Math.random() - 0.5) * 0.20;
+            const randRotation = (Math.random() - 0.5) * Math.PI * 0.5; // -45° to +45°
+
             const controlState = {
-                shader: 'kaleidoscope',
-                feedback: 0.5,
-                zoom: 1.0,
-                rotation: 0.0,           // radians, applied as constant rotation
-                offsetX: 0.0,
-                offsetY: 0.0,
-                spinRate: 0.0,           // radians per second auto-rotation
-                hue: 0,
+                shader: randShader,
+                feedback: randFeedback,
+                zoom: randZoom,
+                rotation: randRotation,
+                offsetX: randOffsetX,
+                offsetY: randOffsetY,
+                spinRate: randSpin,
+                hue: randHue,
                 audioReact: 0.5,
                 cameraMix: 0.0,
                 cameraEnabled: false,
                 enabled: true,
             };
+
+            // Sync UI to the random state
+            (function syncRandomToUI() {
+                // Set the active shader button
+                document.querySelectorAll('.shader-btn').forEach(b => {
+                    b.classList.toggle('active', b.dataset.shader === randShader);
+                });
+                // Set sliders + their value labels to match the random state
+                const setSliderUI = (sliderId, valId, sliderVal, displayText) => {
+                    const s = document.getElementById(sliderId);
+                    const v = document.getElementById(valId);
+                    if (s) s.value = sliderVal;
+                    if (v) v.textContent = displayText;
+                };
+                setSliderUI('feedback-slider', 'feedback-value', Math.round(randFeedback * 100), Math.round(randFeedback * 100) + '%');
+                setSliderUI('zoom-slider', 'zoom-value', Math.round(randZoom * 100), randZoom.toFixed(2));
+                setSliderUI('rotation-slider', 'rotation-value', Math.round(randRotation * 180 / Math.PI), Math.round(randRotation * 180 / Math.PI) + '°');
+                setSliderUI('offsetx-slider', 'offsetx-value', Math.round(randOffsetX * 100), randOffsetX.toFixed(2));
+                setSliderUI('offsety-slider', 'offsety-value', Math.round(randOffsetY * 100), randOffsetY.toFixed(2));
+                setSliderUI('spin-slider', 'spin-value', Math.round(randSpin * 100), randSpin.toFixed(2));
+                setSliderUI('hue-slider', 'hue-value', randHue, randHue + '°');
+            })();
+
+            console.log('[Visuals] Random init:', randShader, '| hue', randHue + '°', '| zoom', randZoom.toFixed(2), '| spin', randSpin.toFixed(2));
 
             // Note: DOM-to-texture capture was removed. The new layer mix system
             // uses pure CSS (filter, mix-blend-mode, transform, opacity) which is
