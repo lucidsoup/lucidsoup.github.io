@@ -258,6 +258,32 @@
             box-shadow: 0 0 6px #00ffff;
         }
 
+        /* Style native select/option to match dark theme - fixes white background
+           on dropdown options in Safari, Firefox, Edge etc. */
+        .visual-controls select,
+        select.control-select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><polygon points='3,4 9,4 6,8' fill='%23ff00ff'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 10px;
+            padding-right: 24px !important;
+            color-scheme: dark;
+        }
+        .visual-controls select option,
+        select.control-select option {
+            background: #1a1a1a !important;
+            color: #fff !important;
+        }
+        .visual-controls select option:hover,
+        .visual-controls select option:checked,
+        select.control-select option:checked {
+            background: #ff00ff !important;
+            color: #fff !important;
+        }
+
         .shader-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
@@ -1539,6 +1565,17 @@
                     // Final mix using mask × pageMix
                     vec3 outCol = mix(visual, blended, mask * pageMix);
 
+                    // ===== VIBRANCY BOOST =====
+                    // Increase saturation: pull each channel away from luminance
+                    float vibLum = dot(outCol, vec3(0.299, 0.587, 0.114));
+                    outCol = mix(vec3(vibLum), outCol, 1.45);  // sat 145%
+                    // Slight contrast boost (S-curve via smoothstep)
+                    outCol = mix(outCol, smoothstep(0.0, 1.0, outCol), 0.35);
+                    // Brightness lift on highlights for that "neon glow" feel
+                    outCol += pow(outCol, vec3(2.0)) * 0.3;
+                    // Final clamp
+                    outCol = clamp(outCol, 0.0, 1.0);
+
                     gl_FragColor = vec4(outCol, 1.0);
                 }
             `;
@@ -1820,14 +1857,27 @@
                 pageWrapper.style.filter = filter || 'none';
                 
                 // Audio-reactive transform (displace + scale)
+                // Even with no audio, provide a baseline oscillation so the slider
+                // visibly does something. Audio just adds extra intensity on top.
                 let transform = '';
                 if (layerState.pageDisplace > 0.001) {
-                    const dx = (Math.sin(performance.now() * 0.003) * audioLvl * layerState.pageDisplace * 30);
-                    const dy = (Math.cos(performance.now() * 0.0025) * audioLvl * layerState.pageDisplace * 30);
+                    const t = performance.now();
+                    // Baseline always present — gives 0..1 range continuous wobble
+                    const baselineX = Math.sin(t * 0.0021);
+                    const baselineY = Math.cos(t * 0.0017);
+                    // Audio multiplier: 1.0 base + extra from audio
+                    const intensity = 1.0 + audioLvl * 2.0;
+                    const range = layerState.pageDisplace * 60; // up to 60px
+                    const dx = baselineX * intensity * range;
+                    const dy = baselineY * intensity * range;
                     transform += `translate(${dx}px, ${dy}px) `;
                 }
                 if (layerState.pageScale > 0.001) {
-                    const s = 1.0 + bassLvl * layerState.pageScale * 0.15;
+                    // Baseline pulse + bass-driven extra
+                    const t = performance.now();
+                    const baseline = 1.0 + Math.sin(t * 0.004) * 0.04;
+                    const bassExtra = bassLvl * layerState.pageScale * 0.3;
+                    const s = baseline + bassExtra * layerState.pageScale;
                     transform += `scale(${s}) `;
                 }
                 pageWrapper.style.transform = transform || '';
@@ -2025,7 +2075,7 @@
                 const bassLevel = Math.max(bass, baseLevel * 0.5);
 
                 // Apply CSS-based layer mixing every frame (cheap)
-                applyLayerCSS(audio, bass);
+                applyLayerCSS(audioLevel, bassLevel);
 
                 const program = programs[controlState.shader];
                 if (!program) return;
