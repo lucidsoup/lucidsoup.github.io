@@ -1,0 +1,30 @@
+{
+  "nodes": [
+    {
+      "uuid": "11111111-1111-4111-8111-111111111111",
+      "kind": "mandelbrot",
+      "version": 1,
+      "label": "Mandelbrot",
+      "position": [120, 80],
+      "parameters": {
+        "zoom":   { "value": 1.5 },
+        "center": { "value": [-0.7, 0.0] },
+        "iter":   { "value": 256 }
+      }
+    },
+    {
+      "uuid": "22222222-2222-4222-8222-222222222222",
+      "kind": "to_window",
+      "version": 1,
+      "label": "Output",
+      "position": [520, 80],
+      "parameters": {}
+    }
+  ],
+  "links": [
+    {
+      "from": { "node": "11111111-1111-4111-8111-111111111111", "pin": "out" },
+      "to":   { "node": "22222222-2222-4222-8222-222222222222", "pin": "in"  }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "soupmix_version": "0.1.0",
+  "project_version": 1,
+  "uuid": "ce0d2c1b-d2dd-4f8f-8e64-22b6f7d27e2a",
+  "name": "hello-fractal",
+  "created": "2026-05-13T10:00:00Z",
+  "modified": "2026-05-13T10:00:00Z",
+  "default_scene": "00000000-0000-0000-0000-000000000000",
+  "projectors": []
+}

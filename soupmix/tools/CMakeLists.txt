@@ -1,0 +1,3 @@
+add_subdirectory(shaderlint)
+add_subdirectory(project_inspector)
+add_subdirectory(offline_render)

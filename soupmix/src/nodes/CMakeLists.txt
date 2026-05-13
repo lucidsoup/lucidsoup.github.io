@@ -1,0 +1,5 @@
+add_subdirectory(sources)
+add_subdirectory(fx)
+add_subdirectory(utility)
+add_subdirectory(output)
+add_subdirectory(mapping)
