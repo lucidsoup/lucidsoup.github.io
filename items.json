@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "id": "01",
+      "title": "Limited Edition Print",
+      "subtitle": "Signed · 18×24",
+      "description": "Hand-numbered archival pigment print from the 'Liquid Geometry' series. Edition of 50.",
+      "price": "$120",
+      "image": "",
+      "checkoutType": "link",
+      "checkoutValue": "https://example.com/print",
+      "buttonText": "BUY",
+      "available": true
+    },
+    {
+      "id": "02",
+      "title": "Custom Projection Commission",
+      "subtitle": "Booking inquiry",
+      "description": "Custom projection mapping for your venue, event, or installation. Includes consultation, design, and on-site setup.",
+      "price": "From $2,500",
+      "image": "",
+      "checkoutType": "email",
+      "checkoutValue": "bookings@lucidsoup.com",
+      "buttonText": "INQUIRE",
+      "available": true
+    },
+    {
+      "id": "03",
+      "title": "Sample Pack — Liquid Geometry",
+      "subtitle": "Digital download",
+      "description": "32 audio-reactive textures, 16 wavetables for DrumSeek, and 4 GLSL shader presets. Royalty-free.",
+      "price": "$25",
+      "image": "",
+      "checkoutType": "link",
+      "checkoutValue": "https://example.com/samplepack",
+      "buttonText": "DOWNLOAD",
+      "available": true
+    }
+  ]
+}

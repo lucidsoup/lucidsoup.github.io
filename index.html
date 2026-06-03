@@ -118,6 +118,148 @@
         .about { background: rgba(255,255,255,.02); border-radius: 20px; padding: 3rem; text-align: center; margin: 3rem 0; }
         .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 800px; margin: 0 auto 2rem; }
         .skills { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
+
+        /* ===== SHOP ===== */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .shop-loading {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            color: rgba(255,255,255,.4);
+            font-size: 0.9rem;
+        }
+        .shop-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            color: rgba(255,255,255,.4);
+            font-size: 0.9rem;
+            border: 1px dashed rgba(255,255,255,.1);
+            border-radius: 12px;
+        }
+        .shop-item {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.08);
+            display: flex;
+            flex-direction: column;
+            transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+        }
+        .shop-item:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0,255,255,.4);
+            box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 24px rgba(0,255,255,.15);
+        }
+        .shop-item.sold-out { opacity: 0.5; }
+        .shop-item.sold-out::after {
+            content: "SOLD OUT";
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255,0,80,.9);
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            padding: 4px 10px;
+            border-radius: 4px;
+            z-index: 2;
+        }
+        .shop-item-image {
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: linear-gradient(135deg, rgba(255,0,255,.15), rgba(0,255,255,.15));
+            position: relative;
+            overflow: hidden;
+        }
+        .shop-item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .shop-item-image-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,.3);
+            font-size: 2.5rem;
+        }
+        .shop-item-body {
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            gap: 0.5rem;
+        }
+        .shop-item-subtitle {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(0,255,255,.7);
+            font-weight: bold;
+        }
+        .shop-item-title {
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: #fff;
+            line-height: 1.2;
+        }
+        .shop-item-description {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255,255,255,.65);
+            flex: 1;
+        }
+        .shop-item-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+        .shop-item-price {
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: linear-gradient(90deg, #00ffff, #ff00ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .shop-item-button {
+            background: linear-gradient(135deg, rgba(0,255,255,.12), rgba(255,0,255,.12));
+            border: 1px solid rgba(0,255,255,.4);
+            color: #fff;
+            padding: 0.5rem 1.1rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all .2s ease;
+            white-space: nowrap;
+        }
+        .shop-item-button:hover {
+            background: linear-gradient(135deg, rgba(0,255,255,.25), rgba(255,0,255,.25));
+            border-color: rgba(0,255,255,.8);
+            box-shadow: 0 0 12px rgba(0,255,255,.3);
+        }
+        .shop-item-button.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
         .skill { padding: .8rem 1.5rem; background: linear-gradient(45deg, rgba(0,255,255,.1), rgba(255,0,255,.1)); border-radius: 25px; border: 1px solid rgba(255,255,255,.1); color: #fff; font-weight: 400; }
 
         .contact { text-align: center; background: linear-gradient(45deg, rgba(0,255,255,.05), rgba(255,0,255,.05)); border-radius: 20px; padding: 3rem; }
@@ -485,6 +627,7 @@
                 <li><a href="#home">Home</a></li>
                 <li><a href="#drumseek">DrumSeek</a></li>
                 <li><a href="#portfolio">Portfolio</a></li>
+                <li><a href="#shop">Shop</a></li>
                 <li><a href="#about">About</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
@@ -594,7 +737,7 @@
                         <div class="overlay">
                             <div class="overlay-text">
                                 <h4>Interactive Installation</h4>
-                                <p>AI-powered visual generation responding to ambient conditions</p>
+                                <p>Real-time visuals responding to ambient conditions</p>
                             </div>
                         </div>
                     </div>
@@ -609,6 +752,14 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section id="shop">
+            <h2>Shop</h2>
+            <div id="shop-grid" class="shop-grid">
+                <!-- items rendered dynamically from items.json -->
+                <div class="shop-loading">Loading...</div>
             </div>
         </section>
 
@@ -868,6 +1019,67 @@
         // ===== VERSION CHECK =====
         // If you see this in the browser console, the new file IS deployed.
         console.log('%c[LucidSoup] v3.0 — 10 shaders + camera + XYZ controls + contained DrumSeek frame', 'background:#00ffff;color:#000;padding:4px 8px;font-weight:bold;');
+
+        // ===== SHOP — fetches items.json and renders cards =====
+        (function loadShop() {
+            const grid = document.getElementById('shop-grid');
+            if (!grid) return;
+
+            function escapeHtml(str) {
+                return String(str || '').replace(/[&<>"']/g, c =>
+                    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            }
+
+            function renderItems(items) {
+                if (!items || items.length === 0) {
+                    grid.innerHTML = '<div class="shop-empty">No items available right now. Check back soon.</div>';
+                    return;
+                }
+                grid.innerHTML = items.map(item => {
+                    const checkoutHref = item.checkoutType === 'email'
+                        ? `mailto:${item.checkoutValue}?subject=${encodeURIComponent('Inquiry: ' + (item.title||''))}`
+                        : (item.checkoutValue || '#');
+                    const isExt = item.checkoutType !== 'email' && /^https?:/.test(item.checkoutValue || '');
+                    const imageEl = item.image
+                        ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" loading="lazy"
+                               onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                           <div class="shop-item-image-placeholder" style="display:none">✶</div>`
+                        : `<div class="shop-item-image-placeholder">✶</div>`;
+                    return `
+                        <div class="shop-item ${item.available === false ? 'sold-out' : ''}">
+                            <div class="shop-item-image">${imageEl}</div>
+                            <div class="shop-item-body">
+                                ${item.subtitle ? `<div class="shop-item-subtitle">${escapeHtml(item.subtitle)}</div>` : ''}
+                                <div class="shop-item-title">${escapeHtml(item.title || 'Untitled')}</div>
+                                ${item.description ? `<div class="shop-item-description">${escapeHtml(item.description)}</div>` : ''}
+                                <div class="shop-item-footer">
+                                    ${item.price ? `<div class="shop-item-price">${escapeHtml(item.price)}</div>` : '<div></div>'}
+                                    <a class="shop-item-button ${item.available === false ? 'disabled' : ''}"
+                                       href="${escapeHtml(checkoutHref)}"
+                                       ${isExt ? 'target="_blank" rel="noopener"' : ''}>
+                                        ${escapeHtml(item.buttonText || (item.checkoutType === 'email' ? 'INQUIRE' : 'BUY'))}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Fetch items.json with cache-bust to ensure fresh content
+            fetch('items.json?t=' + Date.now())
+                .then(r => r.ok ? r.json() : Promise.reject(new Error('No items.json (' + r.status + ')')))
+                .then(data => {
+                    const items = Array.isArray(data) ? data : (data.items || []);
+                    renderItems(items);
+                })
+                .catch(err => {
+                    console.warn('[Shop] Could not load items.json:', err.message);
+                    // Hide whole shop section if no items file at all
+                    const section = document.getElementById('shop');
+                    if (section) section.style.display = 'none';
+                });
+        })();
 
         // ===== NAVBAR =====
         window.addEventListener('scroll', function() {

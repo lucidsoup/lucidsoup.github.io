@@ -1,742 +1,930 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LucidSoup Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-:root {
-  --cyan: #00ffff; --magenta: #ff00ff; --bg: #070707;
-  --surface: rgba(255,255,255,0.04); --border: rgba(255,255,255,0.09);
-  --text: rgba(255,255,255,0.85); --muted: rgba(255,255,255,0.4);
-  --danger: #ff4060; --success: #00ff80;
-}
-body { font-family: 'Space Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LucidSoup — Shop Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        a { color: #00ffff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        button { font-family: inherit; }
 
-/* ── LOGIN ── */
-#loginScreen {
-min-height: 100vh; display: flex; align-items: center; justify-content: center;
-background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0,255,255,0.04), transparent);
-}
-.login-box {
-background: var(–surface); border: 1px solid var(–border);
-border-radius: 6px; padding: 3rem; width: 100%; max-width: 400px; text-align: center;
-}
-.login-box h1 {
-font-family: ‘Orbitron’, monospace; font-size: 1.2rem; letter-spacing: 0.15em;
-color: var(–cyan); margin-bottom: 0.4rem;
-text-shadow: 0 0 12px rgba(0,255,255,0.4);
-}
-.login-box p { font-size: 0.7rem; color: var(–muted); letter-spacing: 0.1em; margin-bottom: 2rem; }
+        /* === LOGIN === */
+        #login-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        #login-card {
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(0,255,255,.3);
+            border-radius: 16px;
+            padding: 2.5rem;
+            max-width: 380px;
+            width: 100%;
+            box-shadow: 0 0 40px rgba(0,255,255,.1);
+        }
+        #login-card h1 {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(90deg, #ff10f0, #00ffff, #39ff14);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.6rem;
+            margin-bottom: 0.25rem;
+            letter-spacing: 0.1em;
+        }
+        #login-card .subtitle {
+            color: rgba(255,255,255,.4);
+            font-size: 0.85rem;
+            margin-bottom: 2rem;
+            letter-spacing: 0.05em;
+        }
+        #login-card label {
+            display: block;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,.6);
+            margin-bottom: 0.4rem;
+        }
+        #login-card input[type="password"] {
+            width: 100%;
+            background: rgba(0,0,0,.5);
+            border: 1px solid rgba(255,255,255,.15);
+            color: #fff;
+            padding: 0.8rem 1rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            outline: none;
+            transition: border-color .2s ease;
+        }
+        #login-card input[type="password"]:focus { border-color: rgba(0,255,255,.6); }
+        #login-card .login-btn {
+            width: 100%;
+            background: linear-gradient(135deg, rgba(0,255,255,.2), rgba(255,0,255,.2));
+            border: 1px solid rgba(0,255,255,.5);
+            color: #fff;
+            padding: 0.9rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            transition: all .2s ease;
+        }
+        #login-card .login-btn:hover {
+            background: linear-gradient(135deg, rgba(0,255,255,.35), rgba(255,0,255,.35));
+            box-shadow: 0 0 16px rgba(0,255,255,.3);
+        }
+        #login-card .error {
+            color: #ff6060;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            min-height: 1.2em;
+        }
+        #login-card .hint {
+            margin-top: 1.2rem;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,.3);
+            text-align: center;
+        }
 
-.login-field { margin-bottom: 1rem; text-align: left; }
-.login-field label { display: block; font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(–muted); margin-bottom: 0.4rem; }
-.login-field input {
-width: 100%; padding: 0.8rem 1rem;
-background: rgba(255,255,255,0.03); border: 1px solid var(–border);
-border-radius: 3px; color: #fff; font-family: ‘Space Mono’, monospace;
-font-size: 0.78rem; outline: none; transition: border-color 0.3s;
-}
-.login-field input:focus { border-color: var(–cyan); }
+        /* === ADMIN VIEW === */
+        #admin-view { display: none; min-height: 100vh; flex-direction: column; }
+        #admin-view.active { display: flex; }
 
-.btn-login {
-width: 100%; padding: 0.9rem; background: var(–cyan); color: #000;
-font-family: ‘Orbitron’, monospace; font-size: 0.72rem; font-weight: 700;
-letter-spacing: 0.2em; text-transform: uppercase; border: none;
-border-radius: 3px; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem;
-}
-.btn-login:hover { background: #fff; box-shadow: 0 0 25px rgba(0,255,255,0.4); }
+        .admin-bar {
+            background: rgba(0,0,0,.95);
+            border-bottom: 1px solid rgba(255,255,255,.1);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(10px);
+        }
+        .admin-bar h1 {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(90deg, #ff10f0, #00ffff, #39ff14);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.2rem;
+            letter-spacing: 0.1em;
+        }
+        .admin-bar h1 small {
+            display: block;
+            font-family: 'Arial', sans-serif;
+            font-size: 0.7rem;
+            font-weight: normal;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,.4);
+            -webkit-text-fill-color: rgba(255,255,255,.4);
+            margin-top: 2px;
+        }
+        .admin-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .admin-btn {
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.2);
+            color: #fff;
+            padding: 0.55rem 1rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all .15s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .admin-btn:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.4); }
+        .admin-btn.primary {
+            background: linear-gradient(135deg, rgba(57,255,20,.2), rgba(0,255,255,.2));
+            border-color: rgba(57,255,20,.5);
+            color: #39ff14;
+        }
+        .admin-btn.primary:hover { box-shadow: 0 0 12px rgba(57,255,20,.3); }
+        .admin-btn.danger { border-color: rgba(255,80,80,.4); color: #ff6060; }
+        .admin-btn.danger:hover { background: rgba(255,80,80,.1); }
 
-.login-error { color: var(–danger); font-size: 0.72rem; margin-top: 1rem; display: none; }
-.login-hint { font-size: 0.62rem; color: var(–muted); margin-top: 1.5rem; line-height: 1.7; }
-.login-hint a { color: var(–cyan); }
+        .admin-status {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,.5);
+            letter-spacing: 0.05em;
+        }
+        .admin-status.unsaved { color: #ffaa00; }
+        .admin-status.saved { color: #39ff14; }
 
-/* ── ADMIN LAYOUT ── */
-#adminApp { display: none; min-height: 100vh; }
+        .admin-main {
+            flex: 1;
+            padding: 2rem 1.5rem;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
 
-.admin-header {
-background: rgba(7,7,7,0.95); border-bottom: 1px solid var(–border);
-padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
-position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px);
-}
-.admin-header-brand { font-family: ‘Orbitron’, monospace; font-size: 0.85rem; color: var(–cyan); letter-spacing: 0.15em; }
-.admin-header-brand span { color: var(–muted); font-size: 0.65rem; }
+        .admin-help {
+            background: rgba(0,255,255,.05);
+            border: 1px solid rgba(0,255,255,.15);
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,.7);
+            line-height: 1.6;
+        }
+        .admin-help strong { color: #00ffff; }
+        .admin-help code {
+            background: rgba(0,0,0,.5);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            color: #ff10f0;
+        }
 
-.admin-nav { display: flex; gap: 0.4rem; }
-.tab-btn {
-padding: 0.5rem 1rem; background: transparent; border: 1px solid var(–border);
-border-radius: 3px; color: var(–muted); font-family: ‘Space Mono’, monospace;
-font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
-cursor: pointer; transition: all 0.2s;
-}
-.tab-btn:hover, .tab-btn.active { border-color: var(–cyan); color: var(–cyan); background: rgba(0,255,255,0.06); }
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
 
-.btn-logout {
-padding: 0.45rem 1rem; background: transparent; border: 1px solid rgba(255,64,96,0.3);
-border-radius: 3px; color: var(–danger); font-family: ‘Space Mono’, monospace;
-font-size: 0.65rem; letter-spacing: 0.1em; cursor: pointer; transition: all 0.2s;
-}
-.btn-logout:hover { background: rgba(255,64,96,0.1); }
+        /* item card === mirror of public storefront, with edit affordances */
+        .admin-item {
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: border-color .2s ease;
+        }
+        .admin-item:hover { border-color: rgba(0,255,255,.3); }
+        .admin-item.dragging { opacity: 0.4; }
+        .admin-item.sold-out { opacity: 0.7; }
 
-.admin-content { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem; }
+        .admin-item-header {
+            padding: 0.5rem 0.75rem;
+            background: rgba(0,0,0,.4);
+            border-bottom: 1px solid rgba(255,255,255,.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,.4);
+        }
+        .admin-item-header .item-id {
+            font-family: monospace;
+            color: rgba(255,255,255,.4);
+        }
+        .admin-item-header .item-actions { display: flex; gap: 4px; }
+        .icon-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,.15);
+            color: rgba(255,255,255,.6);
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            line-height: 1;
+            padding: 0;
+            transition: all .15s ease;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.4); color: #fff; }
+        .icon-btn.danger:hover { background: rgba(255,80,80,.15); border-color: #ff6060; color: #ff6060; }
 
-/* ── PANELS ── */
-.panel { display: none; }
-.panel.active { display: block; }
+        .admin-item-image-area {
+            aspect-ratio: 4/3;
+            background: linear-gradient(135deg, rgba(255,0,255,.15), rgba(0,255,255,.15));
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .admin-item-image-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .image-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 0.5rem;
+            color: rgba(255,255,255,.4);
+        }
+        .image-placeholder span { font-size: 2.5rem; }
+        .image-placeholder small { font-size: 0.7rem; letter-spacing: 0.1em; }
+        .image-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity .2s ease;
+            pointer-events: none;
+        }
+        .admin-item-image-area:hover .image-overlay { opacity: 1; }
+        .image-overlay-text {
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
 
-.panel-title {
-font-family: ‘Orbitron’, monospace; font-size: 1rem; letter-spacing: 0.1em;
-color: #fff; margin-bottom: 0.4rem;
-}
-.panel-sub { font-size: 0.72rem; color: var(–muted); margin-bottom: 2rem; }
+        .admin-item-body { padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; flex: 1; }
 
-/* ── PORTFOLIO GRID ── */
-.portfolio-admin-grid {
-display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem;
-}
+        .field {
+            position: relative;
+        }
+        .field-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,.35);
+            margin-bottom: 3px;
+        }
+        .field input, .field textarea, .field select {
+            width: 100%;
+            background: rgba(0,0,0,.4);
+            border: 1px solid rgba(255,255,255,.08);
+            color: #fff;
+            padding: 0.5rem 0.7rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color .15s ease, background .15s ease;
+            outline: none;
+        }
+        .field input:hover, .field textarea:hover, .field select:hover { border-color: rgba(255,255,255,.2); }
+        .field input:focus, .field textarea:focus, .field select:focus {
+            border-color: rgba(0,255,255,.5);
+            background: rgba(0,255,255,.05);
+        }
+        .field input.title { font-weight: bold; font-size: 1rem; }
+        .field input.subtitle { font-size: 0.8rem; color: rgba(0,255,255,.8); }
+        .field textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+        .field input.price {
+            font-weight: bold;
+            font-size: 1.05rem;
+            background: linear-gradient(90deg, #00ffff15, #ff00ff15);
+        }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 
-.portfolio-card {
-background: var(–surface); border: 1px solid var(–border);
-border-radius: 4px; overflow: hidden;
-}
+        .checkout-area {
+            border-top: 1px solid rgba(255,255,255,.06);
+            padding-top: 0.75rem;
+            margin-top: 0.25rem;
+        }
 
-.portfolio-card-thumb {
-height: 160px; background: #111; position: relative;
-display: flex; align-items: center; justify-content: center;
-overflow: hidden;
-}
-.portfolio-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.portfolio-card-thumb .no-img { font-size: 0.65rem; color: var(–muted); letter-spacing: 0.15em; }
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+        .toggle-switch {
+            position: relative;
+            width: 36px;
+            height: 20px;
+            background: rgba(255,80,80,.4);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background .2s ease;
+            flex-shrink: 0;
+        }
+        .toggle-switch.on { background: rgba(57,255,20,.5); }
+        .toggle-switch::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform .2s ease;
+        }
+        .toggle-switch.on::after { transform: translateX(16px); }
+        .toggle-row label {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,.7);
+            cursor: pointer;
+            user-select: none;
+        }
 
-.upload-overlay {
-position: absolute; inset: 0; background: rgba(0,0,0,0.7);
-display: flex; flex-direction: column; align-items: center; justify-content: center;
-gap: 0.5rem; opacity: 0; transition: opacity 0.2s; cursor: pointer;
-}
-.portfolio-card-thumb:hover .upload-overlay { opacity: 1; }
-.upload-overlay span { font-size: 0.65rem; color: var(–cyan); letter-spacing: 0.1em; }
+        /* Add item card */
+        .add-card {
+            min-height: 280px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 2px dashed rgba(255,255,255,.15);
+            border-radius: 12px;
+            color: rgba(255,255,255,.4);
+            cursor: pointer;
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: all .2s ease;
+        }
+        .add-card:hover {
+            border-color: rgba(0,255,255,.5);
+            background: rgba(0,255,255,.05);
+            color: #00ffff;
+        }
 
-.portfolio-card-body { padding: 1.2rem; }
-
-.field-group { margin-bottom: 0.9rem; }
-.field-group label { display: block; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(–muted); margin-bottom: 0.35rem; }
-.field-group input, .field-group textarea {
-width: 100%; padding: 0.6rem 0.8rem;
-background: rgba(255,255,255,0.03); border: 1px solid var(–border);
-border-radius: 2px; color: #fff; font-family: ‘Space Mono’, monospace;
-font-size: 0.74rem; outline: none; transition: border-color 0.2s; resize: vertical;
-}
-.field-group input:focus, .field-group textarea:focus { border-color: var(–cyan); }
-.field-group textarea { min-height: 70px; line-height: 1.6; }
-
-.tag-input-wrap { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
-.tag-pill {
-padding: 0.2rem 0.6rem; background: rgba(0,255,255,0.08);
-border: 1px solid rgba(0,255,255,0.25); border-radius: 2px;
-font-size: 0.65rem; color: var(–cyan); display: flex; align-items: center; gap: 0.3rem;
-}
-.tag-pill button { background: none; border: none; color: var(–cyan); cursor: pointer; font-size: 0.75rem; line-height: 1; padding: 0; }
-.tag-add-input {
-background: transparent; border: none; outline: none;
-color: var(–text); font-family: ‘Space Mono’, monospace; font-size: 0.72rem;
-min-width: 80px; flex: 1;
-}
-
-/* ── BUTTONS ── */
-.btn { padding: 0.6rem 1.2rem; border-radius: 2px; font-family: ‘Space Mono’, monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; border: none; }
-.btn-primary { background: var(–cyan); color: #000; font-weight: 700; }
-.btn-primary:hover { background: #fff; box-shadow: 0 0 20px rgba(0,255,255,0.3); }
-.btn-danger { background: transparent; border: 1px solid rgba(255,64,96,0.3); color: var(–danger); }
-.btn-danger:hover { background: rgba(255,64,96,0.1); }
-.btn-ghost { background: transparent; border: 1px solid var(–border); color: var(–text); }
-.btn-ghost:hover { border-color: var(–cyan); color: var(–cyan); }
-
-.card-actions { display: flex; gap: 0.6rem; padding: 0 1.2rem 1.2rem; }
-
-/* ── ADD NEW CARD ── */
-.add-card {
-background: transparent; border: 2px dashed rgba(255,255,255,0.1);
-border-radius: 4px; display: flex; flex-direction: column;
-align-items: center; justify-content: center; gap: 0.75rem;
-min-height: 200px; cursor: pointer; transition: all 0.2s; color: var(–muted);
-}
-.add-card:hover { border-color: var(–cyan); color: var(–cyan); }
-.add-card span { font-size: 2rem; }
-.add-card p { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; }
-
-/* ── SIMPLE LIST EDITOR (services, shop, social) ── */
-.list-card {
-background: var(–surface); border: 1px solid var(–border);
-border-radius: 4px; padding: 1.5rem; margin-bottom: 1rem;
-display: grid; grid-template-columns: auto 1fr; gap: 0 1.5rem; align-items: start;
-}
-.list-card-icon { font-size: 1.8rem; padding-top: 0.2rem; }
-.list-card-fields { display: grid; gap: 0.8rem; }
-.list-card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
-.list-card-actions { grid-column: 1/-1; display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-
-/* ── SOCIAL PANEL ── */
-.social-grid { display: grid; gap: 1rem; max-width: 500px; }
-.social-row { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 1rem; }
-.social-label { font-size: 0.68rem; color: var(–muted); letter-spacing: 0.1em; text-transform: uppercase; }
-
-/* ── SAVE BAR ── */
-.save-bar {
-position: fixed; bottom: 0; left: 0; right: 0;
-background: rgba(7,7,7,0.97); border-top: 1px solid var(–border);
-padding: 1rem 2rem; display: flex; justify-content: space-between;
-align-items: center; backdrop-filter: blur(10px); z-index: 200;
-transform: translateY(100%); transition: transform 0.3s;
-}
-.save-bar.visible { transform: translateY(0); }
-.save-bar-msg { font-size: 0.72rem; color: var(–muted); }
-.save-bar-msg.unsaved { color: #ffcc33; }
-.save-bar-msg.saved { color: var(–success); }
-.save-bar-msg.saving { color: var(–cyan); }
-.save-bar-msg.error { color: var(–danger); }
-
-.save-bar-actions { display: flex; gap: 0.8rem; }
-
-/* ── IMAGE UPLOAD PROGRESS ── */
-.upload-progress {
-position: fixed; bottom: 5rem; right: 2rem;
-background: rgba(7,7,7,0.95); border: 1px solid var(–cyan);
-border-radius: 4px; padding: 1rem 1.5rem; font-size: 0.72rem;
-color: var(–cyan); display: none; z-index: 300;
-min-width: 220px;
-}
-.upload-progress.visible { display: block; }
-
-/* ── HIDDEN FILE INPUT ── */
-input[type=“file”] { display: none; }
-
-/* ── TOKEN MGMT ── */
-.token-info {
-font-size: 0.68rem; color: var(–muted);
-padding: 0.8rem 1rem; background: rgba(0,255,255,0.04);
-border: 1px solid rgba(0,255,255,0.1); border-radius: 3px;
-margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;
-}
-.token-info span { color: var(–cyan); }
-</style>
-
+        /* Mobile */
+        @media (max-width: 640px) {
+            .admin-bar { padding: 0.75rem 1rem; }
+            .admin-bar h1 { font-size: 1rem; }
+            .admin-controls { width: 100%; }
+            .admin-controls .admin-btn { flex: 1; min-width: 0; font-size: 0.7rem; padding: 0.5rem 0.6rem; }
+            .admin-main { padding: 1rem; }
+            .admin-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
 
-<!-- ════════════════════════════ LOGIN ════════════════════════════ -->
-
-<div id="loginScreen">
-  <div class="login-box">
-    <h1>LucidSoup</h1>
-    <p>Admin Dashboard</p>
-
-```
-<div class="login-field">
-  <label>Site Password</label>
-  <input type="password" id="sitePassword" placeholder="Enter your admin password">
-</div>
-<div class="login-field">
-  <label>GitHub Token</label>
-  <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+<!-- ===== LOGIN GATE ===== -->
+<div id="login-screen">
+    <div id="login-card">
+        <h1>LUCIDSOUP</h1>
+        <div class="subtitle">Shop Admin</div>
+        <form id="login-form" autocomplete="off">
+            <label for="password">Password</label>
+            <input type="password" id="password" autocomplete="current-password" autofocus>
+            <div class="error" id="login-error"></div>
+            <button type="submit" class="login-btn">UNLOCK</button>
+        </form>
+        <div class="hint">Default password: <code style="background:rgba(0,0,0,.5);padding:2px 6px;border-radius:3px;color:#ff10f0;">lucidsoup</code></div>
+    </div>
 </div>
 
-<button class="btn-login" onclick="login()">Access Dashboard</button>
-<p class="login-error" id="loginError">Incorrect password. Try again.</p>
-
-<p class="login-hint">
-  Need a token?
-  <a href="https://github.com/settings/tokens/new?scopes=repo&description=LucidSoup+Admin" target="_blank">Create one here</a>
-  — select <strong>repo</strong> scope only.<br><br>
-  Your token is stored locally in your browser and never sent anywhere except GitHub's API.
-</p>
-```
-
-  </div>
-</div>
-
-<!-- ════════════════════════════ APP ════════════════════════════ -->
-
-<div id="adminApp">
-
-  <header class="admin-header">
-    <div class="admin-header-brand">LucidSoup <span>/ Admin</span></div>
-    <nav class="admin-nav">
-      <button class="tab-btn active" onclick="switchTab('portfolio')">Portfolio</button>
-      <button class="tab-btn" onclick="switchTab('services')">Services</button>
-      <button class="tab-btn" onclick="switchTab('shop')">Shop</button>
-      <button class="tab-btn" onclick="switchTab('social')">Social</button>
-    </nav>
-    <button class="btn-logout" onclick="logout()">Log Out</button>
-  </header>
-
-  <div class="admin-content">
-    <div class="token-info">
-      <span>Connected to lucidsoup/lucidsoup.github.io</span>
-      <span id="tokenDisplay"></span>
+<!-- ===== ADMIN VIEW ===== -->
+<div id="admin-view">
+    <div class="admin-bar">
+        <h1>
+            LUCIDSOUP SHOP
+            <small>Inline Editor</small>
+        </h1>
+        <div class="admin-status" id="admin-status">Loading…</div>
+        <div class="admin-controls">
+            <a href="index.html" class="admin-btn" target="_blank">↗ View Live</a>
+            <button class="admin-btn" id="reload-btn">↺ Reload from File</button>
+            <button class="admin-btn" id="password-btn">🔒 Change Password</button>
+            <button class="admin-btn primary" id="export-btn">⬇ SAVE / EXPORT JSON</button>
+            <button class="admin-btn danger" id="logout-btn">LOG OUT</button>
+        </div>
     </div>
 
-```
-<!-- PORTFOLIO -->
-<div id="panel-portfolio" class="panel active">
-  <h2 class="panel-title">Portfolio</h2>
-  <p class="panel-sub">Upload images and edit project details. Hover a thumbnail to replace the image.</p>
-  <div class="portfolio-admin-grid" id="portfolioGrid"></div>
-</div>
-
-<!-- SERVICES -->
-<div id="panel-services" class="panel">
-  <h2 class="panel-title">Services</h2>
-  <p class="panel-sub">Update service descriptions and pricing.</p>
-  <div id="servicesList"></div>
-  <button class="btn btn-ghost" onclick="addService()" style="margin-top:0.5rem">+ Add Service</button>
-</div>
-
-<!-- SHOP -->
-<div id="panel-shop" class="panel">
-  <h2 class="panel-title">Shop</h2>
-  <p class="panel-sub">Update your shop links and descriptions.</p>
-  <div id="shopList"></div>
-  <button class="btn btn-ghost" onclick="addShopItem()" style="margin-top:0.5rem">+ Add Shop Item</button>
-</div>
-
-<!-- SOCIAL -->
-<div id="panel-social" class="panel">
-  <h2 class="panel-title">Social Links</h2>
-  <p class="panel-sub">Update your social media and contact URLs.</p>
-  <div class="social-grid" id="socialGrid"></div>
-</div>
-```
-
-  </div>
-
-  <!-- SAVE BAR -->
-
-  <div class="save-bar" id="saveBar">
-    <span class="save-bar-msg" id="saveMsg">Unsaved changes</span>
-    <div class="save-bar-actions">
-      <button class="btn btn-ghost" onclick="discardChanges()">Discard</button>
-      <button class="btn btn-primary" id="saveBtn" onclick="saveAll()">Save & Publish</button>
+    <div class="admin-main">
+        <div class="admin-help">
+            <strong>How it works:</strong> Edit any field below — changes save automatically to your browser as you type. When you're done, click <strong>SAVE / EXPORT JSON</strong> to download an updated <code>items.json</code>, then upload that file to the root of your repository to publish it. The live storefront reads from <code>items.json</code> next to <code>index.html</code>.
+        </div>
+        <div class="admin-grid" id="admin-grid"></div>
     </div>
-  </div>
-
-  <!-- UPLOAD PROGRESS -->
-
-  <div class="upload-progress" id="uploadProgress">Uploading image...</div>
-
 </div>
-
-<!-- Hidden file inputs -->
-
-<input type="file" id="fileInput" accept="image/*">
 
 <script>
-// ══════════════════════════════════════════════
-// CONFIG — change ADMIN_PASSWORD to your own
-// ══════════════════════════════════════════════
-const ADMIN_PASSWORD = 'asdf3234DWnh654!'; // ← CHANGE THIS
-const REPO_OWNER     = 'lucidsoup';
-const REPO_NAME      = 'lucidsoup.github.io';
-const CONTENT_FILE   = 'content.json';
+// ============================================================================
+// LUCIDSOUP SHOP ADMIN
+// ============================================================================
 
-// ══════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════
-let TOKEN = '';
-let contentData = null;
-let originalData = '';
-let hasChanges = false;
-let pendingImageUpload = null; // { portfolioId, file }
+const DEFAULT_PASSWORD = "lucidsoup";  // initial password — user can change
+const STORAGE_PW_HASH = "admin_pw_hash";   // sha-256 of password
+const STORAGE_AUTHED  = "admin_authed";    // session flag
+const STORAGE_ITEMS   = "admin_items_draft"; // local edits before save
+const STORAGE_DIRTY   = "admin_items_dirty";
 
-// ══════════════════════════════════════════════
-// LOGIN / LOGOUT
-// ══════════════════════════════════════════════
-function login() {
-  const pass  = document.getElementById('sitePassword').value;
-  const token = document.getElementById('githubToken').value.trim();
+// ===== Password handling =====
+// Real security needs a backend, but for a personal site, this is a reasonable
+// deterrent. Password is stored as a sha-256 hash in localStorage.
 
-  if (pass !== ADMIN_PASSWORD) {
-    const err = document.getElementById('loginError');
-    err.textContent = 'Incorrect password.';
-    err.style.display = 'block';
-    return;
-  }
-  if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
-    const err = document.getElementById('loginError');
-    err.textContent = 'Invalid GitHub token format.';
-    err.style.display = 'block';
-    return;
-  }
-
-  TOKEN = token;
-  localStorage.setItem('ls_admin_token', token);
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('adminApp').style.display = 'block';
-  document.getElementById('tokenDisplay').textContent = token.slice(0,8) + '••••••••';
-  loadContent();
+async function sha256(str) {
+    const buf = new TextEncoder().encode(str);
+    const hash = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(hash))
+        .map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-function logout() {
-  localStorage.removeItem('ls_admin_token');
-  TOKEN = '';
-  contentData = null;
-  document.getElementById('adminApp').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('sitePassword').value = '';
-  document.getElementById('githubToken').value = '';
-}
-
-// Auto-login if token saved
-window.addEventListener('load', () => {
-  const saved = localStorage.getItem('ls_admin_token');
-  if (saved) document.getElementById('githubToken').value = saved;
-  document.getElementById('sitePassword').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-  document.getElementById('githubToken').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-});
-
-// ══════════════════════════════════════════════
-// GITHUB API
-// ══════════════════════════════════════════════
-async function ghFetch(path, method = 'GET', body = null) {
-  const opts = {
-    method,
-    headers: {
-      'Authorization': `token ${TOKEN}`,
-      'Accept': 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json'
+async function getCurrentPasswordHash() {
+    let h = localStorage.getItem(STORAGE_PW_HASH);
+    if (!h) {
+        h = await sha256(DEFAULT_PASSWORD);
+        localStorage.setItem(STORAGE_PW_HASH, h);
     }
-  };
-  if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`, opts);
-  if (!res.ok) throw new Error(`GitHub API error: ${res.status} ${await res.text()}`);
-  return res.json();
+    return h;
 }
 
-async function getFileSHA(path) {
-  try {
-    const data = await ghFetch(path);
-    return data.sha;
-  } catch { return null; }
+async function checkPassword(input) {
+    const inputHash = await sha256(input);
+    const stored = await getCurrentPasswordHash();
+    return inputHash === stored;
 }
 
-async function commitFile(path, content, message, sha = null) {
-  const body = {
-    message,
-    content: btoa(unescape(encodeURIComponent(content))),
-    branch: 'main'
-  };
-  if (sha) body.sha = sha;
-  return ghFetch(path, 'PUT', body);
-}
+// ===== State =====
+let items = [];
+let dirty = false;
+let saveTimer = null;
 
-async function commitBinaryFile(path, base64Data, message, sha = null) {
-  const body = { message, content: base64Data, branch: 'main' };
-  if (sha) body.sha = sha;
-  return ghFetch(path, 'PUT', body);
-}
+// ===== Init =====
+document.addEventListener("DOMContentLoaded", async () => {
+    // Already authed in this browser?
+    if (localStorage.getItem(STORAGE_AUTHED) === "1") {
+        showAdmin();
+    }
 
-// ══════════════════════════════════════════════
-// LOAD CONTENT
-// ══════════════════════════════════════════════
-async function loadContent() {
-  try {
-    const res = await ghFetch(CONTENT_FILE);
-    const decoded = decodeURIComponent(escape(atob(res.content.replace(/\n/g, ''))));
-    contentData = JSON.parse(decoded);
-    originalData = JSON.stringify(contentData);
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const input = document.getElementById("password").value;
+        const errEl = document.getElementById("login-error");
+        const ok = await checkPassword(input);
+        if (ok) {
+            localStorage.setItem(STORAGE_AUTHED, "1");
+            errEl.textContent = "";
+            showAdmin();
+        } else {
+            errEl.textContent = "Incorrect password.";
+            document.getElementById("password").value = "";
+        }
+    });
+
+    document.getElementById("logout-btn").addEventListener("click", () => {
+        localStorage.removeItem(STORAGE_AUTHED);
+        location.reload();
+    });
+
+    document.getElementById("password-btn").addEventListener("click", changePassword);
+    document.getElementById("export-btn").addEventListener("click", exportItems);
+    document.getElementById("reload-btn").addEventListener("click", reloadFromFile);
+});
+
+async function showAdmin() {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("admin-view").classList.add("active");
+    await loadItems();
     renderAll();
-  } catch (e) {
-    alert('Could not load content.json from your repo. Make sure the file exists.\n\n' + e.message);
-  }
+    updateStatus();
 }
 
+// ===== Items loading =====
+async function loadItems() {
+    setStatus("Loading items.json…");
+    // Use draft from localStorage if it exists and is marked dirty
+    const draft = localStorage.getItem(STORAGE_ITEMS);
+    const isDirty = localStorage.getItem(STORAGE_DIRTY) === "1";
+
+    if (draft && isDirty) {
+        try {
+            items = JSON.parse(draft);
+            dirty = true;
+            setStatus("Unsaved local edits loaded.", "unsaved");
+            return;
+        } catch (e) {
+            console.warn("Bad draft, ignoring:", e);
+        }
+    }
+
+    try {
+        const r = await fetch("items.json?t=" + Date.now());
+        if (!r.ok) throw new Error("Status " + r.status);
+        const data = await r.json();
+        items = Array.isArray(data) ? data : (data.items || []);
+        dirty = false;
+        setStatus("Loaded from items.json", "saved");
+    } catch (err) {
+        console.warn("[Admin] Could not load items.json:", err.message);
+        items = [];
+        setStatus("No items.json found — start fresh.", "unsaved");
+    }
+}
+
+async function reloadFromFile() {
+    if (dirty && !confirm("You have unsaved changes. Discard and reload from items.json?")) {
+        return;
+    }
+    localStorage.removeItem(STORAGE_ITEMS);
+    localStorage.removeItem(STORAGE_DIRTY);
+    await loadItems();
+    renderAll();
+}
+
+// ===== Mark dirty + autosave draft =====
+function markDirty() {
+    dirty = true;
+    setStatus("Unsaved changes (auto-saved to browser)", "unsaved");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+        try {
+            localStorage.setItem(STORAGE_ITEMS, JSON.stringify(items));
+            localStorage.setItem(STORAGE_DIRTY, "1");
+        } catch (e) {
+            console.error("Could not save draft:", e);
+        }
+    }, 400);
+}
+
+function setStatus(msg, kind) {
+    const el = document.getElementById("admin-status");
+    el.textContent = msg;
+    el.className = "admin-status " + (kind || "");
+}
+
+function updateStatus() {
+    setStatus(dirty
+        ? `${items.length} items · unsaved changes`
+        : `${items.length} items · synced with items.json`,
+        dirty ? "unsaved" : "saved");
+}
+
+// ===== Render =====
 function renderAll() {
-  renderPortfolio();
-  renderServices();
-  renderShop();
-  renderSocial();
+    const grid = document.getElementById("admin-grid");
+    grid.innerHTML = "";
+    items.forEach((item, idx) => grid.appendChild(itemCard(item, idx)));
+    // Add new item card
+    const add = document.createElement("button");
+    add.className = "add-card";
+    add.textContent = "+ Add Item";
+    add.addEventListener("click", addItem);
+    grid.appendChild(add);
+    updateStatus();
 }
 
-// ══════════════════════════════════════════════
-// PORTFOLIO
-// ══════════════════════════════════════════════
-function renderPortfolio() {
-  const grid = document.getElementById('portfolioGrid');
-  grid.innerHTML = '';
+function itemCard(item, idx) {
+    const card = document.createElement("div");
+    card.className = "admin-item" + (item.available === false ? " sold-out" : "");
+    card.draggable = true;
+    card.dataset.index = String(idx);
 
-  contentData.portfolio.forEach((item, idx) => {
-    const card = document.createElement('div');
-    card.className = 'portfolio-card';
-    card.innerHTML = `
-      <div class="portfolio-card-thumb" onclick="triggerImageUpload(${item.id})">
-        ${item.image
-          ? `<img src="${item.image}" alt="${item.title}">`
-          : `<span class="no-img">NO IMAGE</span>`}
-        <div class="upload-overlay">
-          <span>📁</span>
-          <span>Click to upload image</span>
-        </div>
-      </div>
-      <div class="portfolio-card-body">
-        <div class="field-group">
-          <label>Title</label>
-          <input type="text" value="${esc(item.title)}" oninput="updatePortfolio(${item.id}, 'title', this.value)">
-        </div>
-        <div class="field-group">
-          <label>Description</label>
-          <textarea oninput="updatePortfolio(${item.id}, 'description', this.value)">${esc(item.description)}</textarea>
+    // Drag handlers
+    card.addEventListener("dragstart", (e) => {
+        card.classList.add("dragging");
+        e.dataTransfer.setData("text/plain", String(idx));
+        e.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("dragend", () => card.classList.remove("dragging"));
+    card.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
+    card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const from = +e.dataTransfer.getData("text/plain");
+        const to = idx;
+        if (from === to || isNaN(from)) return;
+        const moved = items.splice(from, 1)[0];
+        items.splice(to, 0, moved);
+        markDirty();
+        renderAll();
+    });
 
-```
-    </div>
-    <div class="field-group">
-      <label>Tags (press Enter to add)</label>
-      <div class="tag-input-wrap" id="tags-${item.id}">
-        ${item.tags.map(t => `
-          <span class="tag-pill">${t}
-            <button onclick="removeTag(${item.id}, '${t}')">×</button>
-          </span>`).join('')}
-        <input class="tag-add-input" placeholder="Add tag..." onkeydown="addTag(event, ${item.id})">
-      </div>
-    </div>
-    <div class="field-group">
-      <label>Project Link (optional)</label>
-      <input type="url" value="${esc(item.link || '')}" placeholder="https://..." oninput="updatePortfolio(${item.id}, 'link', this.value)">
-    </div>
-  </div>
-  <div class="card-actions">
-    <button class="btn btn-danger" onclick="deletePortfolioItem(${item.id})">Delete</button>
-  </div>
-`;
-grid.appendChild(card);
-```
+    // ===== Header =====
+    const header = document.createElement("div");
+    header.className = "admin-item-header";
+    header.innerHTML = `
+        <span class="item-id">⋮⋮ #${item.id || idx + 1}</span>
+        <span class="item-actions">
+            <button class="icon-btn" data-act="up" title="Move up">↑</button>
+            <button class="icon-btn" data-act="down" title="Move down">↓</button>
+            <button class="icon-btn danger" data-act="del" title="Delete">✕</button>
+        </span>
+    `;
+    header.querySelector('[data-act="up"]').addEventListener("click", () => moveItem(idx, -1));
+    header.querySelector('[data-act="down"]').addEventListener("click", () => moveItem(idx, 1));
+    header.querySelector('[data-act="del"]').addEventListener("click", () => deleteItem(idx));
+    card.appendChild(header);
 
+    // ===== Image area =====
+    const imgArea = document.createElement("div");
+    imgArea.className = "admin-item-image-area";
+    imgArea.addEventListener("click", () => editImage(idx));
+    if (item.image) {
+        const img = document.createElement("img");
+        img.src = item.image;
+        img.alt = item.title || "";
+        img.onerror = () => {
+            imgArea.innerHTML = imagePlaceholderHTML();
+            imgArea.appendChild(imgOverlay());
+        };
+        imgArea.appendChild(img);
+    } else {
+        imgArea.innerHTML = imagePlaceholderHTML();
+    }
+    imgArea.appendChild(imgOverlay());
+    card.appendChild(imgArea);
+
+    // ===== Body =====
+    const body = document.createElement("div");
+    body.className = "admin-item-body";
+
+    body.appendChild(fieldInput("Title",     "title", item, "title"));
+    body.appendChild(fieldInput("Subtitle / Category", "subtitle", item, "subtitle"));
+    body.appendChild(fieldTextarea("Description", "description", item));
+
+    const row = document.createElement("div");
+    row.className = "field-row";
+    row.appendChild(fieldInput("Price",       "price", item, "price"));
+    row.appendChild(fieldInput("Button Text", "buttonText", item));
+    body.appendChild(row);
+
+    // Checkout
+    const checkout = document.createElement("div");
+    checkout.className = "checkout-area";
+
+    const typeField = document.createElement("div");
+    typeField.className = "field";
+    typeField.innerHTML = `<div class="field-label">Checkout Type</div>`;
+    const sel = document.createElement("select");
+    sel.innerHTML = `
+        <option value="link">External Link (Gumroad, Bandcamp, etc.)</option>
+        <option value="email">Email Inquiry (mailto)</option>
+    `;
+    sel.value = item.checkoutType || "link";
+    sel.addEventListener("change", () => {
+        item.checkoutType = sel.value;
+        checkoutInput.placeholder = sel.value === "email"
+            ? "you@example.com"
+            : "https://gumroad.com/...";
+        checkoutLabel.textContent = sel.value === "email" ? "Email Address" : "Checkout URL";
+        markDirty();
+    });
+    typeField.appendChild(sel);
+    checkout.appendChild(typeField);
+
+    const checkoutFld = document.createElement("div");
+    checkoutFld.className = "field";
+    checkoutFld.style.marginTop = "0.5rem";
+    const checkoutLabel = document.createElement("div");
+    checkoutLabel.className = "field-label";
+    checkoutLabel.textContent = sel.value === "email" ? "Email Address" : "Checkout URL";
+    checkoutFld.appendChild(checkoutLabel);
+    const checkoutInput = document.createElement("input");
+    checkoutInput.type = "text";
+    checkoutInput.value = item.checkoutValue || "";
+    checkoutInput.placeholder = sel.value === "email" ? "you@example.com" : "https://gumroad.com/...";
+    checkoutInput.addEventListener("input", () => { item.checkoutValue = checkoutInput.value; markDirty(); });
+    checkoutFld.appendChild(checkoutInput);
+    checkout.appendChild(checkoutFld);
+
+    body.appendChild(checkout);
+
+    // Available toggle
+    const toggleRow = document.createElement("div");
+    toggleRow.className = "toggle-row";
+    const sw = document.createElement("div");
+    sw.className = "toggle-switch" + (item.available !== false ? " on" : "");
+    const lbl = document.createElement("label");
+    lbl.textContent = item.available !== false ? "Available" : "Sold out / unavailable";
+    sw.addEventListener("click", () => {
+        item.available = item.available === false ? true : false;
+        sw.classList.toggle("on");
+        lbl.textContent = item.available !== false ? "Available" : "Sold out / unavailable";
+        card.classList.toggle("sold-out", item.available === false);
+        markDirty();
+    });
+    lbl.addEventListener("click", () => sw.click());
+    toggleRow.appendChild(sw);
+    toggleRow.appendChild(lbl);
+    body.appendChild(toggleRow);
+
+    card.appendChild(body);
+    return card;
+}
+
+function imagePlaceholderHTML() {
+    return `<div class="image-placeholder"><span>✶</span><small>CLICK TO ADD IMAGE</small></div>`;
+}
+function imgOverlay() {
+    const o = document.createElement("div");
+    o.className = "image-overlay";
+    o.innerHTML = `<div class="image-overlay-text">📷 Change Image</div>`;
+    return o;
+}
+
+function fieldInput(label, prop, item, cls) {
+    const f = document.createElement("div");
+    f.className = "field";
+    f.innerHTML = `<div class="field-label">${label}</div>`;
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = item[prop] || "";
+    inp.placeholder = label;
+    if (cls) inp.className = cls;
+    inp.addEventListener("input", () => { item[prop] = inp.value; markDirty(); refreshTitleInHeader(item); });
+    f.appendChild(inp);
+    return f;
+}
+
+function fieldTextarea(label, prop, item) {
+    const f = document.createElement("div");
+    f.className = "field";
+    f.innerHTML = `<div class="field-label">${label}</div>`;
+    const ta = document.createElement("textarea");
+    ta.value = item[prop] || "";
+    ta.placeholder = label;
+    ta.rows = 3;
+    ta.addEventListener("input", () => { item[prop] = ta.value; markDirty(); });
+    f.appendChild(ta);
+    return f;
+}
+
+function refreshTitleInHeader(item) {
+    // Just update status counter as needed
+}
+
+// ===== Item ops =====
+function addItem() {
+    const id = String(items.length + 1).padStart(2, "0");
+    items.push({
+        id,
+        title: "New Item",
+        subtitle: "",
+        description: "",
+        price: "",
+        image: "",
+        checkoutType: "link",
+        checkoutValue: "",
+        buttonText: "BUY",
+        available: true,
+    });
+    markDirty();
+    renderAll();
+    // Scroll to bottom
+    setTimeout(() => {
+        const grid = document.getElementById("admin-grid");
+        const lastCard = grid.children[grid.children.length - 2];
+        if (lastCard) lastCard.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+}
+
+function deleteItem(idx) {
+    const item = items[idx];
+    if (!confirm(`Delete "${item.title || 'this item'}"?`)) return;
+    items.splice(idx, 1);
+    markDirty();
+    renderAll();
+}
+
+function moveItem(idx, dir) {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= items.length) return;
+    const tmp = items[idx];
+    items[idx] = items[newIdx];
+    items[newIdx] = tmp;
+    markDirty();
+    renderAll();
+}
+
+function editImage(idx) {
+    const item = items[idx];
+    const current = item.image || "";
+    const value = prompt(
+        "Image URL or repo path:\n\n" +
+        "• Relative path:  images/print.jpg  (file lives in your repo)\n" +
+        "• Full URL:       https://example.com/image.jpg\n" +
+        "• Empty:          remove image",
+        current
+    );
+    if (value === null) return; // cancelled
+    item.image = value.trim();
+    markDirty();
+    renderAll();
+}
+
+// ===== Export =====
+function exportItems() {
+    // Re-sequence IDs cleanly
+    items.forEach((it, i) => { if (!it.id || /^\d+$/.test(it.id)) it.id = String(i + 1).padStart(2, "0"); });
+
+    const data = { items };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "items.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Mark as saved (clear dirty flag) — but it's only really saved when user uploads to repo
+    localStorage.setItem(STORAGE_ITEMS, JSON.stringify(items));
+    localStorage.removeItem(STORAGE_DIRTY);
+    dirty = false;
+    setStatus(`${items.length} items · exported! upload items.json to your repo`, "saved");
+
+    setTimeout(() => {
+        alert(
+            "items.json downloaded.\n\n" +
+            "Next: upload this file to the root of your repository\n" +
+            "(same folder as index.html) and push. The live shop will\n" +
+            "update on your next deploy.\n\n" +
+            "Your changes stay saved in this browser in the meantime."
+        );
+    }, 100);
+}
+
+// ===== Password change =====
+async function changePassword() {
+    const cur = prompt("Current password:");
+    if (cur === null) return;
+    const ok = await checkPassword(cur);
+    if (!ok) { alert("Current password is incorrect."); return; }
+
+    const newPw = prompt("New password (at least 6 characters):");
+    if (newPw === null) return;
+    if (!newPw || newPw.length < 6) { alert("Password too short."); return; }
+
+    const confirm2 = prompt("Confirm new password:");
+    if (confirm2 !== newPw) { alert("Passwords don't match."); return; }
+
+    const hash = await sha256(newPw);
+    localStorage.setItem(STORAGE_PW_HASH, hash);
+    alert("Password updated. Note: this only applies in THIS browser.\nOther devices keep their existing password until you change it there too.");
+}
+
+// Warn before leaving with unsaved changes
+window.addEventListener("beforeunload", (e) => {
+    if (dirty) {
+        e.preventDefault();
+        e.returnValue = "";
+    }
 });
 
-// Add new card button
-const addCard = document.createElement(‘div’);
-addCard.className = ‘add-card’;
-addCard.innerHTML = `<span>+</span><p>Add Project</p>`;
-addCard.onclick = addPortfolioItem;
-grid.appendChild(addCard);
-}
-
-function updatePortfolio(id, field, value) {
-const item = contentData.portfolio.find(p => p.id === id);
-if (item) { item[field] = value; markChanged(); }
-}
-
-function addTag(e, id) {
-if (e.key !== ‘Enter’) return;
-const val = e.target.value.trim();
-if (!val) return;
-const item = contentData.portfolio.find(p => p.id === id);
-if (item && !item.tags.includes(val)) {
-item.tags.push(val);
-markChanged();
-renderPortfolio();
-}
-e.target.value = ‘’;
-}
-
-function removeTag(id, tag) {
-const item = contentData.portfolio.find(p => p.id === id);
-if (item) { item.tags = item.tags.filter(t => t !== tag); markChanged(); renderPortfolio(); }
-}
-
-function addPortfolioItem() {
-const newId = Math.max(…contentData.portfolio.map(p => p.id), 0) + 1;
-contentData.portfolio.push({ id: newId, title: ‘New Project’, description: ‘’, tags: [], image: ‘’, link: ‘’ });
-markChanged(); renderPortfolio();
-}
-
-function deletePortfolioItem(id) {
-if (!confirm(‘Delete this project?’)) return;
-contentData.portfolio = contentData.portfolio.filter(p => p.id !== id);
-markChanged(); renderPortfolio();
-}
-
-// Image upload
-function triggerImageUpload(portfolioId) {
-pendingImageUpload = portfolioId;
-document.getElementById(‘fileInput’).click();
-}
-
-document.getElementById(‘fileInput’).addEventListener(‘change’, async function() {
-const file = this.files[0];
-if (!file || pendingImageUpload === null) return;
-
-const progress = document.getElementById(‘uploadProgress’);
-progress.textContent = `Uploading ${file.name}...`;
-progress.classList.add(‘visible’);
-
-try {
-const base64 = await fileToBase64(file);
-const imagePath = `images/${Date.now()}-${file.name.replace(/\s/g, '-')}`;
-const sha = await getFileSHA(imagePath);
-await commitBinaryFile(imagePath, base64, `Upload image: ${file.name}`, sha);
-
-```
-const imageUrl = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${imagePath}`;
-const item = contentData.portfolio.find(p => p.id === pendingImageUpload);
-if (item) { item.image = imageUrl; markChanged(); renderPortfolio(); }
-
-progress.textContent = '✓ Image uploaded!';
-setTimeout(() => progress.classList.remove('visible'), 2500);
-```
-
-} catch (e) {
-progress.textContent = ’✗ Upload failed: ’ + e.message;
-setTimeout(() => progress.classList.remove(‘visible’), 4000);
-}
-
-this.value = ‘’;
-pendingImageUpload = null;
-});
-
-function fileToBase64(file) {
-return new Promise((resolve, reject) => {
-const reader = new FileReader();
-reader.onload = () => resolve(reader.result.split(’,’)[1]);
-reader.onerror = reject;
-reader.readAsDataURL(file);
-});
-}
-
-// ══════════════════════════════════════════════
-// SERVICES
-// ══════════════════════════════════════════════
-function renderServices() {
-const list = document.getElementById(‘servicesList’);
-list.innerHTML = ‘’;
-contentData.services.forEach((s, idx) => {
-const div = document.createElement(‘div’);
-div.className = ‘list-card’;
-div.innerHTML = `<div class="list-card-icon">${s.icon}</div> <div class="list-card-fields"> <div class="list-card-row"> <div class="field-group"> <label>Icon (emoji)</label> <input type="text" value="${esc(s.icon)}" oninput="updateService(${idx}, 'icon', this.value); this.closest('.list-card').querySelector('.list-card-icon').textContent=this.value"> </div> <div class="field-group"> <label>Title</label> <input type="text" value="${esc(s.title)}" oninput="updateService(${idx}, 'title', this.value)"> </div> </div> <div class="field-group"> <label>Description</label> <textarea oninput="updateService(${idx}, 'description', this.value)">${esc(s.description)}</textarea> </div> <div class="field-group"> <label>Starting Price</label> <input type="text" value="${esc(s.price)}" placeholder="Starting at $..." oninput="updateService(${idx}, 'price', this.value)"> </div> <div class="list-card-actions"> <button class="btn btn-danger" onclick="deleteService(${idx})">Delete</button> </div> </div>`;
-list.appendChild(div);
-});
-}
-
-function updateService(idx, field, value) { contentData.services[idx][field] = value; markChanged(); }
-function deleteService(idx) {
-if (!confirm(‘Delete this service?’)) return;
-contentData.services.splice(idx, 1); markChanged(); renderServices();
-}
-function addService() {
-contentData.services.push({ icon: ‘✨’, title: ‘New Service’, description: ‘’, price: ‘Contact for pricing’ });
-markChanged(); renderServices();
-}
-
-// ══════════════════════════════════════════════
-// SHOP
-// ══════════════════════════════════════════════
-function renderShop() {
-const list = document.getElementById(‘shopList’);
-list.innerHTML = ‘’;
-contentData.shop.forEach((s, idx) => {
-const div = document.createElement(‘div’);
-div.className = ‘list-card’;
-div.innerHTML = `<div class="list-card-icon">${s.icon}</div> <div class="list-card-fields"> <div class="list-card-row"> <div class="field-group"> <label>Icon (emoji)</label> <input type="text" value="${esc(s.icon)}" oninput="updateShop(${idx}, 'icon', this.value); this.closest('.list-card').querySelector('.list-card-icon').textContent=this.value"> </div> <div class="field-group"> <label>Title</label> <input type="text" value="${esc(s.title)}" oninput="updateShop(${idx}, 'title', this.value)"> </div> </div> <div class="field-group"> <label>Description</label> <textarea oninput="updateShop(${idx}, 'description', this.value)">${esc(s.description)}</textarea> </div> <div class="list-card-row"> <div class="field-group"> <label>Button Label</label> <input type="text" value="${esc(s.label)}" oninput="updateShop(${idx}, 'label', this.value)"> </div> <div class="field-group"> <label>URL</label> <input type="url" value="${esc(s.url)}" oninput="updateShop(${idx}, 'url', this.value)"> </div> </div> <div class="list-card-actions"> <button class="btn btn-danger" onclick="deleteShopItem(${idx})">Delete</button> </div> </div>`;
-list.appendChild(div);
-});
-}
-
-function updateShop(idx, field, value) { contentData.shop[idx][field] = value; markChanged(); }
-function deleteShopItem(idx) {
-if (!confirm(‘Delete this item?’)) return;
-contentData.shop.splice(idx, 1); markChanged(); renderShop();
-}
-function addShopItem() {
-contentData.shop.push({ icon: ‘🛍️’, title: ‘New Item’, description: ‘’, label: ‘Shop Now’, url: ‘https://’ });
-markChanged(); renderShop();
-}
-
-// ══════════════════════════════════════════════
-// SOCIAL
-// ══════════════════════════════════════════════
-function renderSocial() {
-const grid = document.getElementById(‘socialGrid’);
-grid.innerHTML = ‘’;
-const icons = { instagram: ‘📸’, vimeo: ‘🎬’, linkedin: ‘💼’ };
-Object.entries(contentData.social).forEach(([key, val]) => {
-const row = document.createElement(‘div’);
-row.className = ‘social-row’;
-row.innerHTML = `<div class="social-label">${icons[key] || '🔗'} ${key}</div> <div class="field-group" style="margin:0"> <input type="url" value="${esc(val)}" placeholder="https://..." oninput="updateSocial('${key}', this.value)"> </div>`;
-grid.appendChild(row);
-});
-}
-
-function updateSocial(key, value) { contentData.social[key] = value; markChanged(); }
-
-// ══════════════════════════════════════════════
-// TABS
-// ══════════════════════════════════════════════
-function switchTab(name) {
-document.querySelectorAll(’.panel’).forEach(p => p.classList.remove(‘active’));
-document.querySelectorAll(’.tab-btn’).forEach(b => b.classList.remove(‘active’));
-document.getElementById(`panel-${name}`).classList.add(‘active’);
-event.target.classList.add(‘active’);
-}
-
-// ══════════════════════════════════════════════
-// SAVE
-// ══════════════════════════════════════════════
-function markChanged() {
-hasChanges = true;
-document.getElementById(‘saveBar’).classList.add(‘visible’);
-document.getElementById(‘saveMsg’).textContent = ‘Unsaved changes’;
-document.getElementById(‘saveMsg’).className = ‘save-bar-msg unsaved’;
-}
-
-async function saveAll() {
-const btn = document.getElementById(‘saveBtn’);
-const msg = document.getElementById(‘saveMsg’);
-btn.textContent = ‘Saving…’;
-btn.disabled = true;
-msg.textContent = ‘Publishing to GitHub…’;
-msg.className = ‘save-bar-msg saving’;
-
-try {
-const jsonStr = JSON.stringify(contentData, null, 2);
-const sha = await getFileSHA(CONTENT_FILE);
-await commitFile(CONTENT_FILE, jsonStr, ‘Update site content via admin’, sha);
-originalData = jsonStr;
-hasChanges = false;
-msg.textContent = ‘✓ Published! Site will update in ~30 seconds.’;
-msg.className = ‘save-bar-msg saved’;
-btn.textContent = ‘Save & Publish’;
-btn.disabled = false;
-setTimeout(() => {
-if (!hasChanges) document.getElementById(‘saveBar’).classList.remove(‘visible’);
-}, 4000);
-} catch (e) {
-msg.textContent = ’✗ Save failed: ’ + e.message;
-msg.className = ‘save-bar-msg error’;
-btn.textContent = ‘Save & Publish’;
-btn.disabled = false;
-}
-}
-
-function discardChanges() {
-if (!confirm(‘Discard all unsaved changes?’)) return;
-contentData = JSON.parse(originalData);
-hasChanges = false;
-renderAll();
-document.getElementById(‘saveBar’).classList.remove(‘visible’);
-}
-
-// ══════════════════════════════════════════════
-// UTIL
-// ══════════════════════════════════════════════
-function esc(str) {
-return String(str || ‘’).replace(/&/g,’&’).replace(/”/g,’"’).replace(/</g,’<’).replace(/>/g,’>’);
-}
-
-window.addEventListener(‘beforeunload’, e => {
-if (hasChanges) { e.preventDefault(); e.returnValue = ‘’; }
-});
 </script>
-
 </body>
 </html>
