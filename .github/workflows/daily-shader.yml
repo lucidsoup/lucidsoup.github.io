@@ -1,0 +1,60 @@
+name: Daily Shader Drop
+
+on:
+  schedule:
+    # 13:00 UTC — 9am Eastern during EDT, 8am during EST. GitHub cron has no
+    # timezone support; change to '0 14 * * *' if you would rather hold 9am
+    # through the winter months.
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Generate even if today already has an entry'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-shader
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Install tooling
+        working-directory: scripts
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: scripts
+        # The generated shader is compiled and rendered in a real WebGL context
+        # before it is allowed into the manifest.
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate shader
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/generate-daily-shader.mjs ${{ inputs.force && '--force' || '' }}
+
+      - name: Validate the whole manifest
+        run: node scripts/shader-validate.mjs
+
+      - name: Commit and push
+        run: |
+          git config user.name "lucidsoup-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add shaders/manifest.json
+          git diff --cached --quiet && echo "No new shader today." && exit 0
+          git commit -m "Daily shader: $(date -u +%F)"
+          git push
