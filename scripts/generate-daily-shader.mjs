@@ -9,6 +9,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   staticChecks, compileCheck, readManifest, writeManifest,
 } from './shader-validate.mjs';
@@ -27,6 +29,12 @@ const ShaderSchema = z.object({
   useCase: z.string(),
   glsl: z.string(),
 });
+
+// Mandelbulber formula ports, handed to the model as reference so 3D fractal
+// drops use correct distance estimators instead of improvised ones. Stable
+// content, and it sits at the front of the system prompt, so it caches.
+const FORMULA_REFERENCE = fs.readFileSync(
+  path.join('shaders', 'formulas', 'mandelbulber.glsl'), 'utf8');
 
 const SYSTEM = `You are a GLSL shader artist working in the house style of LucidSoup,
 a projection-mapping and live-visuals practice. You write original, technically
@@ -50,14 +58,35 @@ HOUSE STYLE:
   never a full-frame wash of colour.
 - Sacred geometry and psychedelic motifs: mandalas, flower of life, Metatron's cube,
   yantras, spirals, tunnels, kaleidoscopic folds, moire interference, metaballs,
-  raymarched lattices, particle fields.
+  raymarched lattices, particle fields, and the 3D escape-time and folding
+  fractals in the reference below.
 - Animation driven by iTime, smooth and ideally seamless; nothing strobing or
   epilepsy-inducing.
 - Tone-map at the end (col = col / (1.0 + col) or similar) so highlights roll off
   instead of clipping to white.
 
 Comment the shader briefly: a header line naming the piece and its technique, plus
-short comments on any non-obvious maths.`;
+short comments on any non-obvious maths.
+
+IF YOU RAYMARCH A 3D FRACTAL, take the distance estimator from the reference
+below rather than writing one from memory — these are ports of Mandelbulber v2
+formulas and the estimators are correct. Copy what you need into the shader so it
+stays self-contained. Four things decide whether the result is watchable:
+- Keep the camera outside the structure. A Mandelbulb needs roughly 2.4 units of
+  distance, a Mandelbox at negative scale roughly 6, a Menger sponge roughly 2.5.
+  Too close and the fractal fills the frame as an undifferentiated wash.
+- Match the subdivision depth to what a 480x360 preview resolves. Detail finer
+  than a pixel does not read as detail, it reads as aliasing speckle. Three
+  levels of Menger, eight bulb iterations.
+- Vary hue *smoothly* across the surface — drive it from radius, surface normal
+  or depth. Driving it hard from orbit traps varies it per pixel instead, and
+  shading averages that straight back to grey.
+- Keep the key, fill and rim hues within about 0.2 of each other on the ramp.
+  Spread them a third apart and the three sum to white and wash the colour out.
+
+=== MANDELBULBER FORMULA REFERENCE (shaders/formulas/mandelbulber.glsl) ===
+${FORMULA_REFERENCE}
+=== END REFERENCE ===`;
 
 function buildPrompt(recent) {
   const seen = recent.length
@@ -70,8 +99,9 @@ function buildPrompt(recent) {
 ${seen}
 
 Vary the technique day to day across raymarched sacred geometry, feedback and
-trail effects, kaleidoscopic tunnels, fractals, plasma and moire interference,
-particle fields, and metaballs — and vary which of the three neon accents leads.
+trail effects, kaleidoscopic tunnels, plasma and moire interference, particle
+fields, metaballs, and the Mandelbulber 3D fractals in the reference — and vary
+which of the three neon accents leads. Do not run two 3D fractals in a row.
 
 Return:
 - name: a short evocative title, two or three words.

@@ -2712,7 +2712,19 @@
             }
 
             // ---- render loop: only visible, alive cards, only while page is shown ----
+            // Previews are ambient thumbnails, not the main event, and a
+            // raymarched fractal card costs far more than a flat 2D one. So the
+            // loop runs at ~30fps and redraws at most a few cards per frame,
+            // round-robin. Total cost per frame is then bounded no matter how
+            // many cards the library grows to or how many are on screen.
+            const TARGET_FPS = 30;
+            const MIN_FRAME_MS = 1000 / TARGET_FPS;
+            const MAX_DRAWS_PER_FRAME = 3;
+
             const cards = [];
+            const liveCards = [];          // reused each frame to avoid garbage
+            let cursor = 0;                // round-robin position
+            let lastDrawMs = -1e9;
             let running = false, rafId = 0;
             const clock0 = (window.performance && performance.now) ? performance.now() : Date.now();
 
@@ -2725,17 +2737,29 @@
 
             function frame(){
                 rafId = 0;
-                const t = now();
-                let drew = 0;
+
+                liveCards.length = 0;
                 for (let i = 0; i < cards.length; i++) {
                     const c = cards[i];
-                    if (c.visible && !c.dead) { drawCard(c, t); drew++; }
+                    if (c.visible && !c.dead) liveCards.push(c);
                 }
-                if (drew > 0 && !document.hidden && !REDUCED) {
-                    rafId = requestAnimationFrame(frame);
-                } else {
+                if (liveCards.length === 0 || document.hidden || REDUCED) {
                     running = false;
+                    return;
                 }
+
+                const ms = (window.performance && performance.now)
+                    ? performance.now() : Date.now();
+                if (ms - lastDrawMs >= MIN_FRAME_MS) {
+                    lastDrawMs = ms;
+                    const t = now();
+                    const count = Math.min(liveCards.length, MAX_DRAWS_PER_FRAME);
+                    for (let k = 0; k < count; k++) {
+                        drawCard(liveCards[(cursor + k) % liveCards.length], t);
+                    }
+                    cursor = (cursor + count) % liveCards.length;
+                }
+                rafId = requestAnimationFrame(frame);
             }
 
             function startLoop(){
