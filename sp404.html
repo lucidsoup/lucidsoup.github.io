@@ -136,6 +136,37 @@
         .steps { font-size: .84rem; color: rgba(255,255,255,.65); line-height: 1.8; padding-left: 1.2rem; }
         .steps li { margin-bottom: .2rem; }
 
+        /* ---- mode switch ---- */
+        .modes {
+            display: flex; gap: .5rem; justify-content: center; margin: 0 auto 2rem;
+            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+            border-radius: 10px; padding: .4rem; max-width: 460px;
+        }
+        .mode-btn {
+            flex: 1; background: none; border: none; color: rgba(255,255,255,.55);
+            font-family: inherit; font-size: .78rem; font-weight: bold; letter-spacing: .1em;
+            text-transform: uppercase; padding: .65rem .5rem; border-radius: 7px;
+            cursor: pointer; transition: all .2s ease;
+        }
+        .mode-btn:hover { color: #fff; }
+        .mode-btn.active {
+            color: #fff;
+            background: linear-gradient(135deg, rgba(0,255,255,.16), rgba(255,0,255,.14));
+            box-shadow: 0 0 14px rgba(0,255,255,.14);
+        }
+
+        .srcinfo { font-size: .84rem; color: rgba(255,255,255,.6); line-height: 1.7; }
+        .srcinfo b { color: #39ff14; }
+        .srcinfo .warn { color: rgba(255,196,0,.9); }
+        .pick-row { display: flex; gap: .6rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+        .pick-btn {
+            background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.18);
+            color: rgba(255,255,255,.85); border-radius: 7px; padding: .5rem 1rem;
+            font-size: .74rem; font-weight: bold; letter-spacing: .08em; text-transform: uppercase;
+            cursor: pointer; font-family: inherit; transition: all .2s ease;
+        }
+        .pick-btn:hover { border-color: rgba(0,255,255,.7); color: #fff; }
+
         .hidden { display: none !important; }
         footer { text-align: center; font-size: .75rem; color: rgba(255,255,255,.3); margin-top: 3rem; }
 
@@ -165,11 +196,18 @@
         <a class="back" href="index.html">&larr; LucidSoup</a>
         <h1>SP-404 Converter</h1>
         <p class="tagline">
-            Drop any audio in, get a card-ready ZIP out. Everything runs in your browser —
+            Audio in, card-ready ZIP out — or pull the samples back off your card as clean,
+            pad-named WAVs. Everything runs in your browser;
             <strong>nothing is uploaded anywhere</strong>.
         </p>
     </header>
 
+    <div class="modes">
+        <button type="button" class="mode-btn active" data-mode="prepare">Audio &rarr; SP-404</button>
+        <button type="button" class="mode-btn" data-mode="extract">SP-404 &rarr; WAV</button>
+    </div>
+
+    <div id="prepareUI">
     <div class="panel">
         <h2>1 · Target</h2>
         <div class="models">
@@ -280,6 +318,95 @@
             <ol class="steps" id="stepList"></ol>
         </div>
     </div>
+
+    </div><!-- /prepareUI -->
+
+    <div id="extractUI" class="hidden">
+        <div class="panel">
+            <h2>1 · Card files</h2>
+            <div id="exDrop" style="border:2px dashed rgba(255,255,255,.16); border-radius:12px; padding:2.2rem 1.5rem; text-align:center;">
+                <div style="font-size:1.05rem; margin-bottom:.4rem;">Drop your card's sample folder here</div>
+                <div style="font-size:.8rem; color:rgba(255,255,255,.45);">
+                    SP-404SX / A: <code>ROLAND/SP-404SX/SMPL</code> &nbsp;&middot;&nbsp;
+                    SP-404MKII: the <code>EXPORT SAMPLE</code> folder
+                </div>
+                <div class="pick-row">
+                    <button type="button" class="pick-btn" id="pickFolder">Choose folder</button>
+                    <button type="button" class="pick-btn" id="pickFiles">Choose files</button>
+                </div>
+                <input type="file" id="exFolder" webkitdirectory directory multiple class="hidden">
+                <input type="file" id="exFiles" multiple class="hidden">
+            </div>
+            <div id="exSummary" class="srcinfo hidden" style="margin-top:1.1rem;"></div>
+            <div id="exWrap" class="hidden" style="margin-top:1.1rem; overflow-x:auto;">
+                <table class="files">
+                    <thead><tr><th>Pad</th><th>From card</th><th>Exports as</th><th>Audio</th></tr></thead>
+                    <tbody id="exRows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>2 · Output</h2>
+            <div style="display:flex; flex-wrap:wrap; gap:1.5rem; align-items:center; margin-bottom:1.2rem;">
+                <div class="field">
+                    <label for="exRate">Sample rate</label>
+                    <select id="exRate">
+                        <option value="0" selected>Keep original</option>
+                        <option value="44100">44.1 kHz</option>
+                        <option value="48000">48 kHz</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="exNaming">Name files</label>
+                    <select id="exNaming">
+                        <option value="both" selected>Pad + original</option>
+                        <option value="pad">Pad only</option>
+                        <option value="orig">Original only</option>
+                    </select>
+                </div>
+            </div>
+            <div class="opts">
+                <div class="opt">
+                    <input type="checkbox" id="exTrim" checked>
+                    <label for="exTrim">
+                        <div class="opt-label">Apply stored start/end</div>
+                        <div class="opt-help">Use the trim points in <code>PAD_INFO.BIN</code> so you get the sample as the pad plays it. SX/A only.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="exNorm">
+                    <label for="exNorm">
+                        <div class="opt-label">Normalise</div>
+                        <div class="opt-help">Lift the peak to &minus;1&nbsp;dBFS.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="exMono">
+                    <label for="exMono">
+                        <div class="opt-label">Force mono</div>
+                        <div class="opt-help">Fold stereo samples down to one channel.</div>
+                    </label>
+                </div>
+            </div>
+            <div class="note" style="border-left-color: rgba(0,255,255,.5); background: rgba(0,255,255,.04);">
+                <strong style="color:rgba(0,255,255,.95)">How this works.</strong>
+                An SX/A card holds plain WAVs, so they are read straight off it and the pad each one sits on
+                comes from <code>PAD_INFO.BIN</code>. The MKII keeps its samples in internal memory, so export
+                them to the card from the unit first (<code>EXPORT SAMPLE</code>) and this tool tidies up what
+                it wrote. Left on &ldquo;keep original&rdquo; with nothing ticked, the audio is copied through
+                sample for sample &mdash; only the Roland header is dropped and the file renamed.
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>3 · Build</h2>
+            <div class="actions">
+                <button class="btn" id="exGo" disabled>Export WAVs</button>
+                <span class="status" id="exStatus">Add your card's files to begin.</span>
+            </div>
+        </div>
+    </div><!-- /extractUI -->
 
     <footer>
         Built by LucidSoup · not affiliated with Roland · SP-404, SP-404SX and SP-404MKII are Roland trademarks
@@ -1043,11 +1170,420 @@
 
     render();
 
+    // =====================================================================
+    // EXTRACT: card -> plain WAVs
+    // =====================================================================
+
+    /** Walk a RIFF file's chunks. Returns null if it is not PCM WAV we can use. */
+    function parseWav(bytes) {
+        if (bytes.length < 44) return null;
+        var v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        var tag = function (o) {
+            return String.fromCharCode(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
+        };
+        if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE') return null;
+
+        var fmt = null, data = null;
+        var o = 12;
+        while (o + 8 <= bytes.length) {
+            var id = tag(o);
+            var size = v.getUint32(o + 4, true);
+            var body = o + 8;
+            if (id === 'fmt ' && size >= 16) {
+                fmt = {
+                    format: v.getUint16(body, true),
+                    channels: v.getUint16(body + 2, true),
+                    rate: v.getUint32(body + 4, true),
+                    bits: v.getUint16(body + 14, true)
+                };
+            } else if (id === 'data') {
+                // Trust the file's real length over a size field that lies,
+                // which Roland's own writers sometimes do on an interrupted save.
+                data = { offset: body, length: Math.min(size, bytes.length - body) };
+            }
+            o = body + size + (size & 1);   // chunks are word-aligned
+            if (size === 0) break;
+        }
+        if (!fmt || !data || fmt.format !== 1 || fmt.bits !== 16) return null;
+        return { rate: fmt.rate, channels: fmt.channels, bits: fmt.bits,
+                 dataOffset: data.offset, dataLength: data.length };
+    }
+
+    /**
+     * Work out which pad a card file belongs to from its name.
+     * SX/A writes A0000001.WAV; the original SP-404 writes A_01.WAV. The MKII
+     * is not documented, so anything else falls through as "no pad" and keeps
+     * its own name.
+     */
+    function detectPad(filename) {
+        var base = filename.replace(/^.*[\\\/]/, '');
+        var m = /^([A-J])(\d{7})\.wav$/i.exec(base);
+        if (m) {
+            var pad = parseInt(m[2], 10);
+            if (pad >= 1 && pad <= SX.padsPerBank) {
+                return { bank: m[1].toUpperCase(), pad: pad,
+                         padIndex: SX.banks.indexOf(m[1].toUpperCase()) * SX.padsPerBank + pad - 1 };
+            }
+        }
+        m = /^([A-J])[_-](\d{1,2})\.wav$/i.exec(base);
+        if (m) {
+            var pad2 = parseInt(m[2], 10);
+            if (pad2 >= 1 && pad2 <= SX.padsPerBank) {
+                return { bank: m[1].toUpperCase(), pad: pad2,
+                         padIndex: SX.banks.indexOf(m[1].toUpperCase()) * SX.padsPerBank + pad2 - 1 };
+            }
+        }
+        return null;
+    }
+
+    /** Read PAD_INFO.BIN into per-pad records. */
+    function parsePadInfo(bytes) {
+        var need = SX.slots * PAD_RECORD;
+        if (!bytes || bytes.length < need) return null;
+        var v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        var out = [];
+        for (var i = 0; i < SX.slots; i++) {
+            var o = i * PAD_RECORD;
+            var start = v.getUint32(o + 8, false);   // user start, what the pad plays
+            var end = v.getUint32(o + 12, false);
+            if (!end) { start = v.getUint32(o, false); end = v.getUint32(o + 4, false); }
+            out.push({
+                start: start, end: end,
+                volume: bytes[o + 16], channels: bytes[o + 22],
+                empty: end === 0
+            });
+        }
+        return out;
+    }
+
+    var sources = [];        // { file, path, name, bytes, wav, pad, info }
+    var padInfoRecords = null;
+    var exBusy = false;
+
+    var exDrop = $('exDrop'), exRows = $('exRows'), exWrap = $('exWrap');
+    var exSummary = $('exSummary'), exGo = $('exGo'), exStatus = $('exStatus');
+
+    function exOutName(src, index) {
+        var naming = $('exNaming').value;
+        var stem = src.name.replace(/\.[^.]*$/, '');
+        var padCode = src.pad ? src.pad.bank + String(src.pad.pad).padStart(2, '0') : null;
+        // On an SX card the filename *is* the pad code, so "pad + original"
+        // would read "B05 B0000005". There is no real name to keep in that case.
+        if (padCode && /^[A-J](\d{7}|[_-]\d{1,2})$/i.test(stem)) stem = '';
+        var name;
+        if (!stem && padCode) name = padCode;
+        else if (naming === 'pad' && padCode) name = padCode;
+        else if (naming === 'orig') name = stem;
+        else if (padCode) name = padCode + ' ' + stem;
+        else name = stem;
+        name = name.replace(/[^A-Za-z0-9 _-]/g, '_').replace(/\s+/g, ' ').trim();
+        if (!name) name = 'sample-' + (index + 1);
+        return name.slice(0, 60) + '.wav';
+    }
+
+    function exDestinations() {
+        var used = {};
+        return sources.map(function (src, i) {
+            var name = exOutName(src, i);
+            var key = name.toLowerCase();
+            if (used[key]) {
+                var dot = name.lastIndexOf('.');
+                name = name.slice(0, dot) + '-' + (++used[key]) + name.slice(dot);
+            } else { used[key] = 1; }
+            return name;
+        });
+    }
+
+    function exRender() {
+        exWrap.classList.toggle('hidden', sources.length === 0);
+        exSummary.classList.toggle('hidden', sources.length === 0 && !padInfoRecords);
+
+        var withPad = sources.filter(function (s) { return s.pad; }).length;
+        var bits = [];
+        if (sources.length) bits.push('<b>' + sources.length + '</b> sample' + (sources.length === 1 ? '' : 's') + ' found');
+        if (withPad) bits.push('<b>' + withPad + '</b> with a pad in the filename');
+        if (padInfoRecords) {
+            var filled = padInfoRecords.filter(function (r) { return !r.empty; }).length;
+            bits.push('<b>PAD_INFO.BIN</b> read (' + filled + ' pad' + (filled === 1 ? '' : 's') + ' assigned)');
+        } else if (withPad) {
+            bits.push('<span class="warn">no PAD_INFO.BIN &mdash; stored trim points unavailable</span>');
+        }
+        exSummary.innerHTML = bits.join(' &middot; ');
+
+        var dests = exDestinations();
+        exRows.innerHTML = '';
+        sources.forEach(function (src, i) {
+            var tr = document.createElement('tr');
+            var c1 = document.createElement('td');
+            c1.className = 'pad';
+            c1.textContent = src.pad ? src.pad.bank + src.pad.pad : '—';
+            var c2 = document.createElement('td');
+            c2.className = 'fname';
+            c2.textContent = src.path || src.name;
+            var c3 = document.createElement('td');
+            c3.className = 'dest';
+            c3.textContent = dests[i];
+            var c4 = document.createElement('td');
+            c4.className = 'meta';
+            if (src.wav) {
+                var frames = src.wav.dataLength / (2 * src.wav.channels);
+                c4.textContent = (src.wav.rate / 1000) + 'k · ' +
+                    (src.wav.channels > 1 ? 'stereo' : 'mono') + ' · ' + fmtTime(frames / src.wav.rate);
+            } else {
+                c4.innerHTML = '<span class="err">not 16-bit PCM WAV</span>';
+            }
+            tr.appendChild(c1); tr.appendChild(c2); tr.appendChild(c3); tr.appendChild(c4);
+            exRows.appendChild(tr);
+        });
+
+        exUpdateStatus();
+    }
+
+    function exUpdateStatus() {
+        if (exBusy) return;
+        var ok = sources.filter(function (s) { return s.wav; }).length;
+        exGo.disabled = ok === 0;
+        if (!sources.length) { exStatus.textContent = "Add your card's files to begin."; return; }
+        var skipped = sources.length - ok;
+        exStatus.textContent = ok + ' ready to export' + (skipped ? ' · ' + skipped + ' skipped' : '');
+    }
+
+    function addCardFiles(list) {
+        var files = Array.prototype.slice.call(list).filter(function (f) { return f.size > 0; });
+        if (!files.length) return;
+        exStatus.textContent = 'Reading ' + files.length + ' file' + (files.length === 1 ? '' : 's') + '…';
+
+        var jobs = files.map(function (f) {
+            var path = f.webkitRelativePath || f._path || f.name;
+            return f.arrayBuffer().then(function (ab) {
+                var bytes = new Uint8Array(ab);
+                if (/PAD_?INFO\.BIN$/i.test(f.name)) {
+                    var recs = parsePadInfo(bytes);
+                    if (recs) padInfoRecords = recs;
+                    return;
+                }
+                if (!/\.(wav|aif|aiff)$/i.test(f.name)) return;
+                sources.push({
+                    file: f, path: path, name: f.name,
+                    bytes: bytes, wav: parseWav(bytes), pad: detectPad(f.name)
+                });
+            }).catch(function () { /* unreadable file, skip it */ });
+        });
+
+        Promise.all(jobs).then(function () {
+            // Pad order first when we know it, so the listing reads like the unit.
+            sources.sort(function (a, b) {
+                if (a.pad && b.pad) return a.pad.padIndex - b.pad.padIndex;
+                if (a.pad) return -1;
+                if (b.pad) return 1;
+                return a.name.localeCompare(b.name, undefined, { numeric: true });
+            });
+            exRender();
+        });
+    }
+
+    /** Recurse a dropped directory; a plain file drop never yields entries. */
+    function walkEntry(entry, prefix, out) {
+        return new Promise(function (resolve) {
+            if (entry.isFile) {
+                entry.file(function (f) {
+                    f._path = prefix + f.name;
+                    out.push(f);
+                    resolve();
+                }, resolve);
+            } else if (entry.isDirectory) {
+                var reader = entry.createReader();
+                var all = [];
+                var readBatch = function () {
+                    reader.readEntries(function (batch) {
+                        if (!batch.length) {
+                            Promise.all(all.map(function (e) {
+                                return walkEntry(e, prefix + entry.name + '/', out);
+                            })).then(resolve);
+                            return;
+                        }
+                        all = all.concat(batch);
+                        readBatch();            // readEntries returns at most 100
+                    }, resolve);
+                };
+                readBatch();
+            } else { resolve(); }
+        });
+    }
+
+    $('pickFolder').addEventListener('click', function () { $('exFolder').click(); });
+    $('pickFiles').addEventListener('click', function () { $('exFiles').click(); });
+    $('exFolder').addEventListener('change', function (e) { addCardFiles(e.target.files); e.target.value = ''; });
+    $('exFiles').addEventListener('change', function (e) { addCardFiles(e.target.files); e.target.value = ''; });
+
+    ['dragenter', 'dragover'].forEach(function (ev) {
+        exDrop.addEventListener(ev, function (e) { e.preventDefault(); exDrop.style.borderColor = 'rgba(0,255,255,.7)'; });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+        exDrop.addEventListener(ev, function (e) { e.preventDefault(); exDrop.style.borderColor = ''; });
+    });
+    exDrop.addEventListener('drop', function (e) {
+        var dt = e.dataTransfer;
+        if (!dt) return;
+        var entries = [];
+        if (dt.items && dt.items.length && dt.items[0].webkitGetAsEntry) {
+            for (var i = 0; i < dt.items.length; i++) {
+                var en = dt.items[i].webkitGetAsEntry();
+                if (en) entries.push(en);
+            }
+        }
+        if (entries.length) {
+            var collected = [];
+            Promise.all(entries.map(function (en) { return walkEntry(en, '', collected); }))
+                .then(function () { addCardFiles(collected); });
+        } else if (dt.files) {
+            addCardFiles(dt.files);
+        }
+    });
+
+    ['exRate', 'exNaming'].forEach(function (id) {
+        $(id).addEventListener('change', exRender);
+    });
+    ['exTrim', 'exNorm', 'exMono'].forEach(function (id) {
+        $(id).addEventListener('change', exUpdateStatus);
+    });
+
+    /**
+     * Byte range of the audio to keep. PAD_INFO start/end are absolute offsets
+     * into the file, so they clamp straight onto the data chunk; the result is
+     * rounded to whole frames or the channels would swap over.
+     */
+    function trimRange(src) {
+        var wav = src.wav;
+        var from = wav.dataOffset, to = wav.dataOffset + wav.dataLength;
+        if ($('exTrim').checked && padInfoRecords && src.pad) {
+            var rec = padInfoRecords[src.pad.padIndex];
+            if (rec && !rec.empty && rec.end > rec.start) {
+                from = Math.max(from, Math.min(rec.start, to));
+                to = Math.min(to, Math.max(rec.end, from));
+            }
+        }
+        var block = 2 * wav.channels;
+        var len = Math.floor((to - from) / block) * block;
+        return { from: from, len: Math.max(0, len) };
+    }
+
+    exGo.addEventListener('click', function () {
+        if (exBusy) return;
+        var usable = sources.filter(function (s) { return s.wav; });
+        if (!usable.length) return;
+
+        exBusy = true;
+        exGo.disabled = true;
+
+        var targetRate = parseInt($('exRate').value, 10) || 0;
+        var norm = $('exNorm').checked, mono = $('exMono').checked;
+        var dests = exDestinations();
+        var entries = [];
+
+        var chain = Promise.resolve();
+        usable.forEach(function (src) {
+            chain = chain.then(function () {
+                var index = sources.indexOf(src);
+                var name = dests[index];
+                var range = trimRange(src);
+                if (range.len <= 0) return;
+                exStatus.textContent = 'Exporting ' + src.name + '…';
+
+                var needsWork = (targetRate && targetRate !== src.wav.rate) || norm ||
+                                (mono && src.wav.channels > 1);
+                if (!needsWork) {
+                    // Nothing to change: copy the samples through byte for byte
+                    // under a clean header. Decoding and re-encoding here would
+                    // cost a least significant bit for no reason.
+                    var pcm = src.bytes.subarray(range.from, range.from + range.len);
+                    entries.push({
+                        name: name,
+                        data: wrapPcm(pcm, src.wav.rate, src.wav.channels)
+                    });
+                    return;
+                }
+
+                // Hand the trimmed region to the decoder as a standalone WAV.
+                var slice = wrapPcm(src.bytes.subarray(range.from, range.from + range.len),
+                                    src.wav.rate, src.wav.channels);
+                return decode(slice.buffer.slice(slice.byteOffset, slice.byteOffset + slice.byteLength))
+                    .then(function (buf) {
+                        var rate = targetRate || src.wav.rate;
+                        return resample(buf, rate, mono).then(function (rendered) {
+                            var processed = applyOptions(rendered, {
+                                normalize: norm, trim: false, mono: mono, fade: false
+                            });
+                            if (!processed) return;
+                            var wav = encodeWavPlain(processed.channels, processed.length, rate);
+                            entries.push({ name: name, data: wav.bytes });
+                        });
+                    })
+                    .catch(function () {
+                        exStatus.textContent = 'Could not decode ' + src.name + ', skipping.';
+                    });
+            });
+        });
+
+        chain.then(function () {
+            if (!entries.length) throw new Error('Nothing to export.');
+            var blob = buildZip(entries);
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'sp404-samples.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+            exStatus.textContent = 'Exported ' + entries.length + ' WAV' +
+                (entries.length === 1 ? '' : 's') + ' · ' + fmtBytes(blob.size);
+        }).catch(function (err) {
+            exStatus.textContent = 'Export failed: ' + (err && err.message ? err.message : err);
+        }).then(function () {
+            exBusy = false;
+            exGo.disabled = sources.filter(function (s) { return s.wav; }).length === 0;
+        });
+    });
+
+    /** Put a standard 44-byte header on raw little-endian 16-bit PCM. */
+    function wrapPcm(pcmBytes, rate, channels) {
+        var out = new Uint8Array(44 + pcmBytes.length);
+        var v = new DataView(out.buffer);
+        writeTag(v, 0, 'RIFF');
+        v.setUint32(4, out.length - 8, true);
+        writeTag(v, 8, 'WAVE');
+        writeTag(v, 12, 'fmt ');
+        v.setUint32(16, 16, true);
+        v.setUint16(20, 1, true);
+        v.setUint16(22, channels, true);
+        v.setUint32(24, rate, true);
+        v.setUint32(28, rate * channels * 2, true);
+        v.setUint16(32, channels * 2, true);
+        v.setUint16(34, 16, true);
+        writeTag(v, 36, 'data');
+        v.setUint32(40, pcmBytes.length, true);
+        out.set(pcmBytes, 44);
+        return out;
+    }
+
+    // ---- mode switch ----
+    document.querySelectorAll('.mode-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var extract = btn.getAttribute('data-mode') === 'extract';
+            $('prepareUI').classList.toggle('hidden', extract);
+            $('extractUI').classList.toggle('hidden', !extract);
+        });
+    });
+
     // Exposed purely so the build can be checked by an automated test.
     window.__sp404 = {
         buildZip: buildZip, crc32: crc32, buildPadInfo: buildPadInfo,
         encodeWavSX: encodeWavSX, encodeWavPlain: encodeWavPlain,
         padName: padName, padLabel: padLabel, safeName: safeName,
+        parseWav: parseWav, detectPad: detectPad, parsePadInfo: parsePadInfo, wrapPcm: wrapPcm,
         SX: SX, PAD_RECORD: PAD_RECORD, SX_DATA_OFFSET: SX_DATA_OFFSET
     };
 })();
