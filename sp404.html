@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SP-404 Converter — LucidSoup</title>
+    <meta name="description" content="Convert audio to Roland SP-404SX, SP-404A and SP-404MKII sample format in your browser. Nothing is uploaded.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif; line-height: 1.6; color: #fff;
+            background: #0a0a0a; min-height: 100vh; overflow-x: hidden;
+        }
+        a { color: #00ffff; }
+
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+
+        header { text-align: center; margin-bottom: 2.5rem; }
+        .back { display: inline-block; font-size: .75rem; letter-spacing: .15em;
+                text-transform: uppercase; color: rgba(255,255,255,.5);
+                text-decoration: none; margin-bottom: 1.5rem; }
+        .back:hover { color: #00ffff; }
+        h1 {
+            font-family: 'Orbitron', monospace; font-weight: 900;
+            font-size: clamp(1.6rem, 5vw, 2.6rem); letter-spacing: .06em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, #ff10f0, #00ffff, #39ff14);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .tagline { color: rgba(255,255,255,.6); font-size: .95rem; margin-top: .75rem; }
+        .tagline strong { color: rgba(0,255,255,.85); font-weight: normal; }
+
+        .panel {
+            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .panel h2 {
+            font-size: .72rem; text-transform: uppercase; letter-spacing: .18em;
+            color: rgba(0,255,255,.75); font-weight: bold; margin-bottom: 1.1rem;
+        }
+
+        /* ---- model picker ---- */
+        .models { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .9rem; }
+        .model {
+            display: block; cursor: pointer; border-radius: 10px; padding: 1rem 1.1rem;
+            background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.1);
+            transition: border-color .2s ease, background .2s ease;
+        }
+        .model:hover { border-color: rgba(0,255,255,.4); }
+        .model input { position: absolute; opacity: 0; pointer-events: none; }
+        .model.sel {
+            border-color: rgba(0,255,255,.75);
+            background: linear-gradient(135deg, rgba(0,255,255,.1), rgba(255,0,255,.08));
+            box-shadow: 0 0 20px rgba(0,255,255,.12);
+        }
+        .model-name { font-weight: bold; font-size: 1rem; }
+        .model-spec { font-size: .76rem; color: rgba(255,255,255,.5); margin-top: .3rem; line-height: 1.5; }
+        .model-spec code { color: rgba(57,255,20,.8); font-size: .95em; }
+
+        /* ---- dropzone ---- */
+        #drop {
+            border: 2px dashed rgba(255,255,255,.16); border-radius: 12px;
+            padding: 2.5rem 1.5rem; text-align: center; cursor: pointer;
+            transition: border-color .2s ease, background .2s ease;
+        }
+        #drop:hover, #drop.over { border-color: rgba(0,255,255,.7); background: rgba(0,255,255,.04); }
+        #drop .big { font-size: 1.05rem; margin-bottom: .4rem; }
+        #drop .small { font-size: .8rem; color: rgba(255,255,255,.45); }
+
+        /* ---- options ---- */
+        .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem 1.5rem; }
+        .opt { display: flex; align-items: flex-start; gap: .6rem; }
+        .opt input[type=checkbox] { margin-top: .32rem; accent-color: #00ffff; width: 15px; height: 15px; flex: none; }
+        .opt-label { font-size: .85rem; }
+        .opt-help { font-size: .72rem; color: rgba(255,255,255,.4); line-height: 1.45; }
+        .field { display: flex; align-items: center; gap: .55rem; font-size: .85rem; }
+        select, input[type=file] { font-family: inherit; }
+        select {
+            background: rgba(0,0,0,.6); color: #fff; border: 1px solid rgba(255,255,255,.18);
+            border-radius: 6px; padding: .35rem .5rem; font-size: .85rem;
+        }
+        select:focus { outline: none; border-color: rgba(0,255,255,.7); }
+
+        /* ---- file table ---- */
+        .files { width: 100%; border-collapse: collapse; font-size: .84rem; }
+        .files th {
+            text-align: left; font-size: .64rem; text-transform: uppercase; letter-spacing: .13em;
+            color: rgba(255,255,255,.4); font-weight: bold;
+            padding: 0 .6rem .55rem; border-bottom: 1px solid rgba(255,255,255,.1);
+        }
+        .files td { padding: .55rem .6rem; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: middle; }
+        .files tr:last-child td { border-bottom: none; }
+        .pad { font-weight: bold; color: #39ff14; white-space: nowrap; }
+        .pad.over { color: #ff3b6b; }
+        .fname { word-break: break-word; }
+        .dest { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: .76rem; color: rgba(0,255,255,.75); white-space: nowrap; }
+        .meta { color: rgba(255,255,255,.45); font-size: .76rem; white-space: nowrap; }
+        .err { color: #ff3b6b; font-size: .76rem; }
+        .row-btn {
+            background: none; border: 1px solid rgba(255,255,255,.18); color: rgba(255,255,255,.75);
+            border-radius: 5px; cursor: pointer; font-size: .7rem; padding: .2rem .45rem;
+            font-family: inherit; line-height: 1.4;
+        }
+        .row-btn:hover { border-color: rgba(0,255,255,.7); color: #fff; }
+        .row-btns { display: flex; gap: .3rem; justify-content: flex-end; }
+
+        /* ---- buttons / notices ---- */
+        .btn {
+            background: linear-gradient(135deg, rgba(0,255,255,.14), rgba(255,0,255,.14));
+            border: 1px solid rgba(0,255,255,.45); color: #fff; padding: .8rem 1.6rem;
+            border-radius: 8px; font-size: .8rem; font-weight: bold; letter-spacing: .12em;
+            text-transform: uppercase; cursor: pointer; font-family: inherit; transition: all .2s ease;
+        }
+        .btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, rgba(0,255,255,.3), rgba(255,0,255,.3));
+            border-color: rgba(0,255,255,.9); box-shadow: 0 0 18px rgba(0,255,255,.28);
+        }
+        .btn:disabled { opacity: .35; cursor: not-allowed; }
+        .actions { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; }
+        .status { font-size: .82rem; color: rgba(255,255,255,.6); }
+
+        .note {
+            border-left: 3px solid rgba(255,196,0,.6); background: rgba(255,196,0,.05);
+            padding: .8rem 1rem; border-radius: 0 6px 6px 0; font-size: .8rem;
+            color: rgba(255,255,255,.72); line-height: 1.6; margin-top: 1.1rem;
+        }
+        .note strong { color: rgba(255,196,0,.95); }
+        .note code, .steps code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: .92em; color: rgba(0,255,255,.8);
+        }
+        .steps { font-size: .84rem; color: rgba(255,255,255,.65); line-height: 1.8; padding-left: 1.2rem; }
+        .steps li { margin-bottom: .2rem; }
+
+        /* ---- mode switch ---- */
+        .modes {
+            display: flex; gap: .5rem; justify-content: center; margin: 0 auto 2rem;
+            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+            border-radius: 10px; padding: .4rem; max-width: 460px;
+        }
+        .mode-btn {
+            flex: 1; background: none; border: none; color: rgba(255,255,255,.55);
+            font-family: inherit; font-size: .78rem; font-weight: bold; letter-spacing: .1em;
+            text-transform: uppercase; padding: .65rem .5rem; border-radius: 7px;
+            cursor: pointer; transition: all .2s ease;
+        }
+        .mode-btn:hover { color: #fff; }
+        .mode-btn.active {
+            color: #fff;
+            background: linear-gradient(135deg, rgba(0,255,255,.16), rgba(255,0,255,.14));
+            box-shadow: 0 0 14px rgba(0,255,255,.14);
+        }
+
+        .srcinfo { font-size: .84rem; color: rgba(255,255,255,.6); line-height: 1.7; }
+        .srcinfo b { color: #39ff14; }
+        .srcinfo .warn { color: rgba(255,196,0,.9); }
+        .pick-row { display: flex; gap: .6rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+        .pick-btn {
+            background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.18);
+            color: rgba(255,255,255,.85); border-radius: 7px; padding: .5rem 1rem;
+            font-size: .74rem; font-weight: bold; letter-spacing: .08em; text-transform: uppercase;
+            cursor: pointer; font-family: inherit; transition: all .2s ease;
+        }
+        .pick-btn:hover { border-color: rgba(0,255,255,.7); color: #fff; }
+
+        .hidden { display: none !important; }
+        footer { text-align: center; font-size: .75rem; color: rgba(255,255,255,.3); margin-top: 3rem; }
+
+        @media (max-width: 620px) {
+            .wrap { padding: 1.75rem 1rem 3.5rem; }
+            .panel { padding: 1.1rem; }
+            /* A five-column table cannot survive a phone — the filename column
+               ends up one character wide. Stack each row as its own card. */
+            .files thead { display: none; }
+            .files, .files tbody, .files tr, .files td { display: block; width: 100%; }
+            .files tr {
+                border: 1px solid rgba(255,255,255,.1); border-radius: 8px;
+                padding: .7rem .85rem; margin-bottom: .6rem;
+            }
+            .files td { border: none; padding: .1rem 0; }
+            .files td.pad { font-size: .95rem; margin-bottom: .15rem; }
+            .dest, .meta { white-space: normal; word-break: break-all; }
+            .row-btns { justify-content: flex-start; margin-top: .55rem; }
+            #sxOpts { gap: .9rem; }
+            #sxOpts .field { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <a class="back" href="index.html">&larr; LucidSoup</a>
+        <h1>SP-404 Converter</h1>
+        <p class="tagline">
+            Audio in, card-ready ZIP out — or pull the samples back off your card as clean,
+            pad-named WAVs. Everything runs in your browser;
+            <strong>nothing is uploaded anywhere</strong>.
+        </p>
+    </header>
+
+    <div class="modes">
+        <button type="button" class="mode-btn active" data-mode="prepare">Audio &rarr; SP-404</button>
+        <button type="button" class="mode-btn" data-mode="extract">SP-404 &rarr; WAV</button>
+    </div>
+
+    <div id="prepareUI">
+    <div class="panel">
+        <h2>1 · Target</h2>
+        <div class="models">
+            <label class="model sel" data-model="sx">
+                <input type="radio" name="model" value="sx" checked>
+                <div class="model-name">SP-404SX / SP-404A</div>
+                <div class="model-spec">
+                    44.1 kHz · 16-bit · banks A&ndash;J, 12 pads each<br>
+                    Writes <code>ROLAND/SP-404SX/SMPL/</code> plus <code>PAD_INFO.BIN</code>
+                </div>
+            </label>
+            <label class="model" data-model="mk2">
+                <input type="radio" name="model" value="mk2">
+                <div class="model-name">SP-404MKII</div>
+                <div class="model-spec">
+                    48 kHz · 16-bit · imported from the unit<br>
+                    Writes <code>IMPORT/</code> with your own filenames
+                </div>
+            </label>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>2 · Audio</h2>
+        <div id="drop">
+            <div class="big">Drop audio files here</div>
+            <div class="small">or click to choose &mdash; WAV, MP3, AIFF, M4A, FLAC, OGG (whatever your browser decodes)</div>
+            <input type="file" id="picker" multiple accept="audio/*,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg" class="hidden">
+        </div>
+        <div id="fileWrap" class="hidden" style="margin-top:1.25rem; overflow-x:auto;">
+            <table class="files">
+                <thead>
+                    <tr>
+                        <th id="slotHead">Pad</th>
+                        <th>File</th>
+                        <th>On card</th>
+                        <th>Converted</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="fileRows"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>3 · Options</h2>
+        <div class="opts">
+            <div class="opt">
+                <input type="checkbox" id="optNormalize" checked>
+                <label for="optNormalize">
+                    <div class="opt-label">Normalise</div>
+                    <div class="opt-help">Lift the peak to &minus;1&nbsp;dBFS. Loudness only, no compression.</div>
+                </label>
+            </div>
+            <div class="opt">
+                <input type="checkbox" id="optTrim">
+                <label for="optTrim">
+                    <div class="opt-label">Trim silence</div>
+                    <div class="opt-help">Cut near-silence from both ends, keeping a short tail.</div>
+                </label>
+            </div>
+            <div class="opt">
+                <input type="checkbox" id="optMono">
+                <label for="optMono">
+                    <div class="opt-label">Force mono</div>
+                    <div class="opt-help">Halves the space each sample takes on the card.</div>
+                </label>
+            </div>
+            <div class="opt">
+                <input type="checkbox" id="optFade" checked>
+                <label for="optFade">
+                    <div class="opt-label">Declick edges</div>
+                    <div class="opt-help">2&nbsp;ms fade in and out so chopped samples don't pop.</div>
+                </label>
+            </div>
+        </div>
+
+        <div id="sxOpts" style="margin-top:1.4rem; display:flex; flex-wrap:wrap; gap:1.5rem; align-items:center;">
+            <div class="field">
+                <label for="startBank">Start at</label>
+                <select id="startBank"></select>
+                <select id="startPad"></select>
+            </div>
+            <div class="field">
+                <label for="padInfoIn" style="cursor:pointer;">
+                    Existing <code style="color:rgba(0,255,255,.8)">PAD_INFO.BIN</code>
+                </label>
+                <input type="file" id="padInfoIn" accept=".bin,.BIN" style="font-size:.78rem; max-width:200px;">
+            </div>
+        </div>
+        <div id="sxNote" class="note">
+            <strong>Back up your card first.</strong> On the SX/A, the pads a sample is assigned to live in
+            <code>PAD_INFO.BIN</code>, not in the audio files. Load your card's existing copy above and this
+            tool keeps every pad it isn't writing to; without it you get a fresh file and any pads already on
+            the card are forgotten.
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>4 · Build</h2>
+        <div class="actions">
+            <button class="btn" id="go" disabled>Build ZIP</button>
+            <span class="status" id="status">Add some audio to begin.</span>
+        </div>
+        <div id="steps" class="hidden" style="margin-top:1.3rem;">
+            <h2 style="margin-bottom:.7rem;">Onto the card</h2>
+            <ol class="steps" id="stepList"></ol>
+        </div>
+    </div>
+
+    </div><!-- /prepareUI -->
+
+    <div id="extractUI" class="hidden">
+        <div class="panel">
+            <h2>1 · Card files</h2>
+            <div id="exDrop" style="border:2px dashed rgba(255,255,255,.16); border-radius:12px; padding:2.2rem 1.5rem; text-align:center;">
+                <div style="font-size:1.05rem; margin-bottom:.4rem;">Drop your card's sample folder here</div>
+                <div style="font-size:.8rem; color:rgba(255,255,255,.45);">
+                    SP-404SX / A: <code>ROLAND/SP-404SX/SMPL</code> &nbsp;&middot;&nbsp;
+                    SP-404MKII: the <code>EXPORT SAMPLE</code> folder
+                </div>
+                <div class="pick-row">
+                    <button type="button" class="pick-btn" id="pickFolder">Choose folder</button>
+                    <button type="button" class="pick-btn" id="pickFiles">Choose files</button>
+                </div>
+                <input type="file" id="exFolder" webkitdirectory directory multiple class="hidden">
+                <input type="file" id="exFiles" multiple class="hidden">
+            </div>
+            <div id="exSummary" class="srcinfo hidden" style="margin-top:1.1rem;"></div>
+            <div id="exWrap" class="hidden" style="margin-top:1.1rem; overflow-x:auto;">
+                <table class="files">
+                    <thead><tr><th>Pad</th><th>From card</th><th>Exports as</th><th>Audio</th></tr></thead>
+                    <tbody id="exRows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>2 · Output</h2>
+            <div style="display:flex; flex-wrap:wrap; gap:1.5rem; align-items:center; margin-bottom:1.2rem;">
+                <div class="field">
+                    <label for="exRate">Sample rate</label>
+                    <select id="exRate">
+                        <option value="0" selected>Keep original</option>
+                        <option value="44100">44.1 kHz</option>
+                        <option value="48000">48 kHz</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="exNaming">Name files</label>
+                    <select id="exNaming">
+                        <option value="both" selected>Pad + original</option>
+                        <option value="pad">Pad only</option>
+                        <option value="orig">Original only</option>
+                    </select>
+                </div>
+            </div>
+            <div class="opts">
+                <div class="opt">
+                    <input type="checkbox" id="exTrim" checked>
+                    <label for="exTrim">
+                        <div class="opt-label">Apply stored start/end</div>
+                        <div class="opt-help">Use the trim points in <code>PAD_INFO.BIN</code> so you get the sample as the pad plays it. SX/A only.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="exNorm">
+                    <label for="exNorm">
+                        <div class="opt-label">Normalise</div>
+                        <div class="opt-help">Lift the peak to &minus;1&nbsp;dBFS.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="exMono">
+                    <label for="exMono">
+                        <div class="opt-label">Force mono</div>
+                        <div class="opt-help">Fold stereo samples down to one channel.</div>
+                    </label>
+                </div>
+            </div>
+            <div class="note" style="border-left-color: rgba(0,255,255,.5); background: rgba(0,255,255,.04);">
+                <strong style="color:rgba(0,255,255,.95)">How this works.</strong>
+                An SX/A card holds plain WAVs, so they are read straight off it and the pad each one sits on
+                comes from <code>PAD_INFO.BIN</code>. The MKII keeps its samples in internal memory, so export
+                them to the card from the unit first (<code>EXPORT SAMPLE</code>) and this tool tidies up what
+                it wrote. Left on &ldquo;keep original&rdquo; with nothing ticked, the audio is copied through
+                sample for sample &mdash; only the Roland header is dropped and the file renamed.
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>3 · Build</h2>
+            <div class="actions">
+                <button class="btn" id="exGo" disabled>Export WAVs</button>
+                <span class="status" id="exStatus">Add your card's files to begin.</span>
+            </div>
+        </div>
+    </div><!-- /extractUI -->
+
+    <footer>
+        Built by LucidSoup · not affiliated with Roland · SP-404, SP-404SX and SP-404MKII are Roland trademarks
+    </footer>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    // =====================================================================
+    // Target formats
+    //
+    // SP-404SX / SP-404A
+    //   Samples: ROLAND/SP-404SX/SMPL/<bank><7 digits>.WAV — A0000001.WAV is
+    //   bank A pad 1, B0000003.WAV is bank B pad 3. Ten banks A-J, 12 pads
+    //   each, 120 in all. 44.1kHz 16-bit.
+    //   Pad assignments live in PAD_INFO.BIN beside them: 120 records of 32
+    //   bytes, big-endian, in pad order A1..J12.
+    //   Roland's own converter starts the audio at byte 512 of the WAV and
+    //   points PAD_INFO.BIN there, so we lay the file out the same way.
+    //
+    // SP-404MKII
+    //   Drop files in IMPORT/ at the card root and import them from the unit.
+    //   48kHz 16-bit. Filenames are free, and the unit shows them, so the
+    //   originals are kept.
+    // =====================================================================
+    var SX = {
+        rate: 44100, banks: 'ABCDEFGHIJ', padsPerBank: 12,
+        get slots() { return this.banks.length * this.padsPerBank; }
+    };
+    var MK2 = { rate: 48000 };
+    var PAD_RECORD = 32;
+    var SX_DATA_OFFSET = 512;
+
+    // ---------------------------------------------------------------------
+    // ZIP writer — store only, no compression.
+    // 16-bit PCM barely compresses, so deflate would cost CPU for a percent
+    // or two, and storing keeps this dependency-free.
+    // ---------------------------------------------------------------------
+    var CRC_TABLE = (function () {
+        var t = new Uint32Array(256);
+        for (var n = 0; n < 256; n++) {
+            var c = n;
+            for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            t[n] = c >>> 0;
+        }
+        return t;
+    })();
+
+    function crc32(bytes) {
+        var c = 0xFFFFFFFF;
+        for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+        return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function dosDateTime(d) {
+        return {
+            time: ((d.getHours() & 31) << 11) | ((d.getMinutes() & 63) << 5) | ((d.getSeconds() / 2) & 31),
+            date: (((d.getFullYear() - 1980) & 127) << 9) | (((d.getMonth() + 1) & 15) << 5) | (d.getDate() & 31)
+        };
+    }
+
+    function buildZip(entries) {
+        var stamp = dosDateTime(new Date());
+        var enc = new TextEncoder();
+        var locals = [], centrals = [], offset = 0;
+
+        entries.forEach(function (e) {
+            var nameBytes = enc.encode(e.name);
+            var data = e.data;
+            var crc = crc32(data);
+
+            var local = new Uint8Array(30 + nameBytes.length);
+            var lv = new DataView(local.buffer);
+            lv.setUint32(0, 0x04034b50, true);     // local file header
+            lv.setUint16(4, 20, true);             // version needed
+            lv.setUint16(6, 0, true);              // flags
+            lv.setUint16(8, 0, true);              // method 0 = stored
+            lv.setUint16(10, stamp.time, true);
+            lv.setUint16(12, stamp.date, true);
+            lv.setUint32(14, crc, true);
+            lv.setUint32(18, data.length, true);   // compressed size
+            lv.setUint32(22, data.length, true);   // uncompressed size
+            lv.setUint16(26, nameBytes.length, true);
+            lv.setUint16(28, 0, true);             // extra length
+            local.set(nameBytes, 30);
+
+            var central = new Uint8Array(46 + nameBytes.length);
+            var cv = new DataView(central.buffer);
+            cv.setUint32(0, 0x02014b50, true);     // central directory header
+            cv.setUint16(4, 20, true);             // version made by
+            cv.setUint16(6, 20, true);             // version needed
+            cv.setUint16(8, 0, true);
+            cv.setUint16(10, 0, true);
+            cv.setUint16(12, stamp.time, true);
+            cv.setUint16(14, stamp.date, true);
+            cv.setUint32(16, crc, true);
+            cv.setUint32(20, data.length, true);
+            cv.setUint32(24, data.length, true);
+            cv.setUint16(28, nameBytes.length, true);
+            cv.setUint16(30, 0, true);             // extra
+            cv.setUint16(32, 0, true);             // comment
+            cv.setUint16(34, 0, true);             // disk number
+            cv.setUint16(36, 0, true);             // internal attrs
+            cv.setUint32(38, 0, true);             // external attrs
+            cv.setUint32(42, offset, true);        // offset of local header
+            central.set(nameBytes, 46);
+
+            locals.push(local, data);
+            centrals.push(central);
+            offset += local.length + data.length;
+        });
+
+        var centralSize = centrals.reduce(function (n, c) { return n + c.length; }, 0);
+        var end = new Uint8Array(22);
+        var ev = new DataView(end.buffer);
+        ev.setUint32(0, 0x06054b50, true);         // end of central directory
+        ev.setUint16(8, entries.length, true);
+        ev.setUint16(10, entries.length, true);
+        ev.setUint32(12, centralSize, true);
+        ev.setUint32(16, offset, true);
+
+        return new Blob(locals.concat(centrals, [end]), { type: 'application/zip' });
+    }
+
+    // ---------------------------------------------------------------------
+    // WAV encoding, 16-bit PCM
+    // ---------------------------------------------------------------------
+    function writeTag(view, offset, tag) {
+        for (var i = 0; i < tag.length; i++) view.setUint8(offset + i, tag.charCodeAt(i));
+    }
+
+    // Interleave and convert float samples to signed 16-bit.
+    function toPCM16(channels, length) {
+        var out = new Int16Array(length * channels.length);
+        var w = 0;
+        for (var i = 0; i < length; i++) {
+            for (var c = 0; c < channels.length; c++) {
+                var s = channels[c][i];
+                if (s > 1) s = 1; else if (s < -1) s = -1;
+                // Asymmetric scaling: +1.0 must land on 32767, not wrap to -32768.
+                out[w++] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+        }
+        return out;
+    }
+
+    /**
+     * SX layout: RIFF / fmt / RLND / data, with the audio starting at byte 512
+     * exactly as Roland's own converter writes it, so the offsets we put in
+     * PAD_INFO.BIN describe the file truthfully.
+     * padIndex is the pad's position in A1..J12 order.
+     */
+    function encodeWavSX(channels, length, rate, padIndex) {
+        var nch = channels.length;
+        var pcm = toPCM16(channels, length);
+        var dataBytes = pcm.length * 2;
+
+        // Everything before the audio is fixed at 512 bytes: 44 bytes of RIFF +
+        // fmt + the RLND header and its 8-byte chunk header, then 8 bytes of
+        // 'data' + size. So the RLND payload is whatever makes that add up.
+        var rlndSize = SX_DATA_OFFSET - 44 - 8;
+        var buf = new ArrayBuffer(SX_DATA_OFFSET + dataBytes);
+        var v = new DataView(buf);
+
+        writeTag(v, 0, 'RIFF');
+        v.setUint32(4, buf.byteLength - 8, true);
+        writeTag(v, 8, 'WAVE');
+
+        writeTag(v, 12, 'fmt ');
+        v.setUint32(16, 16, true);                 // PCM fmt chunk size
+        v.setUint16(20, 1, true);                  // format = PCM
+        v.setUint16(22, nch, true);
+        v.setUint32(24, rate, true);
+        v.setUint32(28, rate * nch * 2, true);     // byte rate
+        v.setUint16(32, nch * 2, true);            // block align
+        v.setUint16(34, 16, true);                 // bits per sample
+
+        writeTag(v, 36, 'RLND');
+        v.setUint32(40, rlndSize, true);
+        writeTag(v, 44, 'roifspsx');               // device id
+        v.setUint8(52, 0); v.setUint8(53, 0); v.setUint8(54, 0);
+        v.setUint8(55, padIndex & 0xFF);           // pad this sample belongs to
+        // remainder of the RLND payload stays zero
+
+        var dataAt = 44 + rlndSize;
+        writeTag(v, dataAt, 'data');
+        v.setUint32(dataAt + 4, dataBytes, true);
+
+        new Int16Array(buf, SX_DATA_OFFSET).set(pcm);
+        return { bytes: new Uint8Array(buf), dataBytes: dataBytes, channels: nch };
+    }
+
+    /** Plain 44-byte-header WAV for the MKII, which imports ordinary files. */
+    function encodeWavPlain(channels, length, rate) {
+        var nch = channels.length;
+        var pcm = toPCM16(channels, length);
+        var dataBytes = pcm.length * 2;
+        var buf = new ArrayBuffer(44 + dataBytes);
+        var v = new DataView(buf);
+
+        writeTag(v, 0, 'RIFF');
+        v.setUint32(4, buf.byteLength - 8, true);
+        writeTag(v, 8, 'WAVE');
+        writeTag(v, 12, 'fmt ');
+        v.setUint32(16, 16, true);
+        v.setUint16(20, 1, true);
+        v.setUint16(22, nch, true);
+        v.setUint32(24, rate, true);
+        v.setUint32(28, rate * nch * 2, true);
+        v.setUint16(32, nch * 2, true);
+        v.setUint16(34, 16, true);
+        writeTag(v, 36, 'data');
+        v.setUint32(40, dataBytes, true);
+        new Int16Array(buf, 44).set(pcm);
+        return { bytes: new Uint8Array(buf), dataBytes: dataBytes, channels: nch };
+    }
+
+    // ---------------------------------------------------------------------
+    // PAD_INFO.BIN — 120 records x 32 bytes, big-endian, pad order A1..J12.
+    // base is an existing file to preserve untouched pads; without one, pads
+    // we do not write are left zeroed (empty).
+    // ---------------------------------------------------------------------
+    function buildPadInfo(assignments, base) {
+        var total = SX.slots * PAD_RECORD;
+        var out = new Uint8Array(total);
+        if (base && base.length >= total) out.set(base.subarray(0, total));
+
+        var v = new DataView(out.buffer);
+        assignments.forEach(function (a) {
+            var o = a.padIndex * PAD_RECORD;
+            var start = SX_DATA_OFFSET;
+            var end = SX_DATA_OFFSET + a.dataBytes;
+            v.setUint32(o + 0, start, false);      // OrigSampleStart
+            v.setUint32(o + 4, end, false);        // OrigSampleEnd
+            v.setUint32(o + 8, start, false);      // UserSampleStart
+            v.setUint32(o + 12, end, false);       // UserSampleEnd
+            v.setUint8(o + 16, 127);               // Volume (0-127)
+            v.setUint8(o + 17, 0);                 // Lofi
+            v.setUint8(o + 18, 0);                 // Loop
+            v.setUint8(o + 19, 0);                 // Gate
+            v.setUint8(o + 20, 0);                 // Reverse
+            v.setUint8(o + 21, 1);                 // Format: 1 = WAVE
+            v.setUint8(o + 22, a.channels);        // Channels
+            v.setUint8(o + 23, 0);                 // TempoMode: 0 = off
+            v.setUint32(o + 24, 1200, false);      // OrigTempo, bpm x10
+            v.setUint32(o + 28, 1200, false);      // UserTempo
+        });
+        return out;
+    }
+
+    function padName(padIndex) {
+        var bank = SX.banks[Math.floor(padIndex / SX.padsPerBank)];
+        var pad = (padIndex % SX.padsPerBank) + 1;
+        // Bank letter plus seven zero-padded digits: A0000001.WAV
+        return bank + String(pad).padStart(7, '0') + '.WAV';
+    }
+
+    function padLabel(padIndex) {
+        return SX.banks[Math.floor(padIndex / SX.padsPerBank)] + ((padIndex % SX.padsPerBank) + 1);
+    }
+
+    // ---------------------------------------------------------------------
+    // Audio processing
+    // ---------------------------------------------------------------------
+    var audioCtx = null;
+    function ctx() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return audioCtx;
+    }
+
+    function decode(arrayBuffer) {
+        return new Promise(function (resolve, reject) {
+            // Safari still only supports the callback form.
+            var p = ctx().decodeAudioData(arrayBuffer, resolve, reject);
+            if (p && typeof p.then === 'function') p.then(resolve, reject);
+        });
+    }
+
+    /** Resample and channel-map in one offline pass. */
+    function resample(buffer, rate, mono) {
+        var channels = mono ? 1 : Math.min(buffer.numberOfChannels, 2);
+        var frames = Math.max(1, Math.ceil(buffer.duration * rate));
+        var OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        var off = new OfflineCtx(channels, frames, rate);
+        var src = off.createBufferSource();
+        src.buffer = buffer;
+        src.connect(off.destination);
+        src.start(0);
+        return off.startRendering();
+    }
+
+    function channelsOf(buffer) {
+        var out = [];
+        for (var c = 0; c < buffer.numberOfChannels; c++) out.push(buffer.getChannelData(c));
+        return out;
+    }
+
+    function peakOf(channels, length) {
+        var peak = 0;
+        for (var c = 0; c < channels.length; c++) {
+            var d = channels[c];
+            for (var i = 0; i < length; i++) {
+                var a = Math.abs(d[i]);
+                if (a > peak) peak = a;
+            }
+        }
+        return peak;
+    }
+
+    /** Window of audible content, with a little tail so decays survive. */
+    function contentBounds(channels, length, rate) {
+        var floor = 0.0016;                        // about -56 dBFS
+        var first = -1, last = -1;
+        for (var i = 0; i < length; i++) {
+            for (var c = 0; c < channels.length; c++) {
+                if (Math.abs(channels[c][i]) > floor) {
+                    if (first < 0) first = i;
+                    last = i;
+                    break;
+                }
+            }
+        }
+        if (first < 0) return null;                // silent all through
+        var pre = Math.floor(rate * 0.005);
+        var post = Math.floor(rate * 0.03);
+        return { start: Math.max(0, first - pre), end: Math.min(length, last + post) };
+    }
+
+    /**
+     * Apply the chosen options and return plain Float32Arrays, detached from
+     * the AudioBuffer so later steps cannot disturb it.
+     */
+    function applyOptions(buffer, opts) {
+        var src = channelsOf(buffer);
+        var length = buffer.length;
+        var start = 0;
+
+        if (opts.trim) {
+            var b = contentBounds(src, length, buffer.sampleRate);
+            if (b) { start = b.start; length = b.end - b.start; }
+        }
+        if (length <= 0) return null;
+
+        var out = src.map(function (d) { return d.slice(start, start + length); });
+
+        if (opts.normalize) {
+            var peak = peakOf(out, length);
+            // -1 dBFS of headroom; silence is left alone rather than amplified.
+            if (peak > 0.0001) {
+                var gain = 0.891 / peak;
+                for (var c = 0; c < out.length; c++) {
+                    for (var i = 0; i < length; i++) out[c][i] *= gain;
+                }
+            }
+        }
+
+        if (opts.fade) {
+            var n = Math.min(Math.floor(buffer.sampleRate * 0.002), Math.floor(length / 2));
+            for (var c2 = 0; c2 < out.length; c2++) {
+                for (var j = 0; j < n; j++) {
+                    var g = j / n;
+                    out[c2][j] *= g;
+                    out[c2][length - 1 - j] *= g;
+                }
+            }
+        }
+
+        return { channels: out, length: length };
+    }
+
+    // ---------------------------------------------------------------------
+    // State + UI
+    // ---------------------------------------------------------------------
+    var items = [];          // { file, name, status, error, duration, buffer }
+    var padInfoBase = null;  // existing PAD_INFO.BIN bytes, if supplied
+    var busy = false;
+    var resultMsg = null;    // outcome of the last build, held until something changes
+
+    // Any change to the inputs makes the previous build's result stale.
+    function touch() { resultMsg = null; }
+
+    var $ = function (id) { return document.getElementById(id); };
+    var drop = $('drop'), picker = $('picker'), rows = $('fileRows'), fileWrap = $('fileWrap');
+    var goBtn = $('go'), statusEl = $('status'), sxOpts = $('sxOpts'), sxNote = $('sxNote');
+    var startBank = $('startBank'), startPad = $('startPad'), slotHead = $('slotHead');
+    var stepsBox = $('steps'), stepList = $('stepList');
+
+    function model() {
+        var sel = document.querySelector('input[name=model]:checked');
+        return sel ? sel.value : 'sx';
+    }
+    function isSX() { return model() === 'sx'; }
+
+    for (var b = 0; b < SX.banks.length; b++) {
+        startBank.add(new Option(SX.banks[b], String(b)));
+    }
+    for (var p = 1; p <= SX.padsPerBank; p++) {
+        startPad.add(new Option('Pad ' + p, String(p - 1)));
+    }
+
+    function firstPadIndex() {
+        return parseInt(startBank.value, 10) * SX.padsPerBank + parseInt(startPad.value, 10);
+    }
+
+    function fmtBytes(n) {
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+        return (n / 1048576).toFixed(1) + ' MB';
+    }
+    function fmtTime(s) {
+        if (!isFinite(s)) return '—';
+        var m = Math.floor(s / 60), r = s - m * 60;
+        return m > 0 ? m + ':' + (r < 10 ? '0' : '') + r.toFixed(1) : r.toFixed(2) + 's';
+    }
+
+    /**
+     * Keep the MKII's filenames but make them safe for a FAT card. Path
+     * separators go with everything else outside the allowed set, so a name
+     * can never climb out of IMPORT/.
+     */
+    function safeName(name) {
+        var dot = name.lastIndexOf('.');
+        var stem = dot > 0 ? name.slice(0, dot) : name;
+        stem = stem.replace(/[^A-Za-z0-9 _-]/g, '_').replace(/\s+/g, ' ').trim();
+        stem = stem.replace(/^[._-]+/, '');
+        if (!stem) stem = 'sample';
+        return stem.slice(0, 48) + '.wav';
+    }
+
+    /**
+     * Destination path for every item, in order; null once the pads run out.
+     * Built in one pass because MKII names have to be de-duplicated against
+     * each other — two sources can sanitise to the same thing, and duplicate
+     * entries in a ZIP unpack unpredictably.
+     */
+    function destinations() {
+        var used = {};
+        return items.map(function (item, i) {
+            if (isSX()) {
+                var pi = firstPadIndex() + i;
+                return pi >= SX.slots ? null : 'ROLAND/SP-404SX/SMPL/' + padName(pi);
+            }
+            var name = safeName(item.name);
+            var key = name.toLowerCase();        // FAT does not distinguish case
+            if (used[key]) {
+                var dot = name.lastIndexOf('.');
+                name = name.slice(0, dot) + '-' + (++used[key]) + name.slice(dot);
+            } else {
+                used[key] = 1;
+            }
+            return 'IMPORT/' + name;
+        });
+    }
+
+    function render() {
+        fileWrap.classList.toggle('hidden', items.length === 0);
+        slotHead.textContent = isSX() ? 'Pad' : '#';
+        sxOpts.style.display = isSX() ? 'flex' : 'none';
+        sxNote.style.display = isSX() ? 'block' : 'none';
+
+        rows.innerHTML = '';
+        var dests = destinations();
+        items.forEach(function (item, i) {
+            var tr = document.createElement('tr');
+            var pi = firstPadIndex() + i;
+            var overflow = isSX() && pi >= SX.slots;
+
+            var slot = document.createElement('td');
+            slot.className = 'pad' + (overflow ? ' over' : '');
+            slot.textContent = isSX() ? (overflow ? '—' : padLabel(pi)) : String(i + 1);
+
+            var nameCell = document.createElement('td');
+            nameCell.className = 'fname';
+            nameCell.textContent = item.name;
+            if (item.error) {
+                var e = document.createElement('div');
+                e.className = 'err';
+                e.textContent = item.error;
+                nameCell.appendChild(e);
+            }
+
+            var destCell = document.createElement('td');
+            destCell.className = 'dest';
+            destCell.textContent = overflow ? 'no pad left' : (dests[i] || '—');
+
+            var metaCell = document.createElement('td');
+            metaCell.className = 'meta';
+            metaCell.textContent = item.buffer
+                ? fmtTime(item.buffer.duration) + ' · ' + (item.buffer.numberOfChannels > 1 ? 'stereo' : 'mono')
+                : (item.status || '…');
+
+            var actions = document.createElement('td');
+            var box = document.createElement('div');
+            box.className = 'row-btns';
+            if (item.buffer) {
+                var play = document.createElement('button');
+                play.className = 'row-btn';
+                play.type = 'button';
+                play.textContent = '▶';
+                play.title = 'Preview';
+                play.addEventListener('click', function () { preview(item); });
+                box.appendChild(play);
+            }
+            var up = document.createElement('button');
+            up.className = 'row-btn'; up.type = 'button'; up.textContent = '↑'; up.title = 'Move up';
+            up.disabled = i === 0;
+            up.addEventListener('click', function () { move(i, -1); });
+            var down = document.createElement('button');
+            down.className = 'row-btn'; down.type = 'button'; down.textContent = '↓'; down.title = 'Move down';
+            down.disabled = i === items.length - 1;
+            down.addEventListener('click', function () { move(i, 1); });
+            var del = document.createElement('button');
+            del.className = 'row-btn'; del.type = 'button'; del.textContent = '✕'; del.title = 'Remove';
+            del.addEventListener('click', function () { touch(); items.splice(i, 1); render(); });
+            box.appendChild(up); box.appendChild(down); box.appendChild(del);
+            actions.appendChild(box);
+
+            tr.appendChild(slot); tr.appendChild(nameCell); tr.appendChild(destCell);
+            tr.appendChild(metaCell); tr.appendChild(actions);
+            rows.appendChild(tr);
+        });
+
+        updateStatus();
+    }
+
+    function move(i, delta) {
+        var j = i + delta;
+        if (j < 0 || j >= items.length) return;
+        touch();
+        var tmp = items[i]; items[i] = items[j]; items[j] = tmp;
+        render();
+    }
+
+    function ready() {
+        return items.filter(function (it, i) {
+            return it.buffer && !(isSX() && firstPadIndex() + i >= SX.slots);
+        });
+    }
+
+    function updateStatus() {
+        if (busy) return;
+        var ok = ready().length;
+        if (resultMsg) {
+            // Keep the build result on screen instead of reverting to the
+            // ready-count the moment the run finishes.
+            statusEl.textContent = resultMsg;
+            goBtn.disabled = ok === 0;
+            return;
+        }
+        var failed = items.filter(function (it) { return it.error; }).length;
+        goBtn.disabled = ok === 0;
+
+        if (items.length === 0) { statusEl.textContent = 'Add some audio to begin.'; return; }
+        var parts = [ok + ' sample' + (ok === 1 ? '' : 's') + ' ready'];
+        if (failed) parts.push(failed + ' could not be decoded');
+        if (isSX()) {
+            var over = items.length - ok - failed;
+            if (over > 0) parts.push(over + ' past pad J12');
+            var free = SX.slots - firstPadIndex();
+            parts.push(free + ' pad' + (free === 1 ? '' : 's') + ' from ' + padLabel(firstPadIndex()));
+        }
+        statusEl.textContent = parts.join(' · ');
+    }
+
+    var playing = null;
+    function preview(item) {
+        if (playing) { try { playing.stop(); } catch (e) {} playing = null; }
+        var c = ctx();
+        if (c.state === 'suspended') c.resume();
+        var src = c.createBufferSource();
+        src.buffer = item.buffer;
+        src.connect(c.destination);
+        src.start(0);
+        playing = src;
+    }
+
+    // ---------------------------------------------------------------------
+    // Input
+    // ---------------------------------------------------------------------
+    function addFiles(fileList) {
+        var incoming = Array.prototype.slice.call(fileList).filter(function (f) { return f.size > 0; });
+        if (!incoming.length) return;
+
+        touch();
+        incoming.forEach(function (file) {
+            var item = { file: file, name: file.name, status: 'reading…', error: null, buffer: null };
+            items.push(item);
+            file.arrayBuffer()
+                .then(decode)
+                .then(function (buf) { item.buffer = buf; item.status = null; render(); })
+                .catch(function () {
+                    item.error = 'This browser could not decode that file.';
+                    item.status = null;
+                    render();
+                });
+        });
+        render();
+    }
+
+    drop.addEventListener('click', function () { picker.click(); });
+    picker.addEventListener('change', function () { addFiles(picker.files); picker.value = ''; });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+    });
+    drop.addEventListener('drop', function (e) {
+        if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+    });
+
+    document.querySelectorAll('.model').forEach(function (label) {
+        label.addEventListener('click', function () {
+            document.querySelectorAll('.model').forEach(function (l) { l.classList.remove('sel'); });
+            label.classList.add('sel');
+            label.querySelector('input').checked = true;
+            touch();
+            render();
+        });
+    });
+
+    startBank.addEventListener('change', function () { touch(); render(); });
+    startPad.addEventListener('change', function () { touch(); render(); });
+    document.querySelectorAll('.opts input[type=checkbox]').forEach(function (cb) {
+        cb.addEventListener('change', function () { touch(); updateStatus(); });
+    });
+
+    $('padInfoIn').addEventListener('change', function (e) {
+        var f = e.target.files && e.target.files[0];
+        if (!f) { padInfoBase = null; return; }
+        f.arrayBuffer().then(function (ab) {
+            var need = SX.slots * PAD_RECORD;
+            if (ab.byteLength < need) {
+                padInfoBase = null;
+                statusEl.textContent = 'That PAD_INFO.BIN looks wrong (' + ab.byteLength +
+                    ' bytes, expected ' + need + '). Ignoring it.';
+                return;
+            }
+            padInfoBase = new Uint8Array(ab);
+            updateStatus();
+        });
+    });
+
+    // ---------------------------------------------------------------------
+    // Build
+    // ---------------------------------------------------------------------
+    function showSteps(sx, count) {
+        stepList.innerHTML = '';
+        var steps = sx
+            ? ['Unzip the download.',
+               'Copy the <code>ROLAND</code> folder to the root of your SD card, merging with what is there.',
+               'Say yes to replacing <code>PAD_INFO.BIN</code> — that file is what assigns the pads.',
+               'Put the card back in the SP-404 and power it on. Your ' + count + ' sample' +
+                   (count === 1 ? ' is' : 's are') + ' on the pads shown above.']
+            : ['Unzip the download.',
+               'Copy the <code>IMPORT</code> folder to the root of your SD card.',
+               'On the SP-404MKII: hold <code>SHIFT</code> and press <code>IMPORT</code>, then pick the samples.',
+               'Assign each one to a pad from the unit.'];
+        steps.forEach(function (s) {
+            var li = document.createElement('li');
+            li.innerHTML = s;
+            stepList.appendChild(li);
+        });
+        stepsBox.classList.remove('hidden');
+    }
+
+    goBtn.addEventListener('click', function () {
+        if (busy) return;
+        var sx = isSX();
+        var targets = items.filter(function (it) { return it.buffer; });
+        if (isSX()) {
+            targets = targets.filter(function (it) {
+                return firstPadIndex() + items.indexOf(it) < SX.slots;
+            });
+        }
+        if (!targets.length) return;
+
+        busy = true;
+        resultMsg = null;
+        goBtn.disabled = true;
+        stepsBox.classList.add('hidden');
+
+        var opts = {
+            normalize: $('optNormalize').checked,
+            trim: $('optTrim').checked,
+            mono: $('optMono').checked,
+            fade: $('optFade').checked
+        };
+        var rate = sx ? SX.rate : MK2.rate;
+        var entries = [];
+        var assignments = [];
+        var skipped = [];
+        var dests = destinations();
+
+        // Sequential rather than parallel: a pile of OfflineAudioContexts at
+        // once will exhaust memory on long files.
+        var chain = Promise.resolve();
+        targets.forEach(function (item) {
+            chain = chain.then(function () {
+                var index = items.indexOf(item);
+                statusEl.textContent = 'Converting ' + item.name + '…';
+                return resample(item.buffer, rate, opts.mono).then(function (rendered) {
+                    var processed = applyOptions(rendered, opts);
+                    if (!processed) { skipped.push(item.name + ' (silent)'); return; }
+
+                    var wav;
+                    var name = dests[index];
+                    if (!name) return;
+                    if (sx) {
+                        var padIndex = firstPadIndex() + index;
+                        wav = encodeWavSX(processed.channels, processed.length, rate, padIndex);
+                        assignments.push({
+                            padIndex: padIndex,
+                            dataBytes: wav.dataBytes,
+                            channels: wav.channels
+                        });
+                    } else {
+                        wav = encodeWavPlain(processed.channels, processed.length, rate);
+                    }
+                    entries.push({ name: name, data: wav.bytes });
+                });
+            });
+        });
+
+        chain.then(function () {
+            if (!entries.length) throw new Error('Nothing converted.');
+            if (sx) {
+                entries.push({
+                    name: 'ROLAND/SP-404SX/SMPL/PAD_INFO.BIN',
+                    data: buildPadInfo(assignments, padInfoBase)
+                });
+            }
+
+            var blob = buildZip(entries);
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = sx ? 'sp404sx-samples.zip' : 'sp404mk2-import.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+
+            var made = sx ? entries.length - 1 : entries.length;
+            var msg = 'Built ' + made + ' sample' + (made === 1 ? '' : 's') + ' · ' + fmtBytes(blob.size);
+            if (sx && padInfoBase) msg += ' · merged into your PAD_INFO.BIN';
+            if (skipped.length) msg += ' · skipped ' + skipped.join(', ');
+            resultMsg = msg;
+            statusEl.textContent = msg;
+            showSteps(sx, made);
+        }).catch(function (err) {
+            resultMsg = 'Conversion failed: ' + (err && err.message ? err.message : err);
+            statusEl.textContent = resultMsg;
+        }).then(function () {
+            busy = false;
+            updateStatus();
+        });
+    });
+
+    render();
+
+    // =====================================================================
+    // EXTRACT: card -> plain WAVs
+    // =====================================================================
+
+    /** Walk a RIFF file's chunks. Returns null if it is not PCM WAV we can use. */
+    function parseWav(bytes) {
+        if (bytes.length < 44) return null;
+        var v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        var tag = function (o) {
+            return String.fromCharCode(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
+        };
+        if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE') return null;
+
+        var fmt = null, data = null;
+        var o = 12;
+        while (o + 8 <= bytes.length) {
+            var id = tag(o);
+            var size = v.getUint32(o + 4, true);
+            var body = o + 8;
+            if (id === 'fmt ' && size >= 16) {
+                fmt = {
+                    format: v.getUint16(body, true),
+                    channels: v.getUint16(body + 2, true),
+                    rate: v.getUint32(body + 4, true),
+                    bits: v.getUint16(body + 14, true)
+                };
+            } else if (id === 'data') {
+                // Trust the file's real length over a size field that lies,
+                // which Roland's own writers sometimes do on an interrupted save.
+                data = { offset: body, length: Math.min(size, bytes.length - body) };
+            }
+            o = body + size + (size & 1);   // chunks are word-aligned
+            if (size === 0) break;
+        }
+        if (!fmt || !data || fmt.format !== 1 || fmt.bits !== 16) return null;
+        return { rate: fmt.rate, channels: fmt.channels, bits: fmt.bits,
+                 dataOffset: data.offset, dataLength: data.length };
+    }
+
+    /**
+     * Work out which pad a card file belongs to from its name.
+     * SX/A writes A0000001.WAV; the original SP-404 writes A_01.WAV. The MKII
+     * is not documented, so anything else falls through as "no pad" and keeps
+     * its own name.
+     */
+    function detectPad(filename) {
+        var base = filename.replace(/^.*[\\\/]/, '');
+        var m = /^([A-J])(\d{7})\.wav$/i.exec(base);
+        if (m) {
+            var pad = parseInt(m[2], 10);
+            if (pad >= 1 && pad <= SX.padsPerBank) {
+                return { bank: m[1].toUpperCase(), pad: pad,
+                         padIndex: SX.banks.indexOf(m[1].toUpperCase()) * SX.padsPerBank + pad - 1 };
+            }
+        }
+        m = /^([A-J])[_-](\d{1,2})\.wav$/i.exec(base);
+        if (m) {
+            var pad2 = parseInt(m[2], 10);
+            if (pad2 >= 1 && pad2 <= SX.padsPerBank) {
+                return { bank: m[1].toUpperCase(), pad: pad2,
+                         padIndex: SX.banks.indexOf(m[1].toUpperCase()) * SX.padsPerBank + pad2 - 1 };
+            }
+        }
+        return null;
+    }
+
+    /** Read PAD_INFO.BIN into per-pad records. */
+    function parsePadInfo(bytes) {
+        var need = SX.slots * PAD_RECORD;
+        if (!bytes || bytes.length < need) return null;
+        var v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        var out = [];
+        for (var i = 0; i < SX.slots; i++) {
+            var o = i * PAD_RECORD;
+            var start = v.getUint32(o + 8, false);   // user start, what the pad plays
+            var end = v.getUint32(o + 12, false);
+            if (!end) { start = v.getUint32(o, false); end = v.getUint32(o + 4, false); }
+            out.push({
+                start: start, end: end,
+                volume: bytes[o + 16], channels: bytes[o + 22],
+                empty: end === 0
+            });
+        }
+        return out;
+    }
+
+    var sources = [];        // { file, path, name, bytes, wav, pad, info }
+    var padInfoRecords = null;
+    var exBusy = false;
+
+    var exDrop = $('exDrop'), exRows = $('exRows'), exWrap = $('exWrap');
+    var exSummary = $('exSummary'), exGo = $('exGo'), exStatus = $('exStatus');
+
+    function exOutName(src, index) {
+        var naming = $('exNaming').value;
+        var stem = src.name.replace(/\.[^.]*$/, '');
+        var padCode = src.pad ? src.pad.bank + String(src.pad.pad).padStart(2, '0') : null;
+        // On an SX card the filename *is* the pad code, so "pad + original"
+        // would read "B05 B0000005". There is no real name to keep in that case.
+        if (padCode && /^[A-J](\d{7}|[_-]\d{1,2})$/i.test(stem)) stem = '';
+        var name;
+        if (!stem && padCode) name = padCode;
+        else if (naming === 'pad' && padCode) name = padCode;
+        else if (naming === 'orig') name = stem;
+        else if (padCode) name = padCode + ' ' + stem;
+        else name = stem;
+        name = name.replace(/[^A-Za-z0-9 _-]/g, '_').replace(/\s+/g, ' ').trim();
+        if (!name) name = 'sample-' + (index + 1);
+        return name.slice(0, 60) + '.wav';
+    }
+
+    function exDestinations() {
+        var used = {};
+        return sources.map(function (src, i) {
+            var name = exOutName(src, i);
+            var key = name.toLowerCase();
+            if (used[key]) {
+                var dot = name.lastIndexOf('.');
+                name = name.slice(0, dot) + '-' + (++used[key]) + name.slice(dot);
+            } else { used[key] = 1; }
+            return name;
+        });
+    }
+
+    function exRender() {
+        exWrap.classList.toggle('hidden', sources.length === 0);
+        exSummary.classList.toggle('hidden', sources.length === 0 && !padInfoRecords);
+
+        var withPad = sources.filter(function (s) { return s.pad; }).length;
+        var bits = [];
+        if (sources.length) bits.push('<b>' + sources.length + '</b> sample' + (sources.length === 1 ? '' : 's') + ' found');
+        if (withPad) bits.push('<b>' + withPad + '</b> with a pad in the filename');
+        if (padInfoRecords) {
+            var filled = padInfoRecords.filter(function (r) { return !r.empty; }).length;
+            bits.push('<b>PAD_INFO.BIN</b> read (' + filled + ' pad' + (filled === 1 ? '' : 's') + ' assigned)');
+        } else if (withPad) {
+            bits.push('<span class="warn">no PAD_INFO.BIN &mdash; stored trim points unavailable</span>');
+        }
+        exSummary.innerHTML = bits.join(' &middot; ');
+
+        var dests = exDestinations();
+        exRows.innerHTML = '';
+        sources.forEach(function (src, i) {
+            var tr = document.createElement('tr');
+            var c1 = document.createElement('td');
+            c1.className = 'pad';
+            c1.textContent = src.pad ? src.pad.bank + src.pad.pad : '—';
+            var c2 = document.createElement('td');
+            c2.className = 'fname';
+            c2.textContent = src.path || src.name;
+            var c3 = document.createElement('td');
+            c3.className = 'dest';
+            c3.textContent = dests[i];
+            var c4 = document.createElement('td');
+            c4.className = 'meta';
+            if (src.wav) {
+                var frames = src.wav.dataLength / (2 * src.wav.channels);
+                c4.textContent = (src.wav.rate / 1000) + 'k · ' +
+                    (src.wav.channels > 1 ? 'stereo' : 'mono') + ' · ' + fmtTime(frames / src.wav.rate);
+            } else {
+                c4.innerHTML = '<span class="err">not 16-bit PCM WAV</span>';
+            }
+            tr.appendChild(c1); tr.appendChild(c2); tr.appendChild(c3); tr.appendChild(c4);
+            exRows.appendChild(tr);
+        });
+
+        exUpdateStatus();
+    }
+
+    function exUpdateStatus() {
+        if (exBusy) return;
+        var ok = sources.filter(function (s) { return s.wav; }).length;
+        exGo.disabled = ok === 0;
+        if (!sources.length) { exStatus.textContent = "Add your card's files to begin."; return; }
+        var skipped = sources.length - ok;
+        exStatus.textContent = ok + ' ready to export' + (skipped ? ' · ' + skipped + ' skipped' : '');
+    }
+
+    function addCardFiles(list) {
+        var files = Array.prototype.slice.call(list).filter(function (f) { return f.size > 0; });
+        if (!files.length) return;
+        exStatus.textContent = 'Reading ' + files.length + ' file' + (files.length === 1 ? '' : 's') + '…';
+
+        var jobs = files.map(function (f) {
+            var path = f.webkitRelativePath || f._path || f.name;
+            return f.arrayBuffer().then(function (ab) {
+                var bytes = new Uint8Array(ab);
+                if (/PAD_?INFO\.BIN$/i.test(f.name)) {
+                    var recs = parsePadInfo(bytes);
+                    if (recs) padInfoRecords = recs;
+                    return;
+                }
+                if (!/\.(wav|aif|aiff)$/i.test(f.name)) return;
+                sources.push({
+                    file: f, path: path, name: f.name,
+                    bytes: bytes, wav: parseWav(bytes), pad: detectPad(f.name)
+                });
+            }).catch(function () { /* unreadable file, skip it */ });
+        });
+
+        Promise.all(jobs).then(function () {
+            // Pad order first when we know it, so the listing reads like the unit.
+            sources.sort(function (a, b) {
+                if (a.pad && b.pad) return a.pad.padIndex - b.pad.padIndex;
+                if (a.pad) return -1;
+                if (b.pad) return 1;
+                return a.name.localeCompare(b.name, undefined, { numeric: true });
+            });
+            exRender();
+        });
+    }
+
+    /** Recurse a dropped directory; a plain file drop never yields entries. */
+    function walkEntry(entry, prefix, out) {
+        return new Promise(function (resolve) {
+            if (entry.isFile) {
+                entry.file(function (f) {
+                    f._path = prefix + f.name;
+                    out.push(f);
+                    resolve();
+                }, resolve);
+            } else if (entry.isDirectory) {
+                var reader = entry.createReader();
+                var all = [];
+                var readBatch = function () {
+                    reader.readEntries(function (batch) {
+                        if (!batch.length) {
+                            Promise.all(all.map(function (e) {
+                                return walkEntry(e, prefix + entry.name + '/', out);
+                            })).then(resolve);
+                            return;
+                        }
+                        all = all.concat(batch);
+                        readBatch();            // readEntries returns at most 100
+                    }, resolve);
+                };
+                readBatch();
+            } else { resolve(); }
+        });
+    }
+
+    $('pickFolder').addEventListener('click', function () { $('exFolder').click(); });
+    $('pickFiles').addEventListener('click', function () { $('exFiles').click(); });
+    $('exFolder').addEventListener('change', function (e) { addCardFiles(e.target.files); e.target.value = ''; });
+    $('exFiles').addEventListener('change', function (e) { addCardFiles(e.target.files); e.target.value = ''; });
+
+    ['dragenter', 'dragover'].forEach(function (ev) {
+        exDrop.addEventListener(ev, function (e) { e.preventDefault(); exDrop.style.borderColor = 'rgba(0,255,255,.7)'; });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+        exDrop.addEventListener(ev, function (e) { e.preventDefault(); exDrop.style.borderColor = ''; });
+    });
+    exDrop.addEventListener('drop', function (e) {
+        var dt = e.dataTransfer;
+        if (!dt) return;
+        var entries = [];
+        if (dt.items && dt.items.length && dt.items[0].webkitGetAsEntry) {
+            for (var i = 0; i < dt.items.length; i++) {
+                var en = dt.items[i].webkitGetAsEntry();
+                if (en) entries.push(en);
+            }
+        }
+        if (entries.length) {
+            var collected = [];
+            Promise.all(entries.map(function (en) { return walkEntry(en, '', collected); }))
+                .then(function () { addCardFiles(collected); });
+        } else if (dt.files) {
+            addCardFiles(dt.files);
+        }
+    });
+
+    ['exRate', 'exNaming'].forEach(function (id) {
+        $(id).addEventListener('change', exRender);
+    });
+    ['exTrim', 'exNorm', 'exMono'].forEach(function (id) {
+        $(id).addEventListener('change', exUpdateStatus);
+    });
+
+    /**
+     * Byte range of the audio to keep. PAD_INFO start/end are absolute offsets
+     * into the file, so they clamp straight onto the data chunk; the result is
+     * rounded to whole frames or the channels would swap over.
+     */
+    function trimRange(src) {
+        var wav = src.wav;
+        var from = wav.dataOffset, to = wav.dataOffset + wav.dataLength;
+        if ($('exTrim').checked && padInfoRecords && src.pad) {
+            var rec = padInfoRecords[src.pad.padIndex];
+            if (rec && !rec.empty && rec.end > rec.start) {
+                from = Math.max(from, Math.min(rec.start, to));
+                to = Math.min(to, Math.max(rec.end, from));
+            }
+        }
+        var block = 2 * wav.channels;
+        var len = Math.floor((to - from) / block) * block;
+        return { from: from, len: Math.max(0, len) };
+    }
+
+    exGo.addEventListener('click', function () {
+        if (exBusy) return;
+        var usable = sources.filter(function (s) { return s.wav; });
+        if (!usable.length) return;
+
+        exBusy = true;
+        exGo.disabled = true;
+
+        var targetRate = parseInt($('exRate').value, 10) || 0;
+        var norm = $('exNorm').checked, mono = $('exMono').checked;
+        var dests = exDestinations();
+        var entries = [];
+
+        var chain = Promise.resolve();
+        usable.forEach(function (src) {
+            chain = chain.then(function () {
+                var index = sources.indexOf(src);
+                var name = dests[index];
+                var range = trimRange(src);
+                if (range.len <= 0) return;
+                exStatus.textContent = 'Exporting ' + src.name + '…';
+
+                var needsWork = (targetRate && targetRate !== src.wav.rate) || norm ||
+                                (mono && src.wav.channels > 1);
+                if (!needsWork) {
+                    // Nothing to change: copy the samples through byte for byte
+                    // under a clean header. Decoding and re-encoding here would
+                    // cost a least significant bit for no reason.
+                    var pcm = src.bytes.subarray(range.from, range.from + range.len);
+                    entries.push({
+                        name: name,
+                        data: wrapPcm(pcm, src.wav.rate, src.wav.channels)
+                    });
+                    return;
+                }
+
+                // Hand the trimmed region to the decoder as a standalone WAV.
+                var slice = wrapPcm(src.bytes.subarray(range.from, range.from + range.len),
+                                    src.wav.rate, src.wav.channels);
+                return decode(slice.buffer.slice(slice.byteOffset, slice.byteOffset + slice.byteLength))
+                    .then(function (buf) {
+                        var rate = targetRate || src.wav.rate;
+                        return resample(buf, rate, mono).then(function (rendered) {
+                            var processed = applyOptions(rendered, {
+                                normalize: norm, trim: false, mono: mono, fade: false
+                            });
+                            if (!processed) return;
+                            var wav = encodeWavPlain(processed.channels, processed.length, rate);
+                            entries.push({ name: name, data: wav.bytes });
+                        });
+                    })
+                    .catch(function () {
+                        exStatus.textContent = 'Could not decode ' + src.name + ', skipping.';
+                    });
+            });
+        });
+
+        chain.then(function () {
+            if (!entries.length) throw new Error('Nothing to export.');
+            var blob = buildZip(entries);
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'sp404-samples.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+            exStatus.textContent = 'Exported ' + entries.length + ' WAV' +
+                (entries.length === 1 ? '' : 's') + ' · ' + fmtBytes(blob.size);
+        }).catch(function (err) {
+            exStatus.textContent = 'Export failed: ' + (err && err.message ? err.message : err);
+        }).then(function () {
+            exBusy = false;
+            exGo.disabled = sources.filter(function (s) { return s.wav; }).length === 0;
+        });
+    });
+
+    /** Put a standard 44-byte header on raw little-endian 16-bit PCM. */
+    function wrapPcm(pcmBytes, rate, channels) {
+        var out = new Uint8Array(44 + pcmBytes.length);
+        var v = new DataView(out.buffer);
+        writeTag(v, 0, 'RIFF');
+        v.setUint32(4, out.length - 8, true);
+        writeTag(v, 8, 'WAVE');
+        writeTag(v, 12, 'fmt ');
+        v.setUint32(16, 16, true);
+        v.setUint16(20, 1, true);
+        v.setUint16(22, channels, true);
+        v.setUint32(24, rate, true);
+        v.setUint32(28, rate * channels * 2, true);
+        v.setUint16(32, channels * 2, true);
+        v.setUint16(34, 16, true);
+        writeTag(v, 36, 'data');
+        v.setUint32(40, pcmBytes.length, true);
+        out.set(pcmBytes, 44);
+        return out;
+    }
+
+    // ---- mode switch ----
+    document.querySelectorAll('.mode-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            var extract = btn.getAttribute('data-mode') === 'extract';
+            $('prepareUI').classList.toggle('hidden', extract);
+            $('extractUI').classList.toggle('hidden', !extract);
+        });
+    });
+
+    // Exposed purely so the build can be checked by an automated test.
+    window.__sp404 = {
+        buildZip: buildZip, crc32: crc32, buildPadInfo: buildPadInfo,
+        encodeWavSX: encodeWavSX, encodeWavPlain: encodeWavPlain,
+        padName: padName, padLabel: padLabel, safeName: safeName,
+        parseWav: parseWav, detectPad: detectPad, parsePadInfo: parsePadInfo, wrapPcm: wrapPcm,
+        SX: SX, PAD_RECORD: PAD_RECORD, SX_DATA_OFFSET: SX_DATA_OFFSET
+    };
+})();
+</script>
+</body>
+</html>

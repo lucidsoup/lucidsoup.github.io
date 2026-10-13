@@ -260,6 +260,155 @@
             cursor: not-allowed;
             pointer-events: none;
         }
+
+        /* ===== SHADER LIBRARY ===== */
+        .shader-lib-intro {
+            text-align: center;
+            max-width: 760px;
+            margin: -1.75rem auto 2.5rem;
+            color: rgba(255,255,255,.55);
+            font-size: 0.95rem;
+            line-height: 1.65;
+        }
+        .shader-lib-intro code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.85em;
+            color: rgba(0,255,255,.75);
+        }
+        .shader-lib-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+        .shader-lib-loading, .shader-lib-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            color: rgba(255,255,255,.4);
+            font-size: 0.9rem;
+        }
+        .shader-lib-empty { border: 1px dashed rgba(255,255,255,.1); border-radius: 12px; }
+        .shader-card {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.08);
+            display: flex;
+            flex-direction: column;
+            transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+        }
+        .shader-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0,255,255,.4);
+            box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 24px rgba(0,255,255,.15);
+        }
+        .shader-card-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            overflow: hidden;
+        }
+        .shader-card-stage canvas { width: 100%; height: 100%; display: block; }
+        .shader-card-date {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 2;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            color: rgba(255,255,255,.75);
+            background: rgba(0,0,0,.55);
+            border: 1px solid rgba(255,255,255,.12);
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+        .shader-card-note {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            color: rgba(255,255,255,.45);
+        }
+        .shader-card-note.error { color: rgba(255,90,130,.9); }
+        .shader-card-body {
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            gap: 0.5rem;
+        }
+        .shader-card-title {
+            font-size: 1.15rem;
+            font-weight: bold;
+            color: #fff;
+            line-height: 1.2;
+        }
+        .shader-card-desc {
+            font-size: 0.85rem;
+            line-height: 1.55;
+            color: rgba(255,255,255,.65);
+        }
+        .shader-card-use {
+            font-size: 0.75rem;
+            line-height: 1.5;
+            color: rgba(255,255,255,.45);
+        }
+        .shader-card-use span {
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: rgba(0,255,255,.7);
+            font-weight: bold;
+        }
+        .shader-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: auto;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(255,255,255,.06);
+        }
+        .shader-card-btn {
+            flex: 1;
+            background: linear-gradient(135deg, rgba(0,255,255,.12), rgba(255,0,255,.12));
+            border: 1px solid rgba(0,255,255,.4);
+            color: #fff;
+            padding: 0.5rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all .2s ease;
+            white-space: nowrap;
+        }
+        .shader-card-btn:hover {
+            background: linear-gradient(135deg, rgba(0,255,255,.25), rgba(255,0,255,.25));
+            border-color: rgba(0,255,255,.8);
+            box-shadow: 0 0 12px rgba(0,255,255,.3);
+        }
+        .shader-card-src {
+            display: none;
+            margin: 0;
+            padding: 1rem;
+            background: rgba(0,0,0,.65);
+            border-top: 1px solid rgba(255,255,255,.08);
+            max-height: 300px;
+            overflow: auto;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
+            line-height: 1.55;
+            color: rgba(170,255,245,.85);
+            white-space: pre;
+            -webkit-overflow-scrolling: touch;
+        }
+        .shader-card.src-open .shader-card-src { display: block; }
         .skill { padding: .8rem 1.5rem; background: linear-gradient(45deg, rgba(0,255,255,.1), rgba(255,0,255,.1)); border-radius: 25px; border: 1px solid rgba(255,255,255,.1); color: #fff; font-weight: 400; }
 
         .contact { text-align: center; background: linear-gradient(45deg, rgba(0,255,255,.05), rgba(255,0,255,.05)); border-radius: 20px; padding: 3rem; }
@@ -556,6 +705,8 @@
             nav a { padding: .5rem .55rem; font-size: .9rem; letter-spacing: 0.5px; }
 
             .portfolio-grid { grid-template-columns: 1fr; }
+            .shader-lib-grid { grid-template-columns: 1fr; }
+            .shader-lib-intro { font-size: 0.9rem; margin: -1rem auto 2rem; }
             .portfolio-item.portrait { grid-row: span 1; aspect-ratio: 9/12; }
             .contact-links { flex-direction: column; gap: 1rem; }
             .portfolio-item .overlay { opacity: 1 !important; }
@@ -626,7 +777,9 @@
             <ul>
                 <li><a href="#home">Home</a></li>
                 <li><a href="#drumseek">DrumSeek</a></li>
+                <li><a href="#sp404">SP-404</a></li>
                 <li><a href="#portfolio">Portfolio</a></li>
+                <li><a href="#shader-library">Shaders</a></li>
                 <li><a href="#shop">Shop</a></li>
                 <li><a href="#about">About</a></li>
                 <li><a href="#contact">Contact</a></li>
@@ -650,6 +803,23 @@
             </p>
             <div id="drumseek-frame">
                 <iframe id="drumseek-embed" src="drumseek.html" allow="autoplay; midi"></iframe>
+            </div>
+        </section>
+
+        <section id="sp404">
+            <h2>SP-404 Converter</h2>
+            <div class="contact">
+                <p style="margin-bottom: 1.25rem;">
+                    Drop any audio in and get a card-ready ZIP out &mdash; right sample rate, right
+                    filenames, and a merged <strong>PAD_INFO.BIN</strong> for the SP-404SX and SP-404A,
+                    or an <strong>IMPORT</strong> folder for the SP-404MKII. It goes the other way too:
+                    point it at a card and get your samples back as clean, pad-named WAVs, trimmed to
+                    the points the pads actually play. It all runs in your browser; nothing is
+                    uploaded anywhere.
+                </p>
+                <div class="contact-links">
+                    <a href="sp404.html" class="contact-link">Open the Converter</a>
+                </div>
             </div>
         </section>
 
@@ -752,6 +922,19 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section id="shader-library">
+            <h2>Shader Library</h2>
+            <p class="shader-lib-intro">
+                One new original GLSL shader every day. Every preview below is live WebGL running in
+                your browser right now — not a video loop. Sources are Shadertoy-format
+                (<code>mainImage</code>, <code>iResolution</code>, <code>iTime</code>), so they drop
+                straight into Shadertoy, TouchDesigner, ISF or Resolume.
+            </p>
+            <div id="shader-lib-grid" class="shader-lib-grid">
+                <div class="shader-lib-loading">Loading shaders&hellip;</div>
             </div>
         </section>
 
@@ -2393,6 +2576,361 @@
 
             render();
             console.log('[Visuals] Render loop started');
+        })();
+    </script>
+
+    <!-- ===== SHADER LIBRARY — live per-card WebGL previews ===== -->
+    <script>
+        (function shaderLibrary(){
+            const grid = document.getElementById('shader-lib-grid');
+            const section = document.getElementById('shader-library');
+            if (!grid || !section) return;
+
+            // Every preview renders at this backing size and is stretched by CSS.
+            // Keeping one fixed size means the shared drawing buffer is never
+            // reallocated between cards.
+            const PREVIEW_W = 480, PREVIEW_H = 360;
+            const REDUCED = window.matchMedia
+                && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            const VERT = 'attribute vec2 aPos;' +
+                'void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }';
+
+            // Shadertoy compatibility shim. mainImage() writes to a local, which is
+            // then copied to gl_FragColor — GLSL ES 1.0 will not take a built-in as
+            // an out parameter.
+            const PRELUDE = [
+                '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+                'precision highp float;',
+                '#else',
+                'precision mediump float;',
+                '#endif',
+                'uniform vec3 iResolution;',
+                'uniform float iTime;',
+                'uniform vec4 iMouse;',
+                ''
+            ].join('\n');
+            const EPILOGUE = '\nvoid main(){\n' +
+                '    vec4 lucidOut = vec4(0.0, 0.0, 0.0, 1.0);\n' +
+                '    mainImage(lucidOut, gl_FragCoord.xy);\n' +
+                '    gl_FragColor = vec4(lucidOut.rgb, 1.0);\n}\n';
+
+            function escapeHtml(str){
+                return String(str == null ? '' : str).replace(/[&<>"']/g, c =>
+                    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            }
+
+            // ---- one shared GL context for the whole library ----
+            const glCanvas = document.createElement('canvas');
+            glCanvas.width = PREVIEW_W;
+            glCanvas.height = PREVIEW_H;
+            let gl = null, glFailed = false, vertShader = null;
+
+            function getGL(){
+                if (gl || glFailed) return gl;
+                const opts = { alpha: false, antialias: false, depth: false, stencil: false,
+                               preserveDrawingBuffer: true, powerPreference: 'low-power' };
+                try {
+                    gl = glCanvas.getContext('webgl', opts)
+                      || glCanvas.getContext('experimental-webgl', opts);
+                } catch (e) { gl = null; }
+                if (!gl) { glFailed = true; return null; }
+
+                vertShader = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(vertShader, VERT);
+                gl.compileShader(vertShader);
+
+                const buf = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+                gl.bufferData(gl.ARRAY_BUFFER,
+                    new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+                return gl;
+            }
+
+            // A lost context invalidates every compiled program; drop them and let
+            // the cards rebuild lazily once the context is restored.
+            glCanvas.addEventListener('webglcontextlost', function(e){
+                e.preventDefault();
+                gl = null; vertShader = null;
+                cards.forEach(c => { c.program = null; });
+            }, false);
+            glCanvas.addEventListener('webglcontextrestored', function(){
+                getGL();
+                if (!running) startLoop();
+            }, false);
+
+            function buildProgram(glsl){
+                const g = getGL();
+                if (!g) return { error: 'WebGL is not available in this browser.' };
+
+                const frag = g.createShader(g.FRAGMENT_SHADER);
+                g.shaderSource(frag, PRELUDE + glsl + EPILOGUE);
+                g.compileShader(frag);
+                if (!g.getShaderParameter(frag, g.COMPILE_STATUS)) {
+                    const log = g.getShaderInfoLog(frag) || 'unknown compile error';
+                    g.deleteShader(frag);
+                    return { error: 'Shader failed to compile: ' + log.split('\n')[0] };
+                }
+
+                const prog = g.createProgram();
+                g.attachShader(prog, vertShader);
+                g.attachShader(prog, frag);
+                g.bindAttribLocation(prog, 0, 'aPos');
+                g.linkProgram(prog);
+                g.deleteShader(frag);
+                if (!g.getProgramParameter(prog, g.LINK_STATUS)) {
+                    const log = g.getProgramInfoLog(prog) || 'unknown link error';
+                    g.deleteProgram(prog);
+                    return { error: 'Shader failed to link: ' + log.split('\n')[0] };
+                }
+                return {
+                    program: prog,
+                    uRes: g.getUniformLocation(prog, 'iResolution'),
+                    uTime: g.getUniformLocation(prog, 'iTime'),
+                    uMouse: g.getUniformLocation(prog, 'iMouse')
+                };
+            }
+
+            function drawCard(card, t){
+                const g = getGL();
+                if (!g) return;
+                if (!card.program) {
+                    const built = buildProgram(card.glsl);
+                    if (built.error) { card.dead = true; showNote(card, built.error, true); return; }
+                    card.program = built.program;
+                    card.uRes = built.uRes; card.uTime = built.uTime; card.uMouse = built.uMouse;
+                    hideNote(card);
+                }
+                g.useProgram(card.program);
+                g.enableVertexAttribArray(0);
+                g.vertexAttribPointer(0, 2, g.FLOAT, false, 0, 0);
+                if (card.uRes) g.uniform3f(card.uRes, PREVIEW_W, PREVIEW_H, 1.0);
+                if (card.uTime) g.uniform1f(card.uTime, t);
+                if (card.uMouse) g.uniform4f(card.uMouse, 0.0, 0.0, 0.0, 0.0);
+                g.viewport(0, 0, PREVIEW_W, PREVIEW_H);
+                g.drawArrays(g.TRIANGLES, 0, 3);
+                // Copy this frame out before the next card overwrites the buffer.
+                card.ctx.drawImage(glCanvas, 0, 0);
+            }
+
+            function showNote(card, text, isError){
+                let note = card.stage.querySelector('.shader-card-note');
+                if (!note) {
+                    note = document.createElement('div');
+                    note.className = 'shader-card-note';
+                    card.stage.appendChild(note);
+                }
+                note.textContent = text;
+                note.classList.toggle('error', !!isError);
+                note.style.display = '';
+            }
+            function hideNote(card){
+                const note = card.stage.querySelector('.shader-card-note');
+                if (note) note.style.display = 'none';
+            }
+
+            // ---- render loop: only visible, alive cards, only while page is shown ----
+            // Previews are ambient thumbnails, not the main event, and a
+            // raymarched fractal card costs far more than a flat 2D one. So the
+            // loop runs at ~30fps and redraws at most a few cards per frame,
+            // round-robin. Total cost per frame is then bounded no matter how
+            // many cards the library grows to or how many are on screen.
+            const TARGET_FPS = 30;
+            const MIN_FRAME_MS = 1000 / TARGET_FPS;
+            const MAX_DRAWS_PER_FRAME = 3;
+
+            const cards = [];
+            const liveCards = [];          // reused each frame to avoid garbage
+            let cursor = 0;                // round-robin position
+            let lastDrawMs = -1e9;
+            let running = false, rafId = 0;
+            const clock0 = (window.performance && performance.now) ? performance.now() : Date.now();
+
+            function now(){
+                const ms = (window.performance && performance.now) ? performance.now() : Date.now();
+                // Wrapped so a tab left open for days never pushes iTime into a range
+                // where float precision starts to visibly quantise the animation.
+                return ((ms - clock0) / 1000) % 3600;
+            }
+
+            function frame(){
+                rafId = 0;
+
+                liveCards.length = 0;
+                for (let i = 0; i < cards.length; i++) {
+                    const c = cards[i];
+                    if (c.visible && !c.dead) liveCards.push(c);
+                }
+                if (liveCards.length === 0 || document.hidden || REDUCED) {
+                    running = false;
+                    return;
+                }
+
+                const ms = (window.performance && performance.now)
+                    ? performance.now() : Date.now();
+                if (ms - lastDrawMs >= MIN_FRAME_MS) {
+                    lastDrawMs = ms;
+                    const t = now();
+                    const count = Math.min(liveCards.length, MAX_DRAWS_PER_FRAME);
+                    for (let k = 0; k < count; k++) {
+                        drawCard(liveCards[(cursor + k) % liveCards.length], t);
+                    }
+                    cursor = (cursor + count) % liveCards.length;
+                }
+                rafId = requestAnimationFrame(frame);
+            }
+
+            function startLoop(){
+                if (running || document.hidden) return;
+                running = true;
+                rafId = requestAnimationFrame(frame);
+            }
+            function stopLoop(){
+                if (rafId) cancelAnimationFrame(rafId);
+                rafId = 0; running = false;
+            }
+
+            document.addEventListener('visibilitychange', function(){
+                if (document.hidden) stopLoop(); else startLoop();
+            });
+
+            const observer = ('IntersectionObserver' in window)
+                ? new IntersectionObserver(function(entries){
+                    entries.forEach(function(entry){
+                        const card = entry.target.__lucidCard;
+                        if (!card) return;
+                        card.visible = entry.isIntersecting;
+                        if (card.visible && REDUCED && !card.dead) drawCard(card, 8.0);
+                    });
+                    if (cards.some(c => c.visible && !c.dead)) startLoop();
+                  }, { rootMargin: '200px 0px' })
+                : null;
+
+            // ---- card construction ----
+            function buildCard(entry){
+                const el = document.createElement('div');
+                el.className = 'shader-card';
+                el.innerHTML =
+                    '<div class="shader-card-stage">' +
+                        '<div class="shader-card-date">' + escapeHtml(entry.date || '') + '</div>' +
+                        '<canvas width="' + PREVIEW_W + '" height="' + PREVIEW_H + '" ' +
+                            'role="img" aria-label="Live preview of the shader ' +
+                            escapeHtml(entry.name || 'Untitled') + '"></canvas>' +
+                        '<div class="shader-card-note">Loading&hellip;</div>' +
+                    '</div>' +
+                    '<div class="shader-card-body">' +
+                        '<div class="shader-card-title">' + escapeHtml(entry.name || 'Untitled') + '</div>' +
+                        (entry.description
+                            ? '<div class="shader-card-desc">' + escapeHtml(entry.description) + '</div>' : '') +
+                        (entry.useCase
+                            ? '<div class="shader-card-use"><span>Use</span> &nbsp;' +
+                              escapeHtml(entry.useCase) + '</div>' : '') +
+                        '<div class="shader-card-actions">' +
+                            '<button class="shader-card-btn" data-act="src">VIEW SOURCE</button>' +
+                            '<button class="shader-card-btn" data-act="copy">COPY GLSL</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<pre class="shader-card-src"><code></code></pre>';
+
+                // Source goes in as text, never as markup.
+                el.querySelector('.shader-card-src code').textContent = entry.glsl || '';
+
+                const card = {
+                    id: entry.id,
+                    glsl: entry.glsl || '',
+                    el: el,
+                    stage: el.querySelector('.shader-card-stage'),
+                    canvas: el.querySelector('canvas'),
+                    ctx: null,
+                    program: null,
+                    visible: false,
+                    dead: false
+                };
+                card.ctx = card.canvas.getContext('2d');
+                if (!card.ctx) { card.dead = true; showNote(card, 'Canvas is not available.', true); }
+
+                const srcBtn = el.querySelector('[data-act="src"]');
+                srcBtn.addEventListener('click', function(){
+                    const open = el.classList.toggle('src-open');
+                    srcBtn.textContent = open ? 'HIDE SOURCE' : 'VIEW SOURCE';
+                });
+
+                const copyBtn = el.querySelector('[data-act="copy"]');
+                copyBtn.addEventListener('click', function(){
+                    const done = function(ok){
+                        copyBtn.textContent = ok ? 'COPIED' : 'COPY FAILED';
+                        setTimeout(function(){ copyBtn.textContent = 'COPY GLSL'; }, 1600);
+                    };
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(card.glsl)
+                            .then(function(){ done(true); }, function(){ done(false); });
+                    } else {
+                        // Older browsers and non-secure origins have no async clipboard.
+                        const ta = document.createElement('textarea');
+                        ta.value = card.glsl;
+                        ta.setAttribute('readonly', '');
+                        ta.style.cssText = 'position:absolute;left:-9999px;top:0;';
+                        document.body.appendChild(ta);
+                        ta.select();
+                        let ok = false;
+                        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                        document.body.removeChild(ta);
+                        done(ok);
+                    }
+                });
+
+                el.__lucidCard = card;
+                return card;
+            }
+
+            function render(entries){
+                if (!entries || entries.length === 0) {
+                    grid.innerHTML = '<div class="shader-lib-empty">No shaders published yet. ' +
+                        'Check back tomorrow.</div>';
+                    return;
+                }
+                // Newest first, so today's drop is the first thing on screen.
+                entries = entries.slice().sort(function(a, b){
+                    return String(b.date || '').localeCompare(String(a.date || ''));
+                });
+
+                grid.innerHTML = '';
+                const frag = document.createDocumentFragment();
+                entries.forEach(function(entry){
+                    if (!entry || !entry.glsl) return;
+                    const card = buildCard(entry);
+                    cards.push(card);
+                    frag.appendChild(card.el);
+                });
+                grid.appendChild(frag);
+
+                if (cards.length === 0) {
+                    grid.innerHTML = '<div class="shader-lib-empty">No shaders published yet. ' +
+                        'Check back tomorrow.</div>';
+                    return;
+                }
+
+                if (observer) {
+                    cards.forEach(function(c){ observer.observe(c.el); });
+                } else {
+                    // No IntersectionObserver: render everything and rely on the loop.
+                    cards.forEach(function(c){ c.visible = true; });
+                    startLoop();
+                }
+            }
+
+            fetch('shaders/manifest.json?t=' + Date.now())
+                .then(function(r){
+                    if (!r.ok) throw new Error('manifest ' + r.status);
+                    return r.json();
+                })
+                .then(function(data){
+                    render(Array.isArray(data) ? data : (data.shaders || []));
+                })
+                .catch(function(err){
+                    console.warn('[ShaderLib] Could not load shaders/manifest.json:', err.message);
+                    section.style.display = 'none';
+                });
         })();
     </script>
 </body>
