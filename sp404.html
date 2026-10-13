@@ -234,8 +234,8 @@
         <h2>2 · Audio</h2>
         <div id="drop">
             <div class="big">Drop audio files here</div>
-            <div class="small">or click to choose &mdash; WAV, MP3, AIFF, M4A, FLAC, OGG (whatever your browser decodes)</div>
-            <input type="file" id="picker" multiple accept="audio/*,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg" class="hidden">
+            <div class="small">or click to choose &mdash; WAV, MP3, AIFF, M4A, FLAC, OGG, plus SP-404MKII <code>.SMP</code> from a project export</div>
+            <input type="file" id="picker" multiple accept="audio/*,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.smp,.SMP" class="hidden">
         </div>
         <div id="fileWrap" class="hidden" style="margin-top:1.25rem; overflow-x:auto;">
             <table class="files">
@@ -328,7 +328,7 @@
                 <div style="font-size:1.05rem; margin-bottom:.4rem;">Drop your card's sample folder here</div>
                 <div style="font-size:.8rem; color:rgba(255,255,255,.45);">
                     SP-404SX / A: <code>ROLAND/SP-404SX/SMPL</code> &nbsp;&middot;&nbsp;
-                    SP-404MKII: the <code>EXPORT SAMPLE</code> folder
+                    SP-404MKII: the <code>EXPORT SAMPLE</code> folder, or <code>SMPL</code> from an exported project (<code>.SMP</code>)
                 </div>
                 <div class="pick-row">
                     <button type="button" class="pick-btn" id="pickFolder">Choose folder</button>
@@ -679,7 +679,40 @@
         return audioCtx;
     }
 
+    /**
+     * SP-404MKII project-export samples (EXPORT/PROJECT/PROJECT_xx/SMPL/BANKn-nn.SMP).
+     * Header: "RFWV", then big-endian u32 size-8, sample rate, channels, bits.
+     * Audio starts at byte 512 as big-endian PCM. Returns null for other files.
+     */
+    function decodeSmp(arrayBuffer) {
+        var b = new Uint8Array(arrayBuffer);
+        if (b.length < 512 || String.fromCharCode(b[0], b[1], b[2], b[3]) !== 'RFWV') return null;
+        var dv = new DataView(arrayBuffer);
+        var end = Math.min(b.length, (dv.getUint32(4, false) + 8) || b.length);
+        var rate = dv.getUint32(8, false), chans = dv.getUint32(12, false), bits = dv.getUint32(16, false);
+        if ((bits !== 16 && bits !== 24) || chans < 1 || chans > 8 || !rate) throw new Error('Unexpected .SMP header');
+        var bps = bits / 8;
+        var frames = Math.floor((end - 512) / (bps * chans));
+        if (frames < 1) throw new Error('Empty .SMP file');
+        var buffer = ctx().createBuffer(chans, frames, rate);
+        for (var c = 0; c < chans; c++) {
+            var out = buffer.getChannelData(c);
+            for (var f = 0, p = 512 + c * bps; f < frames; f++, p += bps * chans) {
+                out[f] = bits === 16
+                    ? dv.getInt16(p, false) / 32768
+                    : ((b[p] << 24 | b[p + 1] << 16 | b[p + 2] << 8) >> 8) / 8388608;
+            }
+        }
+        return buffer;
+    }
+
     function decode(arrayBuffer) {
+        try {
+            var smp = decodeSmp(arrayBuffer);
+            if (smp) return Promise.resolve(smp);
+        } catch (e) {
+            return Promise.reject(e);
+        }
         return new Promise(function (resolve, reject) {
             // Safari still only supports the callback form.
             var p = ctx().decodeAudioData(arrayBuffer, resolve, reject);
@@ -1348,6 +1381,17 @@
         exStatus.textContent = ok + ' ready to export' + (skipped ? ' · ' + skipped + ' skipped' : '');
     }
 
+    /** SP-404MKII .SMP (16-bit, big-endian after a 512-byte RFWV header) -> WAV bytes, or null. */
+    function smpToWav(bytes) {
+        if (bytes.length < 512 || String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) !== 'RFWV') return null;
+        var v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        if (v.getUint32(16, false) !== 16) return null;
+        var end = Math.min(bytes.length, (v.getUint32(4, false) + 8) || bytes.length);
+        var pcm = bytes.slice(512, 512 + ((end - 512) & ~1));
+        for (var i = 0; i < pcm.length; i += 2) { var t = pcm[i]; pcm[i] = pcm[i + 1]; pcm[i + 1] = t; }
+        return wrapPcm(pcm, v.getUint32(8, false), v.getUint32(12, false));
+    }
+
     function addCardFiles(list) {
         var files = Array.prototype.slice.call(list).filter(function (f) { return f.size > 0; });
         if (!files.length) return;
@@ -1362,10 +1406,13 @@
                     if (recs) padInfoRecords = recs;
                     return;
                 }
-                if (!/\.(wav|aif|aiff)$/i.test(f.name)) return;
+                // MKII project-export samples: rewrite as a plain 16-bit WAV so
+                // everything below treats them like any other card file.
+                if (/\.smp$/i.test(f.name)) bytes = smpToWav(bytes);
+                else if (!/\.(wav|aif|aiff)$/i.test(f.name)) return;
                 sources.push({
                     file: f, path: path, name: f.name,
-                    bytes: bytes, wav: parseWav(bytes), pad: detectPad(f.name)
+                    bytes: bytes || new Uint8Array(0), wav: bytes ? parseWav(bytes) : null, pad: detectPad(f.name)
                 });
             }).catch(function () { /* unreadable file, skip it */ });
         });
