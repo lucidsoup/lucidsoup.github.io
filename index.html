@@ -288,9 +288,40 @@
             pointer-events: none;
         }
 
+        /* The way in. Nothing about the page changes until this is clicked, so it
+           gives nothing away at rest — no mark, no cursor, no tab stop. Sized in
+           em so it tracks the wordmark across breakpoints. */
+        .unfold-key {
+            position: absolute; left: 50%; top: 50%;
+            width: .8em; height: .8em; min-width: 30px; min-height: 30px;
+            transform: translate(-50%, -50%);
+            background: none; border: 0; padding: 0; margin: 0;
+            cursor: default; z-index: 4;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .unfold-key:hover { cursor: pointer; }
+
+        .unfold-hint {
+            position: absolute; left: 50%; top: calc(100% + 1.1rem);
+            transform: translateX(-50%);
+            font-family: 'Orbitron', monospace; font-size: .58rem; letter-spacing: .25em;
+            text-transform: uppercase; color: rgba(57,255,20,.9); white-space: nowrap;
+            opacity: 0; visibility: hidden; pointer-events: none;
+            transition: opacity 1s ease, visibility 1s ease;
+            text-shadow: 0 0 10px rgba(57,255,20,.5);
+        }
+        .unfold-hint.show { opacity: 1; visibility: visible; }
+
         /* ===== DESCENT — layered puzzle woven through the page ===== */
+        /* Until the page is unfolded these are display:none, not merely
+           transparent. Transparent still takes layout space (which nudges the
+           centred headings) and still shows up in the page's text for screen
+           readers and copy-paste. */
+        .sigil, .layer { display: none; }
+        .descent-unfolded .layer { display: block; }
+        .descent-unfolded .sigil { display: inline-flex; }
         .sigil {
-            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            position: relative; align-items: center; justify-content: center;
             width: 34px; height: 34px; margin-left: .75rem; vertical-align: middle;
             background: none; border: 0; padding: 0; cursor: pointer;
             opacity: 0; pointer-events: none; transform: scale(.6);
@@ -351,7 +382,10 @@
         .layer-hint { margin-top: .6rem; font-size: .78rem; color: rgba(255,255,255,.55); font-style: italic; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
 
         /* Depth gauge */
-        .gauge {
+        /* Hidden outright while folded: transparent would still put its label in
+           the page's text. */
+        .gauge { display: none; }
+        .descent-unfolded .gauge {
             position: fixed; left: 14px; bottom: 14px; z-index: 1200;
             display: flex; align-items: center; gap: .55rem;
             background: rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.12);
@@ -958,6 +992,9 @@
             <div class="hero-content">
                 <div class="logo-container">
                     <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+                    <button type="button" class="unfold-key" id="unfold-key"
+                            aria-hidden="true" tabindex="-1"></button>
+                    <div class="unfold-hint" id="unfold-hint" aria-hidden="true">Three marks lie further down</div>
                 </div>
                 <p>VISUAL ART · PROJECTION MAPPING · LIVE VISUALS</p>
             </div>
@@ -3379,13 +3416,14 @@
         function load() {
             try {
                 var raw = localStorage.getItem(KEY);
-                if (!raw) return { found: [], solved: false };
+                if (!raw) return { found: [], solved: false, unfolded: false };
                 var parsed = JSON.parse(raw);
                 return {
                     found: Array.isArray(parsed.found) ? parsed.found : [],
-                    solved: !!parsed.solved
+                    solved: !!parsed.solved,
+                    unfolded: !!parsed.unfolded
                 };
-            } catch (e) { return { found: [], solved: false }; }
+            } catch (e) { return { found: [], solved: false, unfolded: false }; }
         }
         function save() {
             try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
@@ -3477,13 +3515,17 @@
         var gaugeLabel = gauge.querySelector('.gauge-label');
 
         function refresh(announce) {
+            document.documentElement.classList.toggle('descent-unfolded', state.unfolded);
             built.forEach(function (item) {
                 var found = isFound(item.layer.id);
                 item.button.classList.toggle('found', found);
                 // Live only when it is the next one due — that is what makes the
                 // layers unfold in order rather than all at once.
-                item.button.classList.toggle('live', !found && item.index === nextIndex());
-                item.button.disabled = found || item.index !== nextIndex();
+                // Dormant until the page has been unfolded: no glow, no pointer,
+                // nothing for a visitor who has not found the way in.
+                var live = state.unfolded && !found && item.index === nextIndex();
+                item.button.classList.toggle('live', live);
+                item.button.disabled = !live;
                 item.panel.classList.toggle('open', found);
                 if (found) {
                     item.button.setAttribute('aria-label', item.layer.mark + ' uncovered.');
@@ -3509,7 +3551,7 @@
             var max = doc.scrollHeight - window.innerHeight;
             var depth = max > 0 ? Math.min(1, window.scrollY / max) : 0;
             gaugeFill.style.height = Math.round(depth * 100) + '%';
-            gauge.classList.toggle('show', depth > 0.06 || foundCount() > 0);
+            gauge.classList.toggle('show', state.unfolded && (depth > 0.06 || foundCount() > 0));
         }
         window.addEventListener('scroll', onScroll, { passive: true });
         window.addEventListener('resize', onScroll);
@@ -3619,6 +3661,34 @@
             if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
             else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
         }
+        // ---- the way in --------------------------------------------------------
+        var unfoldKey = document.getElementById('unfold-key');
+        var unfoldHint = document.getElementById('unfold-hint');
+
+        function unfold(announce) {
+            if (state.unfolded) return;
+            state.unfolded = true;
+            save();
+            refresh(false);
+            onScroll();
+            startLoop();
+            if (announce && unfoldHint) {
+                unfoldHint.classList.add('show');
+                setTimeout(function () { unfoldHint.classList.remove('show'); }, 5200);
+            }
+        }
+
+        if (unfoldKey) {
+            unfoldKey.addEventListener('click', function (e) {
+                e.preventDefault();
+                unfold(true);
+            });
+        }
+
+        // Keyboard and screen-reader route, since the key itself is deliberately
+        // not in the tab order.
+        window.lucidDescentUnfold = function () { unfold(true); return 'Unfolded.'; };
+
         gauge.querySelector('.gauge-enter').addEventListener('click', openChamber);
         chamber.querySelector('.chamber-close').addEventListener('click', closeChamber);
 
@@ -3700,12 +3770,13 @@
 
         // A way back to the start, for anyone who wants to run it again.
         window.lucidDescentReset = function () {
-            state = { found: [], solved: false };
+            state = { found: [], solved: false, unfolded: false };
             save();
             chamber.classList.remove('solved', 'open');
             rings.forEach(function (r) { r.step = 1 + Math.floor(Math.random() * (STEPS - 1)); apply(r); });
             refresh(false);
-            return 'Descent reset.';
+            onScroll();
+            return 'Descent reset — the page is folded up again.';
         };
     })();
     </script>
