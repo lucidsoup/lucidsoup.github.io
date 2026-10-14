@@ -1,2 +1,6 @@
 node_modules/
 .DS_Store
+
+# Web masters produced by scripts/transcode-masters.mjs. These get uploaded to
+# your host, never committed — GitHub Pages caps the site at 1GB.
+dist/
