@@ -2655,8 +2655,9 @@
             }
 
             // ---- exports for other hosts ----
-            // Kept byte-identical to scripts/shader-validate.mjs, which compiles
-            // exactly this output. If one changes, change both.
+            // Checked with glslangValidator as desktop GLSL 4.60 (TouchDesigner) and
+            // 3.30 (Synesthesia) against all library shaders. A compile check for
+            // the daily drop is parked on the shader-desktop-validation branch.
             function tdSource(name, glsl) {
               return '// ' + String(name || 'LucidSoup shader').replace(/[\r\n]+/g, ' ') +
                 ' \u2014 TouchDesigner GLSL TOP version (lucidsoup.com)\n' +
