@@ -42,10 +42,6 @@ jobs:
         # before it is allowed into the manifest.
         run: npx playwright install --with-deps chromium
 
-      - name: Install glslang
-        # Compiles each shader as desktop GLSL, the way TouchDesigner and Synesthesia do.
-        run: sudo apt-get update && sudo apt-get install -y glslang-tools
-
       - name: Generate shader
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
