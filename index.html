@@ -288,6 +288,262 @@
             pointer-events: none;
         }
 
+        /* The way in. Nothing about the page changes until this is clicked, so it
+           gives nothing away at rest — no mark, no cursor, no tab stop. Sized in
+           em so it tracks the wordmark across breakpoints. */
+        .unfold-key {
+            position: absolute; left: 50%; top: 50%;
+            width: .8em; height: .8em; min-width: 30px; min-height: 30px;
+            transform: translate(-50%, -50%);
+            background: none; border: 0; padding: 0; margin: 0;
+            cursor: default; z-index: 4;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .unfold-key:hover { cursor: pointer; }
+
+        .unfold-hint {
+            position: absolute; left: 50%; top: calc(100% + 1.1rem);
+            transform: translateX(-50%);
+            font-family: 'Orbitron', monospace; font-size: .58rem; letter-spacing: .25em;
+            text-transform: uppercase; color: rgba(57,255,20,.9); white-space: nowrap;
+            opacity: 0; visibility: hidden; pointer-events: none;
+            transition: opacity 1s ease, visibility 1s ease;
+            text-shadow: 0 0 10px rgba(57,255,20,.5);
+        }
+        .unfold-hint.show { opacity: 1; visibility: visible; }
+
+        /* ===== DESCENT — layered puzzle woven through the page ===== */
+        /* Until the page is unfolded these are display:none, not merely
+           transparent. Transparent still takes layout space (which nudges the
+           centred headings) and still shows up in the page's text for screen
+           readers and copy-paste. */
+        .sigil, .layer { display: none; }
+        .descent-unfolded .layer { display: block; }
+        .descent-unfolded .sigil { display: inline-flex; }
+        .sigil {
+            position: relative; align-items: center; justify-content: center;
+            width: 34px; height: 34px; margin-left: .75rem; vertical-align: middle;
+            background: none; border: 0; padding: 0; cursor: pointer;
+            opacity: 0; pointer-events: none; transform: scale(.6);
+            transition: opacity .9s ease, transform .9s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* A sigil only becomes real once the layer above it has been opened. */
+        .sigil.live { opacity: .85; pointer-events: auto; transform: scale(1); }
+        .sigil.live:hover, .sigil.live:focus-visible { opacity: 1; }
+        .sigil:focus-visible { outline: 2px solid rgba(0,255,255,.9); outline-offset: 4px; border-radius: 50%; }
+        .sigil svg { width: 100%; height: 100%; display: block; overflow: visible; }
+        .sigil .ring { fill: none; stroke: rgba(0,255,255,.75); stroke-width: 1.2; }
+        .sigil .spoke { stroke: rgba(255,16,240,.75); stroke-width: 1.1; }
+        .sigil.live svg { filter: drop-shadow(0 0 6px rgba(0,255,255,.55)); animation: sigilPulse 3.4s ease-in-out infinite; }
+        .sigil.found { opacity: 1; pointer-events: none; }
+        .sigil.found .ring { stroke: rgba(57,255,20,.9); }
+        .sigil.found .spoke { stroke: rgba(57,255,20,.6); }
+        .sigil.found svg { animation: none; filter: drop-shadow(0 0 8px rgba(57,255,20,.6)); }
+        @keyframes sigilPulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+
+        .layer {
+            overflow: hidden; max-height: 0; opacity: 0;
+            transition: max-height .9s ease, opacity .9s ease, margin .9s ease;
+            margin: 0 auto; max-width: 760px;
+        }
+        .layer.open { max-height: 380px; opacity: 1; margin: 0 auto 2.5rem; }
+        .layer-inner {
+            border-left: 2px solid rgba(255,16,240,.6);
+            background: #000;
+            padding: 1.3rem 1.5rem; border-radius: 0 10px 10px 0;
+            min-height: 150px;
+        }
+        .layer-inner { position: relative; overflow: hidden; }
+        /* The shader sits behind the words. A scrim keeps the text readable over
+           whatever the feedback happens to be doing underneath it. */
+        .layer-canvas {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            display: block; opacity: .95; pointer-events: none;
+        }
+        /* Heaviest under the text on the left, clearing to almost nothing on the
+           right so the visual is actually visible rather than a dark smear. */
+        .layer-scrim {
+            position: absolute; inset: 0; pointer-events: none;
+            background: linear-gradient(90deg, rgba(0,0,0,.86) 0%, rgba(0,0,0,.66) 38%,
+                                                rgba(0,0,0,.28) 72%, rgba(0,0,0,.06) 100%);
+        }
+        .layer-content { position: relative; }
+        .chamber-canvas {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            object-fit: cover; opacity: .5; pointer-events: none; z-index: -1;
+        }
+        .chamber { overflow: hidden; }
+        .layer-mark {
+            font-family: 'Orbitron', monospace; font-size: .6rem; letter-spacing: .3em;
+            color: rgba(57,255,20,.8); text-transform: uppercase; margin-bottom: .5rem;
+        }
+        .layer-text { font-size: 1rem; line-height: 1.7; color: rgba(255,255,255,.95); text-shadow: 0 1px 6px rgba(0,0,0,.9); }
+        .layer-hint { margin-top: .6rem; font-size: .78rem; color: rgba(255,255,255,.55); font-style: italic; text-shadow: 0 1px 6px rgba(0,0,0,.9); }
+
+        /* Depth gauge */
+        /* Hidden outright while folded: transparent would still put its label in
+           the page's text. */
+        .gauge { display: none; }
+        .descent-unfolded .gauge {
+            position: fixed; left: 14px; bottom: 14px; z-index: 1200;
+            display: flex; align-items: center; gap: .55rem;
+            background: rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.12);
+            border-radius: 22px; padding: .4rem .75rem .4rem .5rem;
+            backdrop-filter: blur(8px);
+            opacity: 0; transform: translateY(8px); pointer-events: none;
+            transition: opacity .5s ease, transform .5s ease, border-color .4s ease;
+        }
+        .gauge.show { opacity: 1; transform: none; pointer-events: auto; }
+        .gauge.complete { border-color: rgba(57,255,20,.6); }
+        .gauge-well { width: 5px; height: 30px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; position: relative; }
+        .gauge-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+            background: linear-gradient(0deg, #ff10f0, #00ffff); transition: height .25s ease; }
+        .gauge-label { font-family: 'Orbitron', monospace; font-size: .58rem; letter-spacing: .18em;
+            color: rgba(255,255,255,.6); text-transform: uppercase; white-space: nowrap; }
+        .gauge.complete .gauge-label { color: rgba(57,255,20,.95); }
+        .gauge-enter {
+            background: none; border: 1px solid rgba(57,255,20,.5); color: rgba(57,255,20,.95);
+            font-family: inherit; font-size: .58rem; letter-spacing: .14em; text-transform: uppercase;
+            border-radius: 20px; padding: .25rem .6rem; cursor: pointer; display: none;
+        }
+        .gauge.complete .gauge-enter { display: block; }
+        .gauge-enter:hover { background: rgba(57,255,20,.15); }
+
+        /* Chamber */
+        .chamber {
+            position: fixed; inset: 0; z-index: 2000; display: none;
+            align-items: center; justify-content: center; flex-direction: column;
+            background: rgba(0,0,0,.93); backdrop-filter: blur(6px); padding: 1.5rem;
+        }
+        .chamber.open { display: flex; }
+        .chamber h3 {
+            font-family: 'Orbitron', monospace; font-size: clamp(1.1rem, 4vw, 1.7rem);
+            letter-spacing: .14em; text-transform: uppercase; margin-bottom: .5rem; text-align: center;
+            background: linear-gradient(90deg, #ff10f0, #00ffff, #39ff14);
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .chamber p { color: rgba(255,255,255,.6); font-size: .88rem; text-align: center; max-width: 460px; margin-bottom: 1.4rem; }
+        .rings { width: min(78vw, 340px); height: min(78vw, 340px); }
+        .ring-g { cursor: pointer; transition: transform .35s cubic-bezier(.3,1.4,.5,1); transform-origin: 170px 170px; }
+        .ring-g circle { fill: none; stroke: rgba(255,255,255,.3); stroke-width: 1.5; }
+        /* The visible ring is a 1.5px line — far too thin to hit, especially on
+           touch. This invisible band is what the user actually clicks. */
+        .ring-g circle.hit { stroke: transparent; stroke-width: 34; }
+        .ring-g .mark { stroke-width: 3.5; stroke-linecap: round; }
+        /* A focused <g> draws a UA outline around its bounding box, which reads as
+           a stray rectangle. Suppress it for every focus and show the keyboard
+           cue on the ring itself instead. */
+        .ring-g:focus { outline: none; }
+        .ring-g:focus-visible circle:not(.hit) { stroke: rgba(0,255,255,.9); stroke-width: 2.5; }
+        .chamber.solved .ring-g { cursor: default; }
+        .chamber-close {
+            margin-top: 1.5rem; background: none; border: 1px solid rgba(255,255,255,.25);
+            color: rgba(255,255,255,.75); font-family: inherit; font-size: .7rem; letter-spacing: .14em;
+            text-transform: uppercase; border-radius: 7px; padding: .55rem 1.2rem; cursor: pointer;
+        }
+
+        /* ===== CHAMBER CONSOLE ===== */
+        .chamber { padding: 0; }
+        .chamber.open { display: flex; flex-direction: column; justify-content: flex-start; }
+        .cons {
+            width: 100%; max-width: 1180px; margin: auto; padding: 1rem;
+            display: flex; flex-direction: column; gap: .5rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        .cons-bar {
+            display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem 1.1rem;
+            font-size: .58rem; letter-spacing: .12em; text-transform: uppercase;
+            color: rgba(255,255,255,.45);
+            border: 1px solid rgba(255,255,255,.12); border-radius: 6px;
+            padding: .45rem .7rem; background: rgba(0,0,0,.6);
+        }
+        .cons-bar .k { color: rgba(255,255,255,.3); }
+        .cons-bar .v { color: rgba(0,255,255,.9); }
+        .cons-bar .nm { color: rgba(255,16,240,.95); letter-spacing: .18em; }
+        .cons-bar .right { margin-left: auto; color: rgba(57,255,20,.75); }
+
+        .cons-tabs { display: flex; gap: 2px; font-size: .57rem; letter-spacing: .14em; text-transform: uppercase; }
+        .cons-tab {
+            flex: 1; text-align: center; padding: .35rem .2rem;
+            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+            color: rgba(255,255,255,.3); border-radius: 4px; white-space: nowrap; overflow: hidden;
+        }
+        .cons-tab.done { color: rgba(57,255,20,.8); border-color: rgba(57,255,20,.3); }
+        .cons-tab.active {
+            color: #000; background: rgba(255,140,0,.9); border-color: rgba(255,170,40,.9); font-weight: bold;
+        }
+
+        .cons-stage { position: relative; display: flex; align-items: center; justify-content: center; padding: .4rem 0; }
+        .cons-stage .rings { width: min(60vw, 300px); height: min(60vw, 300px); position: relative; z-index: 2; }
+        .cons-label {
+            position: absolute; left: 0; top: 0; font-size: .6rem; letter-spacing: .16em;
+            text-transform: uppercase; color: rgba(255,255,255,.5); line-height: 1.6;
+        }
+        .cons-label b { color: #fff; font-size: .78rem; letter-spacing: .2em; display: block; }
+
+        .cons-panels { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+        .panel {
+            border: 1px solid rgba(255,255,255,.12); border-radius: 6px;
+            background: rgba(0,0,0,.65); padding: .5rem .6rem; min-height: 118px;
+            display: flex; flex-direction: column;
+        }
+        .panel-h {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: .52rem; letter-spacing: .16em; text-transform: uppercase;
+            color: rgba(255,255,255,.38); margin-bottom: .45rem;
+        }
+        .panel-h .live { color: rgba(57,255,20,.85); }
+        .log { font-size: .52rem; line-height: 1.75; color: rgba(255,255,255,.5); overflow: hidden; flex: 1; }
+        .log .t { color: rgba(255,255,255,.25); }
+        .log .ok { color: rgba(57,255,20,.85); }
+
+        .bars { display: flex; flex-direction: column; gap: .38rem; flex: 1; justify-content: center; }
+        .bar-row { font-size: .52rem; letter-spacing: .1em; color: rgba(255,255,255,.45); }
+        .bar-row .top { display: flex; justify-content: space-between; margin-bottom: .14rem; }
+        .bar-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+        .bar-fill { height: 100%; width: 0%; transition: width .3s ease; }
+
+        .gaugewrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .gaugewrap svg { width: 100%; max-width: 110px; height: auto; display: block; }
+        .gauge-num { font-size: 1.3rem; color: #fff; line-height: 1; margin-top: -1.6rem; }
+        .gauge-sub { font-size: .5rem; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.35); margin-top: .35rem; }
+
+        .radar { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .radar svg { width: 100%; max-width: 104px; height: auto; }
+
+        .cons-foot {
+            display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+            font-size: .55rem; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.4);
+        }
+        .cons-foot .hint { color: rgba(255,170,40,.85); }
+        .chamber.solved .cons-foot .hint { color: rgba(57,255,20,.9); }
+
+        @media (max-width: 760px) {
+            .cons { padding: .7rem; gap: .4rem; }
+            .cons-panels { grid-template-columns: repeat(2, 1fr); }
+            .panel { min-height: 96px; }
+            .cons-tab { font-size: .5rem; letter-spacing: .06em; padding: .3rem .1rem; }
+            .cons-label { position: static; text-align: center; margin-bottom: .3rem; }
+            .cons-stage { flex-direction: column; }
+        }
+        @media (max-width: 420px) {
+            .cons-panels .panel:nth-child(3) { display: none; }
+        }
+
+        .chamber-close:hover { border-color: rgba(0,255,255,.7); color: #fff; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .sigil, .layer, .ring-g, .gauge { transition: none !important; }
+            .sigil.live svg { animation: none; }
+        }
+        @media (max-width: 600px) {
+            .gauge { left: 10px; bottom: 10px; padding: .35rem .6rem .35rem .45rem; }
+            .gauge-label { font-size: .52rem; }
+            .layer.open { max-height: 460px; }
+        }
+
+
         /* ===== SHADER LIBRARY ===== */
         .shader-lib-intro {
             text-align: center;
@@ -822,6 +1078,9 @@
             <div class="hero-content">
                 <div class="logo-container">
                     <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+                    <button type="button" class="unfold-key" id="unfold-key"
+                            aria-hidden="true" tabindex="-1"></button>
+                    <div class="unfold-hint" id="unfold-hint" aria-hidden="true">Three marks lie further down</div>
                 </div>
                 <p>VISUAL ART · PROJECTION MAPPING · LIVE VISUALS</p>
             </div>
@@ -3091,5 +3350,710 @@
                 });
         })();
     </script>
+
+    <!-- ===== DESCENT — three layers hidden down the page ===== -->
+    <script>
+    (function descent() {
+        'use strict';
+
+        // Each layer is tied to a section further down the page, so a sigil can
+        // only be reached by going deeper — and only once the one above it is open.
+        var LAYERS = [
+            { id: 'i',   section: 'portfolio',      mark: 'Layer I',   fx: 'stairs',
+              text: 'The surface is a projection. What you are looking at is the shadow of something still running underneath.',
+              hint: 'Something waits further down, where the shaders are kept.' },
+            { id: 'ii',  section: 'shader-library', mark: 'Layer II',  fx: 'tess',
+              text: 'Every shader here is a door left ajar. Most visitors only ever see the frame, never the room.',
+              hint: 'One mark remains. It sits at the very bottom, where the page runs out.' },
+            { id: 'iii', section: 'contact',        mark: 'Layer III', fx: 'illusion',
+              text: 'Three marks, scattered. One chamber, sealed. Align what was taken apart and it opens.',
+              hint: 'The gauge in the corner will let you in.' }
+        ];
+        var KEY = 'lucidsoup.descent.v1';
+
+        // ---- feedback renderer -------------------------------------------------
+        // One WebGL context drives every layer. Each visual owns a pair of
+        // framebuffers and renders by sampling the one it wrote last frame, which
+        // is video feedback in the literal sense.
+        var SHADERS = {
+            "stairs": "// Layer I \u2014 an endless staircase. Steps are one unit of run and one of rise, so\n// translating the whole scene by (1,1) lands on an identical staircase: the climb\n// loops seamlessly and never actually gets anywhere.\nvec3 palette(float t){\n    t = fract(t) * 3.0;\n    vec3 m = vec3(1.00, 0.06, 0.94), c = vec3(0.00, 1.00, 1.00), g = vec3(0.22, 1.00, 0.08);\n    if (t < 1.0) return mix(m, c, t);\n    if (t < 2.0) return mix(c, g, t - 1.0);\n    return mix(g, m, t - 2.0);\n}\n\nfloat sdBox(vec3 p, vec3 b){\n    vec3 d = abs(p) - b;\n    return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));\n}\n\n// One block per step. Neighbours are checked too, because a per-cell translation\n// is not a true distance field on its own.\nfloat map(vec3 p){\n    float d = 1e4;\n    float i0 = floor(p.x);\n    for (int k = -1; k <= 1; k++){\n        float i = i0 + float(k);\n        vec3 q = vec3(p.x - i - 0.5, p.y - i - 0.5, p.z);\n        d = min(d, sdBox(q, vec3(0.5, 0.5, 6.5)));\n    }\n    return d;\n}\n\nvec3 normalAt(vec3 p){\n    vec2 e = vec2(1.0, -1.0) * 0.0015;\n    return normalize(\n        e.xyy * map(p + e.xyy) + e.yyx * map(p + e.yyx) +\n        e.yxy * map(p + e.yxy) + e.xxx * map(p + e.xxx));\n}\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord){\n    vec2 uv = (2.0 * fragCoord - iResolution.xy) / iResolution.y;\n    float t = iTime;\n\n    // Orthographic, looking down the diagonal: the isometric view Escher used.\n    float scroll = t * 0.42;\n    vec3 fwd = normalize(vec3(-0.72, -0.52, -0.46));\n    vec3 rgt = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));\n    vec3 upv = cross(rgt, fwd);\n    // Proper orthographic rig: rays start on a plane perpendicular to the view\n    // axis and centred on the staircase, so it stays framed as it climbs.\n    vec3 centre = vec3(scroll, scroll, 0.0);\n    vec3 ro = centre - fwd * 14.0 + (uv.x * 4.0) * rgt + (uv.y * 4.0) * upv;\n    vec3 rd = fwd;\n\n    float dist = 0.0, hit = -1.0;\n    for (int i = 0; i < 64; i++){\n        vec3 p = ro + rd * dist;\n        float d = map(p);\n        if (d < 0.0015){ hit = dist; break; }\n        dist += d;\n        if (dist > 30.0) break;\n    }\n\n    vec3 col = vec3(0.0);\n    if (hit > 0.0){\n        vec3 p = ro + rd * hit;\n        vec3 n = normalAt(p);\n        // Each face orientation gets its own shade, which is what makes the\n        // steps read as solid rather than as flat bars.\n        float face = 0.32 + 0.44 * max(n.y, 0.0) + 0.22 * max(n.x, 0.0) + 0.12 * max(n.z, 0.0);\n        float stepIndex = floor(p.x - scroll);\n        float hue = 0.06 * t + stepIndex * 0.055;\n        col = palette(hue) * face;\n        // Edge light where the normal turns away from the camera.\n        float rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.0);\n        col += palette(hue + 0.14) * rim * 0.9;\n    }\n\n    // Feedback: a slight zoom into the last frame rather than a translation, which\n    // trails the steps into a tunnel instead of smearing a grey cloud across the\n    // empty half of the frame. Tinted so the ghost keeps its colour as it decays.\n    vec2 fb = (fragCoord / iResolution.xy - 0.5) * 0.9955 + 0.5;\n    vec3 prev = texture2D(iPrev, fb).rgb;\n    prev *= vec3(0.93, 0.86, 0.95);\n    col = max(col, prev * 0.84);\n\n    col *= 1.0 - 0.45 * smoothstep(0.6, 1.5, length(uv));\n    col = col / (1.0 + col);\n    fragColor = vec4(pow(col, vec3(0.85)), 1.0);\n}",
+            "tess": "// Layer II \u2014 a rhombille tiling. Three rhombi meet at every hex centre, and the\n// eye reads each trio as a cube; which way the cubes face flips as the shading\n// rotates, so the tessellation keeps turning itself inside out.\n#define TAU 6.28318530718\n\nvec3 palette(float t){\n    t = fract(t) * 3.0;\n    vec3 m = vec3(1.00, 0.06, 0.94), c = vec3(0.00, 1.00, 1.00), g = vec3(0.22, 1.00, 0.08);\n    if (t < 1.0) return mix(m, c, t);\n    if (t < 2.0) return mix(c, g, t - 1.0);\n    return mix(g, m, t - 2.0);\n}\n\nmat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord){\n    vec2 uv = (2.0 * fragCoord - iResolution.xy) / iResolution.y;\n    float t = iTime;\n\n    vec2 p = uv * (3.4 + 0.5 * sin(t * 0.13));\n    p *= rot(t * 0.045);\n    p += vec2(t * 0.1, t * 0.06);\n\n    // Nearest point on the hexagonal lattice: the two interleaved rectangular\n    // lattices together give the hex centres.\n    vec2 s = vec2(1.0, 1.7320508);\n    vec2 a = mod(p, s) - s * 0.5;\n    vec2 b = mod(p + s * 0.5, s) - s * 0.5;\n    vec2 local = dot(a, a) < dot(b, b) ? a : b;\n    vec2 cellId = p - local;\n\n    // Three 120-degree sectors around the centre are the three rhombi, which the\n    // eye resolves as the three visible faces of a cube.\n    float ang = atan(local.y, local.x);\n    float sector = floor((ang + 3.14159265) / (TAU / 3.0));\n    float faceShade = 0.10 + 0.43 * sector;              // wide spread so the cubes read\n\n    // Slowly rotating the shading flips which face reads as the top.\n    float flip = 0.5 + 0.5 * sin(t * 0.22);\n    faceShade = mix(faceShade, 1.2 - faceShade, flip);\n\n    float hue = 0.05 * t + dot(cellId, vec2(0.035, 0.021)) + sector * 0.06;\n    vec3 col = palette(hue) * faceShade * 0.85;\n\n    // Rhombus outlines: the sector boundaries, plus the hex edge itself.\n    float edgeAng = abs(fract((ang + 3.14159265) / (TAU / 3.0)) - 0.5) * 2.0;\n    float spoke = 1.0 - smoothstep(0.0, 0.06, 1.0 - edgeAng);\n    float rim = smoothstep(0.86, 0.995, length(local) / 0.9);\n    float line = max(spoke, rim);\n    // Edges glow rather than tint, which keeps the field dark between them.\n    col += palette(hue + 0.2) * line * 1.25;\n\n    // Feedback: a slow zoom out, so the tiling trails inward on itself.\n    vec2 fb = (fragCoord / iResolution.xy - 0.5) * 1.004 + 0.5;\n    vec3 prev = texture2D(iPrev, fb).rgb * vec3(0.95, 0.9, 0.97);\n    col = max(col * 0.95, prev * 0.76);\n\n    col *= 1.0 - 0.45 * smoothstep(0.45, 1.6, length(uv));\n    col = col / (1.0 + col);\n    fragColor = vec4(pow(col, vec3(0.88)), 1.0);\n}",
+            "illusion": "// Layer III \u2014 a cafe wall. Every row of tiles is exactly horizontal; offsetting\n// alternate rows and separating them with a mid-tone mortar line is enough to\n// make the eye insist they slope. A second rotated grid beats against the first\n// into moire on top of it.\n#define TAU 6.28318530718\n\nvec3 palette(float t){\n    t = fract(t) * 3.0;\n    vec3 m = vec3(1.00, 0.06, 0.94), c = vec3(0.00, 1.00, 1.00), g = vec3(0.22, 1.00, 0.08);\n    if (t < 1.0) return mix(m, c, t);\n    if (t < 2.0) return mix(c, g, t - 1.0);\n    return mix(g, m, t - 2.0);\n}\n\nmat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord){\n    vec2 uv = (2.0 * fragCoord - iResolution.xy) / iResolution.y;\n    float t = iTime;\n\n    float rowH = 0.17;\n    float tileW = 0.28;\n\n    vec2 p = uv;\n    float row = floor(p.y / rowH);\n    // The offset per row is what drives the illusion; drifting it makes the\n    // apparent slope slowly reverse.\n    float shift = mod(row, 2.0) * (0.5 + 0.28 * sin(t * 0.3));\n    float x = p.x / tileW + shift + t * 0.06;\n    float tile = mod(floor(x), 2.0);\n\n    float hue = 0.04 * t + row * 0.03;\n    vec3 bright = palette(hue) * 1.3;\n    vec3 dark = vec3(0.015);\n    vec3 col = mix(dark, bright, tile);\n\n    // Mortar: a mid-tone line between rows. Without it the illusion collapses.\n    float edge = abs(fract(p.y / rowH) - 0.5) * 2.0;\n    // Thin and clearly mid-tone: the illusion needs the mortar to sit between\n    // the two tile luminances, not merge with either.\n    float mortar = smoothstep(0.78, 0.95, edge);\n    col = mix(col, vec3(0.46, 0.48, 0.5), mortar);\n\n    // A second grid at a slight angle, beating against the first. Kept to a low\n    // frequency on purpose: at a high one it falls below a pixel and aliases\n    // into speckle, which reads as noise and kills the illusion underneath.\n    vec2 q = uv * rot(0.07 + 0.02 * sin(t * 0.17)) * 7.0;\n    float beat = sin(q.x) * sin(q.y);\n    col += palette(hue + 0.35) * pow(abs(beat), 3.0) * 0.16;\n\n    // Feedback: a gentle sideways drag, so the rows smear along the direction\n    // the eye already thinks they are sliding.\n    vec2 fb = fragCoord / iResolution.xy + vec2(0.0012, 0.0);\n    vec3 prev = texture2D(iPrev, fb).rgb * vec3(0.93, 0.95, 0.9);\n    col = max(col * 0.9, prev * 0.72);\n\n    col *= 1.0 - 0.45 * smoothstep(0.5, 1.5, length(uv));\n    col = col / (1.0 + col);\n    fragColor = vec4(pow(col, vec3(0.9)), 1.0);\n}",
+            "chamber": "// Chamber backdrop \u2014 video feedback in its original sense: the previous frame\n// rotated and scaled slightly and fed straight back in, so a small seed shape\n// recurses into an endless tunnel of itself.\n#define TAU 6.28318530718\n\nvec3 palette(float t){\n    t = fract(t) * 3.0;\n    vec3 m = vec3(1.00, 0.06, 0.94), c = vec3(0.00, 1.00, 1.00), g = vec3(0.22, 1.00, 0.08);\n    if (t < 1.0) return mix(m, c, t);\n    if (t < 2.0) return mix(c, g, t - 1.0);\n    return mix(g, m, t - 2.0);\n}\n\nmat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }\n\nvoid mainImage(out vec4 fragColor, in vec2 fragCoord){\n    vec2 uv = (2.0 * fragCoord - iResolution.xy) / iResolution.y;\n    float t = iTime;\n\n    // The loop transform: each pass is nudged a little larger and turned a\n    // little further, which is what builds the spiral tunnel.\n    float zoom = 0.93 + 0.02 * sin(t * 0.23);\n    float spin = 0.075 + 0.03 * sin(t * 0.17);\n    vec2 q = uv * rot(spin) / zoom;\n    vec2 fb = (q * iResolution.y + iResolution.xy) / (2.0 * iResolution.xy);\n    vec3 prev = texture2D(iPrev, fb).rgb;\n\n    // Slight hue rotation per pass, so depth in the tunnel reads as colour.\n    // Only a touch of channel rotation: more than this and repeated passes\n    // average the hues together and the tunnel goes grey.\n    prev = mix(prev, prev.gbr, 0.015) * 0.965;\n\n    // The seed: a slowly breathing ring that keeps the loop fed.\n    float r = length(uv);\n    float ring = abs(r - (0.34 + 0.05 * sin(t * 0.6)));\n    vec3 col = palette(0.08 * t) * (0.0010 / (ring * ring + 0.00035));\n\n    // A trio of marks, echoing the three rings of the puzzle in front of it.\n    for (int i = 0; i < 3; i++){\n        float a = TAU / 3.0 * float(i) + t * 0.25;\n        vec2 m = vec2(cos(a), sin(a)) * 0.62;\n        col += palette(0.08 * t + 0.3 + float(i) * 0.12) * (0.0008 / (dot(uv - m, uv - m) + 0.0006));\n    }\n\n    col = max(col, prev);\n    col *= 1.0 - 0.5 * smoothstep(0.7, 1.5, r);\n    col = col / (1.0 + col);\n    fragColor = vec4(pow(col, vec3(0.9)), 1.0);\n}"
+};
+
+        var FX = (function () {
+            var SURFACE = 640;              // the shared canvas; targets sit in its corner
+            var glc = null, gl = null, quad = null, blit = null, dead = false;
+
+            var PRELUDE = [
+                '#ifdef GL_FRAGMENT_PRECISION_HIGH', 'precision highp float;',
+                '#else', 'precision mediump float;', '#endif',
+                'uniform vec3 iResolution;', 'uniform float iTime;',
+                'uniform sampler2D iPrev;', ''
+            ].join('\n');
+            var EPILOGUE = '\nvoid main(){ vec4 o = vec4(0.0,0.0,0.0,1.0);' +
+                ' mainImage(o, gl_FragCoord.xy); gl_FragColor = vec4(o.rgb, 1.0); }\n';
+
+            function init() {
+                if (gl || dead) return gl;
+                glc = document.createElement('canvas');
+                glc.width = SURFACE; glc.height = SURFACE;
+                try {
+                    gl = glc.getContext('webgl', { alpha: false, antialias: false, depth: false,
+                                                   preserveDrawingBuffer: true, powerPreference: 'low-power' });
+                } catch (e) { gl = null; }
+                if (!gl) { dead = true; return null; }
+                quad = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+                blit = build('void mainImage(out vec4 o, in vec2 f){ o = texture2D(iPrev, f / iResolution.xy); }');
+                return gl;
+            }
+
+            function build(src) {
+                var vs = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(vs, 'attribute vec2 aPos; void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }');
+                gl.compileShader(vs);
+                var fs = gl.createShader(gl.FRAGMENT_SHADER);
+                gl.shaderSource(fs, PRELUDE + src + EPILOGUE);
+                gl.compileShader(fs);
+                if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+                    console.warn('[Descent] shader failed:', (gl.getShaderInfoLog(fs) || '').split('\n')[0]);
+                    return null;
+                }
+                var p = gl.createProgram();
+                gl.attachShader(p, vs); gl.attachShader(p, fs);
+                gl.bindAttribLocation(p, 0, 'aPos');
+                gl.linkProgram(p);
+                gl.deleteShader(fs);
+                if (!gl.getProgramParameter(p, gl.LINK_STATUS)) return null;
+                return p;
+            }
+
+            function target(w, h) {
+                var tex = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, tex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                var fbo = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+                gl.clearColor(0, 0, 0, 1);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                return { tex: tex, fbo: fbo };
+            }
+
+            return {
+                create: function (canvas, w, h, src) {
+                    if (!init()) return null;
+                    var prog = build(src);
+                    if (!prog) return null;
+                    var ctx = canvas.getContext('2d');
+                    if (!ctx) return null;
+                    canvas.width = w; canvas.height = h;
+                    return {
+                        prog: prog, ctx: ctx, w: w, h: h,
+                        a: target(w, h), b: target(w, h),
+                        uRes: gl.getUniformLocation(prog, 'iResolution'),
+                        uTime: gl.getUniformLocation(prog, 'iTime'),
+                        uPrev: gl.getUniformLocation(prog, 'iPrev')
+                    };
+                },
+                draw: function (fx, time) {
+                    if (!fx || !gl) return;
+                    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+                    gl.enableVertexAttribArray(0);
+                    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+                    // Render into b while reading a, then swap.
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, fx.b.fbo);
+                    gl.viewport(0, 0, fx.w, fx.h);
+                    gl.useProgram(fx.prog);
+                    if (fx.uRes) gl.uniform3f(fx.uRes, fx.w, fx.h, 1.0);
+                    if (fx.uTime) gl.uniform1f(fx.uTime, time);
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, fx.a.tex);
+                    if (fx.uPrev) gl.uniform1i(fx.uPrev, 0);
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    var swap = fx.a; fx.a = fx.b; fx.b = swap;
+
+                    // Present: the viewport sits at the bottom-left of the shared
+                    // canvas, which is the top-left once drawImage flips it.
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                    gl.viewport(0, 0, fx.w, fx.h);
+                    gl.useProgram(blit);
+                    gl.uniform3f(gl.getUniformLocation(blit, 'iResolution'), fx.w, fx.h, 1.0);
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, fx.a.tex);
+                    gl.uniform1i(gl.getUniformLocation(blit, 'iPrev'), 0);
+                    gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    fx.ctx.drawImage(glc, 0, SURFACE - fx.h, fx.w, fx.h, 0, 0, fx.w, fx.h);
+                }
+            };
+        })();
+
+
+        // localStorage can be unavailable or throw outright in private windows,
+        // so progress is best-effort and the puzzle works without it.
+        function load() {
+            try {
+                var raw = localStorage.getItem(KEY);
+                if (!raw) return { found: [], solved: false, unfolded: false };
+                var parsed = JSON.parse(raw);
+                return {
+                    found: Array.isArray(parsed.found) ? parsed.found : [],
+                    solved: !!parsed.solved,
+                    unfolded: !!parsed.unfolded
+                };
+            } catch (e) { return { found: [], solved: false, unfolded: false }; }
+        }
+        function save() {
+            try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+        }
+
+        var state = load();
+        var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        function foundCount() { return state.found.length; }
+        function isFound(id) { return state.found.indexOf(id) !== -1; }
+        function nextIndex() { return foundCount(); }   // layers unlock strictly in order
+
+        var SVG_NS = 'http://www.w3.org/2000/svg';
+        function el(name, attrs) {
+            var node = document.createElementNS(SVG_NS, name);
+            for (var k in attrs) node.setAttribute(k, attrs[k]);
+            return node;
+        }
+
+        function sigilSvg() {
+            var svg = el('svg', { viewBox: '0 0 32 32', 'aria-hidden': 'true', focusable: 'false' });
+            svg.appendChild(el('circle', { cx: 16, cy: 16, r: 11, 'class': 'ring' }));
+            svg.appendChild(el('circle', { cx: 16, cy: 16, r: 5,  'class': 'ring' }));
+            for (var i = 0; i < 6; i++) {
+                var a = (Math.PI / 3) * i;
+                svg.appendChild(el('line', {
+                    x1: 16 + Math.cos(a) * 5,  y1: 16 + Math.sin(a) * 5,
+                    x2: 16 + Math.cos(a) * 11, y2: 16 + Math.sin(a) * 11, 'class': 'spoke'
+                }));
+            }
+            return svg;
+        }
+
+        // ---- build the sigils and their layer panels ----
+        var built = [];
+        LAYERS.forEach(function (layer, index) {
+            var section = document.getElementById(layer.section);
+            if (!section) return;
+            var heading = section.querySelector('h2');
+            if (!heading) return;
+
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'sigil';
+            button.setAttribute('aria-label', 'A hidden mark. Activate to uncover what is beneath this page.');
+            button.appendChild(sigilSvg());
+            heading.appendChild(button);
+
+            var panel = document.createElement('div');
+            panel.className = 'layer';
+            panel.innerHTML =
+                '<div class="layer-inner">' +
+                    '<canvas class="layer-canvas" aria-hidden="true"></canvas>' +
+                    '<div class="layer-scrim"></div>' +
+                    '<div class="layer-content">' +
+                        '<div class="layer-mark"></div>' +
+                        '<div class="layer-text"></div>' +
+                        '<div class="layer-hint"></div>' +
+                    '</div>' +
+                '</div>';
+            panel.querySelector('.layer-mark').textContent = layer.mark;
+            panel.querySelector('.layer-text').textContent = layer.text;
+            panel.querySelector('.layer-hint').textContent = layer.hint;
+            heading.parentNode.insertBefore(panel, heading.nextSibling);
+
+            button.addEventListener('click', function () {
+                if (isFound(layer.id) || index !== nextIndex()) return;
+                state.found.push(layer.id);
+                save();
+                refresh(true);
+                startLoop();
+            });
+
+            built.push({ layer: layer, button: button, panel: panel, index: index,
+                         canvas: panel.querySelector('.layer-canvas'), fx: null });
+        });
+
+        if (!built.length) return;   // nothing to hook onto; leave the page alone
+
+        // ---- gauge ----
+        var gauge = document.createElement('div');
+        gauge.className = 'gauge';
+        gauge.innerHTML =
+            '<div class="gauge-well"><div class="gauge-fill"></div></div>' +
+            '<span class="gauge-label"></span>' +
+            '<button type="button" class="gauge-enter">Enter</button>';
+        document.body.appendChild(gauge);
+        var gaugeFill = gauge.querySelector('.gauge-fill');
+        var gaugeLabel = gauge.querySelector('.gauge-label');
+
+        function refresh(announce) {
+            document.documentElement.classList.toggle('descent-unfolded', state.unfolded);
+            built.forEach(function (item) {
+                var found = isFound(item.layer.id);
+                item.button.classList.toggle('found', found);
+                // Live only when it is the next one due — that is what makes the
+                // layers unfold in order rather than all at once.
+                // Dormant until the page has been unfolded: no glow, no pointer,
+                // nothing for a visitor who has not found the way in.
+                var live = state.unfolded && !found && item.index === nextIndex();
+                item.button.classList.toggle('live', live);
+                item.button.disabled = !live;
+                item.panel.classList.toggle('open', found);
+                if (found) {
+                    item.button.setAttribute('aria-label', item.layer.mark + ' uncovered.');
+                }
+            });
+
+            var n = foundCount();
+            gaugeLabel.textContent = state.solved ? 'Descended' : n + ' / ' + LAYERS.length + ' marks';
+            gauge.classList.toggle('complete', n >= LAYERS.length);
+
+            if (announce && n > 0 && n <= LAYERS.length) {
+                var panel = built[n - 1] && built[n - 1].panel;
+                if (panel && !reduced) {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+
+        // Depth = how far down the page you are. The gauge only appears once you
+        // have actually started descending.
+        function onScroll() {
+            var doc = document.documentElement;
+            var max = doc.scrollHeight - window.innerHeight;
+            var depth = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+            gaugeFill.style.height = Math.round(depth * 100) + '%';
+            gauge.classList.toggle('show', state.unfolded && (depth > 0.06 || foundCount() > 0));
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll);
+
+        // ---- chamber ----
+        var STEPS = 12, TOLERANCE = 0;
+        var chamber = document.createElement('div');
+        chamber.className = 'chamber';
+        chamber.setAttribute('role', 'dialog');
+        chamber.setAttribute('aria-modal', 'true');
+        chamber.setAttribute('aria-label', 'The chamber');
+        // The chamber is instrumented rather than mystical: every readout below is
+        // computed from the actual ring state, which also makes the puzzle
+        // solvable by reading rather than guessing.
+        chamber.innerHTML =
+            '<div class="cons">' +
+                '<div class="cons-bar">' +
+                    '<span class="nm">DESCENT ring-align</span>' +
+                    '<span><span class="k">rings</span> <span class="v">3</span></span>' +
+                    '<span><span class="k">turns</span> <span class="v" id="cTurns">0</span></span>' +
+                    '<span><span class="k">drift</span> <span class="v" id="cDrift">0\u00b0</span></span>' +
+                    '<span><span class="k">locked</span> <span class="v" id="cLocked">0/3</span></span>' +
+                    '<span><span class="k">frame</span> <span class="v" id="cFrame">0</span></span>' +
+                    '<span class="right" id="cState">chamber.sealed</span>' +
+                '</div>' +
+                '<div class="cons-tabs" id="cTabs"></div>' +
+                '<div class="cons-stage">' +
+                    '<div class="cons-label"><b>04 ALIGN</b>bring every mark to true</div>' +
+                '</div>' +
+                '<div class="cons-panels">' +
+                    '<div class="panel">' +
+                        '<div class="panel-h"><span>align log</span><span class="live" id="cRate">idle</span></div>' +
+                        '<div class="log" id="cLog"></div>' +
+                    '</div>' +
+                    '<div class="panel">' +
+                        '<div class="panel-h"><span>rings</span><span>offset</span></div>' +
+                        '<div class="bars" id="cBars"></div>' +
+                    '</div>' +
+                    '<div class="panel">' +
+                        '<div class="panel-h"><span>coverage</span><span class="live">live</span></div>' +
+                        '<div class="radar" id="cRadar"></div>' +
+                    '</div>' +
+                    '<div class="panel">' +
+                        '<div class="panel-h"><span>align score</span><span class="live">live</span></div>' +
+                        '<div class="gaugewrap">' +
+                            '<svg viewBox="0 0 120 76" aria-hidden="true">' +
+                                '<path d="M12 68 A 48 48 0 0 1 108 68" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="7" stroke-linecap="round"/>' +
+                                '<path id="cArc" d="M12 68 A 48 48 0 0 1 108 68" fill="none" stroke="#39ff14" stroke-width="7" stroke-linecap="round" stroke-dasharray="151" stroke-dashoffset="151"/>' +
+                            '</svg>' +
+                            '<div class="gauge-num" id="cScore">0</div>' +
+                            '<div class="gauge-sub">of 100</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="cons-foot">' +
+                    '<span class="hint" id="cHint">click a ring to turn it \u00b7 arrow keys when focused</span>' +
+                    '<button type="button" class="chamber-close">Close</button>' +
+                '</div>' +
+            '</div>';
+        var chamberCanvas = document.createElement('canvas');
+        chamberCanvas.className = 'chamber-canvas';
+        chamberCanvas.setAttribute('aria-hidden', 'true');
+        chamber.appendChild(chamberCanvas);
+        document.body.appendChild(chamber);
+        var chamberFx = null;
+
+        var puzzleBox = chamber.querySelector('.cons-stage');
+        var svg = el('svg', { viewBox: '0 0 340 340', 'class': 'rings' });
+        var radii = [140, 104, 68];
+        var colours = ['rgba(255,16,240,.9)', 'rgba(0,255,255,.9)', 'rgba(57,255,20,.9)'];
+        var rings = [];
+
+        radii.forEach(function (r, i) {
+            var g = el('g', { 'class': 'ring-g', tabindex: '0', role: 'button' });
+            g.setAttribute('aria-label', 'Ring ' + (i + 1) + ' of 3. Turn it to bring its mark to the top.');
+            g.appendChild(el('circle', { cx: 170, cy: 170, r: r, 'class': 'hit', 'pointer-events': 'stroke' }));
+            g.appendChild(el('circle', { cx: 170, cy: 170, r: r, 'pointer-events': 'none' }));
+            var mark = el('line', { x1: 170, y1: 170 - r - 10, x2: 170, y2: 170 - r + 10,
+                                    'class': 'mark', 'pointer-events': 'none' });
+            mark.setAttribute('stroke', colours[i]);
+            g.appendChild(mark);
+            svg.appendChild(g);
+
+            // Start every ring off true, so the puzzle is never solved on arrival.
+            var start = 1 + Math.floor(Math.random() * (STEPS - 1));
+            var ring = { g: g, step: start };
+            rings.push(ring);
+
+            function turn(by) {
+                if (chamber.classList.contains('solved')) return;
+                ring.step = (ring.step + by + STEPS) % STEPS;
+                apply(ring);
+                check();
+                consoleTurn(i, ring);
+            }
+            g.addEventListener('click', function () { turn(1); });
+            g.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); turn(1); }
+                else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); turn(-1); }
+                else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); turn(1); }
+            });
+            apply(ring);
+        });
+        puzzleBox.appendChild(svg);
+
+        // ---- console readouts, all derived from the live ring state ----------
+        var cTurns = 0, cFrames = 0, cLogLines = [];
+        function $c(id) { return document.getElementById(id); }
+
+        // Shortest signed distance from true, in steps (-6..6).
+        function ringOffset(ring) {
+            var o = ring.step % STEPS;
+            return o > STEPS / 2 ? o - STEPS : o;
+        }
+        function ringAlign(ring) {
+            return 1 - Math.abs(ringOffset(ring)) / (STEPS / 2);
+        }
+
+        (function buildTabs() {
+            var tabs = $c('cTabs');
+            if (!tabs) return;
+            ['layer i', 'layer ii', 'layer iii', 'align', 'open'].forEach(function (name, i) {
+                var t = document.createElement('div');
+                t.className = 'cons-tab';
+                t.textContent = name;
+                t.setAttribute('data-i', String(i));
+                tabs.appendChild(t);
+            });
+        })();
+
+        (function buildBars() {
+            var box = $c('cBars');
+            if (!box) return;
+            for (var i = 0; i < rings.length; i++) {
+                var row = document.createElement('div');
+                row.className = 'bar-row';
+                row.innerHTML = '<div class="top"><span>ring ' + (i + 1) + '</span>' +
+                                '<span class="val"></span></div>' +
+                                '<div class="bar-track"><div class="bar-fill"></div></div>';
+                row.querySelector('.bar-fill').style.background = colours[i];
+                box.appendChild(row);
+            }
+        })();
+
+        var radarPoly = null;
+        (function buildRadar() {
+            var box = $c('cRadar');
+            if (!box) return;
+            var sv = el('svg', { viewBox: '0 0 100 100' });
+            // Rings of the web.
+            [1, 0.66, 0.33].forEach(function (f) {
+                var pts = [];
+                for (var i = 0; i < 3; i++) {
+                    var a = -Math.PI / 2 + i * (Math.PI * 2 / 3);
+                    pts.push((50 + Math.cos(a) * 40 * f) + ',' + (50 + Math.sin(a) * 40 * f));
+                }
+                sv.appendChild(el('polygon', { points: pts.join(' '), fill: 'none',
+                                               stroke: 'rgba(255,255,255,.12)', 'stroke-width': '1' }));
+            });
+            radarPoly = el('polygon', { points: '50,50 50,50 50,50', fill: 'rgba(0,255,255,.18)',
+                                        stroke: 'rgba(0,255,255,.8)', 'stroke-width': '1.4' });
+            sv.appendChild(radarPoly);
+            box.appendChild(sv);
+        })();
+
+        function pushLog(text, ok) {
+            var d = new Date();
+            var stamp = ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+            cLogLines.push('<span class="t">' + stamp + '</span> ' +
+                           (ok ? '<span class="ok">' + text + '</span>' : text));
+            if (cLogLines.length > 7) cLogLines.shift();
+            var box = $c('cLog');
+            if (box) box.innerHTML = cLogLines.join('<br>');
+        }
+
+        function updateConsole() {
+            if (!chamber.classList.contains('open')) return;
+            var solved = chamber.classList.contains('solved');
+            var locked = 0, driftDeg = 0, alignSum = 0;
+
+            for (var i = 0; i < rings.length; i++) {
+                var off = ringOffset(rings[i]);
+                var al = ringAlign(rings[i]);
+                alignSum += al;
+                driftDeg += Math.abs(off) * (360 / STEPS);
+                if (off === 0) locked++;
+
+                var row = $c('cBars') && $c('cBars').children[i];
+                if (row) {
+                    row.querySelector('.val').textContent =
+                        (off === 0 ? 'true' : (off > 0 ? '+' : '') + Math.round(off * (360 / STEPS)) + '°');
+                    row.querySelector('.bar-fill').style.width = Math.round(al * 100) + '%';
+                }
+            }
+
+            var score = Math.round((alignSum / rings.length) * 100);
+            if ($c('cTurns')) $c('cTurns').textContent = cTurns;
+            if ($c('cDrift')) $c('cDrift').textContent = Math.round(driftDeg) + '°';
+            if ($c('cLocked')) $c('cLocked').textContent = locked + '/' + rings.length;
+            if ($c('cScore')) $c('cScore').textContent = score;
+            if ($c('cArc')) $c('cArc').setAttribute('stroke-dashoffset', String(151 - 151 * score / 100));
+            if ($c('cState')) $c('cState').textContent = solved ? 'chamber.open' : 'chamber.sealed';
+            if ($c('cHint')) {
+                $c('cHint').textContent = solved
+                    ? 'alignment true · the lattice was always running'
+                    : (locked + ' of ' + rings.length + ' locked · ' +
+                       (score > 70 ? 'close' : 'keep turning'));
+            }
+
+            if (radarPoly) {
+                var pts = [];
+                for (var k = 0; k < rings.length; k++) {
+                    var a = -Math.PI / 2 + k * (Math.PI * 2 / 3);
+                    var r = 4 + ringAlign(rings[k]) * 36;
+                    pts.push((50 + Math.cos(a) * r).toFixed(1) + ',' + (50 + Math.sin(a) * r).toFixed(1));
+                }
+                radarPoly.setAttribute('points', pts.join(' '));
+                radarPoly.setAttribute('stroke', solved ? 'rgba(57,255,20,.9)' : 'rgba(0,255,255,.8)');
+                radarPoly.setAttribute('fill', solved ? 'rgba(57,255,20,.2)' : 'rgba(0,255,255,.18)');
+            }
+
+            var tabs = $c('cTabs');
+            if (tabs) {
+                for (var t = 0; t < tabs.children.length; t++) {
+                    var tab = tabs.children[t];
+                    tab.classList.toggle('done', t < 3 || (t === 3 && solved));
+                    tab.classList.toggle('active', t === (solved ? 4 : 3));
+                }
+            }
+        }
+
+        function consoleTurn(index, ring) {
+            cTurns++;
+            var off = ringOffset(ring);
+            pushLog(off === 0
+                ? 'lock&nbsp; ring ' + (index + 1) + ' true'
+                : 'turn&nbsp; ring ' + (index + 1) + ' → ' +
+                  (off > 0 ? '+' : '') + Math.round(off * (360 / STEPS)) + '°',
+                off === 0);
+            if ($c('cRate')) $c('cRate').textContent = cTurns + ' turns';
+            updateConsole();
+        }
+
+
+        function apply(ring) {
+            ring.g.style.transform = 'rotate(' + (ring.step * (360 / STEPS)) + 'deg)';
+        }
+        function check() {
+            var aligned = rings.every(function (r) { return r.step === TOLERANCE; });
+            if (!aligned) return;
+            chamber.classList.add('solved');
+            state.solved = true;
+            pushLog('align  all rings true', true);
+            save();
+            refresh(false);
+            // The reward uses the site's own machinery: the background engine is
+            // switched to its rarest shader rather than anything new being built.
+            var deep = document.querySelector('.shader-btn[data-shader="bloom"]');
+            if (deep) deep.click();
+        }
+
+        var lastFocus = null;
+        function openChamber() {
+            if (foundCount() < LAYERS.length) return;
+            lastFocus = document.activeElement;
+            chamber.classList.add('open');
+            if (state.solved) chamber.classList.add('solved');
+            var target = chamber.querySelector(state.solved ? '.chamber-close' : '.ring-g');
+            if (target && target.focus) target.focus();
+            document.addEventListener('keydown', onKey, true);
+            startLoop();
+            if (!cLogLines.length) {
+                pushLog('open&nbsp; chamber.sealed');
+                pushLog('read&nbsp; 3 rings · 12 steps each');
+            }
+            updateConsole();
+        }
+        function closeChamber() {
+            chamber.classList.remove('open');
+            document.removeEventListener('keydown', onKey, true);
+            if (lastFocus && lastFocus.focus) lastFocus.focus();
+        }
+        function onKey(e) {
+            if (e.key === 'Escape') { e.preventDefault(); closeChamber(); return; }
+            if (e.key !== 'Tab') return;
+            // Keep focus inside the dialog while it is open.
+            var items = chamber.querySelectorAll('[tabindex="0"], button');
+            var list = Array.prototype.filter.call(items, function (n) { return n.offsetParent !== null; });
+            if (!list.length) return;
+            var first = list[0], last = list[list.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+        // ---- the way in --------------------------------------------------------
+        var unfoldKey = document.getElementById('unfold-key');
+        var unfoldHint = document.getElementById('unfold-hint');
+
+        function unfold(announce) {
+            if (state.unfolded) return;
+            state.unfolded = true;
+            save();
+            refresh(false);
+            onScroll();
+            startLoop();
+            if (announce && unfoldHint) {
+                unfoldHint.classList.add('show');
+                setTimeout(function () { unfoldHint.classList.remove('show'); }, 5200);
+            }
+        }
+
+        if (unfoldKey) {
+            unfoldKey.addEventListener('click', function (e) {
+                e.preventDefault();
+                unfold(true);
+            });
+        }
+
+        // Keyboard and screen-reader route, since the key itself is deliberately
+        // not in the tab order.
+        window.lucidDescentUnfold = function () { unfold(true); return 'Unfolded.'; };
+
+        gauge.querySelector('.gauge-enter').addEventListener('click', openChamber);
+        chamber.querySelector('.chamber-close').addEventListener('click', closeChamber);
+
+        // ---- visual loop -------------------------------------------------------
+        // Shaders are compiled the first time a layer is actually open, the loop
+        // runs at ~30fps, and at most two surfaces are drawn per frame so the cost
+        // cannot grow with the number of layers opened.
+        var LAYER_W = 440, LAYER_H = 170, CHAMBER_W = 360, CHAMBER_H = 360;
+        var MIN_MS = 1000 / 30, MAX_PER_FRAME = 2;
+        var clock0 = (window.performance && performance.now) ? performance.now() : Date.now();
+        var lastMs = -1e9, cursor = 0, rafId = 0, livePool = [];
+
+        function nowS() {
+            var ms = (window.performance && performance.now) ? performance.now() : Date.now();
+            return ((ms - clock0) / 1000) % 3600;
+        }
+        function onScreen(node) {
+            var r = node.getBoundingClientRect();
+            return r.bottom > -80 && r.top < window.innerHeight + 80 && r.width > 0;
+        }
+
+        function collect() {
+            livePool.length = 0;
+            if (chamber.classList.contains('open')) {
+                if (!chamberFx) chamberFx = FX.create(chamberCanvas, CHAMBER_W, CHAMBER_H, SHADERS.chamber);
+                if (chamberFx) livePool.push(chamberFx);
+            }
+            for (var i = 0; i < built.length; i++) {
+                var item = built[i];
+                if (!item.panel.classList.contains('open') || !onScreen(item.panel)) continue;
+                if (!item.fx) {
+                    item.fx = FX.create(item.canvas, LAYER_W, LAYER_H, SHADERS[item.layer.fx]);
+                    if (!item.fx) { item.canvas.style.display = 'none'; continue; }
+                }
+                livePool.push(item.fx);
+            }
+            return livePool;
+        }
+
+        function tick() {
+            rafId = 0;
+            var pool = collect();
+            if (!pool.length || document.hidden) return;
+            var ms = (window.performance && performance.now) ? performance.now() : Date.now();
+            if (ms - lastMs >= MIN_MS) {
+                lastMs = ms;
+                var t = nowS();
+                var n = Math.min(pool.length, MAX_PER_FRAME);
+                for (var k = 0; k < n; k++) FX.draw(pool[(cursor + k) % pool.length], t);
+                cursor = (cursor + n) % pool.length;
+                if (chamber.classList.contains('open')) {
+                    cFrames++;
+                    if (cFrames % 5 === 0 && $c('cFrame')) $c('cFrame').textContent = cFrames;
+                }
+            }
+            rafId = requestAnimationFrame(tick);
+        }
+        function startLoop() {
+            if (rafId || document.hidden) return;
+            // Reduced motion gets one settled frame per surface and then nothing
+            // further. Without the settled flag, every scroll event re-ran the
+            // warm-up and the result animated after all.
+            if (reduced) {
+                var pool = collect();
+                for (var i = 0; i < pool.length; i++) {
+                    if (pool[i].settled) continue;
+                    for (var f = 0; f < 40; f++) FX.draw(pool[i], f / 30);
+                    pool[i].settled = true;
+                }
+                return;
+            }
+            rafId = requestAnimationFrame(tick);
+        }
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) { if (rafId) cancelAnimationFrame(rafId); rafId = 0; }
+            else startLoop();
+        });
+        window.addEventListener('scroll', startLoop, { passive: true });
+
+        refresh(false);
+        onScroll();
+        startLoop();
+
+        // A way back to the start, for anyone who wants to run it again.
+        window.lucidDescentReset = function () {
+            state = { found: [], solved: false, unfolded: false };
+            save();
+            chamber.classList.remove('solved', 'open');
+            rings.forEach(function (r) { r.step = 1 + Math.floor(Math.random() * (STEPS - 1)); apply(r); });
+            refresh(false);
+            onScroll();
+            return 'Descent reset — the page is folded up again.';
+        };
+    })();
+    </script>
+
 </body>
 </html>
