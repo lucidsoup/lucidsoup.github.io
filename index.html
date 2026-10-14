@@ -437,14 +437,100 @@
         .ring-g:focus { outline: none; }
         .ring-g:focus-visible circle:not(.hit) { stroke: rgba(0,255,255,.9); stroke-width: 2.5; }
         .chamber.solved .ring-g { cursor: default; }
-        .chamber-done { display: none; text-align: center; }
-        .chamber.solved .chamber-done { display: block; }
-        .chamber.solved .chamber-puzzle { display: none; }
         .chamber-close {
             margin-top: 1.5rem; background: none; border: 1px solid rgba(255,255,255,.25);
             color: rgba(255,255,255,.75); font-family: inherit; font-size: .7rem; letter-spacing: .14em;
             text-transform: uppercase; border-radius: 7px; padding: .55rem 1.2rem; cursor: pointer;
         }
+
+        /* ===== CHAMBER CONSOLE ===== */
+        .chamber { padding: 0; }
+        .chamber.open { display: flex; flex-direction: column; justify-content: flex-start; }
+        .cons {
+            width: 100%; max-width: 1180px; margin: auto; padding: 1rem;
+            display: flex; flex-direction: column; gap: .5rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        .cons-bar {
+            display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem 1.1rem;
+            font-size: .58rem; letter-spacing: .12em; text-transform: uppercase;
+            color: rgba(255,255,255,.45);
+            border: 1px solid rgba(255,255,255,.12); border-radius: 6px;
+            padding: .45rem .7rem; background: rgba(0,0,0,.6);
+        }
+        .cons-bar .k { color: rgba(255,255,255,.3); }
+        .cons-bar .v { color: rgba(0,255,255,.9); }
+        .cons-bar .nm { color: rgba(255,16,240,.95); letter-spacing: .18em; }
+        .cons-bar .right { margin-left: auto; color: rgba(57,255,20,.75); }
+
+        .cons-tabs { display: flex; gap: 2px; font-size: .57rem; letter-spacing: .14em; text-transform: uppercase; }
+        .cons-tab {
+            flex: 1; text-align: center; padding: .35rem .2rem;
+            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+            color: rgba(255,255,255,.3); border-radius: 4px; white-space: nowrap; overflow: hidden;
+        }
+        .cons-tab.done { color: rgba(57,255,20,.8); border-color: rgba(57,255,20,.3); }
+        .cons-tab.active {
+            color: #000; background: rgba(255,140,0,.9); border-color: rgba(255,170,40,.9); font-weight: bold;
+        }
+
+        .cons-stage { position: relative; display: flex; align-items: center; justify-content: center; padding: .4rem 0; }
+        .cons-stage .rings { width: min(60vw, 300px); height: min(60vw, 300px); position: relative; z-index: 2; }
+        .cons-label {
+            position: absolute; left: 0; top: 0; font-size: .6rem; letter-spacing: .16em;
+            text-transform: uppercase; color: rgba(255,255,255,.5); line-height: 1.6;
+        }
+        .cons-label b { color: #fff; font-size: .78rem; letter-spacing: .2em; display: block; }
+
+        .cons-panels { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+        .panel {
+            border: 1px solid rgba(255,255,255,.12); border-radius: 6px;
+            background: rgba(0,0,0,.65); padding: .5rem .6rem; min-height: 118px;
+            display: flex; flex-direction: column;
+        }
+        .panel-h {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: .52rem; letter-spacing: .16em; text-transform: uppercase;
+            color: rgba(255,255,255,.38); margin-bottom: .45rem;
+        }
+        .panel-h .live { color: rgba(57,255,20,.85); }
+        .log { font-size: .52rem; line-height: 1.75; color: rgba(255,255,255,.5); overflow: hidden; flex: 1; }
+        .log .t { color: rgba(255,255,255,.25); }
+        .log .ok { color: rgba(57,255,20,.85); }
+
+        .bars { display: flex; flex-direction: column; gap: .38rem; flex: 1; justify-content: center; }
+        .bar-row { font-size: .52rem; letter-spacing: .1em; color: rgba(255,255,255,.45); }
+        .bar-row .top { display: flex; justify-content: space-between; margin-bottom: .14rem; }
+        .bar-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+        .bar-fill { height: 100%; width: 0%; transition: width .3s ease; }
+
+        .gaugewrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .gaugewrap svg { width: 100%; max-width: 110px; height: auto; display: block; }
+        .gauge-num { font-size: 1.3rem; color: #fff; line-height: 1; margin-top: -1.6rem; }
+        .gauge-sub { font-size: .5rem; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.35); margin-top: .35rem; }
+
+        .radar { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .radar svg { width: 100%; max-width: 104px; height: auto; }
+
+        .cons-foot {
+            display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+            font-size: .55rem; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.4);
+        }
+        .cons-foot .hint { color: rgba(255,170,40,.85); }
+        .chamber.solved .cons-foot .hint { color: rgba(57,255,20,.9); }
+
+        @media (max-width: 760px) {
+            .cons { padding: .7rem; gap: .4rem; }
+            .cons-panels { grid-template-columns: repeat(2, 1fr); }
+            .panel { min-height: 96px; }
+            .cons-tab { font-size: .5rem; letter-spacing: .06em; padding: .3rem .1rem; }
+            .cons-label { position: static; text-align: center; margin-bottom: .3rem; }
+            .cons-stage { flex-direction: column; }
+        }
+        @media (max-width: 420px) {
+            .cons-panels .panel:nth-child(3) { display: none; }
+        }
+
         .chamber-close:hover { border-color: rgba(0,255,255,.7); color: #fff; }
 
         @media (prefers-reduced-motion: reduce) {
@@ -3563,16 +3649,54 @@
         chamber.setAttribute('role', 'dialog');
         chamber.setAttribute('aria-modal', 'true');
         chamber.setAttribute('aria-label', 'The chamber');
+        // The chamber is instrumented rather than mystical: every readout below is
+        // computed from the actual ring state, which also makes the puzzle
+        // solvable by reading rather than guessing.
         chamber.innerHTML =
-            '<div class="chamber-puzzle">' +
-                '<h3>The Chamber</h3>' +
-                '<p>Three rings, turned out of true. Bring every mark back to the top — click a ring, or focus it and use the arrow keys.</p>' +
-            '</div>' +
-            '<div class="chamber-done">' +
-                '<h3>You have descended</h3>' +
-                '<p>The lattice was always running. You just had to go deep enough to notice.</p>' +
-            '</div>' +
-            '<button type="button" class="chamber-close">Close</button>';
+            '<div class="cons">' +
+                '<div class="cons-bar">' +
+                    '<span class="nm">DESCENT ring-align</span>' +
+                    '<span><span class="k">rings</span> <span class="v">3</span></span>' +
+                    '<span><span class="k">turns</span> <span class="v" id="cTurns">0</span></span>' +
+                    '<span><span class="k">drift</span> <span class="v" id="cDrift">0\u00b0</span></span>' +
+                    '<span><span class="k">locked</span> <span class="v" id="cLocked">0/3</span></span>' +
+                    '<span><span class="k">frame</span> <span class="v" id="cFrame">0</span></span>' +
+                    '<span class="right" id="cState">chamber.sealed</span>' +
+                '</div>' +
+                '<div class="cons-tabs" id="cTabs"></div>' +
+                '<div class="cons-stage">' +
+                    '<div class="cons-label"><b>04 ALIGN</b>bring every mark to true</div>' +
+                '</div>' +
+                '<div class="cons-panels">' +
+                    '<div class="panel">' +
+                        '<div class="panel-h"><span>align log</span><span class="live" id="cRate">idle</span></div>' +
+                        '<div class="log" id="cLog"></div>' +
+                    '</div>' +
+                    '<div class="panel">' +
+                        '<div class="panel-h"><span>rings</span><span>offset</span></div>' +
+                        '<div class="bars" id="cBars"></div>' +
+                    '</div>' +
+                    '<div class="panel">' +
+                        '<div class="panel-h"><span>coverage</span><span class="live">live</span></div>' +
+                        '<div class="radar" id="cRadar"></div>' +
+                    '</div>' +
+                    '<div class="panel">' +
+                        '<div class="panel-h"><span>align score</span><span class="live">live</span></div>' +
+                        '<div class="gaugewrap">' +
+                            '<svg viewBox="0 0 120 76" aria-hidden="true">' +
+                                '<path d="M12 68 A 48 48 0 0 1 108 68" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="7" stroke-linecap="round"/>' +
+                                '<path id="cArc" d="M12 68 A 48 48 0 0 1 108 68" fill="none" stroke="#39ff14" stroke-width="7" stroke-linecap="round" stroke-dasharray="151" stroke-dashoffset="151"/>' +
+                            '</svg>' +
+                            '<div class="gauge-num" id="cScore">0</div>' +
+                            '<div class="gauge-sub">of 100</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="cons-foot">' +
+                    '<span class="hint" id="cHint">click a ring to turn it \u00b7 arrow keys when focused</span>' +
+                    '<button type="button" class="chamber-close">Close</button>' +
+                '</div>' +
+            '</div>';
         var chamberCanvas = document.createElement('canvas');
         chamberCanvas.className = 'chamber-canvas';
         chamberCanvas.setAttribute('aria-hidden', 'true');
@@ -3580,7 +3704,7 @@
         document.body.appendChild(chamber);
         var chamberFx = null;
 
-        var puzzleBox = chamber.querySelector('.chamber-puzzle');
+        var puzzleBox = chamber.querySelector('.cons-stage');
         var svg = el('svg', { viewBox: '0 0 340 340', 'class': 'rings' });
         var radii = [140, 104, 68];
         var colours = ['rgba(255,16,240,.9)', 'rgba(0,255,255,.9)', 'rgba(57,255,20,.9)'];
@@ -3607,6 +3731,7 @@
                 ring.step = (ring.step + by + STEPS) % STEPS;
                 apply(ring);
                 check();
+                consoleTurn(i, ring);
             }
             g.addEventListener('click', function () { turn(1); });
             g.addEventListener('keydown', function (e) {
@@ -3618,6 +3743,145 @@
         });
         puzzleBox.appendChild(svg);
 
+        // ---- console readouts, all derived from the live ring state ----------
+        var cTurns = 0, cFrames = 0, cLogLines = [];
+        function $c(id) { return document.getElementById(id); }
+
+        // Shortest signed distance from true, in steps (-6..6).
+        function ringOffset(ring) {
+            var o = ring.step % STEPS;
+            return o > STEPS / 2 ? o - STEPS : o;
+        }
+        function ringAlign(ring) {
+            return 1 - Math.abs(ringOffset(ring)) / (STEPS / 2);
+        }
+
+        (function buildTabs() {
+            var tabs = $c('cTabs');
+            if (!tabs) return;
+            ['layer i', 'layer ii', 'layer iii', 'align', 'open'].forEach(function (name, i) {
+                var t = document.createElement('div');
+                t.className = 'cons-tab';
+                t.textContent = name;
+                t.setAttribute('data-i', String(i));
+                tabs.appendChild(t);
+            });
+        })();
+
+        (function buildBars() {
+            var box = $c('cBars');
+            if (!box) return;
+            for (var i = 0; i < rings.length; i++) {
+                var row = document.createElement('div');
+                row.className = 'bar-row';
+                row.innerHTML = '<div class="top"><span>ring ' + (i + 1) + '</span>' +
+                                '<span class="val"></span></div>' +
+                                '<div class="bar-track"><div class="bar-fill"></div></div>';
+                row.querySelector('.bar-fill').style.background = colours[i];
+                box.appendChild(row);
+            }
+        })();
+
+        var radarPoly = null;
+        (function buildRadar() {
+            var box = $c('cRadar');
+            if (!box) return;
+            var sv = el('svg', { viewBox: '0 0 100 100' });
+            // Rings of the web.
+            [1, 0.66, 0.33].forEach(function (f) {
+                var pts = [];
+                for (var i = 0; i < 3; i++) {
+                    var a = -Math.PI / 2 + i * (Math.PI * 2 / 3);
+                    pts.push((50 + Math.cos(a) * 40 * f) + ',' + (50 + Math.sin(a) * 40 * f));
+                }
+                sv.appendChild(el('polygon', { points: pts.join(' '), fill: 'none',
+                                               stroke: 'rgba(255,255,255,.12)', 'stroke-width': '1' }));
+            });
+            radarPoly = el('polygon', { points: '50,50 50,50 50,50', fill: 'rgba(0,255,255,.18)',
+                                        stroke: 'rgba(0,255,255,.8)', 'stroke-width': '1.4' });
+            sv.appendChild(radarPoly);
+            box.appendChild(sv);
+        })();
+
+        function pushLog(text, ok) {
+            var d = new Date();
+            var stamp = ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+            cLogLines.push('<span class="t">' + stamp + '</span> ' +
+                           (ok ? '<span class="ok">' + text + '</span>' : text));
+            if (cLogLines.length > 7) cLogLines.shift();
+            var box = $c('cLog');
+            if (box) box.innerHTML = cLogLines.join('<br>');
+        }
+
+        function updateConsole() {
+            if (!chamber.classList.contains('open')) return;
+            var solved = chamber.classList.contains('solved');
+            var locked = 0, driftDeg = 0, alignSum = 0;
+
+            for (var i = 0; i < rings.length; i++) {
+                var off = ringOffset(rings[i]);
+                var al = ringAlign(rings[i]);
+                alignSum += al;
+                driftDeg += Math.abs(off) * (360 / STEPS);
+                if (off === 0) locked++;
+
+                var row = $c('cBars') && $c('cBars').children[i];
+                if (row) {
+                    row.querySelector('.val').textContent =
+                        (off === 0 ? 'true' : (off > 0 ? '+' : '') + Math.round(off * (360 / STEPS)) + '°');
+                    row.querySelector('.bar-fill').style.width = Math.round(al * 100) + '%';
+                }
+            }
+
+            var score = Math.round((alignSum / rings.length) * 100);
+            if ($c('cTurns')) $c('cTurns').textContent = cTurns;
+            if ($c('cDrift')) $c('cDrift').textContent = Math.round(driftDeg) + '°';
+            if ($c('cLocked')) $c('cLocked').textContent = locked + '/' + rings.length;
+            if ($c('cScore')) $c('cScore').textContent = score;
+            if ($c('cArc')) $c('cArc').setAttribute('stroke-dashoffset', String(151 - 151 * score / 100));
+            if ($c('cState')) $c('cState').textContent = solved ? 'chamber.open' : 'chamber.sealed';
+            if ($c('cHint')) {
+                $c('cHint').textContent = solved
+                    ? 'alignment true · the lattice was always running'
+                    : (locked + ' of ' + rings.length + ' locked · ' +
+                       (score > 70 ? 'close' : 'keep turning'));
+            }
+
+            if (radarPoly) {
+                var pts = [];
+                for (var k = 0; k < rings.length; k++) {
+                    var a = -Math.PI / 2 + k * (Math.PI * 2 / 3);
+                    var r = 4 + ringAlign(rings[k]) * 36;
+                    pts.push((50 + Math.cos(a) * r).toFixed(1) + ',' + (50 + Math.sin(a) * r).toFixed(1));
+                }
+                radarPoly.setAttribute('points', pts.join(' '));
+                radarPoly.setAttribute('stroke', solved ? 'rgba(57,255,20,.9)' : 'rgba(0,255,255,.8)');
+                radarPoly.setAttribute('fill', solved ? 'rgba(57,255,20,.2)' : 'rgba(0,255,255,.18)');
+            }
+
+            var tabs = $c('cTabs');
+            if (tabs) {
+                for (var t = 0; t < tabs.children.length; t++) {
+                    var tab = tabs.children[t];
+                    tab.classList.toggle('done', t < 3 || (t === 3 && solved));
+                    tab.classList.toggle('active', t === (solved ? 4 : 3));
+                }
+            }
+        }
+
+        function consoleTurn(index, ring) {
+            cTurns++;
+            var off = ringOffset(ring);
+            pushLog(off === 0
+                ? 'lock&nbsp; ring ' + (index + 1) + ' true'
+                : 'turn&nbsp; ring ' + (index + 1) + ' → ' +
+                  (off > 0 ? '+' : '') + Math.round(off * (360 / STEPS)) + '°',
+                off === 0);
+            if ($c('cRate')) $c('cRate').textContent = cTurns + ' turns';
+            updateConsole();
+        }
+
+
         function apply(ring) {
             ring.g.style.transform = 'rotate(' + (ring.step * (360 / STEPS)) + 'deg)';
         }
@@ -3626,6 +3890,7 @@
             if (!aligned) return;
             chamber.classList.add('solved');
             state.solved = true;
+            pushLog('align  all rings true', true);
             save();
             refresh(false);
             // The reward uses the site's own machinery: the background engine is
@@ -3644,6 +3909,11 @@
             if (target && target.focus) target.focus();
             document.addEventListener('keydown', onKey, true);
             startLoop();
+            if (!cLogLines.length) {
+                pushLog('open&nbsp; chamber.sealed');
+                pushLog('read&nbsp; 3 rings · 12 steps each');
+            }
+            updateConsole();
         }
         function closeChamber() {
             chamber.classList.remove('open');
@@ -3739,6 +4009,10 @@
                 var n = Math.min(pool.length, MAX_PER_FRAME);
                 for (var k = 0; k < n; k++) FX.draw(pool[(cursor + k) % pool.length], t);
                 cursor = (cursor + n) % pool.length;
+                if (chamber.classList.contains('open')) {
+                    cFrames++;
+                    if (cFrames % 5 === 0 && $c('cFrame')) $c('cFrame').textContent = cFrames;
+                }
             }
             rafId = requestAnimationFrame(tick);
         }
