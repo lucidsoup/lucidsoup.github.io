@@ -4,7 +4,9 @@
 // Run standalone to check every entry in the manifest:
 //   node scripts/shader-validate.mjs
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 export const MANIFEST_PATH = path.join('shaders', 'manifest.json');
 
@@ -26,8 +28,109 @@ export const EPILOGUE = '\nvoid main(){\n' +
   '    mainImage(lucidOut, gl_FragCoord.xy);\n' +
   '    gl_FragColor = vec4(lucidOut.rgb, 1.0);\n}\n';
 
+// TouchDesigner's GLSL TOP compiles desktop GLSL 4.60 and has no Shadertoy
+// globals, so library sources get wrapped before they are copied out.
+// Kept byte-identical to tdSource() in index.html. If one changes, change both.
+export function tdSource(name, glsl) {
+  return '// ' + String(name || 'LucidSoup shader').replace(/[\r\n]+/g, ' ') +
+    ' \u2014 TouchDesigner GLSL TOP version (lucidsoup.com)\n' +
+    '//\n' +
+    '// 1. Paste this into the GLSL TOP\'s pixel shader DAT.\n' +
+    '// 2. On the GLSL TOP\'s Vectors page, add a uniform named  iTime\n' +
+    '//    with the value  absTime.seconds  (otherwise the shader is frozen).\n' +
+    '// Resolution follows the TOP\'s own size; there is nothing else to set.\n' +
+    'uniform float iTime;\n' +
+    '#define iResolution vec3(uTDOutputInfo.res.zw, 1.0)\n' +
+    '#define iMouse vec4(0.0)\n' +
+    'layout(location = 0) out vec4 lucidFragColor;\n\n' +
+    glsl +
+    '\n\nvoid main(){\n' +
+    '    vec4 c = vec4(0.0, 0.0, 0.0, 1.0);\n' +
+    '    mainImage(c, gl_FragCoord.xy);\n' +
+    '    lucidFragColor = TDOutputSwizzle(vec4(c.rgb, 1.0));\n}\n';
+}
+
+// Synesthesia scenes are a .synScene folder holding main.glsl and scene.json.
+// main.glsl returns the pixel colour from renderMain(); Synesthesia provides
+// TIME, RENDERSIZE, _xy and _mouse. Kept byte-identical to synMainGlsl() and
+// synSceneJson() in index.html. If one changes, change both.
+export function synMainGlsl(name, glsl) {
+  return '// ' + String(name || 'LucidSoup shader').replace(/[\r\n]+/g, ' ') +
+    ' \u2014 Synesthesia scene (lucidsoup.com)\n' +
+    '#define iTime TIME\n' +
+    '#define iResolution vec3(RENDERSIZE, 1.0)\n' +
+    '#define iMouse _mouse\n\n' +
+    glsl +
+    '\n\nvec4 renderMain(){\n' +
+    '    vec4 c = vec4(0.0, 0.0, 0.0, 1.0);\n' +
+    '    mainImage(c, _xy);\n' +
+    '    return vec4(c.rgb, 1.0);\n}\n';
+}
+
+export function synSceneJson(entry) {
+  return JSON.stringify({
+    TITLE: String(entry.name || 'LucidSoup shader'),
+    CREDIT: 'LucidSoup',
+    DESCRIPTION: String(entry.description || ''),
+    IMAGE_PATH: 'thumbnail.png',
+    WIDTH: 1280,
+    HEIGHT: 720
+  }, null, 2) + '\n';
+}
+
+// What each host puts around the shader, reduced to the parts the wrappers
+// rely on, so glslangValidator can compile them as desktop GLSL.
+const HOSTS = [
+  {
+    label: 'TouchDesigner (desktop GLSL 4.60)',
+    build: e => '#version 460\n' +
+      'uniform struct TDTexInfo { vec4 res; vec4 depth; } uTDOutputInfo;\n' +
+      'vec4 TDOutputSwizzle(vec4 c){ return c; }\n' +
+      tdSource(e.name, e.glsl),
+  },
+  {
+    label: 'Synesthesia (desktop GLSL 3.30)',
+    build: e => '#version 330\n' +
+      'uniform vec2 RENDERSIZE;\nuniform float TIME;\nuniform vec4 _mouse;\n' +
+      'const float PI = 3.141592653589793;\nvec2 _xy;\n' +
+      synMainGlsl(e.name, e.glsl) +
+      'out vec4 synOut;\nvoid main(){ _xy = gl_FragCoord.xy; synOut = renderMain(); }\n',
+  },
+];
+
+/**
+ * Compile each shader the way TouchDesigner and Synesthesia would, via
+ * glslangValidator. Returns [{ id, ok, error?, skipped? }].
+ */
+export function desktopCompileCheck(entries) {
+  const probe = spawnSync('glslangValidator', ['--version'], { encoding: 'utf8' });
+  if (probe.error) {
+    return entries.map(e => ({ id: e.id, ok: true, skipped: true }));
+  }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-glsl-'));
+  try {
+    return entries.map(entry => {
+      const errors = [];
+      for (const host of HOSTS) {
+        const file = path.join(dir, 'shader.frag');
+        fs.writeFileSync(file, host.build(entry));
+        const r = spawnSync('glslangValidator', [file], { encoding: 'utf8' });
+        if (r.status === 0) continue;
+        const lines = (r.stdout + r.stderr).split('\n')
+          .filter(l => /ERROR/.test(l) && !/compilation errors|compilation terminated/.test(l))
+          .map(l => l.replace(file, '').trim());
+        errors.push(host.label + ' compile: ' + lines.slice(0, 5).join(' | '));
+      }
+      return errors.length ? { id: entry.id, ok: false, error: errors.join('; ') } : { id: entry.id, ok: true };
+    });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 const BANNED = [
   [/#version/, 'contains a #version directive (the page compiles as GLSL ES 1.0)'],
+  [/(?:\bconst\s+float|#define)\s+PI\b/, 'defines PI, which Synesthesia already provides (use another name)'],
   [/\biChannel\d?\b/, 'references iChannel* textures, which the page does not provide'],
   [/\biAudio|iMicrophone\b/, 'references audio inputs, which the page does not provide'],
   [/\blayout\s*\(/, 'uses layout() qualifiers, which are GLSL ES 3.0 only'],
@@ -177,6 +280,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const r of results) {
     if (r.ok) console.log(`✓ ${r.id} (lit ${r.litPct}%)`);
     else { bad++; console.error(`✗ ${r.id}: ${r.error}`); }
+  }
+  const desktop = desktopCompileCheck(shaders);
+  if (desktop.some(r => r.skipped)) {
+    console.warn('! glslangValidator not found; skipped the TouchDesigner/Synesthesia compile check.');
+  } else {
+    for (const r of desktop) {
+      if (r.ok) console.log(`✓ ${r.id} compiles for TouchDesigner and Synesthesia`);
+      else { bad++; console.error(`✗ ${r.id}: ${r.error}`); }
+    }
   }
   console.log(`\n${shaders.length} shader(s) checked, ${bad} problem(s).`);
   process.exit(bad ? 1 : 0);

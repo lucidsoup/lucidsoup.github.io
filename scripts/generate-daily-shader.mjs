@@ -12,7 +12,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  staticChecks, compileCheck, readManifest, writeManifest,
+  staticChecks, compileCheck, desktopCompileCheck, readManifest, writeManifest,
 } from './shader-validate.mjs';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
@@ -50,6 +50,11 @@ OUTPUT CONTRACT — the shader must compile as WebGL1 / GLSL ES 1.0:
 - Loops must have constant bounds (for (int i = 0; i < 8; i++)). No dynamic array
   indexing. Declare every function before it is used.
 - Integer and float types do not mix implicitly: write 1.0, not 1, for floats.
+- It must ALSO compile as desktop GLSL 4.60 (TouchDesigner) and 3.30 (Synesthesia),
+  where the shader is wrapped with #define iTime / iResolution / iMouse. So: do not
+  name anything PI (Synesthesia defines it), and do not use identifiers that are
+  reserved in desktop GLSL, such as sample, input, output, filter, common, patch,
+  buffer, shared, active, resource or partition.
 - Keep it cheap enough to run several previews at once at 480x360.
 
 HOUSE STYLE:
@@ -195,6 +200,12 @@ async function main() {
       const [result] = await compileCheck([entry]);
       if (!result.ok) problems.push(result.error);
       else console.log(`Compiles and renders (lit ${result.litPct}%).`);
+    }
+
+    if (problems.length === 0) {
+      const [desktop] = desktopCompileCheck([entry]);
+      if (!desktop.ok) problems.push(desktop.error);
+      else if (!desktop.skipped) console.log('Compiles for TouchDesigner and Synesthesia.');
     }
 
     if (problems.length === 0) {
