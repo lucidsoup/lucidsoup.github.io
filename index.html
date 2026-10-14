@@ -109,7 +109,16 @@
         h2 { font-size: 2.5rem; font-weight: 100; margin-bottom: 3rem; text-align: center; color: #00ffff; }
 
         .portfolio-category { margin-bottom: 4rem; }
-        .portfolio-category h3 { font-size: 1.1rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 1.5rem; padding-left: .5rem; border-left: 3px solid rgba(0,255,255,.06); }
+        .shop-category { margin-bottom: 3.5rem; }
+        .shop-category:last-child { margin-bottom: 0; }
+        .shop-category h3 .tag {
+            font-size: .62rem; letter-spacing: .14em; color: rgba(57,255,20,.85);
+            border: 1px solid rgba(57,255,20,.35); border-radius: 20px;
+            padding: .18rem .6rem; margin-left: .7rem; vertical-align: middle;
+            text-transform: uppercase; white-space: nowrap; font-weight: 400;
+        }
+        .shop-hidden { display: none !important; }
+        .portfolio-category h3, .shop-category h3 { font-size: 1.1rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 1.5rem; padding-left: .5rem; border-left: 3px solid rgba(0,255,255,.06); }
         .portfolio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
         .portfolio-item { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; background: #111; border: 1px solid rgba(255,255,255,.08); transition: transform .4s ease, box-shadow .4s ease; }
         .portfolio-item.portrait { aspect-ratio: 9/16; grid-row: span 2; }
@@ -738,7 +747,7 @@
             .portfolio-item.portrait { grid-row: span 1; aspect-ratio: 9/12; }
             .contact-links { flex-direction: column; gap: 1rem; }
             .portfolio-item .overlay { opacity: 1 !important; }
-            .portfolio-category h3 { font-size: 0.95rem; letter-spacing: 2px; }
+            .portfolio-category h3, .shop-category h3 { font-size: 0.95rem; letter-spacing: 2px; }
 
             /* DrumSeek section - tighter, smaller intro */
             #drumseek p { font-size: 0.95rem; line-height: 1.5; padding: 0 0.5rem; }
@@ -974,9 +983,21 @@
 
         <section id="shop">
             <h2>Shop</h2>
-            <div id="shop-grid" class="shop-grid">
-                <!-- items rendered dynamically from items.json -->
-                <div class="shop-loading">Loading...</div>
+
+            <div class="shop-category">
+                <h3>Studio</h3>
+                <div id="shop-grid" class="shop-grid">
+                    <!-- items rendered dynamically from items.json -->
+                    <div class="shop-loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Live catalogue from the LucidSoup Drops store. Hidden entirely if
+                 the catalogue cannot be reached, so the Studio items above are
+                 never affected by that store being down. -->
+            <div class="shop-category shop-hidden" id="drops-category">
+                <h3>LucidSoup Drops <span class="tag">ships direct</span></h3>
+                <div id="drops-grid" class="shop-grid"></div>
             </div>
         </section>
 
@@ -1295,6 +1316,118 @@
                     // Hide whole shop section if no items file at all
                     const section = document.getElementById('shop');
                     if (section) section.style.display = 'none';
+                });
+        })();
+
+        // ===== LUCIDSOUP DROPS - live catalogue from the dropshipping store =====
+        // The store itself (catalogue, Stripe checkout, supplier fulfilment) lives in
+        // the DropShift project. This page only reads the active catalogue and links
+        // out to it, so nothing here touches payments or customer data.
+        //
+        // The anon key is a public, read-only credential: row-level security limits it
+        // to active products and it cannot see costs, orders or settings. It is meant
+        // to ship in client-side code.
+        (function loadDrops() {
+            var DROPS = {
+                api:   'https://wbfqhrhanhevdlnspezy.supabase.co',
+                key:   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiZnFocmhhbmhldmRsbnNwZXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTQwMzIsImV4cCI6MjEwNjE5MDAzMn0.nKDJ1Tu2TKN0-OALnNpMUSyq8J3vv5n-fOXgGERG65g',
+                store: 'https://dropshift.mjavella8.workers.dev',
+                max:   12       // keep the row from swamping the studio items
+            };
+
+            var category = document.getElementById('drops-category');
+            var grid = document.getElementById('drops-grid');
+            if (!category || !grid) return;
+
+            function escapeHtml(str) {
+                return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+                    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+                });
+            }
+
+            function trim(text, max) {
+                text = String(text || '').replace(/\s+/g, ' ').trim();
+                if (text.length <= max) return text;
+                var cut = text.slice(0, max);
+                var space = cut.lastIndexOf(' ');
+                return (space > max * 0.6 ? cut.slice(0, space) : cut) + '…';
+            }
+
+            function money(cents) {
+                return '$' + (cents / 100).toFixed(2).replace(/\.00$/, '');
+            }
+
+            // Price comes from the cheapest variant that is actually in stock, so the
+            // figure shown is one a customer can really buy at.
+            function priceOf(product) {
+                var variants = product.variants || [];
+                var inStock = variants.filter(function (v) {
+                    return v.price_cents > 0 && (v.stock == null || v.stock > 0);
+                });
+                var pool = inStock.length ? inStock : variants.filter(function (v) { return v.price_cents > 0; });
+                if (!pool.length) return null;
+                var low = Math.min.apply(null, pool.map(function (v) { return v.price_cents; }));
+                return { cents: low, from: pool.length > 1, soldOut: inStock.length === 0 };
+            }
+
+            function render(products) {
+                var cards = products.map(function (product) {
+                    var price = priceOf(product);
+                    if (!price) return '';
+                    var href = DROPS.store + '/?p=' + encodeURIComponent(product.slug || '');
+                    var image = (product.images || [])[0];
+                    var imageEl = image
+                        ? '<img src="' + escapeHtml(image) + '" alt="' + escapeHtml(product.title) + '" loading="lazy" ' +
+                          'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+                          '<div class="shop-item-image-placeholder" style="display:none">✦</div>'
+                        : '<div class="shop-item-image-placeholder">✦</div>';
+
+                    return '' +
+                        '<div class="shop-item' + (price.soldOut ? ' sold-out' : '') + '">' +
+                            '<div class="shop-item-image">' + imageEl + '</div>' +
+                            '<div class="shop-item-body">' +
+                                (product.category
+                                    ? '<div class="shop-item-subtitle">' + escapeHtml(product.category) + '</div>' : '') +
+                                '<div class="shop-item-title">' + escapeHtml(product.title || 'Untitled') + '</div>' +
+                                '<div class="shop-item-description">' +
+                                    escapeHtml(trim(product.description, 150)) + '</div>' +
+                                '<div class="shop-item-footer">' +
+                                    '<div class="shop-item-price">' +
+                                        (price.from ? 'from ' : '') + money(price.cents) + '</div>' +
+                                    '<a class="shop-item-button' + (price.soldOut ? ' disabled' : '') + '" ' +
+                                       'href="' + escapeHtml(href) + '" target="_blank" rel="noopener">' +
+                                        (price.soldOut ? 'SOLD OUT' : 'VIEW') +
+                                    '</a>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>';
+                }).filter(Boolean);
+
+                if (!cards.length) return false;
+                grid.innerHTML = cards.join('');
+                category.classList.remove('shop-hidden');
+                return true;
+            }
+
+            var query = '/rest/v1/products' +
+                '?select=id,slug,title,description,images,category,' +
+                'variants(id,name,price_cents,compare_at_cents,stock)' +
+                '&status=eq.active&order=created_at.desc';
+
+            fetch(DROPS.api + query, {
+                headers: { apikey: DROPS.key, Authorization: 'Bearer ' + DROPS.key }
+            })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('catalogue ' + r.status);
+                    return r.json();
+                })
+                .then(function (products) {
+                    if (!Array.isArray(products) || !products.length) throw new Error('catalogue empty');
+                    render(products.slice(0, DROPS.max));
+                })
+                .catch(function (err) {
+                    // Leave the row hidden; the studio items stand on their own.
+                    console.warn('[Drops] catalogue unavailable:', err.message);
                 });
         })();
 
