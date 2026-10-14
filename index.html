@@ -395,13 +395,14 @@
         }
         .shader-card-actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 0.5rem;
             margin-top: auto;
             padding-top: 0.75rem;
             border-top: 1px solid rgba(255,255,255,.06);
         }
         .shader-card-btn {
-            flex: 1;
+            flex: 1 1 40%;
             background: linear-gradient(135deg, rgba(0,255,255,.12), rgba(255,0,255,.12));
             border: 1px solid rgba(0,255,255,.4);
             color: #fff;
@@ -960,9 +961,11 @@
             <h2>Shader Library</h2>
             <p class="shader-lib-intro">
                 One new original GLSL shader every day. Every preview below is live WebGL running in
-                your browser right now — not a video loop. Sources are Shadertoy-format
-                (<code>mainImage</code>, <code>iResolution</code>, <code>iTime</code>), so they drop
-                straight into Shadertoy, TouchDesigner, ISF or Resolume.
+                your browser right now — not a video loop. <em>Copy GLSL</em> gives the
+                Shadertoy-format source (<code>mainImage</code>, <code>iResolution</code>, <code>iTime</code>).
+                <em>Copy for TouchDesigner</em> wraps it for a GLSL TOP (then set the <code>iTime</code>
+                uniform to <code>absTime.seconds</code> on the Vectors page), and <em>Synesthesia scene</em>
+                downloads a ready <code>.synScene</code> folder.
             </p>
             <div id="shader-lib-grid" class="shader-lib-grid">
                 <div class="shader-lib-loading">Loading shaders&hellip;</div>
@@ -2651,6 +2654,115 @@
                     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
             }
 
+            // ---- exports for other hosts ----
+            // Checked with glslangValidator as desktop GLSL 4.60 (TouchDesigner) and
+            // 3.30 (Synesthesia) against all library shaders. A compile check for
+            // the daily drop is parked on the shader-desktop-validation branch.
+            function tdSource(name, glsl) {
+              return '// ' + String(name || 'LucidSoup shader').replace(/[\r\n]+/g, ' ') +
+                ' \u2014 TouchDesigner GLSL TOP version (lucidsoup.com)\n' +
+                '//\n' +
+                '// 1. Paste this into the GLSL TOP\'s pixel shader DAT.\n' +
+                '// 2. On the GLSL TOP\'s Vectors page, add a uniform named  iTime\n' +
+                '//    with the value  absTime.seconds  (otherwise the shader is frozen).\n' +
+                '// Resolution follows the TOP\'s own size; there is nothing else to set.\n' +
+                'uniform float iTime;\n' +
+                '#define iResolution vec3(uTDOutputInfo.res.zw, 1.0)\n' +
+                '#define iMouse vec4(0.0)\n' +
+                'layout(location = 0) out vec4 lucidFragColor;\n\n' +
+                glsl +
+                '\n\nvoid main(){\n' +
+                '    vec4 c = vec4(0.0, 0.0, 0.0, 1.0);\n' +
+                '    mainImage(c, gl_FragCoord.xy);\n' +
+                '    lucidFragColor = TDOutputSwizzle(vec4(c.rgb, 1.0));\n}\n';
+            }
+
+            function synMainGlsl(name, glsl) {
+              return '// ' + String(name || 'LucidSoup shader').replace(/[\r\n]+/g, ' ') +
+                ' \u2014 Synesthesia scene (lucidsoup.com)\n' +
+                '#define iTime TIME\n' +
+                '#define iResolution vec3(RENDERSIZE, 1.0)\n' +
+                '#define iMouse _mouse\n\n' +
+                glsl +
+                '\n\nvec4 renderMain(){\n' +
+                '    vec4 c = vec4(0.0, 0.0, 0.0, 1.0);\n' +
+                '    mainImage(c, _xy);\n' +
+                '    return vec4(c.rgb, 1.0);\n}\n';
+            }
+
+            function synSceneJson(entry) {
+              return JSON.stringify({
+                TITLE: String(entry.name || 'LucidSoup shader'),
+                CREDIT: 'LucidSoup',
+                DESCRIPTION: String(entry.description || ''),
+                IMAGE_PATH: 'thumbnail.png',
+                WIDTH: 1280,
+                HEIGHT: 720
+              }, null, 2) + '\n';
+            }
+
+            // Minimal zip writer (stored, no compression) for the Synesthesia scene folder.
+            const CRC_TABLE = (function(){
+                const t = new Uint32Array(256);
+                for (let i = 0; i < 256; i++) {
+                    let c = i;
+                    for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+                    t[i] = c >>> 0;
+                }
+                return t;
+            })();
+            function crc32(bytes){
+                let c = 0xFFFFFFFF;
+                for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+                return (c ^ 0xFFFFFFFF) >>> 0;
+            }
+            function makeZip(files){              // [{ name, data: Uint8Array }]
+                const enc = new TextEncoder(), parts = [], central = [];
+                let offset = 0;
+                files.forEach(function(f){
+                    const name = enc.encode(f.name), crc = crc32(f.data), n = f.data.length;
+                    const h = new DataView(new ArrayBuffer(30));
+                    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true);
+                    h.setUint32(14, crc, true); h.setUint32(18, n, true); h.setUint32(22, n, true);
+                    h.setUint16(26, name.length, true);
+                    parts.push(h.buffer, name, f.data);
+                    const c = new DataView(new ArrayBuffer(46));
+                    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true);
+                    c.setUint16(8, 0x0800, true); c.setUint32(16, crc, true); c.setUint32(20, n, true);
+                    c.setUint32(24, n, true); c.setUint16(28, name.length, true); c.setUint32(42, offset, true);
+                    central.push(c.buffer, name);
+                    offset += 30 + name.length + n;
+                });
+                const size = central.reduce(function(s, x){ return s + x.byteLength; }, 0);
+                const e = new DataView(new ArrayBuffer(22));
+                e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true);
+                e.setUint16(10, files.length, true); e.setUint32(12, size, true); e.setUint32(16, offset, true);
+                return new Blob(parts.concat(central, [e.buffer]), { type: 'application/zip' });
+            }
+
+            function copyText(btn, text, label){
+                const done = function(ok){
+                    btn.textContent = ok ? 'COPIED' : 'COPY FAILED';
+                    setTimeout(function(){ btn.textContent = label; }, 1600);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text)
+                        .then(function(){ done(true); }, function(){ done(false); });
+                } else {
+                    // Older browsers and non-secure origins have no async clipboard.
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.setAttribute('readonly', '');
+                    ta.style.cssText = 'position:absolute;left:-9999px;top:0;';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    let ok = false;
+                    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                    document.body.removeChild(ta);
+                    done(ok);
+                }
+            }
+
             // ---- one shared GL context for the whole library ----
             const glCanvas = document.createElement('canvas');
             glCanvas.width = PREVIEW_W;
@@ -2858,7 +2970,9 @@
                               escapeHtml(entry.useCase) + '</div>' : '') +
                         '<div class="shader-card-actions">' +
                             '<button class="shader-card-btn" data-act="src">VIEW SOURCE</button>' +
-                            '<button class="shader-card-btn" data-act="copy">COPY GLSL</button>' +
+                            '<button class="shader-card-btn" data-act="copy" title="Shadertoy, ISF and anything that takes mainImage()">COPY GLSL</button>' +
+                            '<button class="shader-card-btn" data-act="td" title="Paste into a GLSL TOP; set the iTime uniform to absTime.seconds">COPY FOR TOUCHDESIGNER</button>' +
+                            '<button class="shader-card-btn" data-act="syn" title="Unzip and drag the .synScene folder into Synesthesia">SYNESTHESIA SCENE</button>' +
                         '</div>' +
                     '</div>' +
                     '<pre class="shader-card-src"><code></code></pre>';
@@ -2887,27 +3001,40 @@
                 });
 
                 const copyBtn = el.querySelector('[data-act="copy"]');
-                copyBtn.addEventListener('click', function(){
-                    const done = function(ok){
-                        copyBtn.textContent = ok ? 'COPIED' : 'COPY FAILED';
-                        setTimeout(function(){ copyBtn.textContent = 'COPY GLSL'; }, 1600);
+                copyBtn.addEventListener('click', function(){ copyText(copyBtn, card.glsl, 'COPY GLSL'); });
+
+                const tdBtn = el.querySelector('[data-act="td"]');
+                tdBtn.addEventListener('click', function(){
+                    copyText(tdBtn, tdSource(entry.name, card.glsl), 'COPY FOR TOUCHDESIGNER');
+                });
+
+                const synBtn = el.querySelector('[data-act="syn"]');
+                synBtn.addEventListener('click', function(){
+                    // Accents folded to plain letters so the folder name survives any OS.
+                    const folder = String(entry.name || entry.id || 'LucidSoup')
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^A-Za-z0-9 _-]+/g, '').trim() || 'LucidSoup';
+                    const enc = new TextEncoder();
+                    const finish = function(png){
+                        const files = [
+                            { name: folder + '.synScene/main.glsl', data: enc.encode(synMainGlsl(entry.name, card.glsl)) },
+                            { name: folder + '.synScene/scene.json', data: enc.encode(synSceneJson(entry)) }
+                        ];
+                        if (png) files.push({ name: folder + '.synScene/thumbnail.png', data: png });
+                        const url = URL.createObjectURL(makeZip(files));
+                        const a = document.createElement('a');
+                        a.href = url; a.download = folder + '.synScene.zip';
+                        document.body.appendChild(a); a.click(); a.remove();
+                        setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
                     };
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(card.glsl)
-                            .then(function(){ done(true); }, function(){ done(false); });
-                    } else {
-                        // Older browsers and non-secure origins have no async clipboard.
-                        const ta = document.createElement('textarea');
-                        ta.value = card.glsl;
-                        ta.setAttribute('readonly', '');
-                        ta.style.cssText = 'position:absolute;left:-9999px;top:0;';
-                        document.body.appendChild(ta);
-                        ta.select();
-                        let ok = false;
-                        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-                        document.body.removeChild(ta);
-                        done(ok);
-                    }
+                    // Thumbnail from the live preview, when it has rendered.
+                    if (card.canvas.toBlob && !card.dead) {
+                        card.canvas.toBlob(function(blob){
+                            if (!blob) { finish(null); return; }
+                            blob.arrayBuffer().then(function(b){ finish(new Uint8Array(b)); },
+                                                    function(){ finish(null); });
+                        }, 'image/png');
+                    } else finish(null);
                 });
 
                 el.__lucidCard = card;
