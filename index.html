@@ -170,7 +170,7 @@
         .box-open .flap-s { transition-delay: .16s; }
         .box-open .flap-w { transition-delay: .24s; }
 
-        .flap canvas, .flap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+        .flap canvas, .flap video, .flap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
         .flap-tint { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgba(0,0,0,.88) 100%); }
         .flap-label {
             position: absolute; left: 0; right: 0; bottom: 0; padding: .45rem .5rem;
@@ -1250,103 +1250,8 @@
 
         <section id="portfolio">
             <h2>Portfolio</h2>
-
-            <div class="portfolio-category">
-                <h3>Architectural Projections</h3>
-                <div class="portfolio-grid">
-                    <div class="portfolio-item" data-src="https://example.com/projection1.mp4">
-                        <video muted playsinline><source src="https://example.com/thumb1.mp4" type="video/mp4"></video>
-                        <div class="play-icon"></div>
-                        <div class="overlay">
-                            <div class="overlay-text">
-                                <h4>Festival Façade Mapping</h4>
-                                <p>Large-scale building projection using spatial mapping and audio reactivity</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-item" data-src="https://example.com/projection2.mp4">
-                        <video muted playsinline><source src="https://example.com/thumb2.mp4" type="video/mp4"></video>
-                        <div class="play-icon"></div>
-                        <div class="overlay">
-                            <div class="overlay-text">
-                                <h4>Museum Installation</h4>
-                                <p>Interactive projection responding to visitor movement</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="portfolio-category">
-                <h3>Concert & Event Visuals</h3>
-                <div class="portfolio-grid">
-                    <div class="portfolio-item" data-src="https://example.com/concert1.mp4">
-                        <video muted playsinline><source src="https://example.com/thumb3.mp4" type="video/mp4"></video>
-                        <div class="play-icon"></div>
-                        <div class="overlay">
-                            <div class="overlay-text">
-                                <h4>Electronic Music Festival</h4>
-                                <p>Real-time audio-reactive visuals synced to live performance</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-item portrait" data-src="https://example.com/concert2.mp4">
-                        <video muted playsinline><source src="https://example.com/thumb4.mp4" type="video/mp4"></video>
-                        <div class="play-icon"></div>
-                        <div class="overlay">
-                            <div class="overlay-text">
-                                <h4>Club Residency</h4>
-                                <p>Immersive visual environment for weekly DJ sets</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-item" data-src="https://example.com/concert3.mp4">
-                        <video muted playsinline><source src="https://example.com/thumb5.mp4" type="video/mp4"></video>
-                        <div class="play-icon"></div>
-                        <div class="overlay">
-                            <div class="overlay-text">
-                                <h4>Stage Design</h4>
-                                <p>Full production visuals with multi-camera integration</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="portfolio-category">
-                <h3>Interactive Installations</h3>
-                <div class="portfolio-grid">
-                    <div class="portfolio-item portrait" data-src="videos/IMG_3341.mp4">
-                        <video muted playsinline loop autoplay><source src="videos/IMG_3341.mp4" type="video/mp4"></video>
-                        <div class="play-icon"></div>
-                        <div class="overlay">
-                            <div class="overlay-text">
-                                <h4>Live Visual Work</h4>
-                                <p>Recent piece — tap to view full screen</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-item" data-src="https://example.com/install1.mp4">
-                        <video muted playsinline><source src="https://example.com/thumb6.mp4" type="video/mp4"></video>
-                        <div class="play-icon"></div>
-                        <div class="overlay">
-                            <div class="overlay-text">
-                                <h4>Interactive Installation</h4>
-                                <p>Real-time visuals responding to ambient conditions</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-item" data-src="https://example.com/install2.mp4">
-                        <video muted playsinline><source src="https://example.com/thumb7.mp4" type="video/mp4"></video>
-                        <div class="play-icon"></div>
-                        <div class="overlay">
-                            <div class="overlay-text">
-                                <h4>Immersive Experience</h4>
-                                <p>Multi-sensory installation combining visuals, sound, and interaction</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div id="portfolio-body">
+                <div class="shop-loading">Loading…</div>
             </div>
         </section>
 
@@ -1630,6 +1535,23 @@
         // If you see this in the browser console, the new file IS deployed.
         console.log('%c[LucidSoup] v3.0 — 10 shaders + camera + XYZ controls + contained DrumSeek frame', 'background:#00ffff;color:#000;padding:4px 8px;font-weight:bold;');
 
+        // ===== MEDIA MANIFEST =====
+        // media.json describes every piece of work on the site. Fetched once and
+        // shared, because the portfolio and the puzzle box both read from it.
+        window.lucidMedia = (function () {
+            var p = null;
+            return function () {
+                if (!p) {
+                    p = fetch('media.json?t=' + Date.now())
+                        .then(function (r) {
+                            if (!r.ok) throw new Error('media.json ' + r.status);
+                            return r.json();
+                        });
+                }
+                return p;
+            };
+        })();
+
         // ===== SHOP — fetches items.json and renders cards =====
         (function loadShop() {
             const grid = document.getElementById('shop-grid');
@@ -1729,51 +1651,73 @@
         })();
 
         // ===== PORTFOLIO VIDEO HOVER =====
-        var items = document.querySelectorAll('.portfolio-item');
+        // Cards come from media.json and land after this script has run, so binding is
+        // a function the renderer calls rather than one pass over the DOM at load.
         var isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-        items.forEach(function(item) {
-            var video = item.querySelector('video');
-            if (isMobile) {
-                var lastTap = 0;
-                item.addEventListener('click', function(e) {
-                    var now = Date.now();
-                    if (now - lastTap < 300) {
-                        openLightbox(item.getAttribute('data-src'));
-                    } else {
-                        if (video.paused) {
+        function portfolioItems() {
+            return Array.prototype.slice.call(document.querySelectorAll('.portfolio-item'));
+        }
+
+        function pauseAll() {
+            portfolioItems().forEach(function(item) {
+                var v = item.querySelector('video');
+                if (v) v.pause();
+                item.classList.remove('playing');
+            });
+        }
+
+        function bindPortfolioItems() {
+            portfolioItems().forEach(function(item) {
+                if (item.getAttribute('data-bound')) return;
+                item.setAttribute('data-bound', '1');
+
+                var video = item.querySelector('video');
+                var src = item.getAttribute('data-src');
+                var href = item.getAttribute('data-href');
+                if (src || href) item.style.cursor = 'pointer';
+
+                function open() {
+                    if (src) openLightbox(src);
+                    else if (href) window.open(href, '_blank', 'noopener');
+                }
+
+                if (isMobile) {
+                    var lastTap = 0;
+                    item.addEventListener('click', function() {
+                        var now = Date.now();
+                        // With a preview loop the first tap plays it in place and the
+                        // second opens the full piece; without one, one tap opens.
+                        if (!video || now - lastTap < 300) {
+                            open();
+                        } else if (video.paused) {
                             pauseAll();
-                            video.play();
+                            video.play().catch(function(){});
                             item.classList.add('playing');
                         } else {
                             video.pause();
                             item.classList.remove('playing');
                         }
+                        lastTap = now;
+                    });
+                } else {
+                    if (video) {
+                        item.addEventListener('mouseenter', function() {
+                            video.play().catch(function(){});
+                            item.classList.add('playing');
+                        });
+                        item.addEventListener('mouseleave', function() {
+                            video.pause();
+                            video.currentTime = 0;
+                            item.classList.remove('playing');
+                        });
                     }
-                    lastTap = now;
-                });
-            } else {
-                item.addEventListener('mouseenter', function() {
-                    video.play().catch(function(){});
-                    item.classList.add('playing');
-                });
-                item.addEventListener('mouseleave', function() {
-                    video.pause();
-                    video.currentTime = 0;
-                    item.classList.remove('playing');
-                });
-                item.addEventListener('click', function() {
-                    openLightbox(item.getAttribute('data-src'));
-                });
-            }
-        });
-
-        function pauseAll() {
-            items.forEach(function(i) {
-                i.querySelector('video').pause();
-                i.classList.remove('playing');
+                    item.addEventListener('click', open);
+                }
             });
         }
+        window.addEventListener('lucid:portfolio-ready', bindPortfolioItems);
+        bindPortfolioItems();
 
         // ===== LIGHTBOX =====
         var lightbox = document.getElementById('lightbox');
@@ -1783,7 +1727,9 @@
             pauseAll();
             lbVideo.src = src;
             lightbox.classList.add('active');
-            lbVideo.play();
+            // Closing before the play promise settles rejects it; that is expected.
+            var q = lbVideo.play();
+            if (q && q.catch) q.catch(function () {});
         }
 
         function closeLightbox() {
@@ -4210,10 +4156,46 @@
         // pretending.
         var PANELS = {
             'shader-library': { label: 'Shaders',  sub: 'live',        kind: 'shader' },
-            'portfolio':      { label: 'Visuals',  sub: 'reel',        kind: 'video', src: 'videos/IMG_3341.mp4' },
+            'portfolio':      { label: 'Visuals',  sub: 'reel',        kind: 'media' },
             'drumseek':       { label: 'Tools',    sub: 'drumseek',    kind: 'glyph', glyph: '▦' },
             'shop':           { label: 'Studio',   sub: 'shop · about', kind: 'glyph', glyph: '✦' }
         };
+
+        // Picks a featured work's preview loop for the Visuals flap. Nothing featured,
+        // or no manifest, leaves the flap on its placeholder glyph.
+        function fillFromMedia(flap) {
+            var ph = document.createElement('div');
+            ph.className = 'flap-empty'; ph.textContent = '✦';
+            flap.insertBefore(ph, flap.firstChild);
+
+            window.lucidMedia().then(function (data) {
+                var works = (data.works || []).filter(function (w) {
+                    return w && w.featured && (w.preview || w.poster);
+                });
+                if (!works.length) return;
+                var pick = works[Math.floor(Math.random() * works.length)];
+
+                if (pick.preview) {
+                    var v = document.createElement('video');
+                    v.src = pick.preview; v.muted = true; v.loop = true;
+                    v.playsInline = true; v.setAttribute('playsinline', '');
+                    v.setAttribute('aria-hidden', 'true');
+                    if (pick.poster) v.poster = pick.poster;
+                    v.addEventListener('error', function () { v.remove(); });
+                    v.addEventListener('loadeddata', function () { ph.remove(); });
+                    flap.insertBefore(v, flap.firstChild);
+                    var play = v.play();
+                    if (play && play.catch) play.catch(function () {});
+                } else {
+                    var img = document.createElement('img');
+                    img.src = pick.poster; img.alt = '';
+                    img.setAttribute('aria-hidden', 'true');
+                    img.addEventListener('error', function () { img.remove(); });
+                    img.addEventListener('load', function () { ph.remove(); });
+                    flap.insertBefore(img, flap.firstChild);
+                }
+            }).catch(function () {});
+        }
 
         function fill(flap) {
             var dest = flap.getAttribute('data-dive');
@@ -4221,20 +4203,8 @@
             if (!cfg || flap.getAttribute('data-filled')) return;
             flap.setAttribute('data-filled', '1');
 
-            if (cfg.kind === 'video') {
-                var v = document.createElement('video');
-                v.src = cfg.src; v.muted = true; v.loop = true;
-                v.playsInline = true; v.setAttribute('playsinline', '');
-                v.setAttribute('aria-hidden', 'true');
-                v.addEventListener('error', function () {
-                    v.remove();
-                    var e = document.createElement('div');
-                    e.className = 'flap-empty'; e.textContent = '✦';
-                    flap.insertBefore(e, flap.firstChild);
-                });
-                flap.appendChild(v);
-                var play = v.play();
-                if (play && play.catch) play.catch(function () {});
+            if (cfg.kind === 'media') {
+                fillFromMedia(flap);
             } else if (cfg.kind === 'shader') {
                 var c = document.createElement('canvas');
                 c.width = 220; c.height = 220; c.setAttribute('aria-hidden', 'true');
@@ -4357,6 +4327,88 @@
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dive(flap.getAttribute('data-dive')); }
             });
         });
+    })();
+    </script>
+
+
+    <!-- ===== PORTFOLIO — rendered from media.json ===== -->
+    <script>
+    (function portfolio() {
+        'use strict';
+        var body = document.getElementById('portfolio-body');
+        if (!body) return;
+
+        function esc(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+            });
+        }
+
+        // Where a work actually plays. A direct URL opens in the lightbox the site
+        // already has; a Vimeo or YouTube id opens on their site instead, because
+        // embedding either would drag a third-party player into the page.
+        function target(work) {
+            if (work.full) return { kind: 'file', href: work.full };
+            if (work.vimeo) return { kind: 'link', href: 'https://vimeo.com/' + encodeURIComponent(work.vimeo) };
+            if (work.youtube) return { kind: 'link', href: 'https://youtu.be/' + encodeURIComponent(work.youtube) };
+            return null;
+        }
+
+        function card(work) {
+            var dest = target(work);
+            var media = work.preview
+                ? '<video muted playsinline loop preload="metadata"' +
+                  (work.poster ? ' poster="' + esc(work.poster) + '"' : '') + '>' +
+                      '<source src="' + esc(work.preview) + '" type="video/mp4">' +
+                  '</video>'
+                : (work.poster
+                    ? '<img src="' + esc(work.poster) + '" alt="" loading="lazy">'
+                    : '<div class="flap-empty" style="position:absolute;inset:0">✦</div>');
+
+            return '<div class="portfolio-item' + (work.portrait ? ' portrait' : '') + '"' +
+                       (dest && dest.kind === 'file' ? ' data-src="' + esc(dest.href) + '"' : '') +
+                       (dest && dest.kind === 'link' ? ' data-href="' + esc(dest.href) + '"' : '') + '>' +
+                       media +
+                       (dest ? '<div class="play-icon"></div>' : '') +
+                       '<div class="overlay"><div class="overlay-text">' +
+                           '<h4>' + esc(work.title || 'Untitled') + '</h4>' +
+                           (work.blurb ? '<p>' + esc(work.blurb) + '</p>' : '') +
+                       '</div></div>' +
+                   '</div>';
+        }
+
+        function render(data) {
+            var works = (data.works || []).filter(function (w) { return w && (w.preview || w.poster || w.full || w.vimeo || w.youtube); });
+            if (!works.length) {
+                body.innerHTML = '<div class="shop-empty">No work published yet.</div>';
+                return;
+            }
+            var cats = data.categories || [];
+            var html = '';
+            cats.forEach(function (cat) {
+                var mine = works.filter(function (w) { return w.category === cat.id; });
+                if (!mine.length) return;
+                html += '<div class="portfolio-category"><h3>' + esc(cat.name) + '</h3>' +
+                        '<div class="portfolio-grid">' + mine.map(card).join('') + '</div></div>';
+            });
+            var known = cats.map(function (c) { return c.id; });
+            var rest = works.filter(function (w) { return known.indexOf(w.category) === -1; });
+            if (rest.length) {
+                html += '<div class="portfolio-category"><h3>Other</h3>' +
+                        '<div class="portfolio-grid">' + rest.map(card).join('') + '</div></div>';
+            }
+            body.innerHTML = html;
+            // The page's own hover / tap / lightbox wiring binds off this event.
+            window.dispatchEvent(new CustomEvent('lucid:portfolio-ready', { detail: { works: works } }));
+        }
+
+        window.lucidMedia()
+            .then(render)
+            .catch(function (err) {
+                console.warn('[Portfolio] could not load media.json:', err.message);
+                var sec = document.getElementById('portfolio');
+                if (sec) sec.style.display = 'none';
+            });
     })();
     </script>
 
