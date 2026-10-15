@@ -18,7 +18,7 @@
 
 :root {
     /* Surfaces */
-    --lucid-bg:        #08080e;
+    --lucid-bg:        #06060b;
     --lucid-bg-deep:   #05050a;   /* inside the gallery's rooms */
     --lucid-panel:     #0b0b14;
     --lucid-line:      rgba(255, 255, 255, .12);
@@ -27,11 +27,25 @@
     --lucid-ink:       #e8e8f0;
     --lucid-dim:       #7a7a8c;
 
-    /* Accents — one value each, so cyan is the same cyan everywhere */
-    --lucid-cyan:      #00ffff;
-    --lucid-magenta:   #ff10f0;
-    --lucid-green:     #39ff14;
+    /* Accents, taken from the artwork rather than chosen beside it.
+       Sampling a finished piece: 48% violet, 24% acid green, 7% blue, 4.5%
+       magenta — and no cyan at all beyond one small focal eye. The site had
+       been built the other way round, cyan everywhere, so it did not look like
+       the work it exists to show. These are the artwork's own hues, lifted to
+       the lightness that reads on black.
+
+       Roles, not colour names, so this can be re-anchored again without the
+       names becoming lies. */
+    --lucid-accent:    #9b7bff;   /* violet — the dominant one, hue 257 */
+    --lucid-accent-2:  #8ae04b;   /* acid green, hue 102 */
+    --lucid-accent-3:  #d44fb0;   /* magenta, hue 312 */
+    --lucid-focal:     #6fe3e8;   /* the cyan of that one eye: used sparingly */
     --lucid-warn:      #ffd34d;
+
+    /* Kept so anything still asking for them resolves, but prefer the roles. */
+    --lucid-cyan:      var(--lucid-focal);
+    --lucid-magenta:   var(--lucid-accent-3);
+    --lucid-green:     var(--lucid-accent-2);
 
     /* Type */
     --lucid-display:   'Orbitron', 'Arial Black', sans-serif;
@@ -55,26 +69,27 @@
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    border: 1px solid rgba(0, 255, 255, .34);
+    border: 1px solid rgba(139, 108, 245, .40);
     border-radius: var(--lucid-radius);
     background: rgba(5, 5, 10, .82);
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
-    color: var(--lucid-cyan);
+    color: var(--lucid-accent);
     font-family: var(--lucid-mono);
     font-size: 10px;
     letter-spacing: var(--lucid-track);
     text-transform: uppercase;
     text-decoration: none;
     line-height: 1;
-    opacity: .72;
+    opacity: .78;
     transition: opacity .2s ease, border-color .2s ease, background .2s ease;
 }
 .lucid-return:hover,
 .lucid-return:focus-visible {
     opacity: 1;
-    border-color: rgba(0, 255, 255, .85);
-    background: rgba(0, 255, 255, .12);
+    color: var(--lucid-accent-2);
+    border-color: rgba(138, 224, 75, .8);
+    background: rgba(138, 224, 75, .14);
     outline: none;
 }
 .lucid-return::before {

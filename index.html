@@ -54,8 +54,8 @@
         nav ul { display: flex; justify-content: center; align-items: center; list-style: none; gap: clamp(.85rem, 2vw, 2rem); }
         nav li { margin: 0; }
         nav a { color: #fff; text-decoration: none; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; }
-        nav a:hover { color: var(--lucid-cyan, #00ffff); }
-        nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-cyan, #00ffff), var(--lucid-magenta, #ff10f0)); transition: width .3s ease; }
+        nav a:hover { color: var(--lucid-accent, #8b6cf5); }
+        nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0)); transition: width .3s ease; }
         nav a:hover::after { width: 100%; }
 
         /* Burger. Laid out with flex + gap rather than margins so the bar pitch
@@ -67,23 +67,23 @@
             width: 46px; height: 40px; padding: 0; cursor: pointer; z-index: 1002;
             /* Given a real button shell: on a dark page over a moving shader,
                three bare hairlines read as decoration rather than a control. */
-            background: rgba(0,255,255,.08);
-            border: 1px solid rgba(0,255,255,.45);
+            background: rgba(139, 108, 245,.08);
+            border: 1px solid rgba(139, 108, 245,.45);
             border-radius: 9px;
-            box-shadow: 0 0 12px rgba(0,255,255,.18);
+            box-shadow: 0 0 12px rgba(139, 108, 245,.18);
             -webkit-tap-highlight-color: transparent;
             transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
         }
         .nav-toggle .bar {
             display: block; width: 22px; height: 3px; border-radius: 2px; background: #fff;
-            box-shadow: 0 0 6px rgba(0,255,255,.65);
+            box-shadow: 0 0 6px rgba(139, 108, 245,.65);
             transition: transform .25s ease, opacity .25s ease;
         }
-        .nav-toggle:active { background: rgba(0,255,255,.22); }
+        .nav-toggle:active { background: rgba(139, 108, 245,.22); }
         nav.menu-open .nav-toggle {
-            background: rgba(0,255,255,.2);
-            border-color: rgba(0,255,255,.9);
-            box-shadow: 0 0 16px rgba(0,255,255,.35);
+            background: rgba(139, 108, 245,.2);
+            border-color: rgba(139, 108, 245,.9);
+            box-shadow: 0 0 16px rgba(139, 108, 245,.35);
         }
         nav.menu-open .nav-toggle .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
         nav.menu-open .nav-toggle .bar:nth-child(2) { opacity: 0; }
@@ -97,13 +97,13 @@
         .back-to-gallery {
             position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
             z-index: 1200; text-decoration: none;
-            background: rgba(0,0,0,.72); border: 1px solid rgba(0,255,255,.35);
-            color: var(--lucid-cyan, #00ffff); padding: 10px 18px; border-radius: 3px;
+            background: rgba(0,0,0,.72); border: 1px solid rgba(139, 108, 245,.35);
+            color: var(--lucid-accent, #8b6cf5); padding: 10px 18px; border-radius: 3px;
             font-family: 'Courier New', monospace; font-size: 11px;
             letter-spacing: .18em; text-transform: uppercase;
             transition: background .2s, border-color .2s;
         }
-        .back-to-gallery:hover { background: rgba(0,255,255,.14); border-color: rgba(0,255,255,.8); }
+        .back-to-gallery:hover { background: rgba(139, 108, 245,.14); border-color: rgba(139, 108, 245,.8); }
         /* The back link is fixed to the bottom, so a focused section needs room
            underneath it or the link sits on top of the last control. */
         body.focused { padding-bottom: 76px; }
@@ -114,7 +114,7 @@
         .hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: transparent; position: relative; overflow: hidden; }
         .hero-content { z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
         .logo-container { position: relative; font-size: 4rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; font-family: 'Orbitron', monospace; }
-        .logo-text { position: relative; color: #fff; text-shadow: 0 0 10px var(--lucid-cyan, #00ffff), 0 0 20px var(--lucid-cyan, #00ffff), 0 0 30px var(--lucid-cyan, #00ffff); animation: wave 2s ease-in-out infinite, glitch .3s linear infinite; }
+        .logo-text { position: relative; color: #fff; text-shadow: 0 0 10px var(--lucid-accent, #8b6cf5), 0 0 20px var(--lucid-accent, #8b6cf5), 0 0 30px var(--lucid-accent, #8b6cf5); animation: wave 2s ease-in-out infinite, glitch .3s linear infinite; }
         .logo-text::before, .logo-text::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         .logo-text::before { color: #ff0040; animation: glitch-red .4s linear infinite; clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%); }
         .logo-text::after { color: #00ff40; animation: glitch-green .5s linear infinite; clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%); }
@@ -146,20 +146,20 @@
         .box-lid {
             position: absolute; inset: 0; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, rgba(0,255,255,.1), rgba(255,16,240,.08));
-            border: 1px solid rgba(0,255,255,.5);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.1), rgba(212, 79, 176,.08));
+            border: 1px solid rgba(139, 108, 245,.5);
             border-radius: 10px;
-            box-shadow: 0 0 24px rgba(0,255,255,.18), inset 0 0 30px rgba(255,16,240,.08);
+            box-shadow: 0 0 24px rgba(139, 108, 245,.18), inset 0 0 30px rgba(212, 79, 176,.08);
             transition: opacity .5s ease, transform .9s cubic-bezier(.22,1,.3,1), box-shadow .4s ease;
             -webkit-tap-highlight-color: transparent;
         }
         .box-lid:hover, .box-lid:focus-visible {
-            box-shadow: 0 0 36px rgba(0,255,255,.38), inset 0 0 36px rgba(255,16,240,.14);
+            box-shadow: 0 0 36px rgba(139, 108, 245,.38), inset 0 0 36px rgba(212, 79, 176,.14);
             outline: none;
         }
         .box-lid svg { width: 54%; height: 54%; overflow: visible; }
-        .box-lid .lr { fill: none; stroke: rgba(0,255,255,.85); stroke-width: 1.4; }
-        .box-lid .ls { stroke: rgba(255,16,240,.8); stroke-width: 1.2; }
+        .box-lid .lr { fill: none; stroke: rgba(139, 108, 245,.85); stroke-width: 1.4; }
+        .box-lid .ls { stroke: rgba(212, 79, 176,.8); stroke-width: 1.2; }
         .box-lid-cap {
             position: absolute; bottom: -1.7rem; left: 50%; transform: translateX(-50%);
             font-family: 'Orbitron', monospace; font-size: .54rem; letter-spacing: .3em;
@@ -185,19 +185,19 @@
         .box-open .box-gate { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
         .box-gate-ring {
             position: absolute; inset: 0; border-radius: 50%;
-            border: 1px solid rgba(0,255,255,.5);
-            box-shadow: 0 0 26px rgba(0,255,255,.3), inset 0 0 34px rgba(0,0,0,.95);
-            background: radial-gradient(circle at 50% 50%, rgba(0,0,0,.96) 48%, rgba(0,255,255,.1) 100%);
+            border: 1px solid rgba(139, 108, 245,.5);
+            box-shadow: 0 0 26px rgba(139, 108, 245,.3), inset 0 0 34px rgba(0,0,0,.95);
+            background: radial-gradient(circle at 50% 50%, rgba(0,0,0,.96) 48%, rgba(139, 108, 245,.1) 100%);
             animation: gatePulse 3.4s ease-in-out infinite;
         }
         .box-gate-cap {
             position: relative; font-size: 10px; letter-spacing: .34em;
-            text-transform: uppercase; color: var(--lucid-cyan, #00ffff);
-            text-shadow: 0 0 14px rgba(0,255,255,.8);
+            text-transform: uppercase; color: var(--lucid-accent, #8b6cf5);
+            text-shadow: 0 0 14px rgba(139, 108, 245,.8);
         }
         .box-gate:hover .box-gate-ring, .box-gate:focus-visible .box-gate-ring {
-            border-color: rgba(0,255,255,.95);
-            box-shadow: 0 0 44px rgba(0,255,255,.55), inset 0 0 30px rgba(0,0,0,.9);
+            border-color: rgba(139, 108, 245,.95);
+            box-shadow: 0 0 44px rgba(139, 108, 245,.55), inset 0 0 30px rgba(0,0,0,.9);
         }
         @keyframes gatePulse {
             0%, 100% { transform: scale(1); opacity: .9; }
@@ -216,7 +216,7 @@
             -webkit-tap-highlight-color: transparent;
         }
         .box-open .flap { opacity: 1; }
-        .flap:hover, .flap:focus-visible { border-color: rgba(0,255,255,.75); outline: none; }
+        .flap:hover, .flap:focus-visible { border-color: rgba(139, 108, 245,.75); outline: none; }
 
         .flap-n { left: 0; top: calc(-1 * (var(--plate) + var(--gap))); transform-origin: center bottom; transform: rotateX(-92deg); }
         .flap-s { left: 0; top: calc(var(--plate) + var(--gap));        transform-origin: center top;    transform: rotateX(92deg); }
@@ -236,11 +236,11 @@
             text-transform: uppercase; color: #fff; text-align: center; line-height: 1.5;
         }
         .flap-label small { display: block; font-family: inherit; font-size: .42rem;
-            letter-spacing: .12em; color: rgba(0,255,255,.8); margin-top: .12rem; }
+            letter-spacing: .12em; color: rgba(139, 108, 245,.8); margin-top: .12rem; }
         .flap-empty {
             position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
             font-size: 1.5rem; color: rgba(255,255,255,.18);
-            background: linear-gradient(135deg, rgba(255,16,240,.07), rgba(0,255,255,.05));
+            background: linear-gradient(135deg, rgba(212, 79, 176,.07), rgba(139, 108, 245,.05));
         }
 
         /* Opening the box lifts the hero out of the way of the page below. */
@@ -258,7 +258,7 @@
             text-transform: uppercase; border-radius: 20px; padding: .4rem 1rem; cursor: pointer;
         }
         .box-open ~ .box-reset, .box-stage-open .box-reset { display: block; }
-        .box-reset:hover { border-color: rgba(0,255,255,.6); color: #fff; }
+        .box-reset:hover { border-color: rgba(139, 108, 245,.6); color: #fff; }
 
         @media (max-width: 600px) {
             #boxstage { --plate: clamp(78px, 25vw, 110px); --gap: 6px; margin-top: 1.6rem; }
@@ -271,19 +271,19 @@
             .box-gate-ring { animation: none; }
         }
 
-        .scanlines { position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(0,255,255,.03) 50%); background-size: 100% 4px; animation: scan .1s linear infinite; pointer-events: none; }
+        .scanlines { position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(139, 108, 245,.03) 50%); background-size: 100% 4px; animation: scan .1s linear infinite; pointer-events: none; }
         @keyframes scan { 0%{transform:translateY(0)} 100%{transform:translateY(4px)} }
         .hero p { font-size: 1.2rem; font-weight: 300; letter-spacing: 2px; opacity: .8; z-index: 3; position: relative; }
 
         section { padding: 5rem 2rem; max-width: 1400px; margin: 0 auto; }
-        h2 { font-size: 2.5rem; font-weight: 100; margin-bottom: 3rem; text-align: center; color: var(--lucid-cyan, #00ffff); }
+        h2 { font-size: 2.5rem; font-weight: 100; margin-bottom: 3rem; text-align: center; color: var(--lucid-accent, #8b6cf5); }
 
         .portfolio-category { margin-bottom: 4rem; }
-        .portfolio-category h3 { font-size: 1.1rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 1.5rem; padding-left: .5rem; border-left: 3px solid rgba(0,255,255,.06); }
+        .portfolio-category h3 { font-size: 1.1rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 1.5rem; padding-left: .5rem; border-left: 3px solid rgba(139, 108, 245,.06); }
         .portfolio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
         .portfolio-item { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; background: #111; border: 1px solid rgba(255,255,255,.08); transition: transform .4s ease, box-shadow .4s ease; }
         .portfolio-item.portrait { aspect-ratio: 9/16; grid-row: span 2; }
-        .portfolio-item:hover { transform: translateY(-6px) scale(1.015); box-shadow: 0 20px 50px rgba(0,255,255,.15), 0 0 1px rgba(0,255,255,.4); }
+        .portfolio-item:hover { transform: translateY(-6px) scale(1.015); box-shadow: 0 20px 50px rgba(139, 108, 245,.15), 0 0 1px rgba(139, 108, 245,.4); }
         .portfolio-item video { width: 100%; height: 100%; object-fit: cover; display: block; }
         .portfolio-item .overlay { position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(0,0,0,.7) 100%); display: flex; align-items: flex-end; padding: 1.2rem; opacity: 0; transition: opacity .3s ease; }
         .portfolio-item:hover .overlay { opacity: 1; }
@@ -298,7 +298,7 @@
             width: 100%;
             /* height set by JS once after load - no infinite resize loop */
             height: 1100px;
-            border: 1px solid rgba(0, 255, 255, 0.2);
+            border: 1px solid rgba(139, 108, 245, 0.2);
             border-radius: 12px;
             background: rgba(0, 0, 0, 0.5);
             overflow: hidden;
@@ -350,8 +350,8 @@
         }
         .shop-item:hover {
             transform: translateY(-4px);
-            border-color: rgba(0,255,255,.4);
-            box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 24px rgba(0,255,255,.15);
+            border-color: rgba(139, 108, 245,.4);
+            box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 24px rgba(139, 108, 245,.15);
         }
         .shop-item.sold-out { opacity: 0.5; }
         .shop-item.sold-out::after {
@@ -371,7 +371,7 @@
         .shop-item-image {
             width: 100%;
             aspect-ratio: 4/3;
-            background: linear-gradient(135deg, rgba(255,0,255,.15), rgba(0,255,255,.15));
+            background: linear-gradient(135deg, rgba(212, 79, 176,.15), rgba(139, 108, 245,.15));
             position: relative;
             overflow: hidden;
         }
@@ -401,7 +401,7 @@
             font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.15em;
-            color: rgba(0,255,255,.7);
+            color: rgba(139, 108, 245,.7);
             font-weight: bold;
         }
         .shop-item-title {
@@ -428,14 +428,14 @@
         .shop-item-price {
             font-size: 1.1rem;
             font-weight: bold;
-            background: linear-gradient(90deg, var(--lucid-cyan, #00ffff), var(--lucid-magenta, #ff10f0));
+            background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0));
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .shop-item-button {
-            background: linear-gradient(135deg, rgba(0,255,255,.12), rgba(255,0,255,.12));
-            border: 1px solid rgba(0,255,255,.4);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.12), rgba(212, 79, 176,.12));
+            border: 1px solid rgba(139, 108, 245,.4);
             color: #fff;
             padding: 0.5rem 1.1rem;
             border-radius: 6px;
@@ -448,9 +448,9 @@
             white-space: nowrap;
         }
         .shop-item-button:hover {
-            background: linear-gradient(135deg, rgba(0,255,255,.25), rgba(255,0,255,.25));
-            border-color: rgba(0,255,255,.8);
-            box-shadow: 0 0 12px rgba(0,255,255,.3);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.25), rgba(212, 79, 176,.25));
+            border-color: rgba(139, 108, 245,.8);
+            box-shadow: 0 0 12px rgba(139, 108, 245,.3);
         }
         .shop-item-button.disabled {
             opacity: 0.4;
@@ -470,7 +470,7 @@
         .shader-lib-intro code {
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
             font-size: 0.85em;
-            color: rgba(0,255,255,.75);
+            color: rgba(139, 108, 245,.75);
         }
         .shader-lib-grid {
             display: grid;
@@ -497,8 +497,8 @@
         }
         .shader-card:hover {
             transform: translateY(-4px);
-            border-color: rgba(0,255,255,.4);
-            box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 24px rgba(0,255,255,.15);
+            border-color: rgba(139, 108, 245,.4);
+            box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 24px rgba(139, 108, 245,.15);
         }
         .shader-card-stage {
             position: relative;
@@ -560,7 +560,7 @@
         .shader-card-use span {
             text-transform: uppercase;
             letter-spacing: 0.15em;
-            color: rgba(0,255,255,.7);
+            color: rgba(139, 108, 245,.7);
             font-weight: bold;
         }
         .shader-card-actions {
@@ -573,8 +573,8 @@
         }
         .shader-card-btn {
             flex: 1 1 40%;
-            background: linear-gradient(135deg, rgba(0,255,255,.12), rgba(255,0,255,.12));
-            border: 1px solid rgba(0,255,255,.4);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.12), rgba(212, 79, 176,.12));
+            border: 1px solid rgba(139, 108, 245,.4);
             color: #fff;
             padding: 0.5rem 0.8rem;
             border-radius: 6px;
@@ -587,9 +587,9 @@
             white-space: nowrap;
         }
         .shader-card-btn:hover {
-            background: linear-gradient(135deg, rgba(0,255,255,.25), rgba(255,0,255,.25));
-            border-color: rgba(0,255,255,.8);
-            box-shadow: 0 0 12px rgba(0,255,255,.3);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.25), rgba(212, 79, 176,.25));
+            border-color: rgba(139, 108, 245,.8);
+            box-shadow: 0 0 12px rgba(139, 108, 245,.3);
         }
         .shader-card-src {
             display: none;
@@ -607,16 +607,16 @@
             -webkit-overflow-scrolling: touch;
         }
         .shader-card.src-open .shader-card-src { display: block; }
-        .skill { padding: .8rem 1.5rem; background: linear-gradient(45deg, rgba(0,255,255,.1), rgba(255,0,255,.1)); border-radius: 25px; border: 1px solid rgba(255,255,255,.1); color: #fff; font-weight: 400; }
+        .skill { padding: .8rem 1.5rem; background: linear-gradient(45deg, rgba(139, 108, 245,.1), rgba(212, 79, 176,.1)); border-radius: 25px; border: 1px solid rgba(255,255,255,.1); color: #fff; font-weight: 400; }
 
-        .contact { text-align: center; background: linear-gradient(45deg, rgba(0,255,255,.05), rgba(255,0,255,.05)); border-radius: 20px; padding: 3rem; }
+        .contact { text-align: center; background: linear-gradient(45deg, rgba(139, 108, 245,.05), rgba(212, 79, 176,.05)); border-radius: 20px; padding: 3rem; }
         .contact-links { display: flex; justify-content: center; gap: 2rem; margin-top: 2rem; }
         .contact-link { padding: 1rem 2rem; background: rgba(255,255,255,.1); border-radius: 30px; color: #fff; text-decoration: none; transition: all .3s ease; border: 1px solid rgba(255,255,255,.2); }
-        .contact-link:hover { background: rgba(0,255,255,.2); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,255,255,.2); }
+        .contact-link:hover { background: rgba(139, 108, 245,.2); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(139, 108, 245,.2); }
 
         .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 2rem; }
         .lightbox.active { display: flex; }
-        .lightbox video { max-width: 90vw; max-height: 85vh; border-radius: 8px; box-shadow: 0 0 60px rgba(0,255,255,.1); }
+        .lightbox video { max-width: 90vw; max-height: 85vh; border-radius: 8px; box-shadow: 0 0 60px rgba(139, 108, 245,.1); }
         .lightbox-close { position: absolute; top: 1.5rem; right: 2rem; color: #fff; font-size: 2rem; background: none; border: none; cursor: pointer; opacity: .7; transition: opacity .2s; z-index: 10001; }
         .lightbox-close:hover { opacity: 1; }
 
@@ -627,7 +627,7 @@
             right: 20px;
             z-index: 1100;
             background: rgba(0, 0, 0, 0.92);
-            border: 1px solid rgba(0, 255, 255, 0.3);
+            border: 1px solid rgba(139, 108, 245, 0.3);
             border-radius: 12px;
             padding: 14px;
             width: 300px;
@@ -654,11 +654,11 @@
             height: 52px;
             border-radius: 50%;
             background: rgba(0, 0, 0, 0.85);
-            border: 1px solid rgba(0, 255, 255, 0.5);
-            color: var(--lucid-cyan, #00ffff);
+            border: 1px solid rgba(139, 108, 245, 0.5);
+            color: var(--lucid-accent, #8b6cf5);
             font-size: 22px;
             cursor: pointer;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 255, 255, 0.2);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(139, 108, 245, 0.2);
             backdrop-filter: blur(10px);
             display: flex;
             align-items: center;
@@ -668,7 +668,7 @@
 
         .vfx-fab:hover, .vfx-fab:active {
             transform: scale(1.05);
-            box-shadow: 0 4px 20px rgba(0, 255, 255, 0.4);
+            box-shadow: 0 4px 20px rgba(139, 108, 245, 0.4);
         }
 
         .vfx-fab.panel-open {
@@ -676,12 +676,12 @@
         }
 
         .visual-controls h3 {
-            color: var(--lucid-cyan, #00ffff);
+            color: var(--lucid-accent, #8b6cf5);
             margin-bottom: 10px;
             font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 1px;
-            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            border-bottom: 1px solid rgba(139, 108, 245, 0.2);
             padding-bottom: 8px;
             display: flex;
             justify-content: space-between;
@@ -699,7 +699,7 @@
             width: 24px;
             height: 24px;
         }
-        .panel-close:hover { color: var(--lucid-cyan, #00ffff); }
+        .panel-close:hover { color: var(--lucid-accent, #8b6cf5); }
 
         .control-group {
             margin-bottom: 12px;
@@ -718,7 +718,7 @@
         .control-slider {
             width: 100%;
             height: 6px;
-            background: rgba(0, 255, 255, 0.1);
+            background: rgba(139, 108, 245, 0.1);
             border-radius: 3px;
             outline: none;
             -webkit-appearance: none;
@@ -731,20 +731,20 @@
             appearance: none;
             width: 18px;
             height: 18px;
-            background: var(--lucid-cyan, #00ffff);
+            background: var(--lucid-accent, #8b6cf5);
             cursor: pointer;
             border-radius: 50%;
-            box-shadow: 0 0 6px var(--lucid-cyan, #00ffff);
+            box-shadow: 0 0 6px var(--lucid-accent, #8b6cf5);
         }
 
         .control-slider::-moz-range-thumb {
             width: 18px;
             height: 18px;
-            background: var(--lucid-cyan, #00ffff);
+            background: var(--lucid-accent, #8b6cf5);
             cursor: pointer;
             border-radius: 50%;
             border: none;
-            box-shadow: 0 0 6px var(--lucid-cyan, #00ffff);
+            box-shadow: 0 0 6px var(--lucid-accent, #8b6cf5);
         }
 
         /* Style native select/option to match dark theme - fixes white background
@@ -769,7 +769,7 @@
         .visual-controls select option:hover,
         .visual-controls select option:checked,
         select.control-select option:checked {
-            background: var(--lucid-magenta, #ff10f0) !important;
+            background: var(--lucid-accent-3, #d44fb0) !important;
             color: #fff !important;
         }
 
@@ -783,8 +783,8 @@
         .shader-btn {
             padding: 8px 4px;
             font-size: 10px;
-            background: rgba(0, 255, 255, 0.1);
-            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: rgba(139, 108, 245, 0.1);
+            border: 1px solid rgba(139, 108, 245, 0.3);
             color: rgba(255, 255, 255, 0.7);
             border-radius: 4px;
             cursor: pointer;
@@ -795,15 +795,15 @@
         }
 
         .shader-btn:hover {
-            background: rgba(0, 255, 255, 0.2);
-            color: var(--lucid-cyan, #00ffff);
+            background: rgba(139, 108, 245, 0.2);
+            color: var(--lucid-accent, #8b6cf5);
         }
 
         .shader-btn.active {
-            background: rgba(0, 255, 255, 0.3);
-            color: var(--lucid-cyan, #00ffff);
-            border-color: var(--lucid-cyan, #00ffff);
-            box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+            background: rgba(139, 108, 245, 0.3);
+            color: var(--lucid-accent, #8b6cf5);
+            border-color: var(--lucid-accent, #8b6cf5);
+            box-shadow: 0 0 8px rgba(139, 108, 245, 0.5);
         }
 
         .toggle-btn {
@@ -837,8 +837,8 @@
             display: inline-block;
             width: 40px;
             height: 20px;
-            background: rgba(0, 255, 255, 0.1);
-            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: rgba(139, 108, 245, 0.1);
+            border: 1px solid rgba(139, 108, 245, 0.3);
             border-radius: 10px;
             cursor: pointer;
             position: relative;
@@ -846,7 +846,7 @@
         }
 
         .control-toggle.active {
-            background: rgba(0, 255, 255, 0.3);
+            background: rgba(139, 108, 245, 0.3);
         }
 
         .control-toggle::after {
@@ -854,7 +854,7 @@
             position: absolute;
             width: 16px;
             height: 16px;
-            background: var(--lucid-cyan, #00ffff);
+            background: var(--lucid-accent, #8b6cf5);
             border-radius: 50%;
             top: 2px;
             left: 2px;
@@ -875,12 +875,12 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: rgba(0, 255, 255, 0.3);
+            background: rgba(139, 108, 245, 0.3);
             border-radius: 3px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: rgba(0, 255, 255, 0.5);
+            background: rgba(139, 108, 245, 0.5);
         }
 
         @media (max-width: 768px) {
@@ -1236,7 +1236,7 @@
         </div>
 
         <!-- ===== LAYER MIX SECTION ===== -->
-        <div style="border-top: 1px solid rgba(255,0,255,0.2); margin: 14px 0 10px; padding-top: 10px;">
+        <div style="border-top: 1px solid rgba(212, 79, 176,0.2); margin: 14px 0 10px; padding-top: 10px;">
             <div style="color:#ff00ff; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
                 Layer Mix
             </div>
@@ -1263,7 +1263,7 @@
 
         <div class="control-group">
             <div class="control-label">Canvas Blend Mode</div>
-            <select id="canvas-blend-mode" style="width:100%; padding:8px 6px; background: rgba(255,0,255,0.05); border:1px solid rgba(255,0,255,0.3); color:#fff; border-radius:4px; font-size:11px;">
+            <select id="canvas-blend-mode" style="width:100%; padding:8px 6px; background: rgba(212, 79, 176,0.05); border:1px solid rgba(212, 79, 176,0.3); color:#fff; border-radius:4px; font-size:11px;">
                 <option value="normal">Normal</option>
                 <option value="multiply">Multiply</option>
                 <option value="screen" selected>Screen</option>
@@ -1339,9 +1339,9 @@
             <input type="range" min="0" max="100" value="0" class="control-slider" id="page-scale-slider">
         </div>
 
-        <button class="toggle-btn" id="reset-layer-btn" style="background: rgba(255,0,255,0.1); border-color: rgba(255,0,255,0.3); color: rgba(255,0,255,0.8); margin-top: 4px;">Reset Layer</button>
+        <button class="toggle-btn" id="reset-layer-btn" style="background: rgba(212, 79, 176,0.1); border-color: rgba(212, 79, 176,0.3); color: rgba(212, 79, 176,0.8); margin-top: 4px;">Reset Layer</button>
 
-        <div style="border-top: 1px solid rgba(0,255,255,0.2); margin: 14px 0 10px; padding-top: 4px;"></div>
+        <div style="border-top: 1px solid rgba(139, 108, 245,0.2); margin: 14px 0 10px; padding-top: 4px;"></div>
 
         <button class="toggle-btn" id="camera-toggle">Enable Camera</button>
         <button class="toggle-btn" id="canvas-toggle">Disable Visuals</button>
