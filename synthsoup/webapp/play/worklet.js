@@ -48,7 +48,8 @@ export function catalog(ex) {
 export function soundState(ex) {
   if (!ex.web_sel) return null;
   const t = ex.web_sel();
-  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route() };
+  const samples = ex.web_smp_len ? [0, 1, 2].map((k) => ({ name: cstr(ex, ex.web_smp_name(k)), len: ex.web_smp_len(k) })) : null;
+  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route(), samples };
 }
 
 if (typeof registerProcessor === "function") {
@@ -68,6 +69,11 @@ if (typeof registerProcessor === "function") {
       this.queue = [];                                // button / key changes, each held >= HOLD_MS of device time
       this.nextOk = 0;
       this.port.onmessage = (e) => this.onMessage(e.data);
+      // the device runs at 44.1 kHz; a context at another rate (iOS: 48 kHz) gets it resampled (linear), in tune
+      this.step = 44100 / sampleRate;
+      this.src = [new Float32Array(2048), new Float32Array(2048)];
+      this.have = 0;                                  // source frames buffered
+      this.pos = 0;                                   // read position in them (fractional)
     }
 
     async onMessage(m) {
@@ -100,6 +106,15 @@ if (typeof registerProcessor === "function") {
       else if (m.type === "sound" && ex.web_set_sound) ex.web_set_sound(m.track | 0, m.engine | 0, m.preset | 0);
       else if (m.type === "voice" && ex.web_set_voice) ex.web_set_voice(m.track | 0, m.voice | 0);
       else if (m.type === "route" && ex.web_set_route) ex.web_set_route(m.route | 0);
+      else if (m.type === "sample" && ex.web_smp_put) {   // the Samples panel: ADPCM (m.data) of m.n samples into slot m.slot
+        const mem = new Uint8Array(ex.memory.buffer), nm = (m.name || "").slice(0, 8);
+        mem.set(m.data, ex.web_smp_buf());
+        mem.fill(0, ex.web_smp_namebuf(), ex.web_smp_namebuf() + 9);
+        for (let i = 0; i < nm.length; i++) mem[ex.web_smp_namebuf() + i] = nm.charCodeAt(i) & 0x7F;
+        const ok = ex.web_smp_put(m.slot | 0, m.n | 0);
+        if (ok && m.play !== undefined) ex.web_use_sample(m.play | 0, m.slot | 0);
+        this.port.postMessage({ type: "sampled", slot: m.slot, ok: !!ok });
+      } else if (m.type === "use-sample" && ex.web_use_sample) ex.web_use_sample(m.track | 0, m.slot | 0);
     }
 
     publish() {
@@ -158,11 +173,35 @@ if (typeof registerProcessor === "function") {
       if (this.queue.length) this.input();
       const out = outputs[0], n = out[0].length;
       const t0 = clock();
-      ex.web_render(n);
+      if (this.step === 1) {
+        ex.web_render(n);
+        this.frames += n;
+        out[0].set(new Float32Array(ex.memory.buffer, ex.web_out_l(), n));
+        if (out[1]) out[1].set(new Float32Array(ex.memory.buffer, ex.web_out_r(), n));
+      } else {
+        const [sl, sr] = this.src, need = Math.floor(this.pos + n * this.step) + 2;
+        if (need > this.have) {                       // render what the interpolation will read
+          const k = need - this.have;
+          ex.web_render(k);
+          sl.set(new Float32Array(ex.memory.buffer, ex.web_out_l(), k), this.have);
+          sr.set(new Float32Array(ex.memory.buffer, ex.web_out_r(), k), this.have);
+          this.have += k;
+          this.frames += k;
+        }
+        const l = out[0], r = out[1] || out[0];
+        let p = this.pos;
+        for (let i = 0; i < n; i++, p += this.step) {
+          const j = p | 0, f = p - j;
+          l[i] = sl[j] + (sl[j + 1] - sl[j]) * f;
+          r[i] = sr[j] + (sr[j + 1] - sr[j]) * f;
+        }
+        const used = p | 0;                           // drop what is behind the read position
+        sl.copyWithin(0, used, this.have);
+        sr.copyWithin(0, used, this.have);
+        this.have -= used;
+        this.pos = p - used;
+      }
       this.busy += clock() - t0;
-      this.frames += n;
-      out[0].set(new Float32Array(ex.memory.buffer, ex.web_out_l(), n));
-      if (out[1]) out[1].set(new Float32Array(ex.memory.buffer, ex.web_out_r(), n));
       if (currentTime - this.lastFrame >= this.period) {
         this.lastFrame = currentTime;
         this.publish();

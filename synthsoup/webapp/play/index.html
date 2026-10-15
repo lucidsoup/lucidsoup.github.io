@@ -90,6 +90,7 @@ a { color: inherit; }
 .keys, footer { margin: 16px 0 0; color: var(--dim); text-align: center; font-size: 13px; }
 .keys span { white-space: nowrap; margin: 0 8px; }
 kbd { font: 500 12px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--fg); background: var(--tray); }
+.notice { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--neon); color: var(--fg); background: var(--tray); }
 .console { margin: 16px 0 0; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
 .console fieldset { min-width: 0; margin: 0; padding: 14px 16px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--tray);
                     display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; align-content: start; }
@@ -112,6 +113,22 @@ kbd { font: 500 12px var(--mono); border: 1px solid var(--rule); border-bottom-w
 .check { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--fg); }
 .check input { accent-color: var(--neon); width: 16px; height: 16px; }
 .hint { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--dim); }
+.console .samples { grid-column: 1 / -1; display: grid; gap: 10px; align-items: stretch; }
+.samples.drop { border-color: var(--acid); box-shadow: 0 0 0 2px var(--acid) inset; }
+.slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; }
+.slot { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 10px 12px;
+        border: 1px dashed var(--edge); border-radius: 10px; }
+.slot.drop { border-color: var(--acid); border-style: solid; }
+.slot b { font: 500 13px/1 var(--mono); color: var(--acid); }
+.slot .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.slot .what.empty { color: var(--dim); }
+.slot .acts { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-s { font: 600 13px/1 var(--text); color: var(--fg); background: var(--part); border: 1px solid var(--edge); border-radius: 8px;
+         padding: 8px 12px; cursor: pointer; display: inline-flex; align-items: center; }
+.btn-s:hover { border-color: var(--acid); }
+.btn-s:disabled { opacity: .45; cursor: default; }
+.btn-s:focus-within, .btn-s:focus-visible { outline: 2px solid var(--acid); outline-offset: 2px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 760px) { .console { grid-template-columns: 1fr; } }
 .guide { margin: 40px 0 0; }
 .guide h2 { margin: 0 0 4px; font: 400 30px/1.1 var(--display); color: var(--fg); text-wrap: balance; }
@@ -141,6 +158,8 @@ footer small { font-size: 11px; opacity: .8; }
   <div class="start" id="start"><button id="go" type="button">Switch on</button><p id="status" hidden></p></div>
 </div>
 
+<p class="notice" id="notice" role="status" hidden></p>
+
 <form class="console" id="console" aria-label="Sound and MIDI" onsubmit="return false">
   <fieldset id="sound-set" disabled>
     <legend>Sound</legend>
@@ -155,6 +174,14 @@ footer small { font-size: 11px; opacity: .8; }
     <label class="ctl"><span>Input</span><select id="midi-in"><option value="">All inputs</option></select></label>
     <label class="check"><input type="checkbox" id="midi-any" checked> Any channel plays the selected track</label>
     <p class="hint" id="midi-hint">Unticked: channels 1–4 play tracks 1–4. Program Change picks presets, CC74 / CC71 are cutoff and resonance, CC7 level, CC91 / CC94 reverb and delay sends.</p>
+  </fieldset>
+  <fieldset id="smp-set" class="samples" disabled>
+    <legend>Samples</legend>
+    <p class="hint">Load your own sounds from an SD card (in a card reader, or the Files app on a phone), your computer or cloud storage:
+      WAV, MP3, M4A or AIFF. Each slot holds up to 7.4 s; silence at the start is trimmed, stereo is mixed to mono. A loaded sample
+      plays at once on the selected track (the SAMPLE engine, middle C at its own pitch); GRAIN and SLICE can use the slots too.
+      Drop files on a slot, or several on the panel to fill the slots in order.</p>
+    <div class="slots" id="slots"></div>
   </fieldset>
 </form>
 
@@ -574,9 +601,128 @@ function showState(st) {
   [...$("trk").children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === st.track)));
   [...$("vce").children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === st.voice)));
   if (engineChanged) presetsOf(st.engine);
+  showSamples(st.samples);
   $("eng").value = String(st.engine);
   $("pre").value = String(st.preset);
   $("midi-any").checked = st.route === 1;
+}
+
+// ------------------------------------------------------------------ Samples: audio files into user slots USR1..3
+// As the editor's uploads (editor.html): mono, 22.05 kHz, peak at 30000, IMA ADPCM from predictor 0; the device writes
+// the slot with RESAMPLE's header (felucca_web.c web_smp_put) and keeps it with the page's flash sectors.
+const SMP_RATE = 22050, SMP_MAX = 162816;                 // samples a slot holds (web_smp_max: 2 x (0x14000 - 512))
+const IMA_STEP = [7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50, 55, 60, 66, 73, 80, 88,
+  97, 107, 118, 130, 143, 157, 173, 190, 209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658,
+  724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552, 1707, 1878, 2066, 2272, 2499, 2749, 3024, 3327, 3660,
+  4026, 4428, 4871, 5358, 5894, 6484, 7132, 7845, 8630, 9493, 10442, 11487, 12635, 13899, 15289, 16818,
+  18500, 20350, 22385, 24623, 27086, 29794, 32767];
+const IMA_IDX = [-1, -1, -1, -1, 2, 4, 6, 8];
+function imaEncode(s) {
+  let pred = 0, idx = 0;
+  const out = new Uint8Array((s.length + 1) >> 1);
+  for (let n = 0; n < s.length; n++) {
+    const step = IMA_STEP[idx];
+    let diff = s[n] - pred, code = 0, vd = step >> 3;
+    if (diff < 0) { code = 8; diff = -diff; }
+    if (diff >= step) { code |= 4; diff -= step; vd += step; }
+    if (diff >= step >> 1) { code |= 2; diff -= step >> 1; vd += step >> 1; }
+    if (diff >= step >> 2) { code |= 1; vd += step >> 2; }
+    pred = Math.max(-32768, Math.min(32767, code & 8 ? pred - vd : pred + vd));
+    idx = Math.max(0, Math.min(88, idx + IMA_IDX[code & 7]));
+    out[n >> 1] |= n & 1 ? code << 4 : code;
+  }
+  return out;
+}
+function decodeAudio(buf) {                                // (older Safari: the callback form only)
+  return new Promise((res, rej) => { const p = ac.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+}
+async function prepareSample(file) {
+  const ab = await decodeAudio(await file.arrayBuffer());
+  const n0 = ab.length, ch = ab.numberOfChannels, mono = new Float32Array(n0);
+  for (let c = 0; c < ch; c++) { const d = ab.getChannelData(c); for (let i = 0; i < n0; i++) mono[i] += d[i] / ch; }
+  let x = mono, sr = ab.sampleRate;
+  if (sr !== SMP_RATE) {                                   // a moving average over the ratio, then linear (editor.html resample)
+    const k = Math.max(1, Math.round(sr / SMP_RATE));
+    if (k > 1) { const y = new Float32Array(x.length); let acc = 0;
+      for (let i = 0; i < x.length; i++) { acc += x[i]; if (i >= k) acc -= x[i - k]; y[i] = acc / Math.min(k, i + 1); } x = y; }
+    const step = sr / SMP_RATE, m = Math.floor((x.length - 1) / step), y = new Float32Array(m);
+    for (let j = 0; j < m; j++) { const p = j * step, i = p | 0, f = p - i; y[j] = x[i] + (x[i + 1] - x[i]) * f; }
+    x = y;
+  }
+  let pk = 0;
+  for (const v of x) pk = Math.max(pk, Math.abs(v));
+  if (pk < 1e-4) throw new Error("it is silent");
+  let a = 0;                                               // the silence before the sound (a 5 ms pre-roll kept)
+  while (a < x.length && Math.abs(x[a]) < pk * 0.02) a++;
+  a = Math.max(0, a - 110);
+  const cut = x.length - a > SMP_MAX, n = Math.min(SMP_MAX, x.length - a), s = new Int16Array(n), fade = cut ? 441 : 0;
+  for (let i = 0; i < n; i++) {
+    const g = i >= n - fade ? (n - i) / fade : 1;
+    s[i] = Math.max(-32768, Math.min(32767, Math.round(x[a + i] / pk * 30000 * g)));
+  }
+  const name = file.name.replace(/\.[^.]*$/, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().slice(0, 8) || "SAMPLE";
+  return { data: imaEncode(s), n, name, cut, secs: n / SMP_RATE };
+}
+const slotsUi = [];
+function setupSamples() {
+  const box = $("slots");
+  box.innerHTML = "";
+  for (let k = 0; k < 3; k++) {
+    const row = document.createElement("div"), id = `smp-file-${k}`;
+    row.className = "slot";
+    row.innerHTML = `<b>USR${k + 1}</b><span class="what empty">Empty</span><div class="acts">
+      <label class="btn-s" for="${id}">Load file…<input class="vh" type="file" id="${id}" accept="audio/*,.wav,.mp3,.m4a,.aif,.aiff,.flac,.ogg"></label>
+      <button class="btn-s" type="button" disabled>Play on track</button></div>`;
+    const what = row.querySelector(".what"), input = row.querySelector("input"), play = row.querySelector("button");
+    input.addEventListener("change", () => { if (input.files[0]) loadSample(k, input.files[0]); input.value = ""; });
+    play.addEventListener("click", () => cur && send({ type: "use-sample", track: cur.track, slot: k }));
+    row.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); row.classList.add("drop"); });
+    row.addEventListener("dragleave", () => row.classList.remove("drop"));
+    row.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); row.classList.remove("drop");
+      if (e.dataTransfer.files[0]) loadSample(k, e.dataTransfer.files[0]); });
+    box.appendChild(row);
+    slotsUi.push({ what, play, busy: false });
+  }
+  const set = $("smp-set");
+  set.addEventListener("dragover", (e) => { e.preventDefault(); set.classList.add("drop"); });
+  set.addEventListener("dragleave", (e) => { if (!set.contains(e.relatedTarget)) set.classList.remove("drop"); });
+  set.addEventListener("drop", (e) => { e.preventDefault(); set.classList.remove("drop");
+    [...e.dataTransfer.files].slice(0, 3).forEach((f, k) => loadSample(k, f)); });
+  set.disabled = false;
+}
+function slotText(k, text, empty) { const w = slotsUi[k].what; w.textContent = text; w.classList.toggle("empty", !!empty); }
+async function loadSample(k, file) {
+  const ui = slotsUi[k];
+  if (ui.busy) return;
+  ui.busy = true;
+  slotText(k, `Reading ${file.name}…`, true);
+  try {
+    const smp = await prepareSample(file);
+    slotText(k, `Writing ${smp.name}…`, true);
+    const ok = await new Promise((res) => {
+      pendingSlot[k] = res;
+      node.port.postMessage({ type: "sample", slot: k, data: smp.data, n: smp.n, name: smp.name, play: cur ? cur.track : 0 });
+    });
+    if (!ok) throw new Error("the slot would not take it");
+    notice(smp.cut ? `${file.name} is longer than a slot holds: its first ${smp.secs.toFixed(1)} s were kept.` : "");
+  } catch (err) {
+    slotText(k, `Could not load ${file.name}: ${err && err.message || err}`, true);
+    notice(`Could not load ${file.name}. WAV works everywhere; MP3 and M4A in every current browser; AIFF and FLAC depend on the browser.`);
+  }
+  ui.busy = false;
+  showSamples(null);
+}
+const pendingSlot = [null, null, null];
+let lastSamples = null;
+function showSamples(list) {
+  if (list) lastSamples = list;
+  list = lastSamples;
+  if (!list || !slotsUi.length) return;
+  list.forEach((s, k) => {
+    if (slotsUi[k].busy) return;
+    slotText(k, s.len ? `${s.name || "USR" + (k + 1)} · ${(s.len / SMP_RATE).toFixed(1)} s` : "Empty", !s.len);
+    slotsUi[k].play.disabled = !s.len;
+  });
 }
 
 // ------------------------------------------------------------------ Web MIDI in (channel messages)
@@ -635,12 +781,35 @@ async function midiOn() {
 // ------------------------------------------------------------------ switching on
 const status = document.getElementById("status");
 const say = (t) => { status.textContent = t; status.hidden = !t; };
+const notice = (t) => { const n = document.getElementById("notice"); n.textContent = t; n.hidden = !t; };   // (after switch-on)
+let ac = null;
+// iOS: audio starts only inside the tap itself (no await before it), and the ring / silent switch mutes web audio
+// unless the page's audio session is "playback" (iOS 17+); an interruption (a call, Siri, the lock screen) suspends it
+function audioStart() {
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch { /* older iOS */ }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) throw new Error("this browser has no Web Audio");
+  try { ac = new AC({ sampleRate: 44100, latencyHint: "interactive" }); }
+  catch { ac = new AC({ latencyHint: "interactive" }); }       // (a browser that refuses 44.1 kHz: the worklet resamples)
+  const b = ac.createBuffer(1, 1, ac.sampleRate), s = ac.createBufferSource();   // a silent sample: unlocks iOS
+  s.buffer = b;
+  s.connect(ac.destination);
+  s.start(0);
+  ac.resume().catch(() => {});
+  if (!ac.audioWorklet) throw new Error("this browser has no AudioWorklet (on iPhone or iPad: iOS 14.5 or later)");
+}
+function audioWake() {
+  if (!ac || ac.state === "closed") return;
+  if (ac.state === "running") { notice(""); return; }
+  ac.resume().then(() => notice("")).catch(() => {});
+}
+for (const t of ["pointerdown", "touchend", "keydown"]) addEventListener(t, audioWake, { capture: true, passive: true });
 async function switchOn() {
   const go = document.getElementById("go");
   go.disabled = true;
   go.textContent = "Starting…";
   try {
-    const ac = new AudioContext({ sampleRate: 44100, latencyHint: "interactive" });
+    if (!ac) audioStart();
     const [wasm] = await Promise.all([
       fetch("felucca.wasm").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
       ac.audioWorklet.addModule("worklet.js")]);
@@ -650,7 +819,8 @@ async function switchOn() {
     await new Promise((res, rej) => {
       node.port.onmessage = (e) => {
         const m = e.data;
-        if (m.type === "ready") { setupSound(m.catalog); res(); }
+        if (m.type === "ready") { setupSound(m.catalog); setupSamples(); res(); }
+        else if (m.type === "sampled") { const r = pendingSlot[m.slot]; pendingSlot[m.slot] = null; if (r) r(m.ok); }
         else if (m.type === "error") rej(new Error(m.message));
         else if (m.type === "frame") {
           if (m.fb) drawScreen(m.fb);
@@ -664,10 +834,10 @@ async function switchOn() {
       };
       node.port.postMessage({ type: "load", wasm, sectors: loadFlash(), master: masterValue, route: prefs.route ?? 1 }, [wasm]);
     });
-    await ac.resume();
+    audioWake();                                  // (never awaited: iOS keeps it pending until a tap)
     document.getElementById("start").hidden = true;
+    setTimeout(() => { if (ac.state !== "running") notice("Tap anywhere on the synth to start the sound. On iPhone, also check the volume and that the ring switch isn't on silent."); }, 1500);
     go.textContent = "On";
-    if (ac.sampleRate !== 44100) console.warn(`SynthSoup: the browser plays at ${ac.sampleRate} Hz, the pitch is off by ${(1200 * Math.log2(ac.sampleRate / 44100)).toFixed(0)} cents.`);
     syncButtons();
     syncKeys();
     send({ type: "visible", on: !document.hidden });
@@ -676,11 +846,11 @@ async function switchOn() {
     node = null;
     go.disabled = false;
     go.textContent = "Switch on";
-    say("Could not start: " + (err && err.message || err) + ". A current Chrome, Edge, Firefox or Safari should work.");
+    say("Could not start: " + (err && err.message || err) + ". A current Chrome, Edge, Firefox or Safari should work; on iPhone, open the page in Safari itself rather than inside another app.");
   }
 }
 document.getElementById("go").addEventListener("click", switchOn);
-document.addEventListener("visibilitychange", () => send({ type: "visible", on: !document.hidden }));
+document.addEventListener("visibilitychange", () => { send({ type: "visible", on: !document.hidden }); if (!document.hidden) audioWake(); });
 </script>
 </body>
 </html>
