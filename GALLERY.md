@@ -123,6 +123,47 @@ ways deeper from every room; `branch` can be 2 to 4.
 Authored rooms and generated rooms mix freely — a generated room can name an
 authored one as an exit and the other way round. `reliquary` is the seam.
 
+## Stairs
+
+A room may carry a `stairs` array. Each entry draws a real flight of treads and
+risers inside the room, and clicking it travels:
+
+```json
+"stairs": [
+  { "to": "stair-b", "label": "up", "ascend": 1, "steps": 10,
+    "facing": "north", "gravity": "down", "width": 0.46,
+    "offset": -0.22, "from": 0.05 }
+]
+```
+
+| field | what it does |
+|---|---|
+| `to` | room id it climbs to |
+| `label` | text at the top of the flight |
+| `ascend` | flights gained, same as a doorway |
+| `steps` | how many, 2–24 (default 9) |
+| `facing` | `north` / `east` / `west` / `south` — which way it climbs |
+| `gravity` | `down` / `right` / `up` / `left` — **which way is down for this flight** |
+| `width` | fraction of room width (default 0.42) |
+| `offset` | sideways shift, in the flight's own gravity frame |
+| `from` | how far back it begins, 0–1 of room depth |
+
+**`gravity` is the Escher part.** Four flights at four gravities in one room is
+Relativity — each is tinted a different colour so the eye reads them as separate
+worlds rather than as a mistake. `offset` is applied *after* the gravity
+rotation, so each flight shifts along its own idea of sideways and the four fan
+out around the room instead of piling through its centre.
+
+Climbing a flight animates as a climb — the room drops away beneath you — rather
+than the fade-cut a doorway uses. A staircase that loops is then something you
+feel, not just a number in the corner.
+
+Every flight is also a `↗` button in the HUD, so stairs are reachable without
+hitting a 3D target.
+
+The generated half uses stairs too: each branch deeper is a flight, and a room
+inside the set gets flights that disagree about which way is down.
+
 ## Altering a room
 
 Manipulation is a state you **carry**, not a panel you open. It persists as you
@@ -136,6 +177,7 @@ a hue rotation and a twist running, against a 61fps ceiling.
 | echo | `E` | nests copies of the room behind itself — the room containing the room |
 | fold | `F` | mirrors the space onto itself |
 | twist | `T` | rotates the room out of true |
+| down | `G` | rotates which way is down — a flight you could not use becomes the one underfoot |
 | hue | `H` | rotates all colour |
 | sat | `S` | drains or floods saturation |
 | hard | `C` | contrast |
