@@ -1,0 +1,174 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 SynthSoup contributors. The site's front page (web/make_site.py fills in 0.1 and synthsoup-0.1.fwsc). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SynthSoup</title>
+<meta name="description" content="SynthSoup: custom firmware for the M-VAVE FM-1 with wavetables, a C64 SID, granular and tape delays, a shimmer reverb and on-device sampling. Play it in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath d=%22M1 7h14a7 6 0 0 1-14 0z%22 fill=%22%23ff4fd8%22/%3E%3Ccircle cx=%228%22 cy=%224%22 r=%223%22 fill=%22%239dff4f%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Figtree:wght@400;600&family=Shrikhand&display=swap">
+<style>
+/* One dark psychedelic look, the firmware's SOUP palette (as the player, webapp/play/).
+ * Layout: the cat and the pitch side by side (stacked on a phone), then listen, features, before you install. */
+:root { --bg: #0d0716; --fg: #ecdfff; --dim: #a996cc; --rule: #4a3570; --neon: #ff4fd8; --acid: #9dff4f;
+        --panel: #160c25; --ink-on-neon: #2a0a28; --warn: #ffb347;
+        --display: "Shrikhand", "Cooper Black", Georgia, serif; --text: "Figtree", -apple-system, "Helvetica Neue", Arial, sans-serif;
+        --mono: "DM Mono", ui-monospace, Menlo, monospace; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--fg); font: 17px/1.6 var(--text);
+       padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body::before { content: ""; position: fixed; inset: -20vmax; z-index: -1; pointer-events: none; opacity: .3;
+  background: radial-gradient(closest-side at 30% 35%, #ff4fd8, transparent), radial-gradient(closest-side at 70% 30%, #6a3cff, transparent),
+              radial-gradient(closest-side at 55% 75%, #9dff4f55, transparent), radial-gradient(closest-side at 20% 80%, #ff9a3c88, transparent);
+  filter: blur(60px); animation: swirl 48s linear infinite; }
+@keyframes swirl { to { transform: rotate(360deg); filter: blur(60px) hue-rotate(360deg); } }
+main { max-width: 1040px; margin: 0 auto; padding-block: 32px 48px;
+       padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+       display: grid; gap: 64px; }
+a { color: var(--fg); text-decoration-color: var(--neon); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--acid); outline-offset: 3px; }
+h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; }
+h2 { font-size: clamp(28px, 4vw, 36px); line-height: 1.1; }
+.wordmark { font-size: clamp(52px, 8vw, 92px); line-height: .95;
+  background: linear-gradient(90deg, #ff4fd8, #ff9a3c, #ffe24f, #9dff4f, #4fe0ff, #8a6cff, #ff4fd8); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: flow 12s linear infinite; }
+@keyframes flow { to { background-position: 200% 0; } }
+
+.hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px 48px; align-items: center; }
+.hero > * { min-width: 0; }
+.pitch { display: grid; gap: 20px; }
+.pitch p { margin: 0; max-width: 34em; color: var(--dim); font-size: 19px; }
+.pitch p strong { color: var(--fg); font-weight: 600; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn { display: inline-block; padding: 14px 26px 15px; border-radius: 999px; text-decoration: none; font-weight: 600; }
+.btn.primary { background: var(--neon); color: var(--ink-on-neon); font: 400 22px/1 var(--display); padding: 16px 30px 18px;
+               box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--acid), 0 0 40px rgba(255, 79, 216, .5); }
+.btn.primary:hover { background: var(--acid); }
+.btn.quiet { border: 2px solid var(--rule); color: var(--fg); }
+.btn.quiet:hover { border-color: var(--acid); }
+.tag { display: inline-flex; gap: 8px; align-items: center; width: fit-content; padding: 4px 12px; border-radius: 999px;
+       border: 1px solid var(--warn); color: var(--warn); font: 500 13px/1.4 var(--mono); }
+.screen { margin: 0; justify-self: center; width: min(100%, 420px); }
+.screen img { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; border-radius: 22px;
+              border: 10px solid #07040c; box-shadow: 0 0 0 2px var(--rule), 0 20px 60px rgba(0, 0, 0, .6); }
+.screen figcaption { margin-top: 10px; text-align: center; color: var(--dim); font: 13px var(--mono); }
+
+.section-head { display: grid; gap: 6px; margin-bottom: 24px; }
+.section-head p { margin: 0; color: var(--dim); max-width: 60ch; }
+.tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px 24px; margin: 0; padding: 0; list-style: none; }
+.tracks li { min-width: 0; display: grid; gap: 8px; padding: 14px 16px; background: var(--panel); border-radius: 14px; }
+.tracks .name { font-weight: 600; }
+.tracks .what { color: var(--dim); font-size: 14px; }
+.tracks audio { width: 100%; height: 36px; }
+
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 28px 32px; margin: 0; padding: 0; list-style: none; }
+.features li { min-width: 0; padding-top: 12px; border-top: 2px solid var(--rule); }
+.features li:nth-child(6n+1) { border-top-color: #ff4fd8; } .features li:nth-child(6n+2) { border-top-color: #ff9a3c; }
+.features li:nth-child(6n+3) { border-top-color: #ffe24f; } .features li:nth-child(6n+4) { border-top-color: #9dff4f; }
+.features li:nth-child(6n+5) { border-top-color: #4fe0ff; } .features li:nth-child(6n+6) { border-top-color: #8a6cff; }
+.features h3 { margin: 0 0 6px; font: 600 14px/1.3 var(--text); letter-spacing: .14em; text-transform: uppercase; }
+.features p { margin: 0; color: var(--dim); }
+
+.install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 48px; padding: 28px; border-radius: 20px;
+           background: var(--panel); border: 1px solid var(--rule); }
+.install > * { min-width: 0; }
+.install ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.install p { margin: 0 0 12px; }
+.install .warn { color: var(--warn); }
+code, kbd { font: 15px var(--mono); }
+
+footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align: center; }
+@media (max-width: 760px) {
+  .hero, .install { grid-template-columns: 1fr; }
+  .screen { order: -1; width: min(100%, 320px); }
+  .install { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { body::before, .wordmark { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero" aria-labelledby="name">
+    <div class="pitch">
+      <h1 class="wordmark" id="name">SynthSoup</h1>
+      <p><strong>Custom firmware for the M-VAVE FM-1.</strong> Morphing wavetables, the Commodore 64's SID chip, granular and tape
+        delays, a reverb that climbs in octaves, and sampling on the device. Everything the Felucca firmware does, plus all of that,
+        in a dark psychedelic coat.</p>
+      <div class="ctas">
+        <a class="btn primary" href="webapp/play/">Play it in your browser</a>
+        <a class="btn quiet" href="#install">Install on your FM-1</a>
+      </div>
+      <span class="tag">Version 0.1 · untested on hardware</span>
+    </div>
+    <figure class="screen">
+      <img src="assets/synthsoup-boot.gif" width="240" height="240" alt="The power-on animation: a cartoon cat rising out of a bowl of swirling rainbow soup, the name SynthSoup above it.">
+      <figcaption>Power-on, 240 × 240, as the FM-1 shows it</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="listen">
+    <div class="section-head">
+      <h2 id="listen">Listen</h2>
+      <p>Rendered by the firmware's own audio code, the same code that runs in the player and on the FM-1.</p>
+    </div>
+    <ul class="tracks">
+      <li><span class="name">TABLE · PSYCH</span><span class="what">A wavetable of spiralling phases, scanned by an envelope</span>
+        <audio controls preload="none" src="assets/table-psych.mp3"></audio></li>
+      <li><span class="name">TABLE · SUPRSAW</span><span class="what">A detuned saw stack from the wavetable engine</span>
+        <audio controls preload="none" src="assets/table-supersaw.mp3"></audio></li>
+      <li><span class="name">DIMENSION · DIMEN</span><span class="what">A pad cut into a cloud of grains</span>
+        <audio controls preload="none" src="assets/dimension-cloud.mp3"></audio></li>
+      <li><span class="name">DIMENSION · TAPE</span><span class="what">A worn tape: wow, flutter, hiss and dropouts</span>
+        <audio controls preload="none" src="assets/tape-worn.mp3"></audio></li>
+      <li><span class="name">DIMENSION · TAPE</span><span class="what">TIME changed mid-phrase: the echoes bend with the tape's speed</span>
+        <audio controls preload="none" src="assets/tape-speed-bend.mp3"></audio></li>
+      <li><span class="name">REVERB · SHIMMER</span><span class="what">A wavetable pad, its tail climbing in octaves</span>
+        <audio controls preload="none" src="assets/shimmer-pad.mp3"></audio></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="inside">
+    <div class="section-head">
+      <h2 id="inside">What's in the soup</h2>
+      <p>Built on Felucca 1.5.1 by Leo Kuroshita, Hügelton Instruments. All of Felucca's engines, sequencer, effects and editor are still there.</p>
+    </div>
+    <ul class="features">
+      <li><h3>TABLE wavetables</h3><p>16 tables built from recipes on the device, 16 frames each, 10 warp modes, a sub, detune and a resonant filter. Envelopes and LFOs scan the table.</p></li>
+      <li><h3>SID chip</h3><p>The C64's MOS 6581 and 8580 from Melodee: combined waveforms sampled from real chips, the chip's own filter and envelopes, 32 presets.</p></li>
+      <li><h3>DIMENSION</h3><p>The delay in three modes: DELAY as before, DIMEN (a granular pocket dimension with octave shimmer and freeze) and TAPE (wow, flutter, drive, hiss and dropouts).</p></li>
+      <li><h3>SHIMMER reverb</h3><p>A fourth reverb type beside ROOM, SPRING and HALL: the hall's tail is pitched up an octave and fed back, so held notes bloom upwards.</p></li>
+      <li><h3>RESAMPLE</h3><p>Record what the FM-1 plays into one of three sample slots, then play it back with the SAMPLE, SLICE or GRAIN engine. Hold REC and tap C4, D4 or E4.</p></li>
+      <li><h3>The soup cat</h3><p>A power-on animation of the SynthSoup cat in a bowl of rainbow soup, and the SOUP colour palette across every screen.</p></li>
+    </ul>
+  </section>
+
+  <section class="install" id="install" aria-labelledby="install-h">
+    <div>
+      <h2 id="install-h">Install</h2>
+      <p class="warn">Nobody has run SynthSoup on an FM-1 yet. It passes the full Felucca test suite plus its own tests, and it was built with the
+        FM-1's real toolchain, but there is no proven recovery from a failed install. Install it only if you accept that risk.</p>
+      <p>Keep M-VAVE's official V15 firmware file before you start: it is how you go back to stock.</p>
+    </div>
+    <div>
+      <ol>
+        <li>Back up your projects with the <a href="webapp/editor/">editor</a>'s full backup.</li>
+        <li>Connect the FM-1 by USB and open the <a href="webapp/installer/">web installer</a> in Chrome or Edge (it needs Web MIDI).</li>
+        <li>Or download <a href="firmware/synthsoup-0.1.fwsc"><code>synthsoup-0.1.fwsc</code></a> and run <code>tools/fm1_install.py</code> from a terminal.</li>
+        <li>To go back: M-VAVE's updater with the official file.</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <span>SynthSoup 0.1 on Felucca v1.5.1 · <a href="webapp/play/">Play</a> · <a href="webapp/editor/">Editor</a> · <a href="webapp/installer/">Installer</a> · <a href="firmware/LICENSES/">Licences</a></span>
+    <span>Built on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments · SID engine from <a href="https://github.com/keremimo/melodee">Melodee</a> · GPL-3.0</span>
+    <span>M-VAVE and FM-1 are trademarks of their respective owners. SynthSoup is not affiliated with or endorsed by them.</span>
+  </footer>
+</main>
+</body>
+</html>
