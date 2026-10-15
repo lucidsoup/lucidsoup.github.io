@@ -28,6 +28,29 @@ export function restoreSectors(nor, sectors) {
 
 export const HOLD_MS = 24;
 
+// SynthSoup's Sound & MIDI panel: a C string out of the module's memory; the engines and their presets
+function cstr(ex, p) {
+  const m = new Uint8Array(ex.memory.buffer);
+  let e = p;
+  while (m[e]) e++;
+  return String.fromCharCode(...m.subarray(p, e));
+}
+export function catalog(ex) {
+  if (!ex.web_eng_count) return null;
+  const out = [];
+  for (let i = 0; i < ex.web_eng_count(); i++) {
+    const e = ex.web_eng_at(i), presets = [];
+    for (let n = 0; n < ex.web_preset_count(e); n++) presets.push(cstr(ex, ex.web_preset_name(e, n)));
+    out.push({ id: e, name: cstr(ex, ex.web_eng_name(e)), presets });
+  }
+  return out;
+}
+export function soundState(ex) {
+  if (!ex.web_sel) return null;
+  const t = ex.web_sel();
+  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route() };
+}
+
 if (typeof registerProcessor === "function") {
   const clock = globalThis.performance ? () => globalThis.performance.now() : () => Date.now();
   class Felucca extends AudioWorkletProcessor {
@@ -37,6 +60,7 @@ if (typeof registerProcessor === "function") {
       this.sentDraws = -1;
       this.sentWrites = -1;
       this.sentLeds = "";
+      this.sentState = "";
       this.lastFrame = 0;
       this.period = 1 / 30;
       this.busy = 0;
@@ -58,7 +82,8 @@ if (typeof registerProcessor === "function") {
           ex.web_boot();
           this.ex = ex;
           this.sentWrites = ex.web_flash_writes_count();
-          this.port.postMessage({ type: "ready", rate: ex.web_sample_rate() });
+          if (m.route !== undefined && ex.web_set_route) ex.web_set_route(m.route);
+          this.port.postMessage({ type: "ready", rate: ex.web_sample_rate(), catalog: catalog(ex) });
         } catch (err) {
           this.port.postMessage({ type: "error", message: String(err && err.message || err) });
         }
@@ -71,6 +96,10 @@ if (typeof registerProcessor === "function") {
       else if (m.type === "master") ex.web_master(m.value | 0);
       else if (m.type === "midi") ex.web_midi(m.data[0] | 0, m.data[1] | 0, m.data[2] | 0);
       else if (m.type === "visible") this.period = m.on ? 1 / 30 : 1 / 4;
+      else if (m.type === "select" && ex.web_select) ex.web_select(m.track | 0);
+      else if (m.type === "sound" && ex.web_set_sound) ex.web_set_sound(m.track | 0, m.engine | 0, m.preset | 0);
+      else if (m.type === "voice" && ex.web_set_voice) ex.web_set_voice(m.track | 0, m.voice | 0);
+      else if (m.type === "route" && ex.web_set_route) ex.web_set_route(m.route | 0);
     }
 
     publish() {
@@ -85,6 +114,11 @@ if (typeof registerProcessor === "function") {
         this.sentLeds = key;
         msg.leds = leds;
         msg.anim = anim;
+      }
+      const st = soundState(ex), sk = st ? JSON.stringify(st) : "";
+      if (sk !== this.sentState) {
+        this.sentState = sk;
+        msg.state = st;
       }
       if (this.frames >= 44100) {                     // the share of real time spent running the device
         msg.load = this.busy / (this.frames / 44.1);
@@ -102,7 +136,7 @@ if (typeof registerProcessor === "function") {
         this.sentWrites = writes;
         msg.sectors = storeSectors(new Uint8Array(mem, ex.web_nor(), ex.web_nor_size()));
       }
-      if (msg.leds || msg.fb || msg.sectors || msg.load !== undefined) this.port.postMessage(msg, transfer);
+      if (msg.leds || msg.fb || msg.sectors || msg.state || msg.load !== undefined) this.port.postMessage(msg, transfer);
     }
 
     // A click's down and up can arrive within one render quantum, but the FM-1's contacts never close for less than
