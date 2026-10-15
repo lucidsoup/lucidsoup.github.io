@@ -128,6 +128,7 @@ kbd { font: 500 12px var(--mono); border: 1px solid var(--rule); border-bottom-w
 .btn-s:hover { border-color: var(--acid); }
 .btn-s:disabled { opacity: .45; cursor: default; }
 .btn-s:focus-within, .btn-s:focus-visible { outline: 2px solid var(--acid); outline-offset: 2px; }
+#voc[aria-pressed="true"] { background: var(--neon); color: var(--ink-on-lit); border-color: var(--neon); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 760px) { .console { grid-template-columns: 1fr; } }
 .guide { margin: 40px 0 0; }
@@ -167,6 +168,10 @@ footer small { font-size: 11px; opacity: .8; }
     <label class="ctl"><span>Engine</span><select id="eng"></select></label>
     <label class="ctl"><span>Preset</span><select id="pre"></select></label>
     <div class="ctl"><span id="vce-l">Voices</span><div class="seg" id="vce" role="group" aria-labelledby="vce-l"></div></div>
+    <div class="ctl"><span>Vocoder</span><button class="btn-s" type="button" id="voc" aria-pressed="false">Vocode my mic</button></div>
+    <p class="hint" id="voc-hint">Turns this track's INSERT into the VOCODER with your microphone as the voice: play chords and talk or
+      sing. Use headphones, or the speakers feed back into the mic. On the FM-1 itself the voice is another track (INSERT › VOCOD,
+      SRC TRK1–4), for example a recording loaded into a sample slot.</p>
   </fieldset>
   <fieldset id="midi-set" disabled>
     <legend>MIDI</legend>
@@ -221,7 +226,7 @@ footer small { font-size: 11px; opacity: .8; }
 
 <footer>
   <nav><a href="../../">SynthSoup home</a> · <a href="../installer/">Install</a> · <a href="../editor/">Editor</a></nav>
-  <small class="version">SynthSoup 0.1 on Felucca v1.5.1</small><br>
+  <small class="version">SynthSoup 0.1 on Felucca v1.5.1 (preview)</small><br>
   Built on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments · SID engine from <a href="https://github.com/keremimo/melodee">Melodee</a> · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> · browser build after charlesvestal's <a href="https://github.com/charlesvestal/fm1-x0x">X0X</a> · DotGothic16 font, SIL OFL 1.1<br>
   <small>M-VAVE and FM-1 are trademarks of their respective owners. SynthSoup is not affiliated with or endorsed by them. Untested on hardware.</small>
 </footer>
@@ -592,6 +597,7 @@ function setupSound(catalog) {
   cat.forEach((e) => eng.add(new Option(e.name, e.id)));
   eng.addEventListener("change", () => cur && send({ type: "sound", track: cur.track, engine: +eng.value, preset: 0 }));
   $("pre").addEventListener("change", (ev) => cur && send({ type: "sound", track: cur.track, engine: cur.engine, preset: +ev.target.value }));
+  $("voc").addEventListener("click", vocoderMic);
   $("sound-set").disabled = false;
 }
 function showState(st) {
@@ -663,6 +669,43 @@ async function prepareSample(file) {
   const name = file.name.replace(/\.[^.]*$/, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().slice(0, 8) || "SAMPLE";
   return { data: imaEncode(s), n, name, cut, secs: n / SMP_RATE };
 }
+// ------------------------------------------------------------------ Vocoder: the microphone as the modulator
+const IT_VOCODER = 9;
+let mic = null;                                            // { stream, src, track }
+async function vocoderMic() {
+  const b = $("voc");
+  if (mic) {                                               // off: the mic closed, that track's INSERT off again
+    send({ type: "mic", on: false });
+    send({ type: "insert", track: mic.track, itype: 0, a: 64, b: 96, c: 96, mix: 127 });
+    mic.src.disconnect();
+    mic.stream.getTracks().forEach((t) => t.stop());
+    mic = null;
+    b.setAttribute("aria-pressed", "false");
+    b.textContent = "Vocode my mic";
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    notice("This browser can't open the microphone here. The page needs HTTPS and a current browser.");
+    return;
+  }
+  b.disabled = true;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+    const src = ac.createMediaStreamSource(stream);
+    src.connect(node);
+    const track = cur ? cur.track : 0;
+    mic = { stream, src, track };
+    send({ type: "insert", track, itype: IT_VOCODER, a: 32, b: 70, c: 64, mix: 127 });
+    send({ type: "mic", on: true });
+    b.setAttribute("aria-pressed", "true");
+    b.textContent = `Vocoding track ${track + 1} — stop`;
+    notice("");
+  } catch (err) {
+    notice(`The microphone didn't open (${err && err.name || err}). Allow the microphone for this site, then try again.`);
+  }
+  b.disabled = false;
+}
+
 const slotsUi = [];
 function setupSamples() {
   const box = $("slots");
@@ -813,7 +856,7 @@ async function switchOn() {
     const [wasm] = await Promise.all([
       fetch("felucca.wasm").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
       ac.audioWorklet.addModule("worklet.js")]);
-    node = new AudioWorkletNode(ac, "felucca", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+    node = new AudioWorkletNode(ac, "felucca", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
     node.connect(ac.destination);
     let warned = false;
     await new Promise((res, rej) => {
