@@ -103,6 +103,70 @@ and one on a phone, and tears the contexts down when you leave a room. Use
 Everything degrades: a missing work, shader or image leaves an empty frame and
 the gallery carries on.
 
+## The endless half
+
+Past the authored rooms the gallery does not run out. A room id like `f012` is
+an **address**: each digit picks one of the contractive maps in
+`rooms.json` → `fractal.maps`, and the digits walk deeper into their attractor.
+
+The room's size, colour, patterns and name all come from the orbit at that
+point. Two consequences:
+
+- **Deterministic.** An address is always the same room, so it can be linked to.
+- **Self-similar.** Addresses sharing a prefix land near each other. Measured:
+  siblings **0.118** apart, cousins **0.446**, strangers **0.753** — properly
+  nested, so a room genuinely resembles its parent. Descending is zooming.
+
+Edit `fractal.maps` and the whole endless half changes. Three maps means three
+ways deeper from every room; `branch` can be 2 to 4.
+
+Authored rooms and generated rooms mix freely — a generated room can name an
+authored one as an exit and the other way round. `reliquary` is the seam.
+
+## Altering a room
+
+Manipulation is a state you **carry**, not a panel you open. It persists as you
+travel, so exploring and altering are the same activity: you take your version
+of the place deeper with you. Every verb is one CSS filter or transform, which
+is why they all compose and why it is free — measured at 61fps with four echoes,
+a hue rotation and a twist running, against a 61fps ceiling.
+
+| verb | key | what it does |
+|---|---|---|
+| echo | `E` | nests copies of the room behind itself — the room containing the room |
+| fold | `F` | mirrors the space onto itself |
+| twist | `T` | rotates the room out of true |
+| hue | `H` | rotates all colour |
+| sat | `S` | drains or floods saturation |
+| hard | `C` | contrast |
+| flip | `I` | inverts |
+| haze | `B` | blur |
+
+Hold **shift** to step a verb backwards, `X` to go back to plain. Every verb is
+also a button, so none of this needs a keyboard.
+
+**Clicking a wall changes what is on it** — it cycles through the six patterns,
+then a live shader, then one of your works. On a generated room the change
+sticks while you are away and come back, because the room is cached as you left
+it.
+
+The address bar carries both where you are and what you have done to it:
+
+```
+gallery.html#r=f012&echo=2&hue=120&twist=14
+```
+
+So a room in a particular state is a link. That is the sharing mechanism — no
+server, no save button.
+
+### The one thing to know if you extend this
+
+A CSS `filter` on an element **between** `#camera` and `#room` makes it a
+grouping element and **flattens `preserve-3d`** — the room collapses to a single
+plane. The filter therefore goes on `#stage`, outside the 3D chain. The style
+looks correct either way; only the picture tells you. Echo copies have their
+media and doorways stripped, so they stay cheap and never steal a click.
+
 ## Getting in
 
 The centre of the box on the home page, once the box is open. It does not

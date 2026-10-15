@@ -136,6 +136,50 @@
         border-radius: 50%;
     }
 
+    /* ===== manipulation ===== */
+    /* Everything the viewer does to a room is one filter on this wrapper plus a
+       transform on the room, so it costs nothing and composes freely. */
+    #lens { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+    .surface.touched { animation: touched .5s ease-out; }
+    @keyframes touched {
+        0%   { box-shadow: inset 0 0 0 3px rgba(0,255,255,.9); }
+        100% { box-shadow: inset 0 0 0 3px rgba(0,255,255,0); }
+    }
+    .surface.alterable { cursor: crosshair; }
+
+    /* Echoes: copies of the room nested behind itself. Structure only — the
+       media is stripped out of them, so they stay cheap. */
+    .echo { position: absolute; left: 0; top: 0; width: 0; height: 0;
+            transform-style: preserve-3d; pointer-events: none; }
+
+    #fx {
+        position: fixed; z-index: 55; left: 16px; top: 92px;
+        display: flex; flex-direction: column; gap: 7px;
+        pointer-events: auto;
+    }
+    .fx-row { display: flex; gap: 6px; align-items: center; }
+    .fx-btn {
+        background: rgba(255,0,255,.07); border: 1px solid rgba(255,0,255,.32);
+        color: #ff8cff; font: inherit; font-size: 10px; letter-spacing: .14em;
+        text-transform: uppercase; padding: 7px 9px; border-radius: 3px;
+        cursor: pointer; min-width: 40px; min-height: 34px;
+        transition: background .18s, border-color .18s;
+    }
+    .fx-btn:hover, .fx-btn:focus-visible {
+        background: rgba(255,0,255,.18); border-color: rgba(255,0,255,.7); outline: none;
+    }
+    .fx-btn.on { background: rgba(255,0,255,.26); border-color: rgba(255,0,255,.85); color: #fff; }
+    .fx-val { color: #7a7a8c; font-size: 10px; min-width: 26px; }
+    #fx-title { color: #7a7a8c; font-size: 10px; letter-spacing: .24em; text-transform: uppercase; }
+    #fx.folded .fx-row:not(.always) { display: none; }
+
+    @media (max-width: 640px) {
+        #fx { top: auto; bottom: 108px; left: 10px; right: 10px; }
+        .fx-row { flex-wrap: wrap; }
+        .fx-btn { font-size: 9px; padding: 7px; min-width: 34px; }
+    }
+
     /* ===== travel fade ===== */
     #veil {
         position: fixed; inset: 0; background: #000; pointer-events: none;
@@ -236,8 +280,10 @@
 <body>
 
 <div id="stage" aria-label="Gallery">
-    <div id="camera"><div id="room"></div></div>
+    <div id="camera"><div id="lens"><div id="room"></div></div></div>
 </div>
+
+<div id="fx" class="folded"></div>
 
 <div id="veil"></div>
 
@@ -250,7 +296,7 @@
 </div>
 
 <div class="hud" id="hud-bottom"></div>
-<div id="hint">drag to look · tap a doorway to travel</div>
+<div id="hint">drag to look · tap a doorway to travel · tap a wall to change it</div>
 
 <div id="lb"><button id="lb-close" aria-label="Close">&times;</button><video controls playsinline></video></div>
 
@@ -306,6 +352,168 @@ var hudBottom = document.getElementById('hud-bottom');
 var hint = document.getElementById('hint');
 
 var DATA = null, MEDIA = null, SHADERS = [];
+
+/* ========================= the fractal =========================
+   Beyond the authored rooms the gallery is endless, and its structure is an
+   IFS attractor. A room id like "f012" is an ADDRESS: each digit picks one of
+   the contractive maps, so following digits walks deeper into the attractor.
+
+   Two consequences that matter:
+     - It is deterministic. The same address is always the same room, so a room
+       can be linked to and come back identical.
+     - It is self-similar. Addresses sharing a prefix land near each other, so
+       a room resembles its parent the way a part of a fractal resembles the
+       whole. Descending is zooming.                                          */
+
+var FR = {};
+var MAPS = [];
+var BRANCH = 3;
+
+function initFractal() {
+    FR = (DATA && DATA.fractal) || {};
+    BRANCH = Math.max(2, Math.min(4, FR.branch || 3));
+    // Contractive similarities: scale, rotation, translation. Their attractor
+    // is the shape of the gallery.
+    MAPS = FR.maps || [
+        { s: 0.52, r: 0.00, tx: -0.42, ty: -0.26 },
+        { s: 0.52, r: 2.09, tx:  0.42, ty: -0.26 },
+        { s: 0.52, r: 4.19, tx:  0.00, ty:  0.48 },
+        { s: 0.48, r: 1.05, tx:  0.00, ty: -0.06 }
+    ].slice(0, BRANCH);
+}
+
+function isAddr(id) { return typeof id === 'string' && /^f[0-9]*$/.test(id); }
+function digits(id) { return id.slice(1); }
+
+// Walk the address through the maps. Returns the point it lands on and the
+// accumulated contraction, which is how deep into the fractal that is.
+//
+// The maps compose with the FIRST digit outermost: M(d0) . M(d1) . ... . M(dn).
+// That is what makes the addressing nest. Changing the last digit perturbs the
+// innermost point, and every preceding map then contracts that perturbation, so
+// a longer shared prefix means a nearer room. Applying them the other way round
+// moves siblings a full translation apart and the self-similarity is lost —
+// which is exactly what the first version did.
+function addrPoint(addr) {
+    var x = 0, y = 0, scale = 1;
+    for (var i = addr.length - 1; i >= 0; i--) {
+        var m = MAPS[(addr.charCodeAt(i) - 48) % MAPS.length];
+        var c = Math.cos(m.r), sn = Math.sin(m.r);
+        var nx = m.s * (c * x - sn * y) + m.tx;
+        var ny = m.s * (sn * x + c * y) + m.ty;
+        x = nx; y = ny; scale *= m.s;
+    }
+    return { x: x, y: y, scale: scale };
+}
+
+// The room's character comes from the orbit at that point, not from a random
+// number, so neighbouring rooms vary the way a fractal varies.
+function orbit(cx, cy) {
+    var zx = 0, zy = 0, i = 0, trap = 1e9, n = 72;
+    for (; i < n; i++) {
+        var t = zx * zx - zy * zy + cx;
+        zy = 2 * zx * zy + cy;
+        zx = t;
+        var m = zx * zx + zy * zy;
+        if (m < trap) trap = m;
+        if (m > 16) break;
+    }
+    return { escape: i, inside: i >= n, trap: Math.sqrt(trap) };
+}
+
+function hash32(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+}
+
+var NAME_A = ['Lower', 'Thin', 'Folded', 'Quiet', 'Bright', 'Hollow', 'Outer',
+              'Deep', 'Narrow', 'Pale', 'Inner', 'Slow'];
+var NAME_B = ['Vault', 'Spire', 'Landing', 'Cell', 'Gallery', 'Shaft', 'Terrace',
+              'Chamber', 'Passage', 'Court', 'Reach', 'Fold'];
+var PATTERN_POOL = ['hex', 'triangle', 'penrose', 'escher', 'moire', 'grid'];
+
+var genCache = {};
+function generateRoom(id) {
+    if (genCache[id]) return genCache[id];
+    var addr = digits(id);
+    var depth = addr.length;
+    var pt = addrPoint(addr);
+    var cx = (FR.seedX != null ? FR.seedX : -0.40) + pt.x;
+    var cy = (FR.seedY != null ? FR.seedY : 0.60) + pt.y;
+    var orb = orbit(cx, cy);
+
+    // Everything below is a function of the orbit, so it is stable per address.
+    var ang = Math.atan2(cy, cx);
+    var hue = Math.round((((ang * 180 / Math.PI) + 360) % 360 + orb.escape * 9) % 360);
+    var k = orb.escape + depth;
+    var tight = Math.min(1, orb.trap);
+
+    var w = 3.2 + tight * 4.2;
+    var h = 2.6 + (orb.inside ? 1.4 + (hsh % 160) / 100 : tight * 1.5);
+    var d = 3.2 + ((orb.escape % 5) * 0.55);
+
+    var floorPat = PATTERN_POOL[k % PATTERN_POOL.length];
+    var ceilPat  = PATTERN_POOL[(k + 2 + depth) % PATTERN_POOL.length];
+    var sidePat  = PATTERN_POOL[(k + 4) % PATTERN_POOL.length];
+
+    var hsh = hash32(id);
+    var name = NAME_A[Math.floor(hue / 360 * NAME_A.length) % NAME_A.length] + ' ' +
+               NAME_B[hsh % NAME_B.length];
+
+    var surfaces = {
+        floor:   { art: 'pattern:' + floorPat, repeat: 2 + (k % 4) },
+        ceiling: { art: 'pattern:' + ceilPat,  repeat: 1 + (k % 3) }
+    };
+
+    // Rooms deep inside the set are the ones that get live work on the wall.
+    if (orb.inside && (hsh % 4 === 0)) {
+        surfaces.north = { art: 'shader:random', frame: true };
+    } else if (hsh % 5 === 0) {
+        surfaces.north = { art: 'work:random', frame: true };
+    } else {
+        surfaces.north = { art: 'pattern:' + sidePat, repeat: 2 };
+    }
+
+    // Deeper is DOWN: diving into the fractal reads as descent.
+    var sides = ['east', 'west', 'ceiling'];
+    for (var i = 0; i < BRANCH && i < 3; i++) {
+        var side = sides[i];
+        var child = id + i;
+        if (side === 'ceiling') {
+            surfaces.ceiling.exit = child;
+            surfaces.ceiling.label = 'deeper';
+            surfaces.ceiling.ascend = -1;
+        } else {
+            surfaces[side] = { art: 'pattern:' + sidePat, repeat: 2 + (i % 3),
+                               exit: child, label: 'deeper', ascend: -1 };
+        }
+    }
+
+    // Back up, to the parent address or out to the authored rooms.
+    surfaces.floor.exit = depth > 0 ? id.slice(0, -1) : 'antechamber';
+    surfaces.floor.label = depth > 0 ? 'back' : 'out';
+    surfaces.floor.ascend = 1;
+
+    var room = {
+        name: name,
+        note: depth === 0 ? 'Past here the rooms are generated. They do not run out.'
+                          : null,
+        size: [w, h, d],
+        surfaces: surfaces,
+        _fractal: { depth: depth, cx: cx, cy: cy, hue: hue,
+                    escape: orb.escape, inside: orb.inside, zoom: pt.scale }
+    };
+    genCache[id] = room;
+    return room;
+}
+
+// Every room lookup goes through here: authored first, generated otherwise.
+function getRoom(id) {
+    if (DATA && DATA.rooms && DATA.rooms[id]) return DATA.rooms[id];
+    if (isAddr(id)) return generateRoom(id);
+    return null;
+}
 var state = { room: null, yaw: 0, pitch: 0, altitude: 0, steps: 0, visited: {} };
 var live = [];     // teardown functions for the current room's running media
 
@@ -559,7 +767,13 @@ function buildArt(ref, opts) {
     }
 
     if (kind === 'work') {
-        var w = mediaWork(arg);
+        var w;
+        if (arg === 'random') {
+            var pool = (MEDIA && MEDIA.works || []).filter(function (x) { return x && (x.preview || x.poster); });
+            w = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+        } else {
+            w = mediaWork(arg);
+        }
         if (!w) return null;
         var node, stopFn = null;
         if (w.preview) {
@@ -612,13 +826,86 @@ function placement(side, w, h, d) {
     }
 }
 
+// Paints one surface's art. Pulled out of buildRoom so a wall can be repainted
+// on its own when someone changes it, without rebuilding the room around it.
+function paintArt(el, spec, surfaceW) {
+    // Clear what was there, but never the doorway.
+    Array.prototype.slice.call(el.children).forEach(function (ch) {
+        if (!ch.classList.contains('doorway')) ch.remove();
+    });
+    el.style.backgroundImage = '';
+    el.classList.remove('lit');
+
+    var art = buildArt(spec.art, { framed: !!spec.frame });
+
+    if (art && art.pattern) {
+        el.style.backgroundImage = 'url(' + art.pattern + ')';
+        var reps = Math.max(1, spec.repeat || 2);
+        el.style.backgroundSize = (surfaceW / reps) + 'px ' + (surfaceW / reps) + 'px';
+        el.classList.add('lit');
+    } else if (art && art.el && !spec.frame) {
+        el.insertBefore(art.el, el.firstChild);
+        el.classList.add('lit');
+        if (art.stop) live.push(art.stop);
+    } else if (art && art.el && spec.frame) {
+        var fr = document.createElement('div');
+        fr.className = 'frame';
+        fr.appendChild(art.el);
+        var cap = document.createElement('div');
+        cap.className = 'frame-cap';
+        cap.textContent = art.caption || '';
+        fr.appendChild(cap);
+        if (art.open) {
+            fr.setAttribute('role', 'button');
+            fr.setAttribute('tabindex', '0');
+            fr.addEventListener('click', function (e) { e.stopPropagation(); art.open(); });
+            fr.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); art.open(); }
+            });
+        } else {
+            fr.style.cursor = 'default';
+        }
+        el.insertBefore(fr, el.firstChild);
+        if (art.stop) live.push(art.stop);
+    } else if (spec.frame) {
+        // Asked for a hung piece but the asset is missing: show the empty frame
+        // rather than a blank wall, so the room still reads as a gallery.
+        var ef = document.createElement('div');
+        ef.className = 'frame';
+        ef.style.cursor = 'default';
+        var g = document.createElement('div');
+        g.className = 'frame-empty';
+        g.textContent = '✦';
+        ef.appendChild(g);
+        el.insertBefore(ef, el.firstChild);
+    }
+}
+
+// What a wall becomes when you click it. Patterns first, since those always
+// work; the live ones come last.
+var SURFACE_CYCLE = ['pattern:hex', 'pattern:triangle', 'pattern:penrose',
+                     'pattern:escher', 'pattern:moire', 'pattern:grid',
+                     'shader:random', 'work:random'];
+
+function cycleSurface(el, spec, surfaceW) {
+    var i = SURFACE_CYCLE.indexOf(spec.art);
+    var next = SURFACE_CYCLE[(i + 1) % SURFACE_CYCLE.length];
+    // Do not promise a live shader the budget cannot pay for.
+    if (next.indexOf('shader') === 0 && shaderBudget <= 0) next = SURFACE_CYCLE[0];
+    spec.art = next;
+    paintArt(el, spec, surfaceW);
+    el.classList.remove('touched');
+    void el.offsetWidth;
+    el.classList.add('touched');
+}
+
 function stopLive() {
     for (var i = 0; i < live.length; i++) { try { live[i](); } catch (e) {} }
     live = [];
 }
 
 function buildRoom(id) {
-    var room = DATA.rooms[id];
+    var room = getRoom(id);
     if (!room) return false;
 
     stopLive();
@@ -653,48 +940,18 @@ function buildRoom(id) {
         el.style.marginTop = (-p.h / 2) + 'px';
         el.style.transform = p.t;
 
-        var art = buildArt(spec.art, { framed: !!spec.frame });
+        paintArt(el, spec, p.w);
 
-        if (art && art.pattern) {
-            el.style.backgroundImage = 'url(' + art.pattern + ')';
-            var reps = Math.max(1, spec.repeat || 2);
-            el.style.backgroundSize = (p.w / reps) + 'px ' + (p.w / reps) + 'px';
-            el.classList.add('lit');
-        } else if (art && art.el && !spec.frame) {
-            el.appendChild(art.el);
-            el.classList.add('lit');
-            if (art.stop) live.push(art.stop);
-        } else if (art && art.el && spec.frame) {
-            var fr = document.createElement('div');
-            fr.className = 'frame';
-            fr.appendChild(art.el);
-            var cap = document.createElement('div');
-            cap.className = 'frame-cap';
-            cap.textContent = art.caption || '';
-            fr.appendChild(cap);
-            if (art.open) {
-                fr.setAttribute('role', 'button');
-                fr.setAttribute('tabindex', '0');
-                fr.addEventListener('click', function (e) { e.stopPropagation(); art.open(); });
-                fr.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); art.open(); }
-                });
-            } else {
-                fr.style.cursor = 'default';
-            }
-            el.appendChild(fr);
-            if (art.stop) live.push(art.stop);
-        } else if (spec.frame) {
-            // Asked for a hung piece but the asset is missing: show the empty frame
-            // rather than a blank wall, so the room still reads as a gallery.
-            var ef = document.createElement('div');
-            ef.className = 'frame';
-            ef.style.cursor = 'default';
-            var g = document.createElement('div');
-            g.className = 'frame-empty';
-            g.textContent = '✦';
-            ef.appendChild(g);
-            el.appendChild(ef);
+        // Clicking a plain surface changes what is on it. The doorway and any
+        // framed work stop the click first, so this never steals those.
+        if (!spec.exit) {
+            el.classList.add('alterable');
+            el.addEventListener('click', (function (surface, sp, sw) {
+                return function (e) {
+                    if (e.target.closest && e.target.closest('.frame, .doorway')) return;
+                    cycleSurface(surface, sp, sw);
+                };
+            })(el, spec, p.w));
         }
 
         if (spec.exit) {
@@ -723,6 +980,7 @@ function buildRoom(id) {
     state.room = id;
     state.visited[id] = (state.visited[id] || 0) + 1;
     paintHUD(room, surfaces);
+    applyFx();          // re-apply what the viewer is carrying to the new room
     return true;
 }
 
@@ -731,7 +989,8 @@ function paintHUD(room, surfaces) {
     hudNote.textContent = room.note || '';
 
     var seen = Object.keys(state.visited).length;
-    var total = Object.keys(DATA.rooms).length;
+    var authored = Object.keys(DATA.rooms).length;
+    var fr = room._fractal;
     // The altitude is the whole point: you can be +4 flights up and standing in
     // the room you started in. The HUD states it plainly rather than hinting.
     var impossible = state.altitude !== 0 && state.visited[state.room] > 1;
@@ -739,7 +998,10 @@ function paintHUD(room, surfaces) {
         '<div class="' + (impossible ? 'impossible' : '') + '">altitude <b>' +
             (state.altitude > 0 ? '+' : '') + state.altitude + '</b> flights</div>' +
         '<div>steps <b>' + state.steps + '</b></div>' +
-        '<div>rooms <b>' + seen + '/' + total + '</b></div>' +
+        '<div>rooms seen <b>' + seen + '</b>' +
+            (fr ? ' of \u221e' : ' / ' + authored) + '</div>' +
+        (fr ? '<div>depth <b>' + fr.depth + '</b>' +
+              (fr.inside ? ' \u00b7 inside the set' : '') + '</div>' : '') +
         (impossible ? '<div style="color:#ff00ff">this room is below you</div>' : '');
 
     hudBottom.innerHTML = '';
@@ -761,12 +1023,192 @@ function paintHUD(room, surfaces) {
     hudBottom.appendChild(leave);
 }
 
+/* ========================= manipulation =========================
+   A state you carry rather than a panel you open. It persists across rooms, so
+   exploring and altering are the same activity: you take your version of the
+   place deeper with you. Every verb is a CSS filter or transform, which is why
+   it is free and why they all compose. */
+
+var lensEl = document.getElementById('lens');
+var fxEl = document.getElementById('fx');
+
+var fx = { hue: 0, invert: 0, contrast: 1, sat: 1, blur: 0, twist: 0, echo: 0, fold: 0 };
+
+var FX_DEFAULTS = JSON.stringify(fx);
+
+function applyFx() {
+    var f = [];
+    if (fx.hue) f.push('hue-rotate(' + fx.hue + 'deg)');
+    if (fx.invert) f.push('invert(1)');
+    if (fx.contrast !== 1) f.push('contrast(' + fx.contrast + ')');
+    if (fx.sat !== 1) f.push('saturate(' + fx.sat + ')');
+    if (fx.blur) f.push('blur(' + fx.blur + 'px)');
+    // The filter goes on #stage, OUTSIDE the preserve-3d chain. On an element
+    // between #camera and #room it makes that element a grouping element, which
+    // flattens the 3D and collapses the room to a single plane. #stage owns the
+    // perspective, so its subtree still resolves in 3D before being filtered.
+    stage.style.filter = f.length ? f.join(' ') : '';
+    roomEl.style.transform = 'translateZ(' + (baseZ + animZ) + 'px)' +
+        (fx.twist ? ' rotateZ(' + fx.twist + 'deg)' : '');
+    renderEchoes();
+    paintFxBar();
+    syncHash();
+}
+
+// applyRoomZ has to go through applyFx now, so twist survives travelling.
+function applyRoomZ() {
+    roomEl.style.transform = 'translateZ(' + (baseZ + animZ) + 'px)' +
+        (fx.twist ? ' rotateZ(' + fx.twist + 'deg)' : '');
+}
+
+// Copies of the room nested behind itself: the room containing the room. The
+// media is stripped from the copies, so an echo is structure and colour only
+// and costs almost nothing.
+function renderEchoes() {
+    Array.prototype.slice.call(lensEl.querySelectorAll('.echo')).forEach(function (e) { e.remove(); });
+    if (!fx.echo) return;
+    for (var i = 1; i <= fx.echo; i++) {
+        var echo = document.createElement('div');
+        echo.className = 'echo';
+        echo.setAttribute('aria-hidden', 'true');
+        var inner = roomEl.cloneNode(true);
+        inner.removeAttribute('id');
+        // Strip anything live or interactive from the copy.
+        Array.prototype.slice.call(inner.querySelectorAll('video, canvas, .doorway, .frame-cap'))
+            .forEach(function (n) { n.remove(); });
+        var k = Math.pow(0.62, i);
+        inner.style.transform = 'translateZ(' + (baseZ + animZ - i * 46) + 'px) ' +
+            'scale(' + k + ') rotateZ(' + (fx.twist * (i + 1) + i * 7) + 'deg)';
+        echo.style.opacity = String(Math.max(0.08, 0.5 - i * 0.09));
+        echo.appendChild(inner);
+        lensEl.insertBefore(echo, lensEl.firstChild);
+    }
+}
+
+var FX_VERBS = [
+    { key: 'echo',   label: 'echo',   cycle: [0, 1, 2, 3, 4] },
+    { key: 'fold',   label: 'fold',   cycle: [0, 1, 2, 3] },
+    { key: 'twist',  label: 'twist',  cycle: [0, 6, 14, 27, -14] },
+    { key: 'hue',    label: 'hue',    cycle: [0, 60, 120, 180, 240, 300] },
+    { key: 'sat',    label: 'sat',    cycle: [1, 0, 1.8, 3] },
+    { key: 'contrast', label: 'hard', cycle: [1, 1.5, 2.4, 0.6] },
+    { key: 'invert', label: 'flip',   cycle: [0, 1] },
+    { key: 'blur',   label: 'haze',   cycle: [0, 2, 6] }
+];
+
+function bump(key, dir) {
+    var v = null;
+    for (var i = 0; i < FX_VERBS.length; i++) if (FX_VERBS[i].key === key) v = FX_VERBS[i];
+    if (!v) return;
+    var at = v.cycle.indexOf(fx[key]);
+    if (at < 0) at = 0;
+    var step = (dir === undefined || dir === null) ? 1 : dir;   // 0 means re-apply
+    var nx = ((at + step) % v.cycle.length + v.cycle.length) % v.cycle.length;
+    fx[key] = v.cycle[nx];
+    if (key === 'fold') applyFold();
+    applyFx();
+}
+
+// Fold mirrors the room, which in a room made of planes reads as the space
+// folding onto itself rather than as a filter.
+function applyFold() {
+    var sx = (fx.fold === 1 || fx.fold === 3) ? -1 : 1;
+    var sy = (fx.fold >= 2) ? -1 : 1;
+    lensEl.style.transform = (sx < 0 || sy < 0) ? 'scale(' + sx + ',' + sy + ')' : '';
+}
+
+function resetFx() {
+    // Mutate rather than reassign: other holders of this object (the console
+    // handle, anything that captured it) must keep seeing the live state.
+    var d = JSON.parse(FX_DEFAULTS);
+    Object.keys(d).forEach(function (k) { fx[k] = d[k]; });
+    applyFold();
+    applyFx();
+}
+
+function paintFxBar() {
+    if (!fxEl.firstChild) {
+        var title = document.createElement('div');
+        title.className = 'fx-row always';
+        var t = document.createElement('button');
+        t.className = 'fx-btn';
+        t.id = 'fx-toggle';
+        t.textContent = 'alter';
+        t.addEventListener('click', function () { fxEl.classList.toggle('folded'); paintFxBar(); });
+        title.appendChild(t);
+        fxEl.appendChild(title);
+
+        FX_VERBS.forEach(function (v) {
+            var row = document.createElement('div');
+            row.className = 'fx-row';
+            var b = document.createElement('button');
+            b.className = 'fx-btn';
+            b.textContent = v.label;
+            b.setAttribute('data-fx', v.key);
+            b.addEventListener('click', function () { bump(v.key, 1); });
+            b.addEventListener('contextmenu', function (e) { e.preventDefault(); bump(v.key, -1); });
+            var val = document.createElement('span');
+            val.className = 'fx-val';
+            val.setAttribute('data-fxval', v.key);
+            row.appendChild(b); row.appendChild(val);
+            fxEl.appendChild(row);
+        });
+
+        var rrow = document.createElement('div');
+        rrow.className = 'fx-row';
+        var rb = document.createElement('button');
+        rb.className = 'fx-btn';
+        rb.textContent = 'plain';
+        rb.addEventListener('click', resetFx);
+        rrow.appendChild(rb);
+        fxEl.appendChild(rrow);
+    }
+    FX_VERBS.forEach(function (v) {
+        var btn = fxEl.querySelector('[data-fx="' + v.key + '"]');
+        var val = fxEl.querySelector('[data-fxval="' + v.key + '"]');
+        var dflt = JSON.parse(FX_DEFAULTS)[v.key];
+        if (btn) btn.classList.toggle('on', fx[v.key] !== dflt);
+        if (val) val.textContent = (fx[v.key] === dflt) ? '' : String(fx[v.key]);
+    });
+    var tog = document.getElementById('fx-toggle');
+    if (tog) {
+        var n = 0, d = JSON.parse(FX_DEFAULTS);
+        FX_VERBS.forEach(function (v) { if (fx[v.key] !== d[v.key]) n++; });
+        tog.textContent = n ? 'alter \u00b7 ' + n : 'alter';
+        tog.classList.toggle('on', n > 0);
+    }
+}
+
+/* The address bar carries where you are and what you have done to it, so a
+   room in a particular state is a link someone else can open. */
+function syncHash() {
+    var parts = ['r=' + state.room];
+    var d = JSON.parse(FX_DEFAULTS);
+    FX_VERBS.forEach(function (v) { if (fx[v.key] !== d[v.key]) parts.push(v.key + '=' + fx[v.key]); });
+    var h = '#' + parts.join('&');
+    if (location.hash !== h) history.replaceState(null, '', h);
+}
+
+function readHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (!h) return null;
+    var room = null;
+    h.split('&').forEach(function (kv) {
+        var i = kv.indexOf('=');
+        if (i < 0) return;
+        var k = kv.slice(0, i), v = kv.slice(i + 1);
+        if (k === 'r') room = v;
+        else if (fx.hasOwnProperty(k) && isFinite(parseFloat(v))) fx[k] = parseFloat(v);
+    });
+    return room;
+}
+
 /* ========================= travel =========================
    Fade out, swap the room, fade in. The fade is what lets two rooms that could
    not possibly adjoin sit on either side of one doorway. */
 var travelling = false, pending = null;
 function travel(spec) {
-    if (!spec || !spec.exit || !DATA.rooms[spec.exit]) return;
+    if (!spec || !spec.exit || !getRoom(spec.exit)) return;
     // Dropping a click mid-transition feels like a broken button. Hold the most
     // recent one and take it the moment the current move finishes.
     if (travelling) { pending = spec; return; }
@@ -814,9 +1256,7 @@ function applyCamera() {
         'translateZ(' + (-PERSP) + 'px)';
 }
 
-function applyRoomZ() {
-    roomEl.style.transform = 'translateZ(' + (baseZ + animZ) + 'px)';
-}
+
 
 var drag = null;
 function down(x, y) { drag = { x: x, y: y, yaw: state.yaw, pitch: state.pitch }; stage.classList.add('dragging'); }
@@ -849,6 +1289,16 @@ document.addEventListener('keydown', function (e) {
     if (e.key === 'ArrowUp')    { state.pitch = Math.min(38, state.pitch + step); applyCamera(); }
     if (e.key === 'ArrowDown')  { state.pitch = Math.max(-38, state.pitch - step); applyCamera(); }
     if (e.key === 'Escape')     { closeLightbox(); }
+
+    // Manipulation. Shift steps a verb backwards through its cycle.
+    var KEYS = { e: 'echo', f: 'fold', t: 'twist', h: 'hue',
+                 s: 'sat', c: 'contrast', i: 'invert', b: 'blur' };
+    var k = e.key.toLowerCase();
+    if (KEYS[k] && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        bump(KEYS[k], e.shiftKey ? -1 : 1);
+    }
+    if (k === 'x' && !e.metaKey && !e.ctrlKey) resetFx();
 });
 
 /* ========================= lightbox ========================= */
@@ -896,8 +1346,12 @@ Promise.all([
     MEDIA = res[1];
     SHADERS = (res[2] && res[2].shaders) || [];
     if (!DATA || !DATA.rooms || !Object.keys(DATA.rooms).length) throw new Error('rooms.json has no rooms');
-    var start = DATA.entry && DATA.rooms[DATA.entry] ? DATA.entry : Object.keys(DATA.rooms)[0];
+    initFractal();
+    var fromHash = readHash();
+    var start = (fromHash && getRoom(fromHash)) ? fromHash
+              : (DATA.entry && DATA.rooms[DATA.entry] ? DATA.entry : Object.keys(DATA.rooms)[0]);
     applyCamera();
+    applyFold();
     if (!buildRoom(start)) throw new Error('could not build ' + start);
     setTimeout(function () { hint.classList.add('gone'); }, 7000);
 }).catch(function (err) {
@@ -908,7 +1362,13 @@ Promise.all([
 window.lucidGallery = {
     state: state,
     go: function (id) { travel({ exit: id }); },
-    rooms: function () { return DATA && Object.keys(DATA.rooms); }
+    fx: fx,
+    bump: bump,
+    set: function (k, v) { if (fx.hasOwnProperty(k)) { fx[k] = v; if (k === 'fold') applyFold(); applyFx(); } },
+    reset: resetFx,
+    rooms: function () { return DATA && Object.keys(DATA.rooms); },
+    room: function (id) { return getRoom(id); },
+    here: function () { return getRoom(state.room); }
 };
 })();
 </script>

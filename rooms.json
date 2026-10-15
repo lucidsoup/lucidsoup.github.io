@@ -35,7 +35,16 @@
     "  color:<css>      a flat colour",
     "",
     "Nothing here is required. A room with no art still works; a missing asset",
-    "leaves the surface bare rather than breaking the gallery."
+    "leaves the surface bare rather than breaking the gallery.",
+    "",
+    "THE FRACTAL",
+    "  Past the authored rooms the gallery is endless. A room id like \"f012\" is",
+    "  an ADDRESS: each digit picks one of the contractive maps in \"fractal.maps\",",
+    "  so the digits walk deeper into their attractor. The room's size, colour,",
+    "  patterns and name all come from the orbit at that point, which makes it",
+    "  deterministic (an address is always the same room) and self-similar",
+    "  (addresses sharing a prefix are near each other, so a room resembles its",
+    "  parent). Edit \"maps\" and the whole endless half of the gallery changes."
   ],
   "entry": "antechamber",
   "rooms": {
@@ -293,7 +302,10 @@
         },
         "north": {
           "art": "shader:random",
-          "frame": true
+          "frame": true,
+          "exit": "f",
+          "label": "through",
+          "ascend": -1
         },
         "east": {
           "art": "shader:random",
@@ -309,5 +321,30 @@
         }
       }
     }
+  },
+  "fractal": {
+    "branch": 3,
+    "seedX": -0.4,
+    "seedY": 0.6,
+    "maps": [
+      {
+        "s": 0.52,
+        "r": 0.0,
+        "tx": -0.42,
+        "ty": -0.26
+      },
+      {
+        "s": 0.52,
+        "r": 2.09,
+        "tx": 0.42,
+        "ty": -0.26
+      },
+      {
+        "s": 0.52,
+        "r": 4.19,
+        "tx": 0.0,
+        "ty": 0.48
+      }
+    ]
   }
 }
