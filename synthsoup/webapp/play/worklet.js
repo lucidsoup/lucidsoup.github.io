@@ -45,11 +45,22 @@ export function catalog(ex) {
   }
   return out;
 }
+// (a separate object: an array's own extra properties do not survive postMessage)
+export function catalogExtra(ex) {
+  return {
+    sources: ex.web_smp_all_count ? Array.from({ length: ex.web_smp_all_count() }, (_, k) => cstr(ex, ex.web_smp_all_name(k))) : [],
+    grain: ex.web_grain_engine ? ex.web_grain_engine() : -1,
+    pid: ex.web_pid ? { glide: ex.web_pid(0), e0: ex.web_pid(1), glmode: ex.web_pid(2) } : null,
+  };
+}
 export function soundState(ex) {
   if (!ex.web_sel) return null;
   const t = ex.web_sel();
   const samples = ex.web_smp_len ? [0, 1, 2].map((k) => ({ name: cstr(ex, ex.web_smp_name(k)), len: ex.web_smp_len(k) })) : null;
-  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route(), samples };
+  const insert = ex.web_trk_insert ? ex.web_trk_insert(t) : 0;
+  const P = (id) => ex.web_get_param(t, id), e0 = ex.web_pid ? ex.web_pid(1) : 0;
+  const params = ex.web_get_param ? { glide: P(ex.web_pid(0)), glmode: P(ex.web_pid(2)), e: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => P(e0 + k)) } : null;
+  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route(), samples, insert, params };
 }
 
 if (typeof registerProcessor === "function") {
@@ -74,6 +85,9 @@ if (typeof registerProcessor === "function") {
       this.src = [new Float32Array(2048), new Float32Array(2048)];
       this.have = 0;                                  // source frames buffered
       this.pos = 0;                                   // read position in them (fractional)
+      this.mic = false;                               // the VOCODER's microphone (the node's input) going in
+      this.micPos = 0;                                // .. its read position, resampled to 44.1 kHz
+      this.micLast = 0;
     }
 
     async onMessage(m) {
@@ -89,7 +103,7 @@ if (typeof registerProcessor === "function") {
           this.ex = ex;
           this.sentWrites = ex.web_flash_writes_count();
           if (m.route !== undefined && ex.web_set_route) ex.web_set_route(m.route);
-          this.port.postMessage({ type: "ready", rate: ex.web_sample_rate(), catalog: catalog(ex) });
+          this.port.postMessage({ type: "ready", rate: ex.web_sample_rate(), catalog: catalog(ex), extra: catalogExtra(ex) });
         } catch (err) {
           this.port.postMessage({ type: "error", message: String(err && err.message || err) });
         }
@@ -106,6 +120,10 @@ if (typeof registerProcessor === "function") {
       else if (m.type === "sound" && ex.web_set_sound) ex.web_set_sound(m.track | 0, m.engine | 0, m.preset | 0);
       else if (m.type === "voice" && ex.web_set_voice) ex.web_set_voice(m.track | 0, m.voice | 0);
       else if (m.type === "route" && ex.web_set_route) ex.web_set_route(m.route | 0);
+      else if (m.type === "param" && ex.web_set_param) ex.web_set_param(m.track | 0, m.id | 0, m.value | 0);
+      else if (m.type === "granular" && ex.web_granular) ex.web_granular(m.track | 0, m.src | 0);
+      else if (m.type === "mic" && ex.web_mic_enable) { this.mic = !!m.on; ex.web_mic_enable(m.on ? 1 : 0); }
+      else if (m.type === "insert" && ex.web_set_insert) ex.web_set_insert(m.track | 0, m.itype | 0, m.a | 0, m.b | 0, m.c | 0, m.mix | 0);
       else if (m.type === "sample" && ex.web_smp_put) {   // the Samples panel: ADPCM (m.data) of m.n samples into slot m.slot
         const mem = new Uint8Array(ex.memory.buffer), nm = (m.name || "").slice(0, 8);
         mem.set(m.data, ex.web_smp_buf());
@@ -171,6 +189,18 @@ if (typeof registerProcessor === "function") {
       const ex = this.ex;
       if (!ex) return true;
       if (this.queue.length) this.input();
+      const inp = inputs[0] && inputs[0][0];
+      if (this.mic && inp && ex.web_mic_put) {         // the microphone into the vocoder, at 44.1 kHz (linear)
+        const buf = new Float32Array(ex.memory.buffer, ex.web_mic_in(), 2048), step = sampleRate / 44100;
+        let k = 0, p = this.micPos;
+        for (; p < inp.length && k < 2048; p += step, k++) {
+          const i = Math.floor(p), f = p - i, a = i > 0 ? inp[i - 1] : this.micLast, b = inp[i];
+          buf[k] = a + (b - a) * f;
+        }
+        this.micPos = p - inp.length;
+        this.micLast = inp[inp.length - 1];
+        ex.web_mic_put(k);
+      }
       const out = outputs[0], n = out[0].length;
       const t0 = clock();
       if (this.step === 1) {

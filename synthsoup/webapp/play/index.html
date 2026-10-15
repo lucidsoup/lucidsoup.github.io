@@ -113,6 +113,13 @@ kbd { font: 500 12px var(--mono); border: 1px solid var(--rule); border-bottom-w
 .check { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--fg); }
 .check input { accent-color: var(--neon); width: 16px; height: 16px; }
 .hint { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--dim); }
+.console .granular { grid-column: 1 / -1; }
+.sliders { display: flex; flex-wrap: wrap; gap: 10px 18px; flex-basis: 100%; }
+.sliders label, .ctl.glide { display: grid; gap: 4px; min-width: 9em; flex: 1 1 9em; }
+.sliders span, .ctl.glide > span { font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim);
+  display: flex; justify-content: space-between; }
+output { color: var(--fg); font-variant-numeric: tabular-nums; }
+input[type="range"] { accent-color: var(--neon); width: 100%; }
 .console .samples { grid-column: 1 / -1; display: grid; gap: 10px; align-items: stretch; }
 .samples.drop { border-color: var(--acid); box-shadow: 0 0 0 2px var(--acid) inset; }
 .slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; }
@@ -128,6 +135,7 @@ kbd { font: 500 12px var(--mono); border: 1px solid var(--rule); border-bottom-w
 .btn-s:hover { border-color: var(--acid); }
 .btn-s:disabled { opacity: .45; cursor: default; }
 .btn-s:focus-within, .btn-s:focus-visible { outline: 2px solid var(--acid); outline-offset: 2px; }
+#voc[aria-pressed="true"] { background: var(--neon); color: var(--ink-on-lit); border-color: var(--neon); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 760px) { .console { grid-template-columns: 1fr; } }
 .guide { margin: 40px 0 0; }
@@ -167,6 +175,14 @@ footer small { font-size: 11px; opacity: .8; }
     <label class="ctl"><span>Engine</span><select id="eng"></select></label>
     <label class="ctl"><span>Preset</span><select id="pre"></select></label>
     <div class="ctl"><span id="vce-l">Voices</span><div class="seg" id="vce" role="group" aria-labelledby="vce-l"></div></div>
+    <label class="ctl glide"><span>Glide <output id="gld-v">off</output></span><input type="range" id="gld" min="0" max="127" value="0"></label>
+    <div class="ctl"><span id="glm-l">Glide by</span><div class="seg" id="glm" role="group" aria-labelledby="glm-l"></div></div>
+    <div class="ctl"><span>Vocoder</span><button class="btn-s" type="button" id="voc" aria-pressed="false">Vocode my mic</button></div>
+    <p class="hint">Glide: slide a finger or the mouse along the keys and, in MONO or LEG, the pitch glides from note to note
+      (POLY: each new note glides in). TIME at the top of the slider takes 1.5 s for any interval.</p>
+    <p class="hint" id="voc-hint">Turns this track's INSERT into the VOCODER with your microphone as the voice: play chords and talk or
+      sing. Use headphones, or the speakers feed back into the mic. On the FM-1 itself the voice is another track (INSERT › VOCOD,
+      SRC TRK1–4), for example a recording loaded into a sample slot.</p>
   </fieldset>
   <fieldset id="midi-set" disabled>
     <legend>MIDI</legend>
@@ -174,6 +190,15 @@ footer small { font-size: 11px; opacity: .8; }
     <label class="ctl"><span>Input</span><select id="midi-in"><option value="">All inputs</option></select></label>
     <label class="check"><input type="checkbox" id="midi-any" checked> Any channel plays the selected track</label>
     <p class="hint" id="midi-hint">Unticked: channels 1–4 play tracks 1–4. Program Change picks presets, CC74 / CC71 are cutoff and resonance, CC7 level, CC91 / CC94 reverb and delay sends.</p>
+  </fieldset>
+  <fieldset id="gr-set" class="granular" disabled>
+    <legend>Granular</legend>
+    <label class="ctl"><span>Source</span><select id="gr-src"></select></label>
+    <div class="ctl"><span>&nbsp;</span><button class="btn-s" type="button" id="gr-go">Play granular</button></div>
+    <div class="sliders" id="gr-sl"></div>
+    <p class="hint">Turns the selected track into the GRAIN engine on any sample, your own USR1–3 included. Each key plays a cloud
+      of tiny grains: POS is where in the sample they come from, SIZE how long each grain is, DENSITY how many, SPRAY how far
+      they scatter. Hold a note and move POS to scrub through the sound.</p>
   </fieldset>
   <fieldset id="smp-set" class="samples" disabled>
     <legend>Samples</legend>
@@ -221,7 +246,7 @@ footer small { font-size: 11px; opacity: .8; }
 
 <footer>
   <nav><a href="../../">SynthSoup home</a> · <a href="../installer/">Install</a> · <a href="../editor/">Editor</a></nav>
-  <small class="version">SynthSoup 0.1 on Felucca v1.5.1</small><br>
+  <small class="version">SynthSoup 0.1 on Felucca v1.5.1 (preview)</small><br>
   Built on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments · SID engine from <a href="https://github.com/keremimo/melodee">Melodee</a> · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> · browser build after charlesvestal's <a href="https://github.com/charlesvestal/fm1-x0x">X0X</a> · DotGothic16 font, SIL OFL 1.1<br>
   <small>M-VAVE and FM-1 are trademarks of their respective owners. SynthSoup is not affiliated with or endorsed by them. Untested on hardware.</small>
 </footer>
@@ -402,11 +427,26 @@ function bindKey(k, i) {
     keyBy.set("p" + e.pointerId, i);
     syncKeys();
   });
+  // a finger or the mouse sliding onto another key: the new one pressed while the old is still held, the old let go a
+  // moment later (overlapping notes: MONO and LEGATO glide between them at the track's GLIDE)
+  k.hit.addEventListener("pointermove", (e) => {
+    const id = "p" + e.pointerId, from = keyBy.get(id);
+    if (from === undefined) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY), to = keys.findIndex((x) => x.hit === el);
+    if (to < 0 || to === from) return;
+    keyBy.set("s" + e.pointerId, from);
+    keyBy.set(id, to);
+    syncKeys();
+    clearTimeout(slideT[id]);
+    slideT[id] = setTimeout(() => { keyBy.delete("s" + e.pointerId); syncKeys(); }, 40);
+  });
 }
+const slideT = {};
 function release(e) {
   const id = "p" + e.pointerId;
   if (btnBy.delete(id)) syncButtons();
-  if (keyBy.delete(id)) syncKeys();
+  const slid = keyBy.delete("s" + e.pointerId);
+  if (keyBy.delete(id) || slid) syncKeys();
 }
 for (const t of ["pointerup", "pointercancel", "lostpointercapture"]) device.addEventListener(t, release);
 
@@ -582,6 +622,49 @@ function presetsOf(engine) {
   sel.add(new Option("(edited)", 255));
   sel.lastChild.disabled = true;
 }
+let extra = null;
+const GR_SL = [["POS", 1], ["SIZE", 2], ["DENSITY", 3], ["SPRAY", 5]];   // GRAIN's E2 E3 E4 E6 (P_E0 + k)
+function setupGranular() {
+  if (!extra || extra.grain < 0 || !extra.pid) return;
+  const src = $("gr-src");
+  src.innerHTML = "";
+  extra.sources.forEach((n, k) => src.add(new Option(n, k)));
+  src.value = String(extra.sources.length - 3);            // (USR1: the user's own sample first)
+  $("gr-go").addEventListener("click", () => cur && send({ type: "granular", track: cur.track, src: +src.value }));
+  src.addEventListener("change", () => { if (cur && cur.engine === extra.grain) send({ type: "granular", track: cur.track, src: +src.value }); });
+  const box = $("gr-sl");
+  box.innerHTML = "";
+  for (const [label, k] of GR_SL) {
+    const l = document.createElement("label");
+    l.innerHTML = `<span>${label} <output>–</output></span><input type="range" min="0" max="127" value="64" data-k="${k}">`;
+    const r = l.querySelector("input");
+    r.addEventListener("input", () => { if (cur) send({ type: "param", track: cur.track, id: extra.pid.e0 + k, value: +r.value });
+      l.querySelector("output").textContent = Math.round(r.value / 1.27) + "%"; });
+    box.appendChild(l);
+  }
+  const g = $("gld");
+  g.addEventListener("input", () => { if (cur) send({ type: "param", track: cur.track, id: extra.pid.glide, value: +g.value }); glideText(+g.value); });
+  seg($("glm"), ["RATE", "TIME"], ["The same speed for any interval", "The same time for any interval (up to 1.5 s)"],
+      (m) => cur && send({ type: "param", track: cur.track, id: extra.pid.glmode, value: m }));
+  $("gr-set").disabled = false;
+}
+const glideText = (v) => { $("gld-v").textContent = v ? `${v}` : "off"; };
+let sliding = null;                                        // the slider being dragged (not overwritten by the state)
+document.addEventListener("pointerdown", (e) => { if (e.target.type === "range") sliding = e.target; });
+document.addEventListener("pointerup", () => { sliding = null; });
+function showParams(st) {
+  if (!extra || !st.params) return;
+  const g = $("gld");
+  if (g !== sliding) { g.value = st.params.glide; glideText(st.params.glide); }
+  [...$("glm").children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === st.params.glmode)));
+  const isGrain = st.engine === extra.grain;
+  for (const r of $("gr-sl").querySelectorAll("input")) {
+    r.disabled = !isGrain;
+    if (isGrain && r !== sliding) { r.value = st.params.e[+r.dataset.k]; r.previousElementSibling.querySelector("output").textContent = Math.round(r.value / 1.27) + "%"; }
+  }
+  if (isGrain && document.activeElement !== $("gr-src")) $("gr-src").value = String(st.params.e[0]);
+  $("gr-go").textContent = isGrain ? "Playing granular" : "Play granular";
+}
 function setupSound(catalog) {
   cat = catalog;
   if (!cat) return;
@@ -592,6 +675,7 @@ function setupSound(catalog) {
   cat.forEach((e) => eng.add(new Option(e.name, e.id)));
   eng.addEventListener("change", () => cur && send({ type: "sound", track: cur.track, engine: +eng.value, preset: 0 }));
   $("pre").addEventListener("change", (ev) => cur && send({ type: "sound", track: cur.track, engine: cur.engine, preset: +ev.target.value }));
+  $("voc").addEventListener("click", vocoderMic);
   $("sound-set").disabled = false;
 }
 function showState(st) {
@@ -602,6 +686,7 @@ function showState(st) {
   [...$("vce").children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === st.voice)));
   if (engineChanged) presetsOf(st.engine);
   showSamples(st.samples);
+  showParams(st);
   $("eng").value = String(st.engine);
   $("pre").value = String(st.preset);
   $("midi-any").checked = st.route === 1;
@@ -663,6 +748,43 @@ async function prepareSample(file) {
   const name = file.name.replace(/\.[^.]*$/, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().slice(0, 8) || "SAMPLE";
   return { data: imaEncode(s), n, name, cut, secs: n / SMP_RATE };
 }
+// ------------------------------------------------------------------ Vocoder: the microphone as the modulator
+const IT_VOCODER = 9;
+let mic = null;                                            // { stream, src, track }
+async function vocoderMic() {
+  const b = $("voc");
+  if (mic) {                                               // off: the mic closed, that track's INSERT off again
+    send({ type: "mic", on: false });
+    send({ type: "insert", track: mic.track, itype: 0, a: 64, b: 96, c: 96, mix: 127 });
+    mic.src.disconnect();
+    mic.stream.getTracks().forEach((t) => t.stop());
+    mic = null;
+    b.setAttribute("aria-pressed", "false");
+    b.textContent = "Vocode my mic";
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    notice("This browser can't open the microphone here. The page needs HTTPS and a current browser.");
+    return;
+  }
+  b.disabled = true;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
+    const src = ac.createMediaStreamSource(stream);
+    src.connect(node);
+    const track = cur ? cur.track : 0;
+    mic = { stream, src, track };
+    send({ type: "insert", track, itype: IT_VOCODER, a: 32, b: 70, c: 64, mix: 127 });
+    send({ type: "mic", on: true });
+    b.setAttribute("aria-pressed", "true");
+    b.textContent = `Vocoding track ${track + 1} — stop`;
+    notice("");
+  } catch (err) {
+    notice(`The microphone didn't open (${err && err.name || err}). Allow the microphone for this site, then try again.`);
+  }
+  b.disabled = false;
+}
+
 const slotsUi = [];
 function setupSamples() {
   const box = $("slots");
@@ -813,13 +935,13 @@ async function switchOn() {
     const [wasm] = await Promise.all([
       fetch("felucca.wasm").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
       ac.audioWorklet.addModule("worklet.js")]);
-    node = new AudioWorkletNode(ac, "felucca", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+    node = new AudioWorkletNode(ac, "felucca", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
     node.connect(ac.destination);
     let warned = false;
     await new Promise((res, rej) => {
       node.port.onmessage = (e) => {
         const m = e.data;
-        if (m.type === "ready") { setupSound(m.catalog); setupSamples(); res(); }
+        if (m.type === "ready") { extra = m.extra; setupSound(m.catalog); setupGranular(); setupSamples(); res(); }
         else if (m.type === "sampled") { const r = pendingSlot[m.slot]; pendingSlot[m.slot] = null; if (r) r(m.ok); }
         else if (m.type === "error") rej(new Error(m.message));
         else if (m.type === "frame") {
