@@ -1,6 +1,6 @@
 {
   "_README": [
-    "Every work on the site comes from this file. Adding one is a single entry here —",
+    "Every work on the site comes from this file. Adding one is a single entry here \u2014",
     "no HTML to touch. The full video is NEVER committed: it lives on whatever host you",
     "choose and is referenced by URL or embed id. Only the tiny preview loop and poster",
     "live in the repo, because GitHub Pages caps the published site at 1GB and will not",
@@ -11,7 +11,8 @@
     "  preview                  2-4s silent loop in videos/previews/ (~200-400KB). Optional.",
     "  poster                   still image in videos/posters/. Used before the loop loads,",
     "                           and as the whole card if there is no preview. Optional.",
-    "  full                     EXTERNAL url to the real video (R2, Bunny, S3, anywhere), OR",
+    "  full                     url to the real video, OR a repo path like",
+    "                           videos/full/x.mp4 for a short piece you committed, OR",
     "  vimeo / youtube          an id, if you would rather use a hosted player",
     "  portrait                 true for a vertical (phone-shot) piece, so the card is tall",
     "  featured                 true to let it surface in the box on the home page",
@@ -19,9 +20,18 @@
     "scripts/make-previews.mjs turns a folder of masters into the previews and posters."
   ],
   "categories": [
-    { "id": "projection", "name": "Architectural Projections" },
-    { "id": "concert",    "name": "Concert & Event Visuals" },
-    { "id": "install",    "name": "Interactive Installations" }
+    {
+      "id": "projection",
+      "name": "Architectural Projections"
+    },
+    {
+      "id": "concert",
+      "name": "Concert & Event Visuals"
+    },
+    {
+      "id": "install",
+      "name": "Interactive Installations"
+    }
   ],
   "works": [
     {

@@ -90,10 +90,45 @@ Two things the script does that the snippet above cannot: it skips the three
 footage darkens it), and for vertical clips it uses `scale=1080:-2` instead, so
 a 1080x1920 clip stays 1080x1920 rather than being squeezed to 608x1080.
 
-## Where to host the masters
+## Do these even need a host?
 
-The site has its own player (the lightbox), and it only gets to use it when the
-URL points at a plain `.mp4` file. Any of these give you that:
+For short pieces, often not. `media.json` treats `full` as a plain href, so a
+repo-relative path works exactly like an external URL and plays in the site's own
+lightbox:
+
+```json
+"full": "videos/full/my-piece.mp4"
+```
+
+Measured from real footage in this repo (720x1280 vertical, tone mapped, CRF 23),
+a **30-second piece** comes to roughly:
+
+| resolution | per 30s | clips that fit in the 1GB site cap |
+|---|---|---|
+| 720x1280 | 13.7 MB | ~78 |
+| 600x1066 | 10.5 MB | ~102 |
+| 540x960 | 8.9 MB | ~146 |
+| 480x854 | 7.2 MB | ~170 |
+
+So the published-site cap is not the binding constraint. **Git is.** Every version
+of a committed binary stays in history forever, so a clip you re-encode three
+times costs three copies, permanently, and clones get slower for good.
+
+That gives a simple rule:
+
+- **Up to roughly 25 pieces (~350 MB), and you are happy with the encodes** →
+  commit them to `videos/full/`. No account, no upload step, no URLs to keep
+  track of. `transcode-masters.mjs` tells you when the batch is small enough.
+- **More than that, or you expect to re-cut them** → host them, and keep only
+  previews in the repo.
+
+Bandwidth is unlikely to decide it either way: Pages soft-caps around 100 GB a
+month, which is ~10,000 plays of a 10 MB clip.
+
+## Where to host, when you do
+
+The lightbox needs a URL that points at a plain `.mp4` file. Any of these give
+you that:
 
 - **Cloudflare R2** — 10 GB free, and egress is free, which is the unusual part.
   Put it behind a custom domain and you get a plain URL. Best fit.
@@ -103,7 +138,20 @@ URL points at a plain `.mp4` file. Any of these give you that:
 
 `transcode-masters.mjs` already produces exactly the format these want.
 
-If you'd rather not deal with hosting, set `vimeo` or `youtube` to the video id
-instead of `full`. Those cards open on that site rather than embedding a
-third-party player in the page, which keeps the site's own look intact — the
-trade-off is the visitor leaves.
+If you would rather not deal with hosting at all and the files are too big to
+commit, set `vimeo` or `youtube` to the video id instead of `full`. Those cards
+open on that site rather than embedding a third-party player in the page, which
+keeps the site's own look intact — the trade-off is the visitor leaves.
+
+## Two things worth knowing
+
+**Transcode from the camera originals, not from exports.** Re-encoding an
+already-compressed file loses quality on every pass, and to hold the quality it
+has to spend *more* bits than the file it started from. The clip currently in
+this repo grows from 7.1 MB to 10.8 MB at CRF 23 for exactly this reason — it had
+already been through ffmpeg once. The script warns when a file gets bigger.
+
+**`videos/IMG_3341.mp4` is in a format the web does not want.** It is H.264
+**High 10** profile (10-bit) in HLG / BT.2020. Browsers decode 8-bit H.264; the
+HDR tagging is the washout case described above. Run it through
+`transcode-masters.mjs` before relying on it.

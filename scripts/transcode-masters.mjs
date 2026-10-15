@@ -24,8 +24,13 @@
 // Env knobs: SIZE (default 1080) caps the SHORT edge, so 1080 means 1920x1080
 //              landscape or 1080x1920 vertical — vertical footage keeps its
 //              full width instead of being shrunk to fit a height.
-//            CRF (20, lower = better/bigger), PRESET (medium), ABR (160k),
-//            FPS (unset = keep source).
+//            CRF (23, lower = better/bigger), PRESET (medium), ABR (160k),
+//              FPS (unset = keep source).
+//
+// Re-encoding an already-compressed file costs quality (generation loss), so the
+// output can come out LARGER than the input at a low CRF while looking no better.
+// Feed this the original camera files where you can, not an export of an export.
+// It warns when a file grows.
 //
 // Needs ffmpeg and ffprobe on PATH (brew install ffmpeg / apt install ffmpeg).
 import { execFile } from 'node:child_process';
@@ -37,14 +42,14 @@ const run = promisify(execFile);
 const SRC = process.argv[2];
 const OUT = process.argv[3] || 'dist/masters';
 const SIZE = Number(process.env.SIZE || process.env.HEIGHT || 1080);
-const CRF = process.env.CRF || '20';
+const CRF = process.env.CRF || '23';
 const PRESET = process.env.PRESET || 'medium';
 const ABR = process.env.ABR || '160k';
 const FPS = process.env.FPS || '';
 
 if (!SRC) {
   console.error('usage: node scripts/transcode-masters.mjs <folder-of-footage> [outdir]');
-  console.error('  SIZE=720 CRF=23 node scripts/transcode-masters.mjs ~/footage');
+  console.error('  SIZE=720 CRF=26 node scripts/transcode-masters.mjs ~/footage');
   process.exit(1);
 }
 if (!fs.existsSync(SRC) || !fs.statSync(SRC).isDirectory()) {
@@ -75,7 +80,7 @@ const mb = (bytes) => (bytes / 1048576).toFixed(1);
 
 async function probe(src) {
   const { stdout } = await run('ffprobe', ['-v', 'error', '-select_streams', 'v:0',
-    '-show_entries', 'stream=width,height,codec_name,pix_fmt,color_transfer,color_primaries',
+    '-show_entries', 'stream=width,height,codec_name,pix_fmt,color_transfer,color_primaries,duration',
     '-of', 'json', src]);
   const s = (JSON.parse(stdout).streams || [])[0] || {};
   // Both HDR transfer functions in the wild: PQ (HDR10, what iPhones use) and HLG.
@@ -86,7 +91,8 @@ async function probe(src) {
     codec: s.codec_name || '?',
     tenBit: /10|12/.test(s.pix_fmt || ''),
     hdr,
-    transfer: s.color_transfer || 'unset'
+    transfer: s.color_transfer || 'unset',
+    seconds: Number(s.duration) || 0
   };
 }
 
@@ -152,7 +158,11 @@ for (const file of files) {
     const got = fs.statSync(dst).size;
     inBytes += srcBytes; outBytes += got; done++;
     console.log(`${mb(got)} MB`);
-    results.push({ name, bytes: got });
+    if (got > srcBytes) {
+      console.log(`  note: bigger than the source. CRF ${CRF} is spending more bits than`);
+      console.log(`  it was encoded with. Try CRF=26 or a smaller SIZE if that is not wanted.`);
+    }
+    results.push({ name, bytes: got, seconds: info.seconds });
   } catch (err) {
     console.log('FAILED');
     console.error('  ' + String(err.stderr || err.message).trim().split('\n').slice(-2).join('\n  '));
@@ -162,8 +172,28 @@ for (const file of files) {
 console.log(`\n${done} of ${files.length} converted.`);
 if (done) {
   console.log(`${mb(inBytes)} MB in -> ${mb(outBytes)} MB out, written to ${OUT}/`);
+
+  const secs = results.reduce((a, r) => a + (r.seconds || 0), 0);
+  if (secs > 0) {
+    const perMin = outBytes / 1048576 / (secs / 60);
+    console.log(`That is about ${perMin.toFixed(1)} MB per minute at these settings.`);
+  }
+
+  // Short pieces can simply live in the repo, which skips hosting entirely —
+  // but git keeps every version of a binary forever, so re-encodes accumulate.
+  const totalMb = outBytes / 1048576;
+  if (totalMb < 300) {
+    console.log(`\nAt ${mb(outBytes)} MB these are small enough to commit directly:`);
+    console.log('  mkdir -p videos/full && cp ' + OUT + '/*.mp4 videos/full/');
+    console.log('  then set "full": "videos/full/<name>.mp4" in media.json.');
+    console.log('  No host needed. See videos/README.md for when to stop doing that.');
+  } else {
+    console.log(`\n${mb(outBytes)} MB is past the point where committing these is wise`);
+    console.log('(git keeps every version forever). Upload them to a host instead.');
+  }
+
   console.log('\nNext:');
-  console.log(`  1. Upload ${OUT}/*.mp4 to your host and copy each URL.`);
+  console.log(`  1. Either copy into videos/full/, or upload ${OUT}/*.mp4 and copy the URLs.`);
   console.log(`  2. node scripts/make-previews.mjs ${OUT}`);
   console.log('  3. Paste the printed entries into media.json and fill in "full".');
 }

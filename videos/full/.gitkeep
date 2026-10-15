@@ -1,0 +1,2 @@
+Full-length pieces, when they are short enough to commit (see ../README.md).
+Set "full": "videos/full/<name>.mp4" in media.json to use one.
