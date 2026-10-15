@@ -42,7 +42,7 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-cont
 a { color: inherit; }
 .device { position: relative; width: 100%; aspect-ratio: 1000 / 624; user-select: none; -webkit-user-select: none;
           -webkit-touch-callout: none; touch-action: manipulation; }
-.device svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.device svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .device canvas { position: absolute; image-rendering: crisp-edges; image-rendering: pixelated; background: #000; }
 .hit { position: absolute; touch-action: none; cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 10px; }
 .hit.knob { cursor: ns-resize; border-radius: 50%; }
@@ -280,6 +280,7 @@ const LAYOUTS = {
     trays: [[50, 250, 220, 50], [568, 160, 400, 140]],
     oct: [[60, 258, 90, 34], [170, 258, 90, 34]],
     grid: [582, 174, 54, 48, 63, 62], keybed: [36, 332, 928, 256],
+    cat: { ears: [70, 250, 125, 78], whiskers: [150, 132, 56], paws: [300, 700, 620, 58, 26], nose: 314 },
   },
   tall: {
     w: 600, h: 1070, screen: [130, 104, 340],
@@ -287,6 +288,7 @@ const LAYOUTS = {
     trays: [[14, 572, 572, 146], [150, 728, 300, 62]],
     oct: [[164, 737, 128, 44], [308, 737, 128, 44]],
     grid: [24, 582, 86, 60, 94, 70], keybed: [14, 800, 572, 256],
+    cat: { ears: [36, 196, 84, 80], whiskers: [290, 290, 34], paws: [170, 430, 1078, 50, 20], nose: 452 },
   },
 };
 const svg = document.getElementById("panel"), device = document.getElementById("device"), canvas = document.getElementById("screen");
@@ -313,6 +315,46 @@ const knobs = [], buttons = [], keys = [];
 const btnBy = new Map(), keyBy = new Map();                   // pointer / key code -> label bit or key
 const send = (m) => { if (node) node.port.postMessage(m); };
 
+// the body as a cat: ears up from the top edge (pink inside), whiskers out of both sides, two paws on the bottom edge
+// and a nose and mouth under the screen; the page leaves room around the panel for what sticks out
+function catBody(L) {
+  const { ears: [a, b, tip, eh], whiskers: [wl, wr, wo], paws: [p1, p2, py, prx, pry], nose } = L.cat;
+  const x0 = 4, y0 = 4, x1 = L.w - 4, y1 = L.h - 4, r = 40, m = (x) => L.w - x;
+  const ear = (a, t, b) => `L${a},${y0} Q${a + (t - a) * .35},${y0 - eh * .55} ${t},${y0 - eh} ` +
+                           `Q${b - (b - t) * .3},${y0 - eh * .45} ${b},${y0}`;
+  const d = `M${x0},${y0 + r} Q${x0},${y0} ${x0 + r},${y0} ${ear(a, tip, b)} ${ear(m(b), m(tip), m(a))} ` +
+            `L${x1 - r},${y0} Q${x1},${y0} ${x1},${y0 + r} L${x1},${y1 - r} Q${x1},${y1} ${x1 - r},${y1} ` +
+            `L${x0 + r},${y1} Q${x0},${y1} ${x0},${y1 - r} Z`;
+  el("path", { d, fill: "var(--body)", stroke: "url(#rim)", "stroke-width": 3, "stroke-linejoin": "round" });
+  for (const [ea, et, eb] of [[a, tip, b], [m(b), m(tip), m(a)]]) {   // the inner ears
+    const ia = ea + (eb - ea) * .22, ib = eb - (eb - ea) * .22, it = et + (ea + eb - 2 * et) * .08;
+    el("path", { d: `M${ia},${y0 + 2} Q${ia + (it - ia) * .4},${y0 - eh * .4} ${it},${y0 - eh * .68} ` +
+                    `Q${ib - (ib - it) * .35},${y0 - eh * .35} ${ib},${y0 + 2} Z`, fill: "#ff4fd8", opacity: .38 });
+  }
+  for (let k = -1; k <= 1; k++)                                  // the whiskers: three a side
+    for (const [s, cy] of [[-1, wl], [1, wr]]) {
+      const xin = s < 0 ? x0 + 16 : x1 - 16, xout = s < 0 ? x0 - wo : x1 + wo;
+      el("path", { d: `M${xin},${cy + k * 9} Q${(xin + xout) / 2},${cy + k * 14 - 6} ${xout},${cy + k * 24 - 4}`,
+                   fill: "none", stroke: "var(--label)", "stroke-width": 2.5, "stroke-linecap": "round", opacity: .75 });
+    }
+  for (const px of [p1, p2]) {                                   // the paws, toes down
+    el("ellipse", { cx: px, cy: py, rx: prx, ry: pry, fill: "var(--body)", stroke: "url(#rim)", "stroke-width": 3 });
+    for (const t of [-1, 0, 1])
+      el("line", { x1: px + t * prx * .36, y1: py + pry * .25, x2: px + t * prx * .36, y2: py + pry * .85,
+                   stroke: "var(--edge)", "stroke-width": 3, "stroke-linecap": "round" });
+  }
+  const [sx, , ss] = L.screen, nx = sx + ss / 2;                 // the nose and an ω mouth
+  el("path", { d: `M${nx - 8},${nose - 6} L${nx + 8},${nose - 6} L${nx},${nose + 2} Z`, fill: "#ff4fd8",
+               stroke: "#ff4fd8", "stroke-width": 2, "stroke-linejoin": "round" });
+  el("path", { d: `M${nx},${nose + 2} Q${nx - 2},${nose + 10} ${nx - 9},${nose + 9} M${nx},${nose + 2} ` +
+                  `Q${nx + 2},${nose + 10} ${nx + 9},${nose + 9}`, fill: "none", stroke: "var(--label)",
+               "stroke-width": 2, "stroke-linecap": "round" });
+  const side = (L.cat.whiskers[2] + 8) / L.w, wide = 1 / (1 + 2 * side);   // (margins: % of the page's width)
+  Object.assign(device.style, { width: `${100 * wide}%`, marginLeft: "auto", marginRight: "auto",
+                                marginTop: `${(eh + 8) / L.w * 100 * wide}%`,
+                                marginBottom: `${Math.max(0, py + pry + 6 - L.h) / L.w * 100 * wide}%` });
+}
+
 function build(name) {
   const L = LAYOUTS[name];
   layout = name;
@@ -323,7 +365,7 @@ function build(name) {
   knobs.length = buttons.length = keys.length = 0;
   const rim = el("linearGradient", { id: "rim", x1: 0, y1: 0, x2: 1, y2: 1 }, el("defs", {}));
   ["#ff4fd8", "#ff9a3c", "#9dff4f", "#4fe0ff", "#8a6cff"].forEach((c, i) => el("stop", { offset: i / 4, "stop-color": c }, rim));
-  el("rect", { x: 4, y: 4, width: L.w - 8, height: L.h - 8, rx: 40, fill: "var(--body)", stroke: "url(#rim)", "stroke-width": 3 });
+  catBody(L);
   for (const [x, y, w, h] of L.trays) el("rect", { x, y, width: w, height: h, rx: 14, fill: "var(--tray)" });
   const [sx, sy, ss] = L.screen;
   el("rect", { x: sx, y: sy, width: ss, height: ss, rx: 18, fill: "#0b0b0c" });
