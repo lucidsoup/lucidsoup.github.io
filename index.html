@@ -88,6 +88,28 @@
         nav.menu-open .nav-toggle .bar:nth-child(2) { opacity: 0; }
         nav.menu-open .nav-toggle .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
+        /* A section exists only when the gallery sent you to it. `hidden` alone
+           loses to the display rules below, so it is forced here. */
+        [hidden] { display: none !important; }
+        /* The second nav item is only meaningful once you are inside a section. */
+        .only-focused { display: none; }
+        .back-to-gallery {
+            position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+            z-index: 1200; text-decoration: none;
+            background: rgba(0,0,0,.72); border: 1px solid rgba(0,255,255,.35);
+            color: #00ffff; padding: 10px 18px; border-radius: 3px;
+            font-family: 'Courier New', monospace; font-size: 11px;
+            letter-spacing: .18em; text-transform: uppercase;
+            transition: background .2s, border-color .2s;
+        }
+        .back-to-gallery:hover { background: rgba(0,255,255,.14); border-color: rgba(0,255,255,.8); }
+        /* The back link is fixed to the bottom, so a focused section needs room
+           underneath it or the link sits on top of the last control. */
+        body.focused { padding-bottom: 76px; }
+        body.focused .only-focused { display: list-item; }
+        /* With two items the menu always fits, so the burger has nothing to do. */
+        #navbar .nav-toggle { display: none !important; }
+
         .hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: transparent; position: relative; overflow: hidden; }
         .hero-content { z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
         .logo-container { position: relative; font-size: 4rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; font-family: 'Orbitron', monospace; }
@@ -953,16 +975,11 @@
                 <span class="bar"></span>
                 <span class="bar"></span>
             </button>
+            <!-- The gallery is the only index. Nothing here lists the sections;
+                 each one is reached from the room that holds it. -->
             <ul>
-                <li><a href="#home">Home</a></li>
-                <li><a href="#drumseek">DrumSeek</a></li>
-                <li><a href="#sp404">SP-404</a></li>
-                <li><a href="#synthsoup">SynthSoup</a></li>
-                <li><a href="#portfolio">Portfolio</a></li>
-                <li><a href="#shader-library">Shaders</a></li>
-                <li><a href="#shop">Shop</a></li>
-                <li><a href="#about">About</a></li>
-                <li><a href="#contact">Contact</a></li>
+                <li><a href="gallery.html" id="nav-gallery">The Gallery</a></li>
+                <li class="only-focused"><a href="#" id="nav-home">Entrance</a></li>
             </ul>
         </nav>
 
@@ -1330,6 +1347,9 @@
     </div>
 
     <!-- Lightbox -->
+    <!-- Shown only inside a section: the way back into the architecture. -->
+    <a class="back-to-gallery" id="back-to-gallery" href="gallery.html" hidden>&larr; back to the gallery</a>
+
     <div class="lightbox" id="lightbox">
         <button class="lightbox-close" id="lightbox-close">&times;</button>
         <video id="lightbox-video" controls playsinline></video>
@@ -1454,6 +1474,51 @@
                 if(!nav.contains(e.target)) setExpanded(false);
             });
         })();
+
+        // ===== ROUTING =====
+        // The sections are not a page you scroll any more. Exactly one is shown,
+        // and only when the gallery has sent you to it by name; with no hash you
+        // get the entrance and nothing else. This is what makes the gallery the
+        // site's only index rather than a second way in beside the old one.
+        var SECTION_IDS = ['drumseek', 'sp404', 'synthsoup', 'portfolio',
+                           'shader-library', 'shop', 'about', 'contact'];
+
+        function routeSections() {
+            var want = (location.hash || '').replace(/^#/, '').split('&')[0];
+            var focus = SECTION_IDS.indexOf(want) >= 0 ? want : null;
+            var heroEl = document.querySelector('.hero');
+
+            SECTION_IDS.forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.hidden = (id !== focus);
+            });
+            if (heroEl) heroEl.hidden = !!focus;
+            document.body.classList.toggle('focused', !!focus);
+
+            var back = document.getElementById('back-to-gallery');
+            if (back) back.hidden = !focus;
+
+            if (focus) {
+                window.scrollTo(0, 0);
+                var h = document.querySelector('#' + CSS.escape(focus) + ' h2');
+                if (h) h.setAttribute('tabindex', '-1');
+            }
+            // Tell anything that cares (the portfolio hover binding, the shader
+            // library) that the visible part of the page changed.
+            window.dispatchEvent(new CustomEvent('lucid:route', { detail: { section: focus } }));
+        }
+
+        window.addEventListener('hashchange', routeSections);
+        routeSections();
+
+        var navHome = document.getElementById('nav-home');
+        if (navHome) {
+            navHome.addEventListener('click', function (e) {
+                e.preventDefault();
+                history.pushState(null, '', location.pathname);
+                routeSections();
+            });
+        }
 
         // ===== PORTFOLIO VIDEO HOVER =====
         // Cards come from media.json and land after this script has run, so binding is
@@ -3256,10 +3321,10 @@
         // tools are real pages. Panels with no asset yet say so rather than
         // pretending.
         var PANELS = {
-            'shader-library': { label: 'Shaders',  sub: 'live',        kind: 'shader' },
-            'portfolio':      { label: 'Visuals',  sub: 'reel',        kind: 'media' },
-            'drumseek':       { label: 'Tools',    sub: 'drumseek',    kind: 'glyph', glyph: '▦' },
-            'shop':           { label: 'Studio',   sub: 'shop · about', kind: 'glyph', glyph: '✦' }
+            'shader-library': { label: 'Shaders',  sub: 'live',        kind: 'shader', room: 'reliquary' },
+            'portfolio':      { label: 'Visuals',  sub: 'reel',        kind: 'media',  room: 'antechamber' },
+            'drumseek':       { label: 'Tools',    sub: 'drumseek',    kind: 'glyph', glyph: '\u25a6', room: 'workshop' },
+            'shop':           { label: 'Studio',   sub: 'shop \u00b7 about', kind: 'glyph', glyph: '\u2726', room: 'studio' }
         };
 
         // Picks a featured work's preview loop for the Visuals flap. Nothing featured,
@@ -3466,10 +3531,11 @@
 
         // Diving: the chosen section opens and the page scrolls to it, so the box
         // is navigation rather than decoration.
+        // Every flap dives into the gallery, at the room that holds that part of
+        // the site. Nothing on this page scrolls to a section any more.
         function dive(dest) {
-            var target = document.getElementById(dest);
-            if (!target) return;
-            target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+            var cfg = PANELS[dest];
+            window.location.href = 'gallery.html' + (cfg && cfg.room ? '#r=' + cfg.room : '');
         }
 
         lid.addEventListener('click', openBox);

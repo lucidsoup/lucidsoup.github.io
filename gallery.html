@@ -100,6 +100,47 @@
         color: #2a2a3a; font-size: 30px;
     }
 
+    /* ===== stairs =====
+       A flight is treads and risers as real planes in the room, so the
+       impossibility is something you look at rather than a number in a corner.
+       Gravity is per-flight: four flights at four rotations is Relativity. */
+    .flight { position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+              transform-style: preserve-3d; }
+    .flight .tread, .flight .riser {
+        position: absolute; left: 50%; top: 50%;
+        transform-origin: 50% 50%;
+        border: 1px solid rgba(0,255,255,.16);
+    }
+    .flight .tread {
+        background: linear-gradient(rgba(0,255,255,.10), rgba(0,255,255,.03));
+        box-shadow: inset 0 0 18px rgba(0,0,0,.6);
+    }
+    .flight .riser {
+        background: linear-gradient(rgba(10,14,22,.82), rgba(0,0,0,.94));
+        border-color: rgba(0,255,255,.16);
+    }
+    .flight.clickable { cursor: pointer; }
+    .flight.clickable:hover .tread,
+    .flight.clickable:focus-visible .tread {
+        background: linear-gradient(rgba(0,255,255,.3), rgba(0,255,255,.1));
+        border-color: rgba(0,255,255,.6);
+    }
+    .flight-label {
+        position: absolute; left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 12px; letter-spacing: .3em; text-transform: uppercase;
+        color: var(--cyan); text-shadow: 0 0 14px rgba(0,255,255,.75);
+        white-space: nowrap; pointer-events: none;
+    }
+    /* A flight serving a different gravity is tinted, so the eye reads it as
+       belonging to another "down" rather than as a mistake. */
+    .flight.g1 .tread { background: linear-gradient(rgba(255,0,255,.12), rgba(255,0,255,.03)); border-color: rgba(255,0,255,.2); }
+    .flight.g2 .tread { background: linear-gradient(rgba(57,255,20,.11), rgba(57,255,20,.03)); border-color: rgba(57,255,20,.2); }
+    .flight.g3 .tread { background: linear-gradient(rgba(255,190,0,.12), rgba(255,190,0,.03)); border-color: rgba(255,190,0,.22); }
+    .flight.g1 .flight-label { color: #ff6cff; text-shadow: 0 0 14px rgba(255,0,255,.7); }
+    .flight.g2 .flight-label { color: #7cff6c; text-shadow: 0 0 14px rgba(57,255,20,.7); }
+    .flight.g3 .flight-label { color: #ffd34d; text-shadow: 0 0 14px rgba(255,190,0,.7); }
+
     /* ===== a doorway ===== */
     .doorway {
         position: absolute; left: 50%; bottom: 0;
@@ -179,6 +220,33 @@
         .fx-row { flex-wrap: wrap; }
         .fx-btn { font-size: 9px; padding: 7px; min-width: 34px; }
     }
+
+    /* ===== plinth =====
+       A room that holds part of the site shows a plinth. Clicking it leaves the
+       gallery for that section, which is now the only route to it. */
+    .plinths {
+        position: absolute; left: 50%; bottom: 4%;
+        transform: translateX(-50%);
+        display: flex; gap: 10px; justify-content: center; width: 86%;
+    }
+    .plinth {
+        flex: 1 1 0; min-width: 0; padding: 14px 16px;
+        background: linear-gradient(rgba(0,0,0,.4), rgba(0,0,0,.88));
+        border: 1px solid rgba(0,255,255,.34);
+        border-radius: 3px; cursor: pointer; text-align: center;
+        box-shadow: 0 0 34px rgba(0,255,255,.12), inset 0 0 26px rgba(0,0,0,.8);
+        transition: border-color .25s, box-shadow .25s;
+    }
+    .plinth:hover, .plinth:focus-visible {
+        border-color: rgba(0,255,255,.9);
+        box-shadow: 0 0 52px rgba(0,255,255,.34), inset 0 0 26px rgba(0,0,0,.7);
+        outline: none;
+    }
+    .plinth-title {
+        font-size: 12px; letter-spacing: .26em; text-transform: uppercase;
+        color: var(--cyan); text-shadow: 0 0 12px rgba(0,255,255,.6);
+    }
+    .plinth-sub { margin-top: 5px; font-size: 10px; letter-spacing: .08em; color: var(--dim); }
 
     /* ===== travel fade ===== */
     #veil {
@@ -448,19 +516,23 @@ function generateRoom(id) {
     var hue = Math.round((((ang * 180 / Math.PI) + 360) % 360 + orb.escape * 9) % 360);
     var k = orb.escape + depth;
     var tight = Math.min(1, orb.trap);
+    // Declared here because the size below uses it. It used to sit further down,
+    // which made `hsh % 160` NaN and every generated room's height NaN with it —
+    // silent, because `var` hoists.
+    var hsh = hash32(id);
 
     var w = 3.2 + tight * 4.2;
-    var h = 2.6 + (orb.inside ? 1.4 + (hsh % 160) / 100 : tight * 1.5);
+    var h = 3.1 + (orb.inside ? 1.4 + (hsh % 160) / 100 : tight * 1.5);
     var d = 3.2 + ((orb.escape % 5) * 0.55);
 
     var floorPat = PATTERN_POOL[k % PATTERN_POOL.length];
     var ceilPat  = PATTERN_POOL[(k + 2 + depth) % PATTERN_POOL.length];
     var sidePat  = PATTERN_POOL[(k + 4) % PATTERN_POOL.length];
 
-    var hsh = hash32(id);
     var name = NAME_A[Math.floor(hue / 360 * NAME_A.length) % NAME_A.length] + ' ' +
                NAME_B[hsh % NAME_B.length];
 
+    var room_stairs = [];
     var surfaces = {
         floor:   { art: 'pattern:' + floorPat, repeat: 2 + (k % 4) },
         ceiling: { art: 'pattern:' + ceilPat,  repeat: 1 + (k % 3) }
@@ -475,20 +547,27 @@ function generateRoom(id) {
         surfaces.north = { art: 'pattern:' + sidePat, repeat: 2 };
     }
 
-    // Deeper is DOWN: diving into the fractal reads as descent.
-    var sides = ['east', 'west', 'ceiling'];
+    // Each branch is a STAIRCASE rather than a door, so descending the fractal
+    // is something you climb. Deeper in the set means stranger gravity: rooms
+    // inside it get flights that disagree about which way is down.
+    var GRAVS = ['down', 'right', 'up', 'left'];
+    var strange = orb.inside || orb.escape > 30;
+    var stairs = [];
     for (var i = 0; i < BRANCH && i < 3; i++) {
-        var side = sides[i];
-        var child = id + i;
-        if (side === 'ceiling') {
-            surfaces.ceiling.exit = child;
-            surfaces.ceiling.label = 'deeper';
-            surfaces.ceiling.ascend = -1;
-        } else {
-            surfaces[side] = { art: 'pattern:' + sidePat, repeat: 2 + (i % 3),
-                               exit: child, label: 'deeper', ascend: -1 };
-        }
+        stairs.push({
+            to: id + i,
+            label: 'deeper',
+            ascend: -1,
+            steps: 8 + ((hsh >> (i * 3)) % 5),
+            facing: 'north',
+            // A plain room keeps one gravity; a strange one fans out.
+            gravity: strange ? GRAVS[(hsh + i * 5) % 4] : 'down',
+            width: 0.3,
+            offset: (i - (BRANCH - 1) / 2) * 0.26,
+            from: 0.06 + i * 0.12
+        });
     }
+    room_stairs = stairs;
 
     // Back up, to the parent address or out to the authored rooms.
     surfaces.floor.exit = depth > 0 ? id.slice(0, -1) : 'antechamber';
@@ -501,6 +580,7 @@ function generateRoom(id) {
                           : null,
         size: [w, h, d],
         surfaces: surfaces,
+        stairs: room_stairs,
         _fractal: { depth: depth, cx: cx, cy: cy, hue: hue,
                     escape: orb.escape, inside: orb.inside, zoom: pt.scale }
     };
@@ -516,6 +596,8 @@ function getRoom(id) {
 }
 var state = { room: null, yaw: 0, pitch: 0, altitude: 0, steps: 0, visited: {} };
 var live = [];     // teardown functions for the current room's running media
+var stairExits = [];   // flights in this room, surfaced as HUD buttons too
+var roomOpens = [];    // the sections this room is the only route to
 
 function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -809,6 +891,79 @@ function buildArt(ref, opts) {
     return null;
 }
 
+/* ========================= stairs =========================
+   One flight = N treads and N risers, placed in the room's own space. The
+   whole flight is then rotated by its gravity, so a room can hold several
+   staircases that each believe a different direction is down. */
+
+var GRAV = { down: 0, right: 90, up: 180, left: 270 };
+
+function num(v, dflt) { v = Number(v); return isFinite(v) ? v : dflt; }
+
+function buildFlight(spec, dims) {
+    var steps = Math.max(2, Math.min(24, spec.steps || 9));
+    // A NaN anywhere here makes the whole transform string invalid, and the
+    // browser then drops it silently and stacks every step at the origin.
+    var W = num(dims.w, 400), H = num(dims.h, 340), D = num(dims.d, 400);
+
+    // Fill the room: the flight climbs the room's height over its depth.
+    var width = (spec.width || 0.42) * W;
+    var rise  = (H * 0.78) / steps;
+    var run   = (D * 0.80) / steps;
+
+    var el = document.createElement('div');
+    var gname = spec.gravity || 'down';
+    var gdeg = GRAV[gname] != null ? GRAV[gname] : 0;
+    el.className = 'flight' + (gdeg ? ' g' + (gdeg / 90) : '');
+
+    for (var k = 0; k < steps; k++) {
+        // +y is DOWN in CSS, so climbing is negative y.
+        var tread = document.createElement('div');
+        tread.className = 'tread';
+        tread.style.width = width + 'px';
+        tread.style.height = run + 'px';
+        tread.style.marginLeft = (-width / 2) + 'px';
+        tread.style.marginTop = (-run / 2) + 'px';
+        tread.style.transform =
+            'translate3d(0,' + (-(k + 1) * rise) + 'px,' + (-(k * run + run / 2)) + 'px) rotateX(90deg)';
+        el.appendChild(tread);
+
+        var riser = document.createElement('div');
+        riser.className = 'riser';
+        riser.style.width = width + 'px';
+        riser.style.height = rise + 'px';
+        riser.style.marginLeft = (-width / 2) + 'px';
+        riser.style.marginTop = (-rise / 2) + 'px';
+        riser.style.transform =
+            'translate3d(0,' + (-(k * rise + rise / 2)) + 'px,' + (-(k * run)) + 'px)';
+        el.appendChild(riser);
+    }
+
+    if (spec.label) {
+        var lab = document.createElement('div');
+        lab.className = 'flight-label';
+        lab.textContent = spec.label;
+        lab.style.transform = 'translate(-50%,-50%) translate3d(0,' +
+            (-(steps + 0.9) * rise) + 'px,' + (-(steps * run)) + 'px)';
+        el.appendChild(lab);
+    }
+
+    // Stand the flight on the floor, then tip the whole thing by its gravity.
+    var yaw = spec.facing === 'east' ? -90 : spec.facing === 'west' ? 90
+            : spec.facing === 'south' ? 180 : 0;
+    var baseY = H / 2;                      // the floor
+    var baseZ = (spec.from || 0) * D;       // how far back the flight starts
+    // The offset is applied AFTER the gravity rotation, so each flight shifts
+    // along its own idea of sideways. Four flights then fan out around the room
+    // instead of piling through its centre.
+    var offX = (spec.offset || 0) * W;
+    el.style.transform =
+        'rotateZ(' + gdeg + 'deg) rotateY(' + yaw + 'deg) ' +
+        'translate3d(' + offX + 'px,' + baseY + 'px,' + (D / 2 - baseZ) + 'px)';
+
+    return el;
+}
+
 /* ========================= geometry =========================
    Each surface is placed by rotating it to face inward and pushing it out to
    the wall. Nothing here refers to any other room, which is exactly why the
@@ -910,12 +1065,13 @@ function buildRoom(id) {
 
     stopLive();
     roomEl.innerHTML = '';
+    stairExits = [];
     // Live WebGL walls are the expensive thing here, so a small screen gets fewer
     // of them and at lower resolution. Everything else is CSS and costs nothing.
     shaderBudget = SMALL ? 1 : 3;
 
     var size = room.size || [4, 3, 4];
-    var w = size[0] * METRE, h = size[1] * METRE, d = size[2] * METRE;
+    var w = num(size[0], 4) * METRE, h = num(size[1], 3) * METRE, d = num(size[2], 4) * METRE;
     var surfaces = room.surfaces || {};
 
     // Put the eye a little outside the room's front opening. Every surface then
@@ -977,6 +1133,51 @@ function buildRoom(id) {
         roomEl.appendChild(el);
     });
 
+    // Stairs, after the surfaces so they sit inside the room.
+    (room.stairs || []).forEach(function (st) {
+        if (st.to && !getRoom(st.to)) return;        // never draw a flight to nowhere
+        var fl = buildFlight(st, { w: w, h: h, d: d });
+        if (st.to) {
+            fl.classList.add('clickable');
+            fl.setAttribute('role', 'button');
+            fl.setAttribute('tabindex', '0');
+            fl.setAttribute('aria-label', 'Climb to ' + (st.label || st.to));
+            var spec = { exit: st.to, label: st.label, ascend: st.ascend, climb: true };
+            fl.addEventListener('click', function (e) { e.stopPropagation(); travel(spec); });
+            fl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); travel(spec); }
+            });
+            stairExits.push(spec);
+        }
+        roomEl.appendChild(fl);
+    });
+
+    // What this room opens, if anything. This is the only route to those parts
+    // of the site — nothing links to them from anywhere else.
+    // A room may open more than one thing — the studio holds both the about
+    // text and the contact details, and both need a route.
+    roomOpens = [].concat(room.opens || []).filter(function (o) { return o && o.href; });
+    if (roomOpens.length) {
+        var rack = document.createElement('div');
+        rack.className = 'plinths';
+        roomOpens.forEach(function (o) {
+            var pl = document.createElement('div');
+            pl.className = 'plinth';
+            pl.setAttribute('role', 'button');
+            pl.setAttribute('tabindex', '0');
+            pl.setAttribute('aria-label', 'Open ' + (o.title || o.href));
+            pl.innerHTML = '<div class="plinth-title">' + esc(o.title || 'open') + '</div>' +
+                (o.note ? '<div class="plinth-sub">' + esc(o.note) + '</div>' : '');
+            var leave = function () { window.location.href = o.href; };
+            pl.addEventListener('click', function (e) { e.stopPropagation(); leave(); });
+            pl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); leave(); }
+            });
+            rack.appendChild(pl);
+        });
+        roomEl.appendChild(rack);
+    }
+
     state.room = id;
     state.visited[id] = (state.visited[id] || 0) + 1;
     paintHUD(room, surfaces);
@@ -1016,9 +1217,28 @@ function paintHUD(room, surfaces) {
         b.addEventListener('click', function () { travel(spec); });
         hudBottom.appendChild(b);
     });
+    stairExits.forEach(function (spec) {
+        var b = document.createElement('button');
+        b.className = 'exit-chip';
+        var asc = spec.ascend || 0;
+        b.innerHTML = '\u2197 ' + esc(spec.label || spec.exit) +
+            (asc ? '<span class="asc">' + (asc > 0 ? '\u2191' : '\u2193') + Math.abs(asc) + '</span>' : '');
+        b.addEventListener('click', function () { travel(spec); });
+        hudBottom.appendChild(b);
+    });
+
+    roomOpens.forEach(function (o) {
+        var ob = document.createElement('button');
+        ob.className = 'exit-chip';
+        ob.style.borderColor = 'rgba(0,255,255,.6)';
+        ob.innerHTML = '\u25a3 ' + esc(o.title || 'open');
+        ob.addEventListener('click', function () { window.location.href = o.href; });
+        hudBottom.appendChild(ob);
+    });
+
     var leave = document.createElement('button');
     leave.id = 'leave';
-    leave.textContent = 'leave';
+    leave.textContent = 'entrance';
     leave.addEventListener('click', function () { window.location.href = 'index.html'; });
     hudBottom.appendChild(leave);
 }
@@ -1032,7 +1252,8 @@ function paintHUD(room, surfaces) {
 var lensEl = document.getElementById('lens');
 var fxEl = document.getElementById('fx');
 
-var fx = { hue: 0, invert: 0, contrast: 1, sat: 1, blur: 0, twist: 0, echo: 0, fold: 0 };
+var fx = { hue: 0, invert: 0, contrast: 1, sat: 1, blur: 0, twist: 0, echo: 0, fold: 0, gravity: 0 };
+var climbY = 0;    // vertical offset during a stair transition
 
 var FX_DEFAULTS = JSON.stringify(fx);
 
@@ -1048,8 +1269,7 @@ function applyFx() {
     // flattens the 3D and collapses the room to a single plane. #stage owns the
     // perspective, so its subtree still resolves in 3D before being filtered.
     stage.style.filter = f.length ? f.join(' ') : '';
-    roomEl.style.transform = 'translateZ(' + (baseZ + animZ) + 'px)' +
-        (fx.twist ? ' rotateZ(' + fx.twist + 'deg)' : '');
+    applyRoomZ();
     renderEchoes();
     paintFxBar();
     syncHash();
@@ -1057,7 +1277,9 @@ function applyFx() {
 
 // applyRoomZ has to go through applyFx now, so twist survives travelling.
 function applyRoomZ() {
-    roomEl.style.transform = 'translateZ(' + (baseZ + animZ) + 'px)' +
+    roomEl.style.transform =
+        'translate3d(0,' + climbY + 'px,' + (baseZ + animZ) + 'px)' +
+        (fx.gravity ? ' rotateZ(' + (fx.gravity * 90) + 'deg)' : '') +
         (fx.twist ? ' rotateZ(' + fx.twist + 'deg)' : '');
 }
 
@@ -1087,6 +1309,7 @@ function renderEchoes() {
 
 var FX_VERBS = [
     { key: 'echo',   label: 'echo',   cycle: [0, 1, 2, 3, 4] },
+    { key: 'gravity', label: 'down',  cycle: [0, 1, 2, 3] },
     { key: 'fold',   label: 'fold',   cycle: [0, 1, 2, 3] },
     { key: 'twist',  label: 'twist',  cycle: [0, 6, 14, 27, -14] },
     { key: 'hue',    label: 'hue',    cycle: [0, 60, 120, 180, 240, 300] },
@@ -1215,10 +1438,18 @@ function travel(spec) {
     travelling = true;
     hint.classList.add('gone');
 
-    var ms = reduced ? 10 : 220;
+    var climbing = !!spec.climb && !reduced;
+    var ms = reduced ? 10 : (climbing ? 480 : 220);
     veil.classList.add('on');
-    // Lean into the doorway while the veil closes.
-    if (!reduced) {
+    if (climbing) {
+        // Ascend: the room drops away beneath you as you move into it, so a
+        // staircase that loops is something you feel rather than read.
+        var dir = (spec.ascend || 0) < 0 ? -1 : 1;
+        roomEl.style.transition = 'transform ' + ms + 'ms cubic-bezier(.4,0,.6,1)';
+        animZ = 230;
+        climbY = dir * 150;
+        applyRoomZ();
+    } else if (!reduced) {
         roomEl.style.transition = 'transform ' + ms + 'ms ease-in';
         animZ = 150;
         applyRoomZ();
@@ -1231,11 +1462,13 @@ function travel(spec) {
         buildRoom(spec.exit);          // resets baseZ for the new room's depth
         roomEl.style.transition = 'none';
         animZ = reduced ? 0 : -110;
+        climbY = climbing ? -(spec.ascend || 0 ? ((spec.ascend < 0) ? -1 : 1) : 1) * 120 : 0;
         applyRoomZ();
         applyCamera();
         requestAnimationFrame(function () {
-            roomEl.style.transition = reduced ? 'none' : 'transform 340ms ease-out';
+            roomEl.style.transition = reduced ? 'none' : 'transform ' + (climbing ? 420 : 340) + 'ms ease-out';
             animZ = 0;
+            climbY = 0;
             applyRoomZ();
             veil.classList.remove('on');
             setTimeout(function () {
@@ -1291,7 +1524,7 @@ document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape')     { closeLightbox(); }
 
     // Manipulation. Shift steps a verb backwards through its cycle.
-    var KEYS = { e: 'echo', f: 'fold', t: 'twist', h: 'hue',
+    var KEYS = { e: 'echo', f: 'fold', t: 'twist', h: 'hue', g: 'gravity',
                  s: 'sat', c: 'contrast', i: 'invert', b: 'blur' };
     var k = e.key.toLowerCase();
     if (KEYS[k] && !e.metaKey && !e.ctrlKey && !e.altKey) {

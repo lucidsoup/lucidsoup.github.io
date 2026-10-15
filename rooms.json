@@ -44,13 +44,41 @@
     "  patterns and name all come from the orbit at that point, which makes it",
     "  deterministic (an address is always the same room) and self-similar",
     "  (addresses sharing a prefix are near each other, so a room resembles its",
-    "  parent). Edit \"maps\" and the whole endless half of the gallery changes."
+    "  parent). Edit \"maps\" and the whole endless half of the gallery changes.",
+    "",
+    "STAIRS",
+    "  A room may carry a \"stairs\" array. Each entry draws a real flight of",
+    "  treads and risers inside the room, and clicking it travels:",
+    "    to       room id it climbs to",
+    "    label    text at the top of the flight",
+    "    ascend   flights gained, same as a doorway",
+    "    steps    how many (2-24, default 9)",
+    "    facing   north / east / west / south \u2014 which way it climbs",
+    "    gravity  down / right / up / left \u2014 WHICH WAY IS DOWN for this",
+    "             flight. Several flights at different gravities in one",
+    "             room is Relativity; each is tinted so the eye reads them",
+    "             as separate worlds rather than as a mistake.",
+    "    width    fraction of the room width (default 0.42)",
+    "    offset   sideways shift as a fraction of room width, applied in the",
+    "             flight's OWN gravity frame, so flights fan out instead of",
+    "             stacking through the middle",
+    "    from     how far back the flight begins (0-1 of room depth)",
+    "  The viewer can rotate their own gravity with G, which makes a flight",
+    "  that looked unusable become the one underfoot.",
+    "",
+    "OPENS",
+    "  A room may carry \"opens\": one { href, title, note } or an array of them.",
+    "  Each draws a plinth, and clicking it leaves the gallery for that part of",
+    "  clicking it leaves the gallery for that part of the site. The gallery is",
+    "  the only index \u2014 index.html shows one section at a time and only when",
+    "  sent there by name, so a room is the single route to what it holds.",
+    "  Keep exactly one room per section, or something becomes unreachable."
   ],
   "entry": "antechamber",
   "rooms": {
     "antechamber": {
       "name": "Antechamber",
-      "note": "Three ways on. None of them come back.",
+      "note": "Three ways on, and one way into the work itself.",
       "size": [
         5,
         3.2,
@@ -70,7 +98,9 @@
         },
         "north": {
           "art": "work:reel-01",
-          "frame": true
+          "frame": true,
+          "exit": "studio",
+          "label": "studio"
         },
         "east": {
           "exit": "stair-a",
@@ -81,14 +111,19 @@
           "exit": "hall-of-tiles",
           "label": "tiles"
         }
+      },
+      "opens": {
+        "href": "index.html#portfolio",
+        "title": "Portfolio",
+        "note": "every piece, as a list"
       }
     },
     "stair-a": {
       "name": "First Flight",
       "size": [
-        4,
-        3,
-        4
+        4.6,
+        3.4,
+        5.2
       ],
       "surfaces": {
         "floor": {
@@ -101,25 +136,31 @@
         "north": {
           "art": "shader:random",
           "frame": true
-        },
-        "east": {
-          "exit": "stair-b",
-          "label": "up",
-          "ascend": 1
         },
         "south": {
           "exit": "antechamber",
           "label": "back",
           "ascend": -1
         }
-      }
+      },
+      "stairs": [
+        {
+          "to": "stair-b",
+          "label": "up",
+          "ascend": 1,
+          "steps": 10,
+          "facing": "north",
+          "gravity": "down",
+          "width": 0.46
+        }
+      ]
     },
     "stair-b": {
       "name": "Second Flight",
       "size": [
-        4,
-        3,
-        4
+        4.6,
+        3.4,
+        5.2
       ],
       "surfaces": {
         "floor": {
@@ -132,25 +173,31 @@
         "north": {
           "art": "shader:random",
           "frame": true
-        },
-        "east": {
-          "exit": "stair-c",
-          "label": "up",
-          "ascend": 1
         },
         "south": {
           "exit": "stair-a",
           "label": "back",
           "ascend": -1
         }
-      }
+      },
+      "stairs": [
+        {
+          "to": "stair-c",
+          "label": "up",
+          "ascend": 1,
+          "steps": 10,
+          "facing": "north",
+          "gravity": "down",
+          "width": 0.46
+        }
+      ]
     },
     "stair-c": {
       "name": "Third Flight",
       "size": [
-        4,
-        3,
-        4
+        4.6,
+        3.4,
+        5.2
       ],
       "surfaces": {
         "floor": {
@@ -164,25 +211,31 @@
           "art": "shader:random",
           "frame": true
         },
-        "east": {
-          "exit": "stair-d",
-          "label": "up",
-          "ascend": 1
-        },
         "south": {
           "exit": "stair-b",
           "label": "back",
           "ascend": -1
         }
-      }
+      },
+      "stairs": [
+        {
+          "to": "stair-d",
+          "label": "up",
+          "ascend": 1,
+          "steps": 10,
+          "facing": "north",
+          "gravity": "down",
+          "width": 0.46
+        }
+      ]
     },
     "stair-d": {
       "name": "Fourth Flight",
-      "note": "You have climbed four flights. You are where you started.",
+      "note": "Four flights up from the first. This is the first.",
       "size": [
-        4,
-        3,
-        4
+        4.6,
+        3.4,
+        5.2
       ],
       "surfaces": {
         "floor": {
@@ -196,17 +249,23 @@
           "art": "shader:random",
           "frame": true
         },
-        "east": {
-          "exit": "stair-a",
-          "label": "up",
-          "ascend": 1
-        },
         "south": {
           "exit": "stair-c",
           "label": "back",
           "ascend": -1
         }
-      }
+      },
+      "stairs": [
+        {
+          "to": "stair-a",
+          "label": "up",
+          "ascend": 1,
+          "steps": 10,
+          "facing": "north",
+          "gravity": "down",
+          "width": 0.46
+        }
+      ]
     },
     "well": {
       "name": "The Well",
@@ -267,7 +326,9 @@
         },
         "north": {
           "art": "pattern:hex",
-          "repeat": 4
+          "repeat": 4,
+          "exit": "relativity",
+          "label": "relativity"
         },
         "south": {
           "exit": "antechamber",
@@ -279,7 +340,9 @@
         },
         "west": {
           "art": "pattern:hex",
-          "repeat": 1
+          "repeat": 1,
+          "exit": "workshop",
+          "label": "workshop"
         }
       }
     },
@@ -319,7 +382,300 @@
           "exit": "hall-of-tiles",
           "label": "back"
         }
+      },
+      "opens": {
+        "href": "index.html#shader-library",
+        "title": "Shader Library",
+        "note": "copy the GLSL"
       }
+    },
+    "relativity": {
+      "name": "Relativity",
+      "note": "Four staircases. Four directions of down. Press G to change which one is yours.",
+      "size": [
+        6.4,
+        5.0,
+        6.4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 5
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 5
+        },
+        "north": {
+          "art": "pattern:penrose",
+          "repeat": 3
+        },
+        "east": {
+          "art": "pattern:triangle",
+          "repeat": 4
+        },
+        "west": {
+          "exit": "hall-of-tiles",
+          "label": "out",
+          "art": "pattern:triangle",
+          "repeat": 4
+        }
+      },
+      "stairs": [
+        {
+          "to": "stair-a",
+          "label": "north",
+          "ascend": 1,
+          "steps": 11,
+          "facing": "north",
+          "gravity": "down",
+          "width": 0.3,
+          "offset": -0.22,
+          "from": 0.05
+        },
+        {
+          "to": "well",
+          "label": "east",
+          "ascend": -1,
+          "steps": 11,
+          "facing": "north",
+          "gravity": "right",
+          "width": 0.3,
+          "offset": 0.24,
+          "from": 0.18
+        },
+        {
+          "to": "reliquary",
+          "label": "over",
+          "ascend": 0,
+          "steps": 11,
+          "facing": "north",
+          "gravity": "up",
+          "width": 0.3,
+          "offset": -0.26,
+          "from": 0.3
+        },
+        {
+          "to": "f",
+          "label": "west",
+          "ascend": -1,
+          "steps": 11,
+          "facing": "north",
+          "gravity": "left",
+          "width": 0.3,
+          "offset": 0.2,
+          "from": 0.42
+        }
+      ]
+    },
+    "workshop": {
+      "name": "Workshop",
+      "note": "Two machines. Both of them work.",
+      "size": [
+        5.6,
+        3.3,
+        4.6
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 5
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "east": {
+          "art": "pattern:triangle",
+          "repeat": 3,
+          "exit": "bench",
+          "label": "bench"
+        },
+        "west": {
+          "art": "pattern:grid",
+          "repeat": 4,
+          "exit": "antechamber",
+          "label": "back"
+        }
+      },
+      "opens": {
+        "href": "index.html#drumseek",
+        "title": "DrumSeek",
+        "note": "live beat sequencer"
+      },
+      "stairs": [
+        {
+          "to": "loft",
+          "label": "loft",
+          "ascend": 1,
+          "steps": 9,
+          "facing": "north",
+          "gravity": "down",
+          "width": 0.34,
+          "offset": 0.2,
+          "from": 0.1
+        }
+      ]
+    },
+    "bench": {
+      "name": "The Bench",
+      "note": "Audio in one shape, out another.",
+      "size": [
+        4.4,
+        3.2,
+        4.2
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:hex",
+          "repeat": 4
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 3
+        },
+        "north": {
+          "art": "pattern:penrose",
+          "repeat": 2
+        },
+        "west": {
+          "art": "pattern:hex",
+          "repeat": 3,
+          "exit": "workshop",
+          "label": "back"
+        }
+      },
+      "opens": {
+        "href": "sp404.html",
+        "title": "SP-404 Converter",
+        "note": "wav to card, card to wav"
+      }
+    },
+    "studio": {
+      "name": "Studio",
+      "note": "Who does this, and how to reach them.",
+      "size": [
+        5.2,
+        3.3,
+        4.4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:escher",
+          "repeat": 3
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "work:random",
+          "frame": true
+        },
+        "east": {
+          "art": "pattern:triangle",
+          "repeat": 3,
+          "exit": "counting-house",
+          "label": "shop"
+        },
+        "west": {
+          "art": "pattern:escher",
+          "repeat": 3,
+          "exit": "antechamber",
+          "label": "back"
+        }
+      },
+      "opens": [
+        {
+          "href": "index.html#about",
+          "title": "About",
+          "note": "what this practice is"
+        },
+        {
+          "href": "index.html#contact",
+          "title": "Contact",
+          "note": "how to reach it"
+        }
+      ]
+    },
+    "counting-house": {
+      "name": "Counting House",
+      "size": [
+        4.6,
+        3.2,
+        4.2
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 5
+        },
+        "ceiling": {
+          "art": "pattern:hex",
+          "repeat": 2
+        },
+        "north": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "west": {
+          "art": "pattern:grid",
+          "repeat": 4,
+          "exit": "studio",
+          "label": "back"
+        }
+      },
+      "opens": {
+        "href": "index.html#shop",
+        "title": "Shop",
+        "note": "prints and editions"
+      }
+    },
+    "loft": {
+      "name": "The Loft",
+      "note": "An instrument that also runs without the instrument.",
+      "size": [
+        5.0,
+        3.4,
+        4.6
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:triangle",
+          "repeat": 4
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "west": {
+          "art": "pattern:grid",
+          "repeat": 4,
+          "exit": "workshop",
+          "label": "down",
+          "ascend": -1
+        }
+      },
+      "opens": [
+        {
+          "href": "synthsoup/webapp/play/",
+          "title": "Play it",
+          "note": "in the browser, no hardware"
+        },
+        {
+          "href": "index.html#synthsoup",
+          "title": "SynthSoup",
+          "note": "firmware for the FM-1"
+        }
+      ]
     }
   },
   "fractal": {
