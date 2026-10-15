@@ -181,8 +181,9 @@ footer small { font-size: 11px; opacity: .8; }
     <div class="ctl"><span>Vocoder</span><button class="btn-s" type="button" id="voc" aria-pressed="false">Vocode my mic</button></div>
     <p class="hint">Hold to glide: hold a key, then press another, and the pitch glides to it (on a phone, hold with one finger
       and tap with another; on a computer keyboard, hold one letter and press the next). Let go of the new key and it glides
-      back to the one still held. It sets the track to LEG with a 0.4 s glide; press it again for the track's own settings back.
-      Sliding a finger or the mouse along the keys glides too, and the Glide slider sets how slow (TIME at the top: 1.5 s).</p>
+      back to the one still held. It sets the track to LEG with a smooth 0.4 s glide (EXP: quick at first, easing into the note);
+      press it again for the track's own settings back. Sliding a finger or the mouse along the keys glides too, and the Glide
+      slider sets how slow (at the top: 1.5 s).</p>
     <p class="hint" id="voc-hint">Turns this track's INSERT into the VOCODER with your microphone as the voice: play chords and talk or
       sing. Use headphones, or the speakers feed back into the mic. On the FM-1 itself the voice is another track (INSERT › VOCOD,
       SRC TRK1–4), for example a recording loaded into a sample slot.</p>
@@ -249,7 +250,7 @@ footer small { font-size: 11px; opacity: .8; }
 
 <footer>
   <nav><a href="../../">SynthSoup home</a> · <a href="../installer/">Install</a> · <a href="../editor/">Editor</a></nav>
-  <small class="version">SynthSoup 0.1 on Felucca v1.5.1</small><br>
+  <small class="version">SynthSoup 0.1 on Felucca v1.5.1 (preview)</small><br>
   Built on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments · SID engine from <a href="https://github.com/keremimo/melodee">Melodee</a> · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> · browser build after charlesvestal's <a href="https://github.com/charlesvestal/fm1-x0x">X0X</a> · DotGothic16 font, SIL OFL 1.1<br>
   <small>M-VAVE and FM-1 are trademarks of their respective owners. SynthSoup is not affiliated with or endorsed by them. Untested on hardware.</small>
 </footer>
@@ -649,12 +650,13 @@ function setupGranular() {
   const g = $("gld");
   g.addEventListener("input", () => { if (cur) send({ type: "param", track: cur.track, id: extra.pid.glide, value: +g.value }); glideText(+g.value); });
   $("hold-glide").addEventListener("click", holdGlide);
-  seg($("glm"), ["RATE", "TIME"], ["The same speed for any interval", "The same time for any interval (up to 1.5 s)"],
+  seg($("glm"), ["RATE", "TIME", "EXP"], ["The same speed for any interval", "The same time for any interval (up to 1.5 s)",
+                                          "Smooth: quick at first, easing into the note, as an analogue synth's portamento"],
       (m) => cur && send({ type: "param", track: cur.track, id: extra.pid.glmode, value: m }));
   $("gr-set").disabled = false;
 }
-// Hold to glide: the track to LEGATO (overlapping notes glide) with a TIME glide of 0.4 s (GLD 66: 1 + 66^2 / 8 ticks
-// of 0.73 ms); off, the track's own VOICE, GLD and GLMOD back
+// Hold to glide: the track to LEGATO (overlapping notes glide) with an EXP glide (GLMOD 2: quick at first, easing in,
+// 99 % there in 0.4 s at GLD 66: 1 + 66^2 / 8 ticks of 0.73 ms); off, the track's own VOICE, GLD and GLMOD back
 const V_LEGATO = 2, HOLD_GLD = 66;
 let held = null;                                           // { track, voice, glide, glmode } to give back
 function holdGlide() {
@@ -669,7 +671,7 @@ function holdGlide() {
     held = { track: cur.track, voice: cur.voice, glide: cur.params.glide, glmode: cur.params.glmode, at: performance.now() };
     send({ type: "voice", track: cur.track, voice: V_LEGATO });
     send({ type: "param", track: cur.track, id: extra.pid.glide, value: HOLD_GLD });
-    send({ type: "param", track: cur.track, id: extra.pid.glmode, value: 1 });
+    send({ type: "param", track: cur.track, id: extra.pid.glmode, value: 2 });
   }
   b.setAttribute("aria-pressed", String(!!held));
   b.textContent = held ? `Holding glides on track ${held.track + 1}` : "Hold to glide";
