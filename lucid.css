@@ -1,0 +1,93 @@
+/* ===========================================================================
+   lucid.css — the one thing every page on this site shares.
+
+   The site had grown four separate design languages: the entrance and the
+   SP-404 tool on Orbitron and cyan, the gallery on Courier with its own black,
+   DrumSeek on red and yellow, and SynthSoup on pink, lime and Shrikhand. Five
+   body fonts, four backgrounds, five Google Fonts requests.
+
+   This file holds what they should agree on — the palette, the type, and the
+   way back into the gallery — and nothing else. Every token is prefixed
+   --lucid- so it cannot collide with a page's own variables; SynthSoup already
+   defines --display, and overwriting that would break it.
+
+   SynthSoup keeps its own interior on purpose. It is a separate instrument with
+   a deliberate identity, and repainting it cyan would destroy something that
+   works. Cohesion there means shared chrome, not a shared skin.
+   =========================================================================== */
+
+:root {
+    /* Surfaces */
+    --lucid-bg:        #08080e;
+    --lucid-bg-deep:   #05050a;   /* inside the gallery's rooms */
+    --lucid-panel:     #0b0b14;
+    --lucid-line:      rgba(255, 255, 255, .12);
+
+    /* Ink */
+    --lucid-ink:       #e8e8f0;
+    --lucid-dim:       #7a7a8c;
+
+    /* Accents — one value each, so cyan is the same cyan everywhere */
+    --lucid-cyan:      #00ffff;
+    --lucid-magenta:   #ff10f0;
+    --lucid-green:     #39ff14;
+    --lucid-warn:      #ffd34d;
+
+    /* Type */
+    --lucid-display:   'Orbitron', 'Arial Black', sans-serif;
+    --lucid-mono:      ui-monospace, SFMono-Regular, Menlo, 'Courier New', monospace;
+
+    /* Rhythm */
+    --lucid-radius:    3px;
+    --lucid-track:     .18em;     /* the letter-spacing used on small caps */
+}
+
+/* ===== the way back =====
+   Every page that is not the gallery itself gets the same return. Before this,
+   the entrance was the only page that linked back, so each tool was a dead end:
+   you could enter the architecture and not leave it. */
+.lucid-return {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 2147483000;          /* above whatever the page has */
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 255, 255, .34);
+    border-radius: var(--lucid-radius);
+    background: rgba(5, 5, 10, .82);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    color: var(--lucid-cyan);
+    font-family: var(--lucid-mono);
+    font-size: 10px;
+    letter-spacing: var(--lucid-track);
+    text-transform: uppercase;
+    text-decoration: none;
+    line-height: 1;
+    opacity: .72;
+    transition: opacity .2s ease, border-color .2s ease, background .2s ease;
+}
+.lucid-return:hover,
+.lucid-return:focus-visible {
+    opacity: 1;
+    border-color: rgba(0, 255, 255, .85);
+    background: rgba(0, 255, 255, .12);
+    outline: none;
+}
+.lucid-return::before {
+    content: '';
+    width: 9px; height: 9px;
+    border: 1px solid currentColor;
+    /* A small plan of a room: the mark the gallery is named by. */
+    border-right-color: transparent;
+    transform: rotate(45deg);
+}
+@media (max-width: 640px) {
+    .lucid-return { font-size: 9px; padding: 7px 10px; top: 8px; right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lucid-return { transition: none; }
+}

@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/lucid.css">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>LucidSoup — The Gallery</title>
 <meta name="description" content="A gallery whose rooms do not add up.">
 <style>
     :root {
-        --ink: #e8e8f0;
-        --dim: #7a7a8c;
-        --cyan: #00ffff;
-        --mag: #ff00ff;
+        /* Pulled from lucid.css so the gallery is the same cyan as the rest of
+           the site rather than its own near-miss. */
+        --ink: var(--lucid-ink, #e8e8f0);
+        --dim: var(--lucid-dim, #7a7a8c);
+        --cyan: var(--lucid-cyan, #00ffff);
+        --mag: var(--lucid-magenta, #ff10f0);
         --metre: 112px;          /* one "metre" of room, in px */
         --persp: 640px;          /* eye distance; JS reads this too */
     }
     * { box-sizing: border-box; }
     html, body {
         margin: 0; padding: 0; height: 100%; overflow: hidden;
-        background: #05050a; color: var(--ink);
-        font-family: 'Courier New', ui-monospace, monospace;
+        background: var(--lucid-bg-deep, #05050a); color: var(--ink);
+        font-family: var(--lucid-mono, ui-monospace, SFMono-Regular, Menlo, 'Courier New', monospace);
         -webkit-text-size-adjust: 100%;
     }
     body { touch-action: none; }
@@ -50,11 +53,11 @@
         /* Centred on the room origin before its own transform moves it out. */
         left: 50%; top: 50%;
         transform-origin: 50% 50%;
-        background-color: #0b0b14;
+        background-color: var(--lucid-panel, #0b0b14);
         background-repeat: repeat;
         overflow: hidden;
         /* A seam-hiding hairline; CSS 3D leaves sub-pixel gaps at some angles. */
-        outline: 1px solid #0b0b14;
+        outline: 1px solid var(--lucid-panel, #0b0b14);
     }
     /* Depth cue: without it, an untextured room reads as a flat rectangle. */
     .surface::after {
@@ -267,7 +270,10 @@
         gap: 12px;
         background: linear-gradient(rgba(0,0,0,.72), transparent);
     }
-    #hud-room { text-transform: uppercase; letter-spacing: .28em; font-size: 13px; }
+    #hud-room {
+        font-family: var(--lucid-display, 'Orbitron', 'Arial Black', sans-serif);
+        text-transform: uppercase; letter-spacing: .24em; font-size: 13px;
+    }
     #hud-note {
         margin-top: 6px; color: var(--dim); font-size: 11px;
         letter-spacing: .04em; max-width: 46ch; text-transform: none;
@@ -345,7 +351,7 @@
     }
 </style>
 </head>
-<body>
+<body data-lucid-no-return>
 
 <div id="stage" aria-label="Gallery">
     <div id="camera"><div id="lens"><div id="room"></div></div></div>
@@ -1605,5 +1611,6 @@ window.lucidGallery = {
 };
 })();
 </script>
+<script src="/lucid.js" defer></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/lucid.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LucidSoup — Visual Art &amp; Projection Mapping (v3.0)</title>
@@ -53,8 +54,8 @@
         nav ul { display: flex; justify-content: center; align-items: center; list-style: none; gap: clamp(.85rem, 2vw, 2rem); }
         nav li { margin: 0; }
         nav a { color: #fff; text-decoration: none; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; }
-        nav a:hover { color: #00ffff; }
-        nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, #00ffff, #ff00ff); transition: width .3s ease; }
+        nav a:hover { color: var(--lucid-cyan, #00ffff); }
+        nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-cyan, #00ffff), var(--lucid-magenta, #ff10f0)); transition: width .3s ease; }
         nav a:hover::after { width: 100%; }
 
         /* Burger. Laid out with flex + gap rather than margins so the bar pitch
@@ -97,7 +98,7 @@
             position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
             z-index: 1200; text-decoration: none;
             background: rgba(0,0,0,.72); border: 1px solid rgba(0,255,255,.35);
-            color: #00ffff; padding: 10px 18px; border-radius: 3px;
+            color: var(--lucid-cyan, #00ffff); padding: 10px 18px; border-radius: 3px;
             font-family: 'Courier New', monospace; font-size: 11px;
             letter-spacing: .18em; text-transform: uppercase;
             transition: background .2s, border-color .2s;
@@ -113,7 +114,7 @@
         .hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: transparent; position: relative; overflow: hidden; }
         .hero-content { z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
         .logo-container { position: relative; font-size: 4rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; font-family: 'Orbitron', monospace; }
-        .logo-text { position: relative; color: #fff; text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff; animation: wave 2s ease-in-out infinite, glitch .3s linear infinite; }
+        .logo-text { position: relative; color: #fff; text-shadow: 0 0 10px var(--lucid-cyan, #00ffff), 0 0 20px var(--lucid-cyan, #00ffff), 0 0 30px var(--lucid-cyan, #00ffff); animation: wave 2s ease-in-out infinite, glitch .3s linear infinite; }
         .logo-text::before, .logo-text::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         .logo-text::before { color: #ff0040; animation: glitch-red .4s linear infinite; clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%); }
         .logo-text::after { color: #00ff40; animation: glitch-green .5s linear infinite; clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%); }
@@ -191,7 +192,7 @@
         }
         .box-gate-cap {
             position: relative; font-size: 10px; letter-spacing: .34em;
-            text-transform: uppercase; color: #00ffff;
+            text-transform: uppercase; color: var(--lucid-cyan, #00ffff);
             text-shadow: 0 0 14px rgba(0,255,255,.8);
         }
         .box-gate:hover .box-gate-ring, .box-gate:focus-visible .box-gate-ring {
@@ -275,7 +276,7 @@
         .hero p { font-size: 1.2rem; font-weight: 300; letter-spacing: 2px; opacity: .8; z-index: 3; position: relative; }
 
         section { padding: 5rem 2rem; max-width: 1400px; margin: 0 auto; }
-        h2 { font-size: 2.5rem; font-weight: 100; margin-bottom: 3rem; text-align: center; color: #00ffff; }
+        h2 { font-size: 2.5rem; font-weight: 100; margin-bottom: 3rem; text-align: center; color: var(--lucid-cyan, #00ffff); }
 
         .portfolio-category { margin-bottom: 4rem; }
         .portfolio-category h3 { font-size: 1.1rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 1.5rem; padding-left: .5rem; border-left: 3px solid rgba(0,255,255,.06); }
@@ -427,7 +428,7 @@
         .shop-item-price {
             font-size: 1.1rem;
             font-weight: bold;
-            background: linear-gradient(90deg, #00ffff, #ff00ff);
+            background: linear-gradient(90deg, var(--lucid-cyan, #00ffff), var(--lucid-magenta, #ff10f0));
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -654,7 +655,7 @@
             border-radius: 50%;
             background: rgba(0, 0, 0, 0.85);
             border: 1px solid rgba(0, 255, 255, 0.5);
-            color: #00ffff;
+            color: var(--lucid-cyan, #00ffff);
             font-size: 22px;
             cursor: pointer;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 255, 255, 0.2);
@@ -675,7 +676,7 @@
         }
 
         .visual-controls h3 {
-            color: #00ffff;
+            color: var(--lucid-cyan, #00ffff);
             margin-bottom: 10px;
             font-size: 13px;
             text-transform: uppercase;
@@ -698,7 +699,7 @@
             width: 24px;
             height: 24px;
         }
-        .panel-close:hover { color: #00ffff; }
+        .panel-close:hover { color: var(--lucid-cyan, #00ffff); }
 
         .control-group {
             margin-bottom: 12px;
@@ -730,20 +731,20 @@
             appearance: none;
             width: 18px;
             height: 18px;
-            background: #00ffff;
+            background: var(--lucid-cyan, #00ffff);
             cursor: pointer;
             border-radius: 50%;
-            box-shadow: 0 0 6px #00ffff;
+            box-shadow: 0 0 6px var(--lucid-cyan, #00ffff);
         }
 
         .control-slider::-moz-range-thumb {
             width: 18px;
             height: 18px;
-            background: #00ffff;
+            background: var(--lucid-cyan, #00ffff);
             cursor: pointer;
             border-radius: 50%;
             border: none;
-            box-shadow: 0 0 6px #00ffff;
+            box-shadow: 0 0 6px var(--lucid-cyan, #00ffff);
         }
 
         /* Style native select/option to match dark theme - fixes white background
@@ -768,7 +769,7 @@
         .visual-controls select option:hover,
         .visual-controls select option:checked,
         select.control-select option:checked {
-            background: #ff00ff !important;
+            background: var(--lucid-magenta, #ff10f0) !important;
             color: #fff !important;
         }
 
@@ -795,13 +796,13 @@
 
         .shader-btn:hover {
             background: rgba(0, 255, 255, 0.2);
-            color: #00ffff;
+            color: var(--lucid-cyan, #00ffff);
         }
 
         .shader-btn.active {
             background: rgba(0, 255, 255, 0.3);
-            color: #00ffff;
-            border-color: #00ffff;
+            color: var(--lucid-cyan, #00ffff);
+            border-color: var(--lucid-cyan, #00ffff);
             box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
         }
 
@@ -853,7 +854,7 @@
             position: absolute;
             width: 16px;
             height: 16px;
-            background: #00ffff;
+            background: var(--lucid-cyan, #00ffff);
             border-radius: 50%;
             top: 2px;
             left: 2px;
@@ -963,7 +964,7 @@
         }
     </style>
 </head>
-<body>
+<body data-lucid-no-return>
     <!-- Audio-reactive WebGL canvas -->
     <canvas id="visual-canvas"></canvas>
 
@@ -3635,5 +3636,6 @@
     })();
     </script>
 
+<script src="/lucid.js" defer></script>
 </body>
 </html>

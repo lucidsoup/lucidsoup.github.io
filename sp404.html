@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/lucid.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SP-404 Converter — LucidSoup</title>
@@ -13,7 +14,7 @@
             font-family: 'Arial', sans-serif; line-height: 1.6; color: #fff;
             background: #0a0a0a; min-height: 100vh; overflow-x: hidden;
         }
-        a { color: #00ffff; }
+        a { color: var(--lucid-cyan, #00ffff); }
 
         .wrap { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
 
@@ -21,12 +22,12 @@
         .back { display: inline-block; font-size: .75rem; letter-spacing: .15em;
                 text-transform: uppercase; color: rgba(255,255,255,.5);
                 text-decoration: none; margin-bottom: 1.5rem; }
-        .back:hover { color: #00ffff; }
+        .back:hover { color: var(--lucid-cyan, #00ffff); }
         h1 {
             font-family: 'Orbitron', monospace; font-weight: 900;
             font-size: clamp(1.6rem, 5vw, 2.6rem); letter-spacing: .06em;
             text-transform: uppercase;
-            background: linear-gradient(90deg, #ff10f0, #00ffff, #39ff14);
+            background: linear-gradient(90deg, var(--lucid-magenta, #ff10f0), var(--lucid-cyan, #00ffff), var(--lucid-green, #39ff14));
             -webkit-background-clip: text; background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -73,7 +74,7 @@
         /* ---- options ---- */
         .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem 1.5rem; }
         .opt { display: flex; align-items: flex-start; gap: .6rem; }
-        .opt input[type=checkbox] { margin-top: .32rem; accent-color: #00ffff; width: 15px; height: 15px; flex: none; }
+        .opt input[type=checkbox] { margin-top: .32rem; accent-color: var(--lucid-cyan, #00ffff); width: 15px; height: 15px; flex: none; }
         .opt-label { font-size: .85rem; }
         .opt-help { font-size: .72rem; color: rgba(255,255,255,.4); line-height: 1.45; }
         .field { display: flex; align-items: center; gap: .55rem; font-size: .85rem; }
@@ -93,7 +94,7 @@
         }
         .files td { padding: .55rem .6rem; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: middle; }
         .files tr:last-child td { border-bottom: none; }
-        .pad { font-weight: bold; color: #39ff14; white-space: nowrap; }
+        .pad { font-weight: bold; color: var(--lucid-green, #39ff14); white-space: nowrap; }
         .pad.over { color: #ff3b6b; }
         .fname { word-break: break-word; }
         .dest { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -156,7 +157,7 @@
         }
 
         .srcinfo { font-size: .84rem; color: rgba(255,255,255,.6); line-height: 1.7; }
-        .srcinfo b { color: #39ff14; }
+        .srcinfo b { color: var(--lucid-green, #39ff14); }
         .srcinfo .warn { color: rgba(255,196,0,.9); }
         .pick-row { display: flex; gap: .6rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
         .pick-btn {
@@ -193,7 +194,6 @@
 <body>
 <div class="wrap">
     <header>
-        <a class="back" href="index.html">&larr; LucidSoup</a>
         <h1>SP-404 Converter</h1>
         <p class="tagline">
             Audio in, card-ready ZIP out — or pull the samples back off your card as clean,
@@ -1635,5 +1635,6 @@
     };
 })();
 </script>
+<script src="/lucid.js" defer></script>
 </body>
 </html>

@@ -4,6 +4,7 @@
      The page follows X0X's browser page, web/emu/index.html of charlesvestal/fm1-x0x (GPL-3.0), a Felucca fork. -->
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/lucid.css">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SynthSoup</title>
@@ -852,5 +853,6 @@ async function switchOn() {
 document.getElementById("go").addEventListener("click", switchOn);
 document.addEventListener("visibilitychange", () => { send({ type: "visible", on: !document.hidden }); if (!document.hidden) audioWake(); });
 </script>
+<script src="/lucid.js" defer></script>
 </body>
 </html>

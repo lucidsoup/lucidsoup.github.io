@@ -249,6 +249,29 @@ with no room is unreachable. Current wiring:
 The box on the entrance dives into the gallery rather than scrolling — each flap
 arrives at the room that holds that part of the site.
 
+## The shared layer
+
+`lucid.css` and `lucid.js` are the only things every page loads. The site had
+grown four separate design languages — the entrance and the SP-404 tool on
+Orbitron and cyan, the gallery on Courier with its own black, DrumSeek on red
+and yellow, SynthSoup on pink, lime and Shrikhand — so cyan was three slightly
+different cyans and no page but the entrance linked back to the gallery.
+
+`lucid.css` holds the palette, the type and the way back, and nothing else.
+Every token is prefixed `--lucid-` because SynthSoup already defines
+`--display`, and overwriting that would break it. Each use carries its original
+value as a fallback (`var(--lucid-cyan, #00ffff)`), so a page still looks right
+if the stylesheet fails to load.
+
+`lucid.js` injects the return link. It skips three cases: inside an iframe
+(DrumSeek is embedded in a section and would otherwise show the bar inside the
+frame), a page carrying `data-lucid-no-return` (the entrance and the gallery
+have their own), and the gallery itself.
+
+**SynthSoup keeps its own interior on purpose.** It is a separate instrument
+with a deliberate identity, and repainting it cyan would destroy something that
+works. Cohesion there means shared chrome, not a shared skin.
+
 ## Getting in
 
 The centre of the box on the home page, once the box is open. It does not
