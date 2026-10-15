@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LucidSoup — The Gallery</title>
+<meta name="description" content="A gallery whose rooms do not add up.">
+<style>
+    :root {
+        --ink: #e8e8f0;
+        --dim: #7a7a8c;
+        --cyan: #00ffff;
+        --mag: #ff00ff;
+        --metre: 112px;          /* one "metre" of room, in px */
+        --persp: 640px;          /* eye distance; JS reads this too */
+    }
+    * { box-sizing: border-box; }
+    html, body {
+        margin: 0; padding: 0; height: 100%; overflow: hidden;
+        background: #05050a; color: var(--ink);
+        font-family: 'Courier New', ui-monospace, monospace;
+        -webkit-text-size-adjust: 100%;
+    }
+    body { touch-action: none; }
+
+    /* ===== the viewport into the room ===== */
+    #stage {
+        position: fixed; inset: 0;
+        perspective: var(--persp);
+        perspective-origin: 50% 50%;
+        cursor: grab;
+    }
+    #stage.dragging { cursor: grabbing; }
+
+    #camera {
+        position: absolute; top: 50%; left: 50%;
+        width: 0; height: 0;
+        transform-style: preserve-3d;
+        will-change: transform;
+    }
+    #room {
+        position: absolute; top: 0; left: 0;
+        width: 0; height: 0;
+        transform-style: preserve-3d;
+        will-change: transform;
+    }
+
+    .surface {
+        position: absolute;
+        /* Centred on the room origin before its own transform moves it out. */
+        left: 50%; top: 50%;
+        transform-origin: 50% 50%;
+        background-color: #0b0b14;
+        background-repeat: repeat;
+        overflow: hidden;
+        /* A seam-hiding hairline; CSS 3D leaves sub-pixel gaps at some angles. */
+        outline: 1px solid #0b0b14;
+    }
+    /* Depth cue: without it, an untextured room reads as a flat rectangle. */
+    .surface::after {
+        content: ''; position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at 50% 50%,
+                    rgba(0,0,0,0) 42%, rgba(0,0,0,.44) 100%);
+    }
+    .surface.lit::after { background: radial-gradient(ellipse at 50% 40%,
+                    rgba(0,0,0,0) 45%, rgba(0,0,0,.35) 100%); }
+
+    .surface > video, .surface > img, .surface > canvas.fill {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; display: block;
+    }
+
+    /* ===== a framed piece hanging on a wall ===== */
+    .frame {
+        position: absolute; left: 50%; top: 46%;
+        transform: translate(-50%, -50%);
+        width: 62%; height: 58%;
+        background: #000;
+        border: 2px solid rgba(255,255,255,.14);
+        box-shadow: 0 0 0 10px #07070d, 0 24px 60px rgba(0,0,0,.8),
+                    0 0 50px rgba(0,255,255,.07);
+        overflow: hidden;
+        cursor: pointer;
+    }
+    .frame > video, .frame > img, .frame > canvas {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; display: block;
+    }
+    .frame-cap {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        padding: 6px 8px; font-size: 11px; letter-spacing: .06em;
+        background: linear-gradient(transparent, rgba(0,0,0,.85));
+        color: #cfcfe0; text-transform: lowercase;
+        opacity: 0; transition: opacity .25s ease;
+    }
+    .frame:hover .frame-cap { opacity: 1; }
+    .frame-empty {
+        position: absolute; inset: 0; display: flex;
+        align-items: center; justify-content: center;
+        color: #2a2a3a; font-size: 30px;
+    }
+
+    /* ===== a doorway ===== */
+    .doorway {
+        position: absolute; left: 50%; bottom: 0;
+        transform: translateX(-50%);
+        width: 38%; height: 72%;
+        border-radius: 48% 48% 0 0 / 22% 22% 0 0;
+        background:
+            radial-gradient(ellipse at 50% 100%, rgba(0,255,255,.16), transparent 62%),
+            #02020a;
+        box-shadow: inset 0 0 44px rgba(0,0,0,.95),
+                    0 0 0 2px rgba(0,255,255,.16),
+                    0 0 34px rgba(0,255,255,.10);
+        cursor: pointer;
+        transition: box-shadow .3s ease;
+    }
+    .doorway:hover, .doorway:focus-visible {
+        box-shadow: inset 0 0 44px rgba(0,0,0,.9),
+                    0 0 0 2px rgba(0,255,255,.5),
+                    0 0 60px rgba(0,255,255,.3);
+        outline: none;
+    }
+    .doorway-label {
+        position: absolute; left: 50%; bottom: 14%;
+        transform: translateX(-50%);
+        font-size: 12px; letter-spacing: .3em; text-transform: uppercase;
+        color: var(--cyan); opacity: .8; white-space: nowrap;
+        text-shadow: 0 0 12px rgba(0,255,255,.6);
+        pointer-events: none;
+    }
+    /* A doorway on the floor or ceiling reads as a shaft, not an arch. */
+    .doorway.shaft {
+        width: 44%; height: 44%; top: 50%; bottom: auto;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+    }
+
+    /* ===== manipulation ===== */
+    /* Everything the viewer does to a room is one filter on this wrapper plus a
+       transform on the room, so it costs nothing and composes freely. */
+    #lens { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+    .surface.touched { animation: touched .5s ease-out; }
+    @keyframes touched {
+        0%   { box-shadow: inset 0 0 0 3px rgba(0,255,255,.9); }
+        100% { box-shadow: inset 0 0 0 3px rgba(0,255,255,0); }
+    }
+    .surface.alterable { cursor: crosshair; }
+
+    /* Echoes: copies of the room nested behind itself. Structure only — the
+       media is stripped out of them, so they stay cheap. */
+    .echo { position: absolute; left: 0; top: 0; width: 0; height: 0;
+            transform-style: preserve-3d; pointer-events: none; }
+
+    #fx {
+        position: fixed; z-index: 55; left: 16px; top: 92px;
+        display: flex; flex-direction: column; gap: 7px;
+        pointer-events: auto;
+    }
+    .fx-row { display: flex; gap: 6px; align-items: center; }
+    .fx-btn {
+        background: rgba(255,0,255,.07); border: 1px solid rgba(255,0,255,.32);
+        color: #ff8cff; font: inherit; font-size: 10px; letter-spacing: .14em;
+        text-transform: uppercase; padding: 7px 9px; border-radius: 3px;
+        cursor: pointer; min-width: 40px; min-height: 34px;
+        transition: background .18s, border-color .18s;
+    }
+    .fx-btn:hover, .fx-btn:focus-visible {
+        background: rgba(255,0,255,.18); border-color: rgba(255,0,255,.7); outline: none;
+    }
+    .fx-btn.on { background: rgba(255,0,255,.26); border-color: rgba(255,0,255,.85); color: #fff; }
+    .fx-val { color: #7a7a8c; font-size: 10px; min-width: 26px; }
+    #fx-title { color: #7a7a8c; font-size: 10px; letter-spacing: .24em; text-transform: uppercase; }
+    #fx.folded .fx-row:not(.always) { display: none; }
+
+    @media (max-width: 640px) {
+        #fx { top: auto; bottom: 108px; left: 10px; right: 10px; }
+        .fx-row { flex-wrap: wrap; }
+        .fx-btn { font-size: 9px; padding: 7px; min-width: 34px; }
+    }
+
+    /* ===== travel fade ===== */
+    #veil {
+        position: fixed; inset: 0; background: #000; pointer-events: none;
+        opacity: 0; transition: opacity .22s linear; z-index: 40;
+    }
+    #veil.on { opacity: 1; }
+
+    /* ===== HUD ===== */
+    .hud {
+        position: fixed; z-index: 50; pointer-events: none;
+        font-size: 12px; letter-spacing: .1em;
+    }
+    #hud-top {
+        top: 0; left: 0; right: 0;
+        padding: 14px 16px;
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 12px;
+        background: linear-gradient(rgba(0,0,0,.72), transparent);
+    }
+    #hud-room { text-transform: uppercase; letter-spacing: .28em; font-size: 13px; }
+    #hud-note {
+        margin-top: 6px; color: var(--dim); font-size: 11px;
+        letter-spacing: .04em; max-width: 46ch; text-transform: none;
+    }
+    #hud-stats { text-align: right; color: var(--dim); font-size: 11px; line-height: 1.7; white-space: nowrap; }
+    #hud-stats b { color: var(--ink); font-weight: normal; }
+    /* The proof: altitude that cannot be squared with having come back. */
+    #hud-stats .impossible b { color: var(--mag); text-shadow: 0 0 14px rgba(255,0,255,.6); }
+
+    #hud-bottom {
+        bottom: 0; left: 0; right: 0;
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+        background: linear-gradient(transparent, rgba(0,0,0,.78));
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        pointer-events: auto;
+    }
+    /* Exits are always listed here as buttons. 3D hit-testing on a phone is
+       fiddly, so the gallery is fully navigable without touching the room. */
+    .exit-chip {
+        pointer-events: auto;
+        background: rgba(0,255,255,.07);
+        border: 1px solid rgba(0,255,255,.3);
+        color: var(--cyan);
+        padding: 9px 14px; border-radius: 3px;
+        font: inherit; font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+        cursor: pointer; transition: background .2s, border-color .2s;
+        min-height: 40px;
+    }
+    .exit-chip:hover, .exit-chip:focus-visible {
+        background: rgba(0,255,255,.16); border-color: rgba(0,255,255,.65); outline: none;
+    }
+    .exit-chip .asc { color: var(--mag); margin-left: 6px; }
+    #leave {
+        pointer-events: auto; margin-left: auto;
+        background: none; border: 1px solid rgba(255,255,255,.2);
+        color: var(--dim); padding: 9px 14px; border-radius: 3px;
+        font: inherit; font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+        cursor: pointer; min-height: 40px;
+    }
+    #leave:hover { color: var(--ink); border-color: rgba(255,255,255,.45); }
+
+    #hint {
+        position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%);
+        z-index: 50; color: var(--dim); font-size: 11px; letter-spacing: .14em;
+        pointer-events: none; opacity: 1; transition: opacity .6s ease;
+        text-align: center; white-space: nowrap;
+    }
+    #hint.gone { opacity: 0; }
+
+    /* ===== lightbox for a full piece ===== */
+    #lb { position: fixed; inset: 0; background: rgba(0,0,0,.96); z-index: 60;
+          display: none; align-items: center; justify-content: center; padding: 2rem; }
+    #lb.on { display: flex; }
+    #lb video { max-width: 92vw; max-height: 86vh; border-radius: 6px; }
+    #lb-close { position: absolute; top: 14px; right: 20px; background: none; border: none;
+                color: #fff; font-size: 34px; cursor: pointer; opacity: .75; line-height: 1; }
+
+    #fail {
+        position: fixed; inset: 0; display: none; z-index: 70;
+        align-items: center; justify-content: center; flex-direction: column;
+        gap: 14px; text-align: center; padding: 2rem; background: #05050a;
+    }
+    #fail.on { display: flex; }
+    #fail a { color: var(--cyan); }
+
+    @media (max-width: 640px) {
+        :root { --metre: 86px; --persp: 460px; }
+        #hud-note { display: none; }
+        #hud-room { font-size: 11px; letter-spacing: .2em; }
+        .doorway-label { font-size: 10px; letter-spacing: .2em; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        #veil { transition-duration: .01ms; }
+        #camera, #room { transition: none !important; }
+    }
+</style>
+</head>
+<body>
+
+<div id="stage" aria-label="Gallery">
+    <div id="camera"><div id="lens"><div id="room"></div></div></div>
+</div>
+
+<div id="fx" class="folded"></div>
+
+<div id="veil"></div>
+
+<div class="hud" id="hud-top">
+    <div>
+        <div id="hud-room">—</div>
+        <div id="hud-note"></div>
+    </div>
+    <div id="hud-stats"></div>
+</div>
+
+<div class="hud" id="hud-bottom"></div>
+<div id="hint">drag to look · tap a doorway to travel · tap a wall to change it</div>
+
+<div id="lb"><button id="lb-close" aria-label="Close">&times;</button><video controls playsinline></video></div>
+
+<div id="fail">
+    <div>The gallery could not be loaded.</div>
+    <div style="color:#7a7a8c;font-size:12px" id="fail-why"></div>
+    <a href="index.html">back to lucidsoup</a>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+// Kept byte-identical to the wrapper in index.html and scripts/shader-validate.mjs.
+// If one changes, change all three; the validator asserts they match.
+var PRELUDE = [
+  '#ifdef GL_FRAGMENT_PRECISION_HIGH',
+  'precision highp float;',
+  '#else',
+  'precision mediump float;',
+  '#endif',
+  'uniform vec3 iResolution;',
+  'uniform float iTime;',
+  'uniform vec4 iMouse;',
+  ''
+].join('\n');
+
+var EPILOGUE = '\nvoid main(){\n' +
+  '    vec4 lucidOut = vec4(0.0, 0.0, 0.0, 1.0);\n' +
+  '    mainImage(lucidOut, gl_FragCoord.xy);\n' +
+  '    gl_FragColor = vec4(lucidOut.rgb, 1.0);\n}\n';
+
+var SIDES = ['floor', 'ceiling', 'north', 'south', 'east', 'west'];
+var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function cssNum(name, dflt) {
+    var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+    return isFinite(v) ? v : dflt;
+}
+var SMALL = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+var METRE = cssNum('--metre', 112);
+var PERSP = cssNum('--persp', 640);
+var baseZ = 0;      // where the room sits so the eye lands just outside its front
+var animZ = 0;      // travel animation offset, composed with baseZ
+
+var stage = document.getElementById('stage');
+var cameraEl = document.getElementById('camera');
+var roomEl = document.getElementById('room');
+var veil = document.getElementById('veil');
+var hudRoom = document.getElementById('hud-room');
+var hudNote = document.getElementById('hud-note');
+var hudStats = document.getElementById('hud-stats');
+var hudBottom = document.getElementById('hud-bottom');
+var hint = document.getElementById('hint');
+
+var DATA = null, MEDIA = null, SHADERS = [];
+
+/* ========================= the fractal =========================
+   Beyond the authored rooms the gallery is endless, and its structure is an
+   IFS attractor. A room id like "f012" is an ADDRESS: each digit picks one of
+   the contractive maps, so following digits walks deeper into the attractor.
+
+   Two consequences that matter:
+     - It is deterministic. The same address is always the same room, so a room
+       can be linked to and come back identical.
+     - It is self-similar. Addresses sharing a prefix land near each other, so
+       a room resembles its parent the way a part of a fractal resembles the
+       whole. Descending is zooming.                                          */
+
+var FR = {};
+var MAPS = [];
+var BRANCH = 3;
+
+function initFractal() {
+    FR = (DATA && DATA.fractal) || {};
+    BRANCH = Math.max(2, Math.min(4, FR.branch || 3));
+    // Contractive similarities: scale, rotation, translation. Their attractor
+    // is the shape of the gallery.
+    MAPS = FR.maps || [
+        { s: 0.52, r: 0.00, tx: -0.42, ty: -0.26 },
+        { s: 0.52, r: 2.09, tx:  0.42, ty: -0.26 },
+        { s: 0.52, r: 4.19, tx:  0.00, ty:  0.48 },
+        { s: 0.48, r: 1.05, tx:  0.00, ty: -0.06 }
+    ].slice(0, BRANCH);
+}
+
+function isAddr(id) { return typeof id === 'string' && /^f[0-9]*$/.test(id); }
+function digits(id) { return id.slice(1); }
+
+// Walk the address through the maps. Returns the point it lands on and the
+// accumulated contraction, which is how deep into the fractal that is.
+//
+// The maps compose with the FIRST digit outermost: M(d0) . M(d1) . ... . M(dn).
+// That is what makes the addressing nest. Changing the last digit perturbs the
+// innermost point, and every preceding map then contracts that perturbation, so
+// a longer shared prefix means a nearer room. Applying them the other way round
+// moves siblings a full translation apart and the self-similarity is lost —
+// which is exactly what the first version did.
+function addrPoint(addr) {
+    var x = 0, y = 0, scale = 1;
+    for (var i = addr.length - 1; i >= 0; i--) {
+        var m = MAPS[(addr.charCodeAt(i) - 48) % MAPS.length];
+        var c = Math.cos(m.r), sn = Math.sin(m.r);
+        var nx = m.s * (c * x - sn * y) + m.tx;
+        var ny = m.s * (sn * x + c * y) + m.ty;
+        x = nx; y = ny; scale *= m.s;
+    }
+    return { x: x, y: y, scale: scale };
+}
+
+// The room's character comes from the orbit at that point, not from a random
+// number, so neighbouring rooms vary the way a fractal varies.
+function orbit(cx, cy) {
+    var zx = 0, zy = 0, i = 0, trap = 1e9, n = 72;
+    for (; i < n; i++) {
+        var t = zx * zx - zy * zy + cx;
+        zy = 2 * zx * zy + cy;
+        zx = t;
+        var m = zx * zx + zy * zy;
+        if (m < trap) trap = m;
+        if (m > 16) break;
+    }
+    return { escape: i, inside: i >= n, trap: Math.sqrt(trap) };
+}
+
+function hash32(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+}
+
+var NAME_A = ['Lower', 'Thin', 'Folded', 'Quiet', 'Bright', 'Hollow', 'Outer',
+              'Deep', 'Narrow', 'Pale', 'Inner', 'Slow'];
+var NAME_B = ['Vault', 'Spire', 'Landing', 'Cell', 'Gallery', 'Shaft', 'Terrace',
+              'Chamber', 'Passage', 'Court', 'Reach', 'Fold'];
+var PATTERN_POOL = ['hex', 'triangle', 'penrose', 'escher', 'moire', 'grid'];
+
+var genCache = {};
+function generateRoom(id) {
+    if (genCache[id]) return genCache[id];
+    var addr = digits(id);
+    var depth = addr.length;
+    var pt = addrPoint(addr);
+    var cx = (FR.seedX != null ? FR.seedX : -0.40) + pt.x;
+    var cy = (FR.seedY != null ? FR.seedY : 0.60) + pt.y;
+    var orb = orbit(cx, cy);
+
+    // Everything below is a function of the orbit, so it is stable per address.
+    var ang = Math.atan2(cy, cx);
+    var hue = Math.round((((ang * 180 / Math.PI) + 360) % 360 + orb.escape * 9) % 360);
+    var k = orb.escape + depth;
+    var tight = Math.min(1, orb.trap);
+
+    var w = 3.2 + tight * 4.2;
+    var h = 2.6 + (orb.inside ? 1.4 + (hsh % 160) / 100 : tight * 1.5);
+    var d = 3.2 + ((orb.escape % 5) * 0.55);
+
+    var floorPat = PATTERN_POOL[k % PATTERN_POOL.length];
+    var ceilPat  = PATTERN_POOL[(k + 2 + depth) % PATTERN_POOL.length];
+    var sidePat  = PATTERN_POOL[(k + 4) % PATTERN_POOL.length];
+
+    var hsh = hash32(id);
+    var name = NAME_A[Math.floor(hue / 360 * NAME_A.length) % NAME_A.length] + ' ' +
+               NAME_B[hsh % NAME_B.length];
+
+    var surfaces = {
+        floor:   { art: 'pattern:' + floorPat, repeat: 2 + (k % 4) },
+        ceiling: { art: 'pattern:' + ceilPat,  repeat: 1 + (k % 3) }
+    };
+
+    // Rooms deep inside the set are the ones that get live work on the wall.
+    if (orb.inside && (hsh % 4 === 0)) {
+        surfaces.north = { art: 'shader:random', frame: true };
+    } else if (hsh % 5 === 0) {
+        surfaces.north = { art: 'work:random', frame: true };
+    } else {
+        surfaces.north = { art: 'pattern:' + sidePat, repeat: 2 };
+    }
+
+    // Deeper is DOWN: diving into the fractal reads as descent.
+    var sides = ['east', 'west', 'ceiling'];
+    for (var i = 0; i < BRANCH && i < 3; i++) {
+        var side = sides[i];
+        var child = id + i;
+        if (side === 'ceiling') {
+            surfaces.ceiling.exit = child;
+            surfaces.ceiling.label = 'deeper';
+            surfaces.ceiling.ascend = -1;
+        } else {
+            surfaces[side] = { art: 'pattern:' + sidePat, repeat: 2 + (i % 3),
+                               exit: child, label: 'deeper', ascend: -1 };
+        }
+    }
+
+    // Back up, to the parent address or out to the authored rooms.
+    surfaces.floor.exit = depth > 0 ? id.slice(0, -1) : 'antechamber';
+    surfaces.floor.label = depth > 0 ? 'back' : 'out';
+    surfaces.floor.ascend = 1;
+
+    var room = {
+        name: name,
+        note: depth === 0 ? 'Past here the rooms are generated. They do not run out.'
+                          : null,
+        size: [w, h, d],
+        surfaces: surfaces,
+        _fractal: { depth: depth, cx: cx, cy: cy, hue: hue,
+                    escape: orb.escape, inside: orb.inside, zoom: pt.scale }
+    };
+    genCache[id] = room;
+    return room;
+}
+
+// Every room lookup goes through here: authored first, generated otherwise.
+function getRoom(id) {
+    if (DATA && DATA.rooms && DATA.rooms[id]) return DATA.rooms[id];
+    if (isAddr(id)) return generateRoom(id);
+    return null;
+}
+var state = { room: null, yaw: 0, pitch: 0, altitude: 0, steps: 0, visited: {} };
+var live = [];     // teardown functions for the current room's running media
+
+function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+}
+
+/* ========================= patterns =========================
+   Drawn in code so every room looks deliberate before any art exists, and so
+   "tileable pattern" is a first-class art type. Each returns a seamless tile. */
+var PATTERNS = {};
+function tile(size, draw) {
+    var c = document.createElement('canvas');
+    c.width = c.height = size;
+    var x = c.getContext('2d');
+    x.fillStyle = '#0b0b14';
+    x.fillRect(0, 0, size, size);
+    // Draw nine times, offset, so anything crossing an edge wraps cleanly.
+    for (var dy = -1; dy <= 1; dy++) {
+        for (var dx = -1; dx <= 1; dx++) {
+            x.save();
+            x.translate(dx * size, dy * size);
+            draw(x, size);
+            x.restore();
+        }
+    }
+    return c;
+}
+
+PATTERNS.hex = function () {
+    return tile(160, function (x, s) {
+        var r = s / 4, h = r * Math.sqrt(3);
+        x.strokeStyle = 'rgba(0,255,255,.26)';
+        x.lineWidth = 1.2;
+        for (var row = 0; row < 3; row++) {
+            for (var col = 0; col < 3; col++) {
+                var cx = col * r * 3 + (row % 2 ? r * 1.5 : 0);
+                var cy = row * h / 2 * 1.0 + h / 2;
+                x.beginPath();
+                for (var i = 0; i < 6; i++) {
+                    var a = Math.PI / 180 * (60 * i);
+                    var px = cx + r * Math.cos(a), py = cy + r * Math.sin(a);
+                    i ? x.lineTo(px, py) : x.moveTo(px, py);
+                }
+                x.closePath(); x.stroke();
+            }
+        }
+    });
+};
+
+PATTERNS.triangle = function () {
+    return tile(140, function (x, s) {
+        var n = 4, w = s / n, h = w * Math.sqrt(3) / 2;
+        x.strokeStyle = 'rgba(255,0,255,.22)';
+        x.lineWidth = 1;
+        for (var r = 0; r * h <= s; r++) {
+            for (var c = 0; c <= n; c++) {
+                var ox = c * w + (r % 2 ? w / 2 : 0), oy = r * h;
+                x.beginPath();
+                x.moveTo(ox, oy); x.lineTo(ox + w / 2, oy + h); x.lineTo(ox - w / 2, oy + h);
+                x.closePath(); x.stroke();
+            }
+        }
+    });
+};
+
+PATTERNS.grid = function () {
+    return tile(120, function (x, s) {
+        x.strokeStyle = 'rgba(255,255,255,.12)';
+        x.lineWidth = 1;
+        for (var i = 0; i <= 4; i++) {
+            var p = i * s / 4;
+            x.beginPath(); x.moveTo(p, 0); x.lineTo(p, s); x.stroke();
+            x.beginPath(); x.moveTo(0, p); x.lineTo(s, p); x.stroke();
+        }
+    });
+};
+
+PATTERNS.moire = function () {
+    return tile(200, function (x, s) {
+        x.strokeStyle = 'rgba(0,255,255,.16)';
+        x.lineWidth = 1;
+        for (var r = 4; r < s; r += 7) {
+            x.beginPath(); x.arc(s / 2, s / 2, r, 0, Math.PI * 2); x.stroke();
+        }
+    });
+};
+
+// Two rhombs at five orientations — the look of a Penrose tiling without
+// claiming to be a correct one.
+PATTERNS.penrose = function () {
+    return tile(180, function (x, s) {
+        x.strokeStyle = 'rgba(255,0,255,.26)';
+        x.lineWidth = 1.1;
+        var R = s / 2.6;
+        for (var k = 0; k < 5; k++) {
+            var a = k * Math.PI * 2 / 5;
+            x.save();
+            x.translate(s / 2, s / 2);
+            x.rotate(a);
+            x.beginPath();
+            x.moveTo(0, 0);
+            x.lineTo(R, 0);
+            x.lineTo(R + R * Math.cos(Math.PI / 5), R * Math.sin(Math.PI / 5));
+            x.lineTo(R * Math.cos(Math.PI / 5), R * Math.sin(Math.PI / 5));
+            x.closePath(); x.stroke();
+            x.restore();
+        }
+    });
+};
+
+// Interlocking S-tiles: a square tile whose bulge on one edge is the bite out
+// of the opposite edge, so copies lock together the way an Escher tiling does.
+PATTERNS.escher = function () {
+    return tile(150, function (x, s) {
+        var n = 2, u = s / n;
+        x.lineWidth = 1.2;
+        for (var r = 0; r < n; r++) {
+            for (var c = 0; c < n; c++) {
+                var ox = c * u, oy = r * u;
+                x.strokeStyle = ((r + c) % 2) ? 'rgba(0,255,255,.3)' : 'rgba(255,0,255,.24)';
+                x.beginPath();
+                x.moveTo(ox, oy);
+                x.bezierCurveTo(ox + u * .3, oy + u * .22, ox + u * .7, oy - u * .22, ox + u, oy);
+                x.bezierCurveTo(ox + u * 1.22, oy + u * .3, ox + u * .78, oy + u * .7, ox + u, oy + u);
+                x.bezierCurveTo(ox + u * .7, oy + u * 1.22, ox + u * .3, oy + u * .78, ox, oy + u);
+                x.bezierCurveTo(ox - u * .22, oy + u * .7, ox + u * .22, oy + u * .3, ox, oy);
+                x.stroke();
+            }
+        }
+    });
+};
+
+var patternCache = {};
+function patternURL(name) {
+    if (!PATTERNS[name]) return null;
+    if (!patternCache[name]) patternCache[name] = PATTERNS[name]().toDataURL('image/png');
+    return patternCache[name];
+}
+
+/* ========================= shaders on walls ========================= */
+function startShader(canvas, glsl) {
+    var gl;
+    try { gl = canvas.getContext('webgl', { alpha: false, antialias: false, depth: false, powerPreference: 'low-power' }); }
+    catch (e) { gl = null; }
+    if (!gl) return function () {};
+
+    function sh(type, src) {
+        var s = gl.createShader(type);
+        gl.shaderSource(s, src); gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { gl.deleteShader(s); return null; }
+        return s;
+    }
+    var vs = sh(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}');
+    var fs = sh(gl.FRAGMENT_SHADER, PRELUDE + glsl + EPILOGUE);
+    if (!vs || !fs) return function () {};
+    var pr = gl.createProgram();
+    gl.attachShader(pr, vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) return function () {};
+    gl.useProgram(pr);
+
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(pr, 'p');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    var uRes = gl.getUniformLocation(pr, 'iResolution');
+    var uTime = gl.getUniformLocation(pr, 'iTime');
+    var uMouse = gl.getUniformLocation(pr, 'iMouse');
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uRes) gl.uniform3f(uRes, canvas.width, canvas.height, 1);
+    if (uMouse) gl.uniform4f(uMouse, 0, 0, 0, 0);
+
+    // A wall is scenery, not the subject: ~20fps keeps several of them affordable.
+    var t0 = performance.now(), raf = 0, last = 0, dead = false;
+    function frame(now) {
+        if (dead) return;
+        raf = requestAnimationFrame(frame);
+        if (now - last < 48) return;
+        last = now;
+        if (uTime) gl.uniform1f(uTime, (now - t0) / 1000);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    raf = requestAnimationFrame(frame);
+
+    return function stop() {
+        dead = true;
+        if (raf) cancelAnimationFrame(raf);
+        // Free the context explicitly; browsers cap how many may exist at once.
+        var ext = gl.getExtension('WEBGL_lose_context');
+        if (ext) ext.loseContext();
+    };
+}
+
+/* ========================= art resolution ========================= */
+function mediaWork(id) {
+    if (!MEDIA || !MEDIA.works) return null;
+    for (var i = 0; i < MEDIA.works.length; i++) if (MEDIA.works[i].id === id) return MEDIA.works[i];
+    return null;
+}
+function pickShader(id) {
+    if (!SHADERS.length) return null;
+    if (id === 'random' || !id) return SHADERS[Math.floor(Math.random() * SHADERS.length)];
+    for (var i = 0; i < SHADERS.length; i++) if (SHADERS[i].id === id) return SHADERS[i];
+    return null;
+}
+
+// Returns { el, caption, open, stop } or null. `budget` caps live WebGL walls.
+var shaderBudget = 0;
+function buildArt(ref, opts) {
+    if (!ref) return null;
+    var i = ref.indexOf(':');
+    var kind = i < 0 ? '' : ref.slice(0, i);
+    var arg = i < 0 ? ref : ref.slice(i + 1);
+
+    if (kind === 'color') {
+        var d = document.createElement('div');
+        d.style.cssText = 'position:absolute;inset:0';
+        d.style.background = arg;
+        return { el: d };
+    }
+
+    if (kind === 'pattern') {
+        var url = patternURL(arg);
+        if (!url) return null;
+        return { pattern: url };
+    }
+
+    if (kind === 'image') {
+        var img = document.createElement('img');
+        img.src = arg; img.alt = ''; img.loading = 'lazy';
+        img.addEventListener('error', function () { img.remove(); });
+        return { el: img };
+    }
+
+    if (kind === 'shader') {
+        if (shaderBudget <= 0) return null;         // too many already running
+        var s = pickShader(arg);
+        if (!s || !s.glsl) return null;
+        shaderBudget--;
+        var cv = document.createElement('canvas');
+        var px = (opts && opts.framed) ? (SMALL ? 192 : 320) : (SMALL ? 160 : 256);
+        cv.width = cv.height = px;
+        if (!(opts && opts.framed)) cv.className = 'fill';
+        var stop = startShader(cv, s.glsl);
+        return { el: cv, caption: s.title || s.id, stop: stop };
+    }
+
+    if (kind === 'work') {
+        var w;
+        if (arg === 'random') {
+            var pool = (MEDIA && MEDIA.works || []).filter(function (x) { return x && (x.preview || x.poster); });
+            w = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+        } else {
+            w = mediaWork(arg);
+        }
+        if (!w) return null;
+        var node, stopFn = null;
+        if (w.preview) {
+            var v = document.createElement('video');
+            v.src = w.preview; v.muted = true; v.loop = true;
+            v.playsInline = true; v.setAttribute('playsinline', '');
+            v.setAttribute('aria-hidden', 'true'); v.preload = 'metadata';
+            if (w.poster) v.poster = w.poster;
+            v.addEventListener('error', function () { v.style.display = 'none'; });
+            var q = v.play(); if (q && q.catch) q.catch(function () {});
+            stopFn = function () { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {} };
+            node = v;
+        } else if (w.poster) {
+            var im = document.createElement('img');
+            im.src = w.poster; im.alt = '';
+            node = im;
+        } else {
+            return null;
+        }
+        var dest = w.full ? w.full
+                 : w.vimeo ? 'https://vimeo.com/' + encodeURIComponent(w.vimeo)
+                 : w.youtube ? 'https://youtu.be/' + encodeURIComponent(w.youtube) : null;
+        return {
+            el: node,
+            caption: w.title || arg,
+            stop: stopFn,
+            open: dest ? function () {
+                if (w.full) openLightbox(w.full);
+                else window.open(dest, '_blank', 'noopener');
+            } : null
+        };
+    }
+    return null;
+}
+
+/* ========================= geometry =========================
+   Each surface is placed by rotating it to face inward and pushing it out to
+   the wall. Nothing here refers to any other room, which is exactly why the
+   gallery can be impossible. */
+function placement(side, w, h, d) {
+    switch (side) {
+        case 'north':   return { w: w, h: h, t: 'translateZ(' + (-d / 2) + 'px)' };
+        case 'south':   return { w: w, h: h, t: 'rotateY(180deg) translateZ(' + (-d / 2) + 'px)' };
+        case 'west':    return { w: d, h: h, t: 'rotateY(90deg) translateZ(' + (-w / 2) + 'px)' };
+        case 'east':    return { w: d, h: h, t: 'rotateY(-90deg) translateZ(' + (-w / 2) + 'px)' };
+        // Verified on screen: rotateX(90deg) puts the plane LOW (floor),
+        // rotateX(-90deg) puts it HIGH (ceiling).
+        case 'floor':   return { w: w, h: d, t: 'rotateX(90deg) translateZ(' + (-h / 2) + 'px)' };
+        case 'ceiling': return { w: w, h: d, t: 'rotateX(-90deg) translateZ(' + (-h / 2) + 'px)' };
+    }
+}
+
+// Paints one surface's art. Pulled out of buildRoom so a wall can be repainted
+// on its own when someone changes it, without rebuilding the room around it.
+function paintArt(el, spec, surfaceW) {
+    // Clear what was there, but never the doorway.
+    Array.prototype.slice.call(el.children).forEach(function (ch) {
+        if (!ch.classList.contains('doorway')) ch.remove();
+    });
+    el.style.backgroundImage = '';
+    el.classList.remove('lit');
+
+    var art = buildArt(spec.art, { framed: !!spec.frame });
+
+    if (art && art.pattern) {
+        el.style.backgroundImage = 'url(' + art.pattern + ')';
+        var reps = Math.max(1, spec.repeat || 2);
+        el.style.backgroundSize = (surfaceW / reps) + 'px ' + (surfaceW / reps) + 'px';
+        el.classList.add('lit');
+    } else if (art && art.el && !spec.frame) {
+        el.insertBefore(art.el, el.firstChild);
+        el.classList.add('lit');
+        if (art.stop) live.push(art.stop);
+    } else if (art && art.el && spec.frame) {
+        var fr = document.createElement('div');
+        fr.className = 'frame';
+        fr.appendChild(art.el);
+        var cap = document.createElement('div');
+        cap.className = 'frame-cap';
+        cap.textContent = art.caption || '';
+        fr.appendChild(cap);
+        if (art.open) {
+            fr.setAttribute('role', 'button');
+            fr.setAttribute('tabindex', '0');
+            fr.addEventListener('click', function (e) { e.stopPropagation(); art.open(); });
+            fr.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); art.open(); }
+            });
+        } else {
+            fr.style.cursor = 'default';
+        }
+        el.insertBefore(fr, el.firstChild);
+        if (art.stop) live.push(art.stop);
+    } else if (spec.frame) {
+        // Asked for a hung piece but the asset is missing: show the empty frame
+        // rather than a blank wall, so the room still reads as a gallery.
+        var ef = document.createElement('div');
+        ef.className = 'frame';
+        ef.style.cursor = 'default';
+        var g = document.createElement('div');
+        g.className = 'frame-empty';
+        g.textContent = '✦';
+        ef.appendChild(g);
+        el.insertBefore(ef, el.firstChild);
+    }
+}
+
+// What a wall becomes when you click it. Patterns first, since those always
+// work; the live ones come last.
+var SURFACE_CYCLE = ['pattern:hex', 'pattern:triangle', 'pattern:penrose',
+                     'pattern:escher', 'pattern:moire', 'pattern:grid',
+                     'shader:random', 'work:random'];
+
+function cycleSurface(el, spec, surfaceW) {
+    var i = SURFACE_CYCLE.indexOf(spec.art);
+    var next = SURFACE_CYCLE[(i + 1) % SURFACE_CYCLE.length];
+    // Do not promise a live shader the budget cannot pay for.
+    if (next.indexOf('shader') === 0 && shaderBudget <= 0) next = SURFACE_CYCLE[0];
+    spec.art = next;
+    paintArt(el, spec, surfaceW);
+    el.classList.remove('touched');
+    void el.offsetWidth;
+    el.classList.add('touched');
+}
+
+function stopLive() {
+    for (var i = 0; i < live.length; i++) { try { live[i](); } catch (e) {} }
+    live = [];
+}
+
+function buildRoom(id) {
+    var room = getRoom(id);
+    if (!room) return false;
+
+    stopLive();
+    roomEl.innerHTML = '';
+    // Live WebGL walls are the expensive thing here, so a small screen gets fewer
+    // of them and at lower resolution. Everything else is CSS and costs nothing.
+    shaderBudget = SMALL ? 1 : 3;
+
+    var size = room.size || [4, 3, 4];
+    var w = size[0] * METRE, h = size[1] * METRE, d = size[2] * METRE;
+    var surfaces = room.surfaces || {};
+
+    // Put the eye a little outside the room's front opening. Every surface then
+    // sits wholly in front of the eye (max z = PERSP - d/4), which is what keeps
+    // the perspective sane; a plane straddling the eye plane renders degenerately.
+    baseZ = PERSP - 0.75 * d;
+    animZ = 0;
+    applyRoomZ();
+
+    SIDES.forEach(function (side) {
+        var spec = surfaces[side];
+        if (!spec) return;
+        // `south` is behind the viewer. Its exit still works (it is listed below
+        // and can be a shaft in the floor), but there is no point drawing it.
+        if (side === 'south') return;
+        var p = placement(side, w, h, d);
+        var el = document.createElement('div');
+        el.className = 'surface';
+        el.style.width = p.w + 'px';
+        el.style.height = p.h + 'px';
+        el.style.marginLeft = (-p.w / 2) + 'px';
+        el.style.marginTop = (-p.h / 2) + 'px';
+        el.style.transform = p.t;
+
+        paintArt(el, spec, p.w);
+
+        // Clicking a plain surface changes what is on it. The doorway and any
+        // framed work stop the click first, so this never steals those.
+        if (!spec.exit) {
+            el.classList.add('alterable');
+            el.addEventListener('click', (function (surface, sp, sw) {
+                return function (e) {
+                    if (e.target.closest && e.target.closest('.frame, .doorway')) return;
+                    cycleSurface(surface, sp, sw);
+                };
+            })(el, spec, p.w));
+        }
+
+        if (spec.exit) {
+            var dw = document.createElement('div');
+            dw.className = 'doorway' + (side === 'floor' || side === 'ceiling' ? ' shaft' : '');
+            dw.setAttribute('role', 'button');
+            dw.setAttribute('tabindex', '0');
+            dw.setAttribute('aria-label', 'Go to ' + (spec.label || spec.exit));
+            if (spec.label) {
+                var lb = document.createElement('div');
+                lb.className = 'doorway-label';
+                lb.textContent = spec.label;
+                dw.appendChild(lb);
+            }
+            var go = function (e) { if (e) e.stopPropagation(); travel(spec); };
+            dw.addEventListener('click', go);
+            dw.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(e); }
+            });
+            el.appendChild(dw);
+        }
+
+        roomEl.appendChild(el);
+    });
+
+    state.room = id;
+    state.visited[id] = (state.visited[id] || 0) + 1;
+    paintHUD(room, surfaces);
+    applyFx();          // re-apply what the viewer is carrying to the new room
+    return true;
+}
+
+function paintHUD(room, surfaces) {
+    hudRoom.textContent = room.name || state.room;
+    hudNote.textContent = room.note || '';
+
+    var seen = Object.keys(state.visited).length;
+    var authored = Object.keys(DATA.rooms).length;
+    var fr = room._fractal;
+    // The altitude is the whole point: you can be +4 flights up and standing in
+    // the room you started in. The HUD states it plainly rather than hinting.
+    var impossible = state.altitude !== 0 && state.visited[state.room] > 1;
+    hudStats.innerHTML =
+        '<div class="' + (impossible ? 'impossible' : '') + '">altitude <b>' +
+            (state.altitude > 0 ? '+' : '') + state.altitude + '</b> flights</div>' +
+        '<div>steps <b>' + state.steps + '</b></div>' +
+        '<div>rooms seen <b>' + seen + '</b>' +
+            (fr ? ' of \u221e' : ' / ' + authored) + '</div>' +
+        (fr ? '<div>depth <b>' + fr.depth + '</b>' +
+              (fr.inside ? ' \u00b7 inside the set' : '') + '</div>' : '') +
+        (impossible ? '<div style="color:#ff00ff">this room is below you</div>' : '');
+
+    hudBottom.innerHTML = '';
+    SIDES.forEach(function (side) {
+        var spec = surfaces[side];
+        if (!spec || !spec.exit) return;
+        var b = document.createElement('button');
+        b.className = 'exit-chip';
+        var asc = spec.ascend || 0;
+        b.innerHTML = esc(spec.label || spec.exit) +
+            (asc ? '<span class="asc">' + (asc > 0 ? '↑' : '↓') + Math.abs(asc) + '</span>' : '');
+        b.addEventListener('click', function () { travel(spec); });
+        hudBottom.appendChild(b);
+    });
+    var leave = document.createElement('button');
+    leave.id = 'leave';
+    leave.textContent = 'leave';
+    leave.addEventListener('click', function () { window.location.href = 'index.html'; });
+    hudBottom.appendChild(leave);
+}
+
+/* ========================= manipulation =========================
+   A state you carry rather than a panel you open. It persists across rooms, so
+   exploring and altering are the same activity: you take your version of the
+   place deeper with you. Every verb is a CSS filter or transform, which is why
+   it is free and why they all compose. */
+
+var lensEl = document.getElementById('lens');
+var fxEl = document.getElementById('fx');
+
+var fx = { hue: 0, invert: 0, contrast: 1, sat: 1, blur: 0, twist: 0, echo: 0, fold: 0 };
+
+var FX_DEFAULTS = JSON.stringify(fx);
+
+function applyFx() {
+    var f = [];
+    if (fx.hue) f.push('hue-rotate(' + fx.hue + 'deg)');
+    if (fx.invert) f.push('invert(1)');
+    if (fx.contrast !== 1) f.push('contrast(' + fx.contrast + ')');
+    if (fx.sat !== 1) f.push('saturate(' + fx.sat + ')');
+    if (fx.blur) f.push('blur(' + fx.blur + 'px)');
+    // The filter goes on #stage, OUTSIDE the preserve-3d chain. On an element
+    // between #camera and #room it makes that element a grouping element, which
+    // flattens the 3D and collapses the room to a single plane. #stage owns the
+    // perspective, so its subtree still resolves in 3D before being filtered.
+    stage.style.filter = f.length ? f.join(' ') : '';
+    roomEl.style.transform = 'translateZ(' + (baseZ + animZ) + 'px)' +
+        (fx.twist ? ' rotateZ(' + fx.twist + 'deg)' : '');
+    renderEchoes();
+    paintFxBar();
+    syncHash();
+}
+
+// applyRoomZ has to go through applyFx now, so twist survives travelling.
+function applyRoomZ() {
+    roomEl.style.transform = 'translateZ(' + (baseZ + animZ) + 'px)' +
+        (fx.twist ? ' rotateZ(' + fx.twist + 'deg)' : '');
+}
+
+// Copies of the room nested behind itself: the room containing the room. The
+// media is stripped from the copies, so an echo is structure and colour only
+// and costs almost nothing.
+function renderEchoes() {
+    Array.prototype.slice.call(lensEl.querySelectorAll('.echo')).forEach(function (e) { e.remove(); });
+    if (!fx.echo) return;
+    for (var i = 1; i <= fx.echo; i++) {
+        var echo = document.createElement('div');
+        echo.className = 'echo';
+        echo.setAttribute('aria-hidden', 'true');
+        var inner = roomEl.cloneNode(true);
+        inner.removeAttribute('id');
+        // Strip anything live or interactive from the copy.
+        Array.prototype.slice.call(inner.querySelectorAll('video, canvas, .doorway, .frame-cap'))
+            .forEach(function (n) { n.remove(); });
+        var k = Math.pow(0.62, i);
+        inner.style.transform = 'translateZ(' + (baseZ + animZ - i * 46) + 'px) ' +
+            'scale(' + k + ') rotateZ(' + (fx.twist * (i + 1) + i * 7) + 'deg)';
+        echo.style.opacity = String(Math.max(0.08, 0.5 - i * 0.09));
+        echo.appendChild(inner);
+        lensEl.insertBefore(echo, lensEl.firstChild);
+    }
+}
+
+var FX_VERBS = [
+    { key: 'echo',   label: 'echo',   cycle: [0, 1, 2, 3, 4] },
+    { key: 'fold',   label: 'fold',   cycle: [0, 1, 2, 3] },
+    { key: 'twist',  label: 'twist',  cycle: [0, 6, 14, 27, -14] },
+    { key: 'hue',    label: 'hue',    cycle: [0, 60, 120, 180, 240, 300] },
+    { key: 'sat',    label: 'sat',    cycle: [1, 0, 1.8, 3] },
+    { key: 'contrast', label: 'hard', cycle: [1, 1.5, 2.4, 0.6] },
+    { key: 'invert', label: 'flip',   cycle: [0, 1] },
+    { key: 'blur',   label: 'haze',   cycle: [0, 2, 6] }
+];
+
+function bump(key, dir) {
+    var v = null;
+    for (var i = 0; i < FX_VERBS.length; i++) if (FX_VERBS[i].key === key) v = FX_VERBS[i];
+    if (!v) return;
+    var at = v.cycle.indexOf(fx[key]);
+    if (at < 0) at = 0;
+    var step = (dir === undefined || dir === null) ? 1 : dir;   // 0 means re-apply
+    var nx = ((at + step) % v.cycle.length + v.cycle.length) % v.cycle.length;
+    fx[key] = v.cycle[nx];
+    if (key === 'fold') applyFold();
+    applyFx();
+}
+
+// Fold mirrors the room, which in a room made of planes reads as the space
+// folding onto itself rather than as a filter.
+function applyFold() {
+    var sx = (fx.fold === 1 || fx.fold === 3) ? -1 : 1;
+    var sy = (fx.fold >= 2) ? -1 : 1;
+    lensEl.style.transform = (sx < 0 || sy < 0) ? 'scale(' + sx + ',' + sy + ')' : '';
+}
+
+function resetFx() {
+    // Mutate rather than reassign: other holders of this object (the console
+    // handle, anything that captured it) must keep seeing the live state.
+    var d = JSON.parse(FX_DEFAULTS);
+    Object.keys(d).forEach(function (k) { fx[k] = d[k]; });
+    applyFold();
+    applyFx();
+}
+
+function paintFxBar() {
+    if (!fxEl.firstChild) {
+        var title = document.createElement('div');
+        title.className = 'fx-row always';
+        var t = document.createElement('button');
+        t.className = 'fx-btn';
+        t.id = 'fx-toggle';
+        t.textContent = 'alter';
+        t.addEventListener('click', function () { fxEl.classList.toggle('folded'); paintFxBar(); });
+        title.appendChild(t);
+        fxEl.appendChild(title);
+
+        FX_VERBS.forEach(function (v) {
+            var row = document.createElement('div');
+            row.className = 'fx-row';
+            var b = document.createElement('button');
+            b.className = 'fx-btn';
+            b.textContent = v.label;
+            b.setAttribute('data-fx', v.key);
+            b.addEventListener('click', function () { bump(v.key, 1); });
+            b.addEventListener('contextmenu', function (e) { e.preventDefault(); bump(v.key, -1); });
+            var val = document.createElement('span');
+            val.className = 'fx-val';
+            val.setAttribute('data-fxval', v.key);
+            row.appendChild(b); row.appendChild(val);
+            fxEl.appendChild(row);
+        });
+
+        var rrow = document.createElement('div');
+        rrow.className = 'fx-row';
+        var rb = document.createElement('button');
+        rb.className = 'fx-btn';
+        rb.textContent = 'plain';
+        rb.addEventListener('click', resetFx);
+        rrow.appendChild(rb);
+        fxEl.appendChild(rrow);
+    }
+    FX_VERBS.forEach(function (v) {
+        var btn = fxEl.querySelector('[data-fx="' + v.key + '"]');
+        var val = fxEl.querySelector('[data-fxval="' + v.key + '"]');
+        var dflt = JSON.parse(FX_DEFAULTS)[v.key];
+        if (btn) btn.classList.toggle('on', fx[v.key] !== dflt);
+        if (val) val.textContent = (fx[v.key] === dflt) ? '' : String(fx[v.key]);
+    });
+    var tog = document.getElementById('fx-toggle');
+    if (tog) {
+        var n = 0, d = JSON.parse(FX_DEFAULTS);
+        FX_VERBS.forEach(function (v) { if (fx[v.key] !== d[v.key]) n++; });
+        tog.textContent = n ? 'alter \u00b7 ' + n : 'alter';
+        tog.classList.toggle('on', n > 0);
+    }
+}
+
+/* The address bar carries where you are and what you have done to it, so a
+   room in a particular state is a link someone else can open. */
+function syncHash() {
+    var parts = ['r=' + state.room];
+    var d = JSON.parse(FX_DEFAULTS);
+    FX_VERBS.forEach(function (v) { if (fx[v.key] !== d[v.key]) parts.push(v.key + '=' + fx[v.key]); });
+    var h = '#' + parts.join('&');
+    if (location.hash !== h) history.replaceState(null, '', h);
+}
+
+function readHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (!h) return null;
+    var room = null;
+    h.split('&').forEach(function (kv) {
+        var i = kv.indexOf('=');
+        if (i < 0) return;
+        var k = kv.slice(0, i), v = kv.slice(i + 1);
+        if (k === 'r') room = v;
+        else if (fx.hasOwnProperty(k) && isFinite(parseFloat(v))) fx[k] = parseFloat(v);
+    });
+    return room;
+}
+
+/* ========================= travel =========================
+   Fade out, swap the room, fade in. The fade is what lets two rooms that could
+   not possibly adjoin sit on either side of one doorway. */
+var travelling = false, pending = null;
+function travel(spec) {
+    if (!spec || !spec.exit || !getRoom(spec.exit)) return;
+    // Dropping a click mid-transition feels like a broken button. Hold the most
+    // recent one and take it the moment the current move finishes.
+    if (travelling) { pending = spec; return; }
+    travelling = true;
+    hint.classList.add('gone');
+
+    var ms = reduced ? 10 : 220;
+    veil.classList.add('on');
+    // Lean into the doorway while the veil closes.
+    if (!reduced) {
+        roomEl.style.transition = 'transform ' + ms + 'ms ease-in';
+        animZ = 150;
+        applyRoomZ();
+    }
+
+    setTimeout(function () {
+        state.altitude += (spec.ascend || 0);
+        state.steps += 1;
+        state.yaw = 0; state.pitch = 0;
+        buildRoom(spec.exit);          // resets baseZ for the new room's depth
+        roomEl.style.transition = 'none';
+        animZ = reduced ? 0 : -110;
+        applyRoomZ();
+        applyCamera();
+        requestAnimationFrame(function () {
+            roomEl.style.transition = reduced ? 'none' : 'transform 340ms ease-out';
+            animZ = 0;
+            applyRoomZ();
+            veil.classList.remove('on');
+            setTimeout(function () {
+                travelling = false;
+                if (pending) { var next = pending; pending = null; travel(next); }
+            }, ms);
+        });
+    }, ms);
+}
+
+/* ========================= looking around ========================= */
+function applyCamera() {
+    // translateZ(PERSP) ... translateZ(-PERSP) makes the eye the fixed point of
+    // the rotation, so dragging turns your head rather than orbiting the room.
+    cameraEl.style.transform =
+        'translateZ(' + PERSP + 'px) ' +
+        'rotateX(' + state.pitch + 'deg) rotateY(' + state.yaw + 'deg) ' +
+        'translateZ(' + (-PERSP) + 'px)';
+}
+
+
+
+var drag = null;
+function down(x, y) { drag = { x: x, y: y, yaw: state.yaw, pitch: state.pitch }; stage.classList.add('dragging'); }
+function move(x, y) {
+    if (!drag) return;
+    // Clamped, so you always stay oriented inside the room.
+    state.yaw = Math.max(-62, Math.min(62, drag.yaw + (x - drag.x) * 0.22));
+    state.pitch = Math.max(-38, Math.min(38, drag.pitch - (y - drag.y) * 0.22));
+    applyCamera();
+    hint.classList.add('gone');
+}
+function up() { drag = null; stage.classList.remove('dragging'); }
+
+stage.addEventListener('mousedown', function (e) { down(e.clientX, e.clientY); });
+window.addEventListener('mousemove', function (e) { move(e.clientX, e.clientY); });
+window.addEventListener('mouseup', up);
+stage.addEventListener('touchstart', function (e) {
+    if (e.touches.length === 1) down(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: true });
+stage.addEventListener('touchmove', function (e) {
+    if (e.touches.length === 1) { move(e.touches[0].clientX, e.touches[0].clientY); }
+}, { passive: true });
+stage.addEventListener('touchend', up);
+stage.addEventListener('touchcancel', up);
+
+document.addEventListener('keydown', function (e) {
+    var step = 8;
+    if (e.key === 'ArrowLeft')  { state.yaw = Math.max(-62, state.yaw - step); applyCamera(); }
+    if (e.key === 'ArrowRight') { state.yaw = Math.min(62, state.yaw + step); applyCamera(); }
+    if (e.key === 'ArrowUp')    { state.pitch = Math.min(38, state.pitch + step); applyCamera(); }
+    if (e.key === 'ArrowDown')  { state.pitch = Math.max(-38, state.pitch - step); applyCamera(); }
+    if (e.key === 'Escape')     { closeLightbox(); }
+
+    // Manipulation. Shift steps a verb backwards through its cycle.
+    var KEYS = { e: 'echo', f: 'fold', t: 'twist', h: 'hue',
+                 s: 'sat', c: 'contrast', i: 'invert', b: 'blur' };
+    var k = e.key.toLowerCase();
+    if (KEYS[k] && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        bump(KEYS[k], e.shiftKey ? -1 : 1);
+    }
+    if (k === 'x' && !e.metaKey && !e.ctrlKey) resetFx();
+});
+
+/* ========================= lightbox ========================= */
+var lb = document.getElementById('lb');
+var lbVideo = lb.querySelector('video');
+function openLightbox(src) {
+    lbVideo.src = src;
+    lb.classList.add('on');
+    var q = lbVideo.play();
+    if (q && q.catch) q.catch(function () {});
+}
+function closeLightbox() {
+    if (!lb.classList.contains('on')) return;
+    lbVideo.pause(); lbVideo.removeAttribute('src'); lbVideo.load();
+    lb.classList.remove('on');
+}
+document.getElementById('lb-close').addEventListener('click', closeLightbox);
+lb.addEventListener('click', function (e) { if (e.target === lb) closeLightbox(); });
+
+// Nothing should keep running while the tab is in the background.
+document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stopLive();
+    else if (state.room) buildRoom(state.room);
+});
+
+/* ========================= boot ========================= */
+function fail(why) {
+    document.getElementById('fail-why').textContent = why || '';
+    document.getElementById('fail').classList.add('on');
+}
+
+function getJSON(url) {
+    return fetch(url + '?t=' + Date.now()).then(function (r) {
+        if (!r.ok) throw new Error(url + ' ' + r.status);
+        return r.json();
+    });
+}
+
+Promise.all([
+    getJSON('rooms.json'),
+    getJSON('media.json').catch(function () { return null; }),
+    getJSON('shaders/manifest.json').catch(function () { return null; })
+]).then(function (res) {
+    DATA = res[0];
+    MEDIA = res[1];
+    SHADERS = (res[2] && res[2].shaders) || [];
+    if (!DATA || !DATA.rooms || !Object.keys(DATA.rooms).length) throw new Error('rooms.json has no rooms');
+    initFractal();
+    var fromHash = readHash();
+    var start = (fromHash && getRoom(fromHash)) ? fromHash
+              : (DATA.entry && DATA.rooms[DATA.entry] ? DATA.entry : Object.keys(DATA.rooms)[0]);
+    applyCamera();
+    applyFold();
+    if (!buildRoom(start)) throw new Error('could not build ' + start);
+    setTimeout(function () { hint.classList.add('gone'); }, 7000);
+}).catch(function (err) {
+    fail(String(err && err.message || err));
+});
+
+// Exposed for tests and for the console.
+window.lucidGallery = {
+    state: state,
+    go: function (id) { travel({ exit: id }); },
+    fx: fx,
+    bump: bump,
+    set: function (k, v) { if (fx.hasOwnProperty(k)) { fx[k] = v; if (k === 'fold') applyFold(); applyFx(); } },
+    reset: resetFx,
+    rooms: function () { return DATA && Object.keys(DATA.rooms); },
+    room: function (id) { return getRoom(id); },
+    here: function () { return getRoom(state.room); }
+};
+})();
+</script>
+</body>
+</html>
