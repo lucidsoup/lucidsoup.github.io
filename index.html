@@ -221,7 +221,11 @@
         }
 
         /* Opening the box lifts the hero out of the way of the page below. */
-        .hero.box-lifted .hero-content { transform: translateY(-7vh); transition: transform .9s cubic-bezier(.22,1,.3,1); }
+        /* The open box is taller than the closed one, so the hero cluster has to
+           move. The amount is computed in fitHero() rather than fixed here: a
+           constant lift pushes the wordmark under the fixed navbar on any short
+           viewport (measured at -54px on 1280x900, -140px on 1280x700). */
+        .hero.box-lifted .hero-content { transition: transform .9s cubic-bezier(.22,1,.3,1); }
 
         /* Must clear the bottom flap, which hangs a full plate below the core. */
         .box-reset {
@@ -3369,12 +3373,67 @@
             }
         }
 
+        // Centres the hero cluster in the space actually available — below the
+        // fixed navbar and above the bottom of the screen — and shrinks it only
+        // if it genuinely cannot fit. Runs after the flaps have opened, so it
+        // measures the real height rather than the closed one.
+        var heroContent = hero && hero.querySelector('.hero-content');
+        function fitHero() {
+            if (!hero || !heroContent) return;
+            if (!hero.classList.contains('box-lifted')) {
+                heroContent.style.transform = '';
+                return;
+            }
+            var navEl = document.getElementById('navbar');
+            var navH = navEl ? navEl.getBoundingClientRect().height : 0;
+
+            // Measure untransformed, or we would be fitting our own last answer.
+            var prev = heroContent.style.transition;
+            heroContent.style.transition = 'none';
+            heroContent.style.transform = '';
+            var r = heroContent.getBoundingClientRect();
+            var heroRect = hero.getBoundingClientRect();
+
+            // Work in hero-local coordinates, not viewport ones. The viewport
+            // moves with the scroll position and the hero does not, so fitting
+            // against the viewport gives a different answer depending on where
+            // the page happens to be scrolled.
+            var pad = 14;
+            var bandTop = navH + pad;                       // the navbar overlays the hero's top
+            var bandH = heroRect.height - bandTop - pad;
+            var scale = 1;
+            if (r.height > bandH && r.height > 0) scale = Math.max(0.68, bandH / r.height);
+
+            var h = r.height * scale;
+            // scale() is about the centre, so the scaled top sits here.
+            var curTop = (r.top - heroRect.top) + (r.height - h) / 2;
+            var dy = (bandTop + Math.max(0, (bandH - h) / 2)) - curTop;
+
+            heroContent.style.transform =
+                'translateY(' + dy.toFixed(1) + 'px)' + (scale !== 1 ? ' scale(' + scale.toFixed(3) + ')' : '');
+            // Restore the transition on the next frame so this does not animate
+            // from the measuring position.
+            requestAnimationFrame(function () { heroContent.style.transition = prev; });
+        }
+
+        var fitTimer = null;
+        window.addEventListener('resize', function () {
+            clearTimeout(fitTimer);
+            fitTimer = setTimeout(fitHero, 120);
+        }, { passive: true });
+
         function openBox() {
             if (core.classList.contains('box-open')) return;
             flaps.forEach(fill);
             core.classList.add('box-open');
             stage.classList.add('box-stage-open');
             if (hero) hero.classList.add('box-lifted');
+            // Twice: once now so nothing is clipped while the flaps swing, and
+            // again once they have settled, because the cluster is not its final
+            // height until then. The flap transition is .85s with up to .24s of
+            // stagger, so the box is not done moving until about 1.09s.
+            fitHero();
+            if (!reduced) setTimeout(fitHero, 1150);
             core.querySelectorAll('canvas').forEach(function (c) { if (c.__start) c.__start(); });
             var first = flaps[0];
             if (first && first.focus) setTimeout(function () { first.focus(); }, reduced ? 0 : 500);
@@ -3384,6 +3443,7 @@
             core.classList.remove('box-open');
             stage.classList.remove('box-stage-open');
             if (hero) hero.classList.remove('box-lifted');
+            if (heroContent) heroContent.style.transform = '';
             if (lid.focus) lid.focus();
         }
 
