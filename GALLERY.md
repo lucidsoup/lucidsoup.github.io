@@ -9,7 +9,6 @@ HTML to touch.
 ```json
 "my-room": {
   "name": "Whatever It Is Called",
-  "note": "One optional line, shown on arrival.",
   "size": [5, 3.2, 5],
   "surfaces": {
     "floor":   { "art": "pattern:hex", "repeat": 4 },
@@ -23,6 +22,26 @@ HTML to touch.
 
 `size` is `[width, height, depth]` in metres-ish. `[4, 3, 4]` is an ordinary
 room, `[7, 3, 4.5]` a hall, `[3.4, 5.5, 3.4]` a shaft.
+
+## Corridors and turning
+
+A corridor is just a room with a long, narrow `size` — around `[2.2, 2.9, 10]`.
+The eye sits further into a deep room, or a corridor reads as a wall with a hole
+in it rather than something you are inside, and travelling into one takes longer.
+
+An exit may carry **`turn`**: the degrees you are facing when you arrive.
+
+```json
+"east": { "exit": "crook", "label": "on", "turn": 30 }
+```
+
+Without it every room is entered square-on and a sequence reads as a slideshow.
+With it a doorway is a corner, and keeping track of where you are becomes the
+work. Clamped to the same limits as looking around.
+
+**The space carries names and nothing else.** No descriptions, no subtitles on
+the plinths, and nothing marks a dead end as a dead end. The hint says its piece
+once and then stays gone.
 
 ## The one geometry rule
 

@@ -250,7 +250,6 @@
         font-size: 12px; letter-spacing: .26em; text-transform: uppercase;
         color: var(--cyan); text-shadow: 0 0 12px rgba(139, 108, 245,.6);
     }
-    .plinth-sub { margin-top: 5px; font-size: 10px; letter-spacing: .08em; color: var(--dim); }
 
     /* ===== travel fade ===== */
     #veil {
@@ -274,10 +273,6 @@
     #hud-room {
         font-family: var(--lucid-display, 'Orbitron', 'Arial Black', sans-serif);
         text-transform: uppercase; letter-spacing: .24em; font-size: 13px;
-    }
-    #hud-note {
-        margin-top: 6px; color: var(--dim); font-size: 11px;
-        letter-spacing: .04em; max-width: 46ch; text-transform: none;
     }
     #hud-stats { text-align: right; color: var(--dim); font-size: 11px; line-height: 1.7; white-space: nowrap; }
     #hud-stats b { color: var(--ink); font-weight: normal; }
@@ -342,8 +337,7 @@
 
     @media (max-width: 640px) {
         :root { --metre: 86px; --persp: 460px; }
-        #hud-note { display: none; }
-        #hud-room { font-size: 11px; letter-spacing: .2em; }
+            #hud-room { font-size: 11px; letter-spacing: .2em; }
         .doorway-label { font-size: 10px; letter-spacing: .2em; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -365,7 +359,6 @@
 <div class="hud" id="hud-top">
     <div>
         <div id="hud-room">—</div>
-        <div id="hud-note"></div>
     </div>
     <div id="hud-stats"></div>
 </div>
@@ -421,7 +414,6 @@ var cameraEl = document.getElementById('camera');
 var roomEl = document.getElementById('room');
 var veil = document.getElementById('veil');
 var hudRoom = document.getElementById('hud-room');
-var hudNote = document.getElementById('hud-note');
 var hudStats = document.getElementById('hud-stats');
 var hudBottom = document.getElementById('hud-bottom');
 var hint = document.getElementById('hint');
@@ -1391,7 +1383,9 @@ function buildRoom(id) {
     // Put the eye a little outside the room's front opening. Every surface then
     // sits wholly in front of the eye (max z = PERSP - d/4), which is what keeps
     // the perspective sane; a plane straddling the eye plane renders degenerately.
-    baseZ = PERSP - 0.75 * d;
+    // In a long room the eye sits further in, or a corridor reads as a wall
+    // with a hole in it rather than as something you are inside.
+    baseZ = PERSP - (d > 7 * METRE ? 0.42 : 0.75) * d;
     animZ = 0;
     applyRoomZ();
 
@@ -1480,8 +1474,7 @@ function buildRoom(id) {
             pl.setAttribute('role', 'button');
             pl.setAttribute('tabindex', '0');
             pl.setAttribute('aria-label', 'Open ' + (o.title || o.href));
-            pl.innerHTML = '<div class="plinth-title">' + esc(o.title || 'open') + '</div>' +
-                (o.note ? '<div class="plinth-sub">' + esc(o.note) + '</div>' : '');
+            pl.innerHTML = '<div class="plinth-title">' + esc(o.title || 'open') + '</div>';
             var leave = function () { window.location.href = o.href; };
             pl.addEventListener('click', function (e) { e.stopPropagation(); leave(); });
             pl.addEventListener('keydown', function (e) {
@@ -1501,7 +1494,6 @@ function buildRoom(id) {
 
 function paintHUD(room, surfaces) {
     hudRoom.textContent = room.name || state.room;
-    hudNote.textContent = room.note || '';
 
     var seen = Object.keys(state.visited).length;
     var authored = Object.keys(DATA.rooms).length;
@@ -1753,7 +1745,9 @@ function travel(spec) {
     hint.classList.add('gone');
 
     var climbing = !!spec.climb && !reduced;
-    var ms = reduced ? 10 : (climbing ? 480 : 220);
+    var into = getRoom(spec.exit);
+    var longWay = into && into.size && into.size[2] >= 7;     // a corridor
+    var ms = reduced ? 10 : (climbing ? 480 : (longWay ? 380 : 220));
     veil.classList.add('on');
     if (climbing) {
         // Ascend: the room drops away beneath you as you move into it, so a
@@ -1765,14 +1759,19 @@ function travel(spec) {
         applyRoomZ();
     } else if (!reduced) {
         roomEl.style.transition = 'transform ' + ms + 'ms ease-in';
-        animZ = 150;
+        animZ = longWay ? 320 : 150;
         applyRoomZ();
     }
 
     setTimeout(function () {
         state.altitude += (spec.ascend || 0);
         state.steps += 1;
-        state.yaw = 0; state.pitch = 0;
+        // A turn carries into the next space: you arrive facing where the
+        // corner left you, not squared up. This is most of what makes a run of
+        // corridors feel like a labyrinth rather than a slideshow.
+        var turn = Number(spec.turn) || 0;
+        state.yaw = Math.max(-58, Math.min(58, turn));
+        state.pitch = 0;
         buildRoom(spec.exit);          // resets baseZ for the new room's depth
         roomEl.style.transition = 'none';
         animZ = reduced ? 0 : -110;
@@ -1900,7 +1899,16 @@ Promise.all([
     applyCamera();
     applyFold();
     if (!buildRoom(start)) throw new Error('could not build ' + start);
-    setTimeout(function () { hint.classList.add('gone'); }, 7000);
+    // Said once, then the space is left to itself.
+    var seen = false;
+    try { seen = localStorage.getItem('lucid.hinted') === '1'; } catch (e) {}
+    if (seen) { hint.classList.add('gone'); }
+    else {
+        setTimeout(function () {
+        hint.classList.add('gone');
+        try { localStorage.setItem('lucid.hinted', '1'); } catch (e) {}
+        }, 7000);
+    }
 }).catch(function (err) {
     fail(String(err && err.message || err));
 });
