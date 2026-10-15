@@ -135,7 +135,7 @@ input[type="range"] { accent-color: var(--neon); width: 100%; }
 .btn-s:hover { border-color: var(--acid); }
 .btn-s:disabled { opacity: .45; cursor: default; }
 .btn-s:focus-within, .btn-s:focus-visible { outline: 2px solid var(--acid); outline-offset: 2px; }
-#voc[aria-pressed="true"] { background: var(--neon); color: var(--ink-on-lit); border-color: var(--neon); }
+#hold-glide[aria-pressed="true"], #voc[aria-pressed="true"] { background: var(--neon); color: var(--ink-on-lit); border-color: var(--neon); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 760px) { .console { grid-template-columns: 1fr; } }
 .guide { margin: 40px 0 0; }
@@ -177,9 +177,12 @@ footer small { font-size: 11px; opacity: .8; }
     <div class="ctl"><span id="vce-l">Voices</span><div class="seg" id="vce" role="group" aria-labelledby="vce-l"></div></div>
     <label class="ctl glide"><span>Glide <output id="gld-v">off</output></span><input type="range" id="gld" min="0" max="127" value="0"></label>
     <div class="ctl"><span id="glm-l">Glide by</span><div class="seg" id="glm" role="group" aria-labelledby="glm-l"></div></div>
+    <div class="ctl"><span>&nbsp;</span><button class="btn-s" type="button" id="hold-glide" aria-pressed="false">Hold to glide</button></div>
     <div class="ctl"><span>Vocoder</span><button class="btn-s" type="button" id="voc" aria-pressed="false">Vocode my mic</button></div>
-    <p class="hint">Glide: slide a finger or the mouse along the keys and, in MONO or LEG, the pitch glides from note to note
-      (POLY: each new note glides in). TIME at the top of the slider takes 1.5 s for any interval.</p>
+    <p class="hint">Hold to glide: hold a key, then press another, and the pitch glides to it (on a phone, hold with one finger
+      and tap with another; on a computer keyboard, hold one letter and press the next). Let go of the new key and it glides
+      back to the one still held. It sets the track to LEG with a 0.4 s glide; press it again for the track's own settings back.
+      Sliding a finger or the mouse along the keys glides too, and the Glide slider sets how slow (TIME at the top: 1.5 s).</p>
     <p class="hint" id="voc-hint">Turns this track's INSERT into the VOCODER with your microphone as the voice: play chords and talk or
       sing. Use headphones, or the speakers feed back into the mic. On the FM-1 itself the voice is another track (INSERT › VOCOD,
       SRC TRK1–4), for example a recording loaded into a sample slot.</p>
@@ -246,7 +249,7 @@ footer small { font-size: 11px; opacity: .8; }
 
 <footer>
   <nav><a href="../../">SynthSoup home</a> · <a href="../installer/">Install</a> · <a href="../editor/">Editor</a></nav>
-  <small class="version">SynthSoup 0.1 on Felucca v1.5.1 (preview)</small><br>
+  <small class="version">SynthSoup 0.1 on Felucca v1.5.1</small><br>
   Built on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments · SID engine from <a href="https://github.com/keremimo/melodee">Melodee</a> · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> · browser build after charlesvestal's <a href="https://github.com/charlesvestal/fm1-x0x">X0X</a> · DotGothic16 font, SIL OFL 1.1<br>
   <small>M-VAVE and FM-1 are trademarks of their respective owners. SynthSoup is not affiliated with or endorsed by them. Untested on hardware.</small>
 </footer>
@@ -509,7 +512,8 @@ const KEYMAP = {};
 Object.assign(KEYMAP, { BracketLeft: { btn: B["OCT-"] }, BracketRight: { btn: B["OCT+"] } });
 const ARROWS = { ArrowUp: [EN.SELECT, 1], ArrowDown: [EN.SELECT, -1], ArrowRight: [EN.ALGORITHM, 1], ArrowLeft: [EN.ALGORITHM, -1] };
 addEventListener("keydown", (e) => {
-  if (!node || e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.(".hit.knob, .console")) return;
+  if (!node || e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.(".hit.knob") || e.target.matches?.("select, input")) return;
+  // (a menu or a slider keeps its keys; after a click on one of the panel's buttons the keyboard plays on)
   if (ARROWS[e.code]) { const [r, n] = ARROWS[e.code]; turn(knobs.find((k) => k.role === r), n); e.preventDefault(); return; }
   const m = KEYMAP[e.code];
   if (!m) return;
@@ -644,9 +648,31 @@ function setupGranular() {
   }
   const g = $("gld");
   g.addEventListener("input", () => { if (cur) send({ type: "param", track: cur.track, id: extra.pid.glide, value: +g.value }); glideText(+g.value); });
+  $("hold-glide").addEventListener("click", holdGlide);
   seg($("glm"), ["RATE", "TIME"], ["The same speed for any interval", "The same time for any interval (up to 1.5 s)"],
       (m) => cur && send({ type: "param", track: cur.track, id: extra.pid.glmode, value: m }));
   $("gr-set").disabled = false;
+}
+// Hold to glide: the track to LEGATO (overlapping notes glide) with a TIME glide of 0.4 s (GLD 66: 1 + 66^2 / 8 ticks
+// of 0.73 ms); off, the track's own VOICE, GLD and GLMOD back
+const V_LEGATO = 2, HOLD_GLD = 66;
+let held = null;                                           // { track, voice, glide, glmode } to give back
+function holdGlide() {
+  if (!cur || !cur.params) return;
+  const b = $("hold-glide");
+  if (held) {
+    send({ type: "voice", track: held.track, voice: held.voice });
+    send({ type: "param", track: held.track, id: extra.pid.glide, value: held.glide });
+    send({ type: "param", track: held.track, id: extra.pid.glmode, value: held.glmode });
+    held = null;
+  } else {
+    held = { track: cur.track, voice: cur.voice, glide: cur.params.glide, glmode: cur.params.glmode, at: performance.now() };
+    send({ type: "voice", track: cur.track, voice: V_LEGATO });
+    send({ type: "param", track: cur.track, id: extra.pid.glide, value: HOLD_GLD });
+    send({ type: "param", track: cur.track, id: extra.pid.glmode, value: 1 });
+  }
+  b.setAttribute("aria-pressed", String(!!held));
+  b.textContent = held ? `Holding glides on track ${held.track + 1}` : "Hold to glide";
 }
 const glideText = (v) => { $("gld-v").textContent = v ? `${v}` : "off"; };
 let sliding = null;                                        // the slider being dragged (not overwritten by the state)
@@ -657,6 +683,12 @@ function showParams(st) {
   const g = $("gld");
   if (g !== sliding) { g.value = st.params.glide; glideText(st.params.glide); }
   [...$("glm").children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === st.params.glmode)));
+  if (held && performance.now() - held.at > 600 && st.track === held.track && (st.voice !== V_LEGATO || !st.params.glide)) {
+    // changed by hand (not the state still on its way from before the press): the settings are theirs now
+    held = null;
+    $("hold-glide").setAttribute("aria-pressed", "false");
+    $("hold-glide").textContent = "Hold to glide";
+  }
   const isGrain = st.engine === extra.grain;
   for (const r of $("gr-sl").querySelectorAll("input")) {
     r.disabled = !isGrain;
