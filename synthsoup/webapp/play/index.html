@@ -90,6 +90,7 @@ a { color: inherit; }
 .keys, footer { margin: 16px 0 0; color: var(--dim); text-align: center; font-size: 13px; }
 .keys span { white-space: nowrap; margin: 0 8px; }
 kbd { font: 500 12px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--fg); background: var(--tray); }
+.notice { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--neon); color: var(--fg); background: var(--tray); }
 .console { margin: 16px 0 0; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
 .console fieldset { min-width: 0; margin: 0; padding: 14px 16px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--tray);
                     display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; align-content: start; }
@@ -140,6 +141,8 @@ footer small { font-size: 11px; opacity: .8; }
   <canvas id="screen" width="240" height="240" role="img" aria-label="The screen"></canvas>
   <div class="start" id="start"><button id="go" type="button">Switch on</button><p id="status" hidden></p></div>
 </div>
+
+<p class="notice" id="notice" role="status" hidden></p>
 
 <form class="console" id="console" aria-label="Sound and MIDI" onsubmit="return false">
   <fieldset id="sound-set" disabled>
@@ -635,12 +638,35 @@ async function midiOn() {
 // ------------------------------------------------------------------ switching on
 const status = document.getElementById("status");
 const say = (t) => { status.textContent = t; status.hidden = !t; };
+const notice = (t) => { const n = document.getElementById("notice"); n.textContent = t; n.hidden = !t; };   // (after switch-on)
+let ac = null;
+// iOS: audio starts only inside the tap itself (no await before it), and the ring / silent switch mutes web audio
+// unless the page's audio session is "playback" (iOS 17+); an interruption (a call, Siri, the lock screen) suspends it
+function audioStart() {
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch { /* older iOS */ }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) throw new Error("this browser has no Web Audio");
+  try { ac = new AC({ sampleRate: 44100, latencyHint: "interactive" }); }
+  catch { ac = new AC({ latencyHint: "interactive" }); }       // (a browser that refuses 44.1 kHz: the worklet resamples)
+  const b = ac.createBuffer(1, 1, ac.sampleRate), s = ac.createBufferSource();   // a silent sample: unlocks iOS
+  s.buffer = b;
+  s.connect(ac.destination);
+  s.start(0);
+  ac.resume().catch(() => {});
+  if (!ac.audioWorklet) throw new Error("this browser has no AudioWorklet (on iPhone or iPad: iOS 14.5 or later)");
+}
+function audioWake() {
+  if (!ac || ac.state === "closed") return;
+  if (ac.state === "running") { notice(""); return; }
+  ac.resume().then(() => notice("")).catch(() => {});
+}
+for (const t of ["pointerdown", "touchend", "keydown"]) addEventListener(t, audioWake, { capture: true, passive: true });
 async function switchOn() {
   const go = document.getElementById("go");
   go.disabled = true;
   go.textContent = "Starting…";
   try {
-    const ac = new AudioContext({ sampleRate: 44100, latencyHint: "interactive" });
+    if (!ac) audioStart();
     const [wasm] = await Promise.all([
       fetch("felucca.wasm").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
       ac.audioWorklet.addModule("worklet.js")]);
@@ -664,10 +690,10 @@ async function switchOn() {
       };
       node.port.postMessage({ type: "load", wasm, sectors: loadFlash(), master: masterValue, route: prefs.route ?? 1 }, [wasm]);
     });
-    await ac.resume();
+    audioWake();                                  // (never awaited: iOS keeps it pending until a tap)
     document.getElementById("start").hidden = true;
+    setTimeout(() => { if (ac.state !== "running") notice("Tap anywhere on the synth to start the sound. On iPhone, also check the volume and that the ring switch isn't on silent."); }, 1500);
     go.textContent = "On";
-    if (ac.sampleRate !== 44100) console.warn(`SynthSoup: the browser plays at ${ac.sampleRate} Hz, the pitch is off by ${(1200 * Math.log2(ac.sampleRate / 44100)).toFixed(0)} cents.`);
     syncButtons();
     syncKeys();
     send({ type: "visible", on: !document.hidden });
@@ -676,11 +702,11 @@ async function switchOn() {
     node = null;
     go.disabled = false;
     go.textContent = "Switch on";
-    say("Could not start: " + (err && err.message || err) + ". A current Chrome, Edge, Firefox or Safari should work.");
+    say("Could not start: " + (err && err.message || err) + ". A current Chrome, Edge, Firefox or Safari should work; on iPhone, open the page in Safari itself rather than inside another app.");
   }
 }
 document.getElementById("go").addEventListener("click", switchOn);
-document.addEventListener("visibilitychange", () => send({ type: "visible", on: !document.hidden }));
+document.addEventListener("visibilitychange", () => { send({ type: "visible", on: !document.hidden }); if (!document.hidden) audioWake(); });
 </script>
 </body>
 </html>

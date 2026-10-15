@@ -68,6 +68,11 @@ if (typeof registerProcessor === "function") {
       this.queue = [];                                // button / key changes, each held >= HOLD_MS of device time
       this.nextOk = 0;
       this.port.onmessage = (e) => this.onMessage(e.data);
+      // the device runs at 44.1 kHz; a context at another rate (iOS: 48 kHz) gets it resampled (linear), in tune
+      this.step = 44100 / sampleRate;
+      this.src = [new Float32Array(2048), new Float32Array(2048)];
+      this.have = 0;                                  // source frames buffered
+      this.pos = 0;                                   // read position in them (fractional)
     }
 
     async onMessage(m) {
@@ -158,11 +163,35 @@ if (typeof registerProcessor === "function") {
       if (this.queue.length) this.input();
       const out = outputs[0], n = out[0].length;
       const t0 = clock();
-      ex.web_render(n);
+      if (this.step === 1) {
+        ex.web_render(n);
+        this.frames += n;
+        out[0].set(new Float32Array(ex.memory.buffer, ex.web_out_l(), n));
+        if (out[1]) out[1].set(new Float32Array(ex.memory.buffer, ex.web_out_r(), n));
+      } else {
+        const [sl, sr] = this.src, need = Math.floor(this.pos + n * this.step) + 2;
+        if (need > this.have) {                       // render what the interpolation will read
+          const k = need - this.have;
+          ex.web_render(k);
+          sl.set(new Float32Array(ex.memory.buffer, ex.web_out_l(), k), this.have);
+          sr.set(new Float32Array(ex.memory.buffer, ex.web_out_r(), k), this.have);
+          this.have += k;
+          this.frames += k;
+        }
+        const l = out[0], r = out[1] || out[0];
+        let p = this.pos;
+        for (let i = 0; i < n; i++, p += this.step) {
+          const j = p | 0, f = p - j;
+          l[i] = sl[j] + (sl[j + 1] - sl[j]) * f;
+          r[i] = sr[j] + (sr[j + 1] - sr[j]) * f;
+        }
+        const used = p | 0;                           // drop what is behind the read position
+        sl.copyWithin(0, used, this.have);
+        sr.copyWithin(0, used, this.have);
+        this.have -= used;
+        this.pos = p - used;
+      }
       this.busy += clock() - t0;
-      this.frames += n;
-      out[0].set(new Float32Array(ex.memory.buffer, ex.web_out_l(), n));
-      if (out[1]) out[1].set(new Float32Array(ex.memory.buffer, ex.web_out_r(), n));
       if (currentTime - this.lastFrame >= this.period) {
         this.lastFrame = currentTime;
         this.publish();
