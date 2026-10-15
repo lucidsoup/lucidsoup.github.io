@@ -48,7 +48,8 @@ export function catalog(ex) {
 export function soundState(ex) {
   if (!ex.web_sel) return null;
   const t = ex.web_sel();
-  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route() };
+  const samples = ex.web_smp_len ? [0, 1, 2].map((k) => ({ name: cstr(ex, ex.web_smp_name(k)), len: ex.web_smp_len(k) })) : null;
+  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route(), samples };
 }
 
 if (typeof registerProcessor === "function") {
@@ -105,6 +106,15 @@ if (typeof registerProcessor === "function") {
       else if (m.type === "sound" && ex.web_set_sound) ex.web_set_sound(m.track | 0, m.engine | 0, m.preset | 0);
       else if (m.type === "voice" && ex.web_set_voice) ex.web_set_voice(m.track | 0, m.voice | 0);
       else if (m.type === "route" && ex.web_set_route) ex.web_set_route(m.route | 0);
+      else if (m.type === "sample" && ex.web_smp_put) {   // the Samples panel: ADPCM (m.data) of m.n samples into slot m.slot
+        const mem = new Uint8Array(ex.memory.buffer), nm = (m.name || "").slice(0, 8);
+        mem.set(m.data, ex.web_smp_buf());
+        mem.fill(0, ex.web_smp_namebuf(), ex.web_smp_namebuf() + 9);
+        for (let i = 0; i < nm.length; i++) mem[ex.web_smp_namebuf() + i] = nm.charCodeAt(i) & 0x7F;
+        const ok = ex.web_smp_put(m.slot | 0, m.n | 0);
+        if (ok && m.play !== undefined) ex.web_use_sample(m.play | 0, m.slot | 0);
+        this.port.postMessage({ type: "sampled", slot: m.slot, ok: !!ok });
+      } else if (m.type === "use-sample" && ex.web_use_sample) ex.web_use_sample(m.track | 0, m.slot | 0);
     }
 
     publish() {
