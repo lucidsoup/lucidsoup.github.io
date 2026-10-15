@@ -745,6 +745,303 @@ function patternURL(name) {
     return patternCache[name];
 }
 
+/* ========================= murals =========================
+   The surfaces between the flights. Patterns are lattices and read as tiling;
+   these are single bilateral ornaments, built from the same vocabulary as the
+   artwork they were drawn from: a violet mass under crisp outlines, acid-green
+   hooked horns, magenta ribbing fans, contour lines following every large form,
+   pods along an arc, a segmented spine, and one cyan lens.
+
+   Quieter than the reference on purpose. The reference is 39% black ground and
+   these are around 60%: a wall stands behind a staircase and should not compete
+   with it. The edges fall to black so one surface meets the next without a seam.
+
+   Seeded, so a given wall is always that wall.
+   ========================================================= */
+
+// A bilateral ornament in the manner of the reference: a violet mass with a
+// stacked central spine, acid-green blades radiating out, magenta ribbing, and
+// curling ribbons with spiral ends. Everything is mirrored about the vertical
+// axis, and everything is seeded, so a given wall is always the same wall.
+
+function rng(seed) {
+    var s = seed >>> 0 || 1;
+    return function () {
+        s ^= s << 13; s >>>= 0;
+        s ^= s >> 17;
+        s ^= s << 5;  s >>>= 0;
+        return s / 4294967296;
+    };
+}
+
+var VIOLET  = [ [32,10,92], [48,30,130], [75,56,150], [119,95,166] ];
+var GREEN   = [ [70,146,41], [93,176,77], [120,200,90] ];
+var MAGENTA = [ [117,34,100], [160,45,110], [196,70,130] ];
+var FOCAL   = [111,227,232];
+
+function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+function pick(r, arr) { return arr[Math.floor(r() * arr.length)]; }
+
+// A tapered blade — the green leaf forms sweeping out of the mass.
+function blade(x, cx, cy, len, wide, ang, curve) {
+    x.beginPath();
+    x.moveTo(cx, cy);
+    var tx = cx + Math.cos(ang) * len, ty = cy + Math.sin(ang) * len;
+    var nx = Math.cos(ang + Math.PI / 2), ny = Math.sin(ang + Math.PI / 2);
+    x.bezierCurveTo(
+        cx + nx * wide + Math.cos(ang) * len * .25, cy + ny * wide + Math.sin(ang) * len * .25,
+        tx + nx * wide * curve, ty + ny * wide * curve, tx, ty);
+    x.bezierCurveTo(
+        tx - nx * wide * curve * .6, ty - ny * wide * curve * .6,
+        cx - nx * wide * .7 + Math.cos(ang) * len * .22, cy - ny * wide * .7 + Math.sin(ang) * len * .22,
+        cx, cy);
+    x.closePath();
+}
+
+// A ribbon that ends in a spiral, the curling tendrils around the edges.
+function tendril(x, sx, sy, ex, ey, bow, turns, step) {
+    x.beginPath();
+    x.moveTo(sx, sy);
+    var mx = (sx + ex) / 2 + bow, my = (sy + ey) / 2 - bow * .4;
+    x.quadraticCurveTo(mx, my, ex, ey);
+    var a = Math.atan2(ey - my, ex - mx), r = step;
+    var px = ex, py = ey;
+    for (var i = 0; i < turns * 12; i++) {
+        a += Math.PI / 6;
+        r *= .88;
+        px += Math.cos(a) * r; py += Math.sin(a) * r;
+        x.lineTo(px, py);
+    }
+    x.stroke();
+}
+
+// A family of parallel curved strokes — the magenta fans in the mid-body.
+function ribbing(x, cx, cy, n, spread, len, ang, col) {
+    for (var i = 0; i < n; i++) {
+        var t = i / (n - 1 || 1);
+        var a = ang - spread / 2 + spread * t;
+        x.strokeStyle = rgba(col, .28 + .4 * (1 - Math.abs(t - .5) * 2));
+        x.lineWidth = 2 + 3 * (1 - Math.abs(t - .5) * 2);
+        x.beginPath();
+        x.moveTo(cx, cy);
+        x.quadraticCurveTo(cx + Math.cos(a) * len * .5, cy + Math.sin(a) * len * .5 - len * .25,
+                           cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+        x.stroke();
+    }
+}
+
+// A long curved horn, tapering — the big green claw forms sweeping off the top
+// corners of the reference. A blade is symmetric; a horn hooks.
+function horn(x, cx, cy, len, wide, ang, hook) {
+    var steps = 26, pts = [];
+    for (var i = 0; i <= steps; i++) {
+        var t = i / steps;
+        var a = ang + hook * t * t;                 // curvature accelerates
+        var rr = len * t;
+        pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, (1 - t) * wide + wide * .08]);
+    }
+    x.beginPath();
+    for (i = 0; i < pts.length; i++) {
+        var pp = pts[i], aa = ang + hook * (i / steps) * (i / steps) + Math.PI / 2;
+        x[i ? 'lineTo' : 'moveTo'](pp[0] + Math.cos(aa) * pp[2], pp[1] + Math.sin(aa) * pp[2]);
+    }
+    for (i = pts.length - 1; i >= 0; i--) {
+        pp = pts[i]; aa = ang + hook * (i / steps) * (i / steps) + Math.PI / 2;
+        x.lineTo(pp[0] - Math.cos(aa) * pp[2], pp[1] - Math.sin(aa) * pp[2]);
+    }
+    x.closePath();
+    return pts;
+}
+
+// Contour lines following the inside of a horn — the ribbing the reference puts
+// inside every large form.
+function hornRibs(x, pts, ang, hook, col, n) {
+    x.strokeStyle = rgba(col, .55); x.lineWidth = 1;
+    for (var k = 1; k <= n; k++) {
+        var f = k / (n + 1);
+        x.beginPath();
+        for (var i = 2; i < pts.length - 1; i++) {
+            var pp = pts[i], aa = ang + hook * (i / (pts.length - 1)) * (i / (pts.length - 1)) + Math.PI / 2;
+            var o = pp[2] * (1 - 2 * f);
+            x[i === 2 ? 'moveTo' : 'lineTo'](pp[0] + Math.cos(aa) * o, pp[1] + Math.sin(aa) * o);
+        }
+        x.stroke();
+    }
+}
+
+// A scalloped fringe: the repeated lobes along the edges of the reference.
+function scallop(x, cx, cy, r0, a0, a1, n, amp, col, a) {
+    x.strokeStyle = rgba(col, a); x.lineWidth = 1.6;
+    x.beginPath();
+    for (var i = 0; i <= n * 12; i++) {
+        var t = i / (n * 12);
+        var ang = a0 + (a1 - a0) * t;
+        var rr = r0 + Math.sin(t * n * Math.PI * 2) * amp;
+        x[i ? 'lineTo' : 'moveTo'](cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr);
+    }
+    x.stroke();
+}
+
+function drawHalf(x, W, H, r) {
+    var cx = W, cy = H * .5;          // the mirror axis is the right edge of this half
+
+    // 1. the violet mass — crisp silhouettes with outlines and inner contours,
+    //    not soft blobs. The reference has edges you can follow.
+    for (var i = 0; i < 6; i++) {
+        var c = pick(r, VIOLET);
+        var bx = cx - W * (.08 + r() * .58), by = cy + (r() - .5) * H * .72;
+        var rx = W * (.13 + r() * .24), ry = H * (.1 + r() * .22);
+        var rot = (r() - .5) * .9;
+        x.fillStyle = rgba(c, .17 + r() * .16);
+        x.beginPath(); x.ellipse(bx, by, rx, ry, rot, 0, Math.PI * 2); x.fill();
+        x.strokeStyle = rgba(VIOLET[3], .4); x.lineWidth = 1.2; x.stroke();
+        for (var k = 1; k <= 3; k++) {          // contours inside the mass
+            x.strokeStyle = rgba(VIOLET[3], .16);
+            x.beginPath(); x.ellipse(bx, by, rx * (1 - k * .22), ry * (1 - k * .22), rot, 0, Math.PI * 2); x.stroke();
+        }
+    }
+
+    // 2. the big green horns off the upper corners, with ribs inside
+    var nH = 3 + Math.floor(r() * 2);
+    for (i = 0; i < nH; i++) {
+        var g = pick(r, GREEN);
+        var ang = Math.PI * (1.02 + .22 * (i / nH)) + (r() - .5) * .16;
+        var hook = -(0.5 + r() * .7);
+        var pts = horn(x, cx - W * (.05 + r() * .12), cy - H * (.05 - r() * .34),
+                       W * (.6 + r() * .4), W * (.07 + r() * .05), ang, hook);
+        x.fillStyle = rgba(g, .42 + r() * .22); x.fill();
+        x.strokeStyle = rgba(GREEN[2], .8); x.lineWidth = 1.4; x.stroke();
+        hornRibs(x, pts, ang, hook, GREEN[0], 2);
+    }
+
+    // 3. lower horns, sweeping the other way
+    for (i = 0; i < 2; i++) {
+        g = pick(r, VIOLET);
+        ang = Math.PI * (.72 + .2 * r());
+        hook = (0.4 + r() * .6);
+        pts = horn(x, cx - W * .1, cy + H * (.1 + r() * .22), W * (.5 + r() * .36), W * (.06 + r() * .05), ang, hook);
+        x.fillStyle = rgba(g, .5); x.fill();
+        x.strokeStyle = rgba(VIOLET[3], .7); x.lineWidth = 1.2; x.stroke();
+        hornRibs(x, pts, ang, hook, VIOLET[3], 2);
+    }
+
+    // 4. scalloped fringes, the lobed edges
+    for (i = 0; i < 3; i++) {
+        scallop(x, cx - W * .05, cy + (r() - .5) * H * .4,
+                W * (.3 + r() * .4), Math.PI * (.7 + r() * .2), Math.PI * (1.35 + r() * .2),
+                4 + Math.floor(r() * 5), W * (.02 + r() * .03),
+                r() < .5 ? pick(r, GREEN) : pick(r, VIOLET), .35 + r() * .3);
+    }
+
+    // 5. ribbons with spiral ends
+    x.lineCap = 'round';
+    for (i = 0; i < 6; i++) {
+        x.strokeStyle = rgba(pick(r, VIOLET), .5 + r() * .4);
+        x.lineWidth = 2 + r() * 8;
+        tendril(x,
+            cx - W * (.08 + r() * .2), cy + (r() - .5) * H * .7,
+            cx - W * (.5 + r() * .45), cy + (r() - .5) * H * .85,
+            (r() - .5) * W * .9, .9, 6 + r() * 7);
+    }
+
+    // 6. magenta ribbing fans, more of them and stronger
+    for (i = 0; i < 4; i++) {
+        ribbing(x, cx - W * (.04 + r() * .14), cy + (r() - .3) * H * .44,
+                9 + Math.floor(r() * 7), .75 + r() * .5, W * (.28 + r() * .28),
+                Math.PI * (.72 + r() * .55), pick(r, MAGENTA));
+    }
+
+    // 7. pods along two arcs
+    for (var arc = 0; arc < 2; arc++) {
+        var nP = 8 + Math.floor(r() * 8);
+        for (i = 0; i < nP; i++) {
+            var t = i / nP;
+            var pa = Math.PI * (1.03 + .68 * t);
+            var pr = W * (.3 + arc * .3 + r() * .22);
+            x.fillStyle = rgba(r() < .55 ? pick(r, GREEN) : pick(r, VIOLET), .6 + r() * .35);
+            x.beginPath();
+            x.ellipse(cx + Math.cos(pa) * pr, cy + Math.sin(pa) * pr * .92,
+                      W * (.016 + r() * .026), W * (.007 + r() * .012), pa, 0, Math.PI * 2);
+            x.fill();
+        }
+    }
+
+    // 8. the spine: a hood at the top, then narrowing ornamented segments
+    x.fillStyle = rgba(VIOLET[1], .42);
+    x.beginPath();
+    x.moveTo(cx, cy - H * .46);
+    x.bezierCurveTo(cx - W * .42, cy - H * .44, cx - W * .36, cy + H * .06, cx, cy + H * .08);
+    x.closePath(); x.fill();
+    x.strokeStyle = rgba(VIOLET[3], .55); x.lineWidth = 1.3; x.stroke();
+    for (k = 1; k <= 5; k++) {           // contour lines following the hood
+        x.strokeStyle = rgba(VIOLET[3], .22);
+        x.beginPath();
+        x.moveTo(cx, cy - H * .46 + k * H * .035);
+        x.bezierCurveTo(cx - W * (.42 - k * .05), cy - H * .44 + k * H * .03,
+                        cx - W * (.36 - k * .045), cy + H * .06 - k * H * .012, cx, cy + H * .07 - k * H * .01);
+        x.stroke();
+    }
+
+    var segs = 6 + Math.floor(r() * 3);
+    var y = cy - H * .2, hgt = (H * .62) / segs;
+    for (i = 0; i < segs; i++) {
+        var taper = 1 - .55 * (i / segs);
+        var wdt = W * (.055 + .13 * Math.sin(Math.PI * (i + .6) / segs)) * taper + W * .025;
+        x.fillStyle = rgba(pick(r, VIOLET), .5);
+        x.beginPath();
+        x.moveTo(cx, y);
+        x.quadraticCurveTo(cx - wdt, y + hgt * .18, cx - wdt * .86, y + hgt * .56);
+        x.quadraticCurveTo(cx - wdt * .55, y + hgt * .96, cx, y + hgt);
+        x.closePath(); x.fill();
+        x.strokeStyle = rgba(i % 2 ? GREEN[2] : MAGENTA[2], .7); x.lineWidth = 1.3; x.stroke();
+        x.strokeStyle = rgba(pick(r, GREEN), .6); x.lineWidth = 1.2;
+        for (k = 1; k < 6; k++) {
+            var yy = y + hgt * (k / 6);
+            x.beginPath(); x.moveTo(cx - wdt * .8, yy);
+            x.quadraticCurveTo(cx - wdt * .42, yy + hgt * .05, cx, yy);
+            x.stroke();
+        }
+        y += hgt;
+    }
+
+    // 9. the single focal lens, the one cyan note in the whole thing
+    x.fillStyle = rgba(FOCAL, .42);
+    x.beginPath(); x.ellipse(cx, cy - H * .38, W * .085, H * .075, 0, 0, Math.PI * 2); x.fill();
+    x.strokeStyle = rgba(FOCAL, .9); x.lineWidth = 1.6; x.stroke();
+    for (k = 1; k <= 3; k++) {
+        x.strokeStyle = rgba(FOCAL, .4);
+        x.beginPath(); x.ellipse(cx, cy - H * .38, W * .085 * (1 - k * .25), H * .075 * (1 - k * .25), 0, 0, Math.PI * 2); x.stroke();
+    }
+}
+
+function buildMural(w, h, seed) {
+    var c = (typeof document !== 'undefined') ? document.createElement('canvas') : null;
+    c.width = w; c.height = h;
+    var x = c.getContext('2d');
+    x.fillStyle = '#05050a';
+    x.fillRect(0, 0, w, h);
+    var r = rng(seed);
+    // Draw one half, then mirror it. The symmetry is the whole character.
+    x.save();
+    drawHalf(x, w / 2, h, r);
+    x.restore();
+    x.save();
+    x.translate(w, 0); x.scale(-1, 1);
+    drawHalf(x, w / 2, h, rng(seed));   // same seed -> a true mirror
+    x.restore();
+
+    // Let the edges fall to black: the reference keeps its margins dark, and a
+    // wall that fades at its border meets the next surface without a seam.
+    var g = x.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .25,
+                                   w / 2, h / 2, Math.max(w, h) * .62);
+    g.addColorStop(0, 'rgba(5,5,10,0)');
+    g.addColorStop(1, 'rgba(5,5,10,.92)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, w, h);
+    return c;
+}
+
+
 /* ========================= shaders on walls ========================= */
 function startShader(canvas, glsl) {
     var gl;
@@ -833,6 +1130,16 @@ function buildArt(ref, opts) {
         var url = patternURL(arg);
         if (!url) return null;
         return { pattern: url };
+    }
+
+    if (kind === 'mural') {
+        // Sized to the surface, capped so a big wall does not cost a huge canvas.
+        var mw = Math.max(240, Math.min(820, Math.round(opts && opts.w || 520)));
+        var mh = Math.max(180, Math.min(820, Math.round((opts && opts.h || 400))));
+        var seed = hash32((state.room || 'x') + ':' + (arg || 'ornament') + ':' + mw);
+        var mc = buildMural(mw, mh, seed);
+        mc.className = 'fill';
+        return { el: mc };
     }
 
     if (kind === 'image') {
@@ -990,7 +1297,7 @@ function placement(side, w, h, d) {
 
 // Paints one surface's art. Pulled out of buildRoom so a wall can be repainted
 // on its own when someone changes it, without rebuilding the room around it.
-function paintArt(el, spec, surfaceW) {
+function paintArt(el, spec, surfaceW, surfaceH) {
     // Clear what was there, but never the doorway.
     Array.prototype.slice.call(el.children).forEach(function (ch) {
         if (!ch.classList.contains('doorway')) ch.remove();
@@ -998,7 +1305,7 @@ function paintArt(el, spec, surfaceW) {
     el.style.backgroundImage = '';
     el.classList.remove('lit');
 
-    var art = buildArt(spec.art, { framed: !!spec.frame });
+    var art = buildArt(spec.art, { framed: !!spec.frame, w: surfaceW, h: surfaceH });
 
     if (art && art.pattern) {
         el.style.backgroundImage = 'url(' + art.pattern + ')';
@@ -1047,15 +1354,15 @@ function paintArt(el, spec, surfaceW) {
 // work; the live ones come last.
 var SURFACE_CYCLE = ['pattern:hex', 'pattern:triangle', 'pattern:penrose',
                      'pattern:escher', 'pattern:moire', 'pattern:grid',
-                     'shader:random', 'work:random'];
+                     'mural:ornament', 'shader:random', 'work:random'];
 
-function cycleSurface(el, spec, surfaceW) {
+function cycleSurface(el, spec, surfaceW, surfaceH) {
     var i = SURFACE_CYCLE.indexOf(spec.art);
     var next = SURFACE_CYCLE[(i + 1) % SURFACE_CYCLE.length];
     // Do not promise a live shader the budget cannot pay for.
     if (next.indexOf('shader') === 0 && shaderBudget <= 0) next = SURFACE_CYCLE[0];
     spec.art = next;
-    paintArt(el, spec, surfaceW);
+    paintArt(el, spec, surfaceW, surfaceH);
     el.classList.remove('touched');
     void el.offsetWidth;
     el.classList.add('touched');
@@ -1103,16 +1410,16 @@ function buildRoom(id) {
         el.style.marginTop = (-p.h / 2) + 'px';
         el.style.transform = p.t;
 
-        paintArt(el, spec, p.w);
+        paintArt(el, spec, p.w, p.h);
 
         // Clicking a plain surface changes what is on it. The doorway and any
         // framed work stop the click first, so this never steals those.
         if (!spec.exit) {
             el.classList.add('alterable');
-            el.addEventListener('click', (function (surface, sp, sw) {
+            el.addEventListener('click', (function (surface, sp, sw, sh) {
                 return function (e) {
                     if (e.target.closest && e.target.closest('.frame, .doorway')) return;
-                    cycleSurface(surface, sp, sw);
+                    cycleSurface(surface, sp, sw, sh);
                 };
             })(el, spec, p.w));
         }

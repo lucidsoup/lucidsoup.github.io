@@ -72,7 +72,16 @@
     "  clicking it leaves the gallery for that part of the site. The gallery is",
     "  the only index \u2014 index.html shows one section at a time and only when",
     "  sent there by name, so a room is the single route to what it holds.",
-    "  Keep exactly one room per section, or something becomes unreachable."
+    "  Keep exactly one room per section, or something becomes unreachable.",
+    "",
+    "MURALS",
+    "  \"mural:ornament\" fills a surface with one bilateral ornament rather than",
+    "  a repeating tile \u2014 a violet mass under crisp outlines, acid-green hooked",
+    "  horns, magenta ribbing, contour lines inside every large form, pods along",
+    "  an arc, a segmented spine, one cyan lens. It is built from the same",
+    "  vocabulary as the reference artwork, and quieter than it on purpose: a",
+    "  wall stands behind a staircase and should not compete with it. Seeded per",
+    "  room and surface, so a given wall is always that wall."
   ],
   "entry": "antechamber",
   "rooms": {
@@ -134,13 +143,16 @@
           "art": "color:#0a0a12"
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament",
+          "frame": false
         },
         "south": {
           "exit": "antechamber",
           "label": "back",
           "ascend": -1
+        },
+        "west": {
+          "art": "mural:ornament"
         }
       },
       "stairs": [
@@ -171,13 +183,16 @@
           "art": "color:#0a0a12"
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament",
+          "frame": false
         },
         "south": {
           "exit": "stair-a",
           "label": "back",
           "ascend": -1
+        },
+        "west": {
+          "art": "mural:ornament"
         }
       },
       "stairs": [
@@ -208,13 +223,16 @@
           "art": "color:#0a0a12"
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament",
+          "frame": false
         },
         "south": {
           "exit": "stair-b",
           "label": "back",
           "ascend": -1
+        },
+        "west": {
+          "art": "mural:ornament"
         }
       },
       "stairs": [
@@ -246,13 +264,16 @@
           "art": "color:#0a0a12"
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament",
+          "frame": false
         },
         "south": {
           "exit": "stair-c",
           "label": "back",
           "ascend": -1
+        },
+        "west": {
+          "art": "mural:ornament"
         }
       },
       "stairs": [
@@ -291,7 +312,7 @@
           "repeat": 3
         },
         "north": {
-          "art": "shader:random"
+          "art": "mural:ornament"
         },
         "south": {
           "exit": "antechamber",
@@ -407,12 +428,10 @@
           "repeat": 5
         },
         "north": {
-          "art": "pattern:penrose",
-          "repeat": 3
+          "art": "mural:ornament"
         },
         "east": {
-          "art": "pattern:triangle",
-          "repeat": 4
+          "art": "mural:ornament"
         },
         "west": {
           "exit": "hall-of-tiles",
@@ -653,8 +672,7 @@
           "repeat": 2
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament"
         },
         "west": {
           "art": "pattern:grid",
