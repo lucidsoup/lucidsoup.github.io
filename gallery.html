@@ -174,6 +174,8 @@
         text-shadow: 0 0 12px rgba(139, 108, 245,.6);
         pointer-events: none;
     }
+    .doorway.tall { height: 82%; }
+
     /* A doorway on the floor or ceiling reads as a shaft, not an arch. */
     .doorway.shaft {
         width: 44%; height: 44%; top: 50%; bottom: auto;
@@ -1418,25 +1420,44 @@ function buildRoom(id) {
             })(el, spec, p.w));
         }
 
-        if (spec.exit) {
+        // A wall can carry one door or a row of them. A hall of named doors is
+        // how this place offers a short way round without a menu floating over
+        // it: the shortcut is a room you walk into, not an overlay.
+        var doors = [];
+        if (spec.exit) doors.push(spec);
+        (spec.doors || []).forEach(function (dspec) { if (dspec && dspec.exit) doors.push(dspec); });
+
+        doors.forEach(function (dspec, di) {
+            if (!getRoom(dspec.exit)) return;          // never draw a door to nowhere
             var dw = document.createElement('div');
             dw.className = 'doorway' + (side === 'floor' || side === 'ceiling' ? ' shaft' : '');
             dw.setAttribute('role', 'button');
             dw.setAttribute('tabindex', '0');
-            dw.setAttribute('aria-label', 'Go to ' + (spec.label || spec.exit));
-            if (spec.label) {
+            dw.setAttribute('aria-label', 'Go to ' + (dspec.label || dspec.exit));
+
+            // `at` places a door along the wall, 0 to 1. Several doors share the
+            // wall evenly when none of them say where they want to be.
+            var at = (typeof dspec.at === 'number') ? dspec.at
+                   : (doors.length > 1 ? (di + 0.5) / doors.length : 0.5);
+            if (doors.length > 1) {
+                dw.style.left = (at * 100) + '%';
+                dw.style.width = Math.min(34, 78 / doors.length) + '%';
+            }
+            if (dspec.tall) dw.classList.add('tall');
+
+            if (dspec.label) {
                 var lb = document.createElement('div');
                 lb.className = 'doorway-label';
-                lb.textContent = spec.label;
+                lb.textContent = dspec.label;
                 dw.appendChild(lb);
             }
-            var go = function (e) { if (e) e.stopPropagation(); travel(spec); };
+            var go = function (e) { if (e) e.stopPropagation(); travel(dspec); };
             dw.addEventListener('click', go);
             dw.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(e); }
             });
             el.appendChild(dw);
-        }
+        });
 
         roomEl.appendChild(el);
     });
@@ -1512,9 +1533,14 @@ function paintHUD(room, surfaces) {
         (impossible ? '<div style="color:#ff00ff">this room is below you</div>' : '');
 
     hudBottom.innerHTML = '';
+    var listed = [];
     SIDES.forEach(function (side) {
         var spec = surfaces[side];
-        if (!spec || !spec.exit) return;
+        if (!spec) return;
+        if (spec.exit) listed.push(spec);
+        (spec.doors || []).forEach(function (d) { if (d && d.exit) listed.push(d); });
+    });
+    listed.forEach(function (spec) {
         var b = document.createElement('button');
         b.className = 'exit-chip';
         var asc = spec.ascend || 0;

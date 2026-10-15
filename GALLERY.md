@@ -228,6 +228,33 @@ plane. The filter therefore goes on `#stage`, outside the 3D chain. The style
 looks correct either way; only the picture tells you. Echo copies have their
 media and doorways stripped, so they stay cheap and never steal a click.
 
+## The short way round
+
+Not everyone wants to walk a labyrinth to reach the SP-404 converter. The
+shortcut is **The Concordance** — a hall one step up from the entrance whose
+doors are each named for where they go and lead straight there. It keeps the
+short route inside the architecture instead of floating a menu over it, so the
+labyrinth stays the default without becoming a toll.
+
+A surface can carry several doors to make a hall like that:
+
+```json
+"north": {
+  "art": "mural:ornament",
+  "doors": [
+    { "exit": "reliquary", "label": "shaders",  "at": 0.14, "tall": true },
+    { "exit": "workshop",  "label": "drumseek", "at": 0.38, "tall": true }
+  ]
+}
+```
+
+`at` places a door along the wall from 0 to 1; without it they share the wall
+evenly. `tall` makes an arch rather than a low door. A door to a room that does
+not exist is never drawn.
+
+Everything in the site is two rooms from the entrance this way, and three to six
+if you wander instead.
+
 ## The gallery is the only index
 
 `index.html` is no longer a page you scroll. It shows the entrance, or exactly

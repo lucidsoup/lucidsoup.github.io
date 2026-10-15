@@ -94,7 +94,17 @@
     "  slideshow. With it a doorway is a corner, and keeping track of where",
     "  you are becomes the work. Clamped to the look limits.",
     "",
-    "  Nothing marks a dead end as a dead end."
+    "  Nothing marks a dead end as a dead end.",
+    "",
+    "DOORS ON ONE WALL",
+    "  A surface may carry \"doors\": an array of { exit, label, at, tall }",
+    "  instead of, or as well as, a single \"exit\". \"at\" places a door along",
+    "  the wall from 0 to 1; without it they share the wall evenly.",
+    "",
+    "  The Concordance uses this: a hall whose doors are each named for where",
+    "  they go and lead straight there. It is the short way round for anyone",
+    "  who does not want to walk the labyrinth, kept as architecture rather",
+    "  than as a menu over the top of it. One step up from the entrance."
   ],
   "entry": "antechamber",
   "rooms": {
@@ -115,7 +125,10 @@
         },
         "ceiling": {
           "art": "pattern:moire",
-          "repeat": 2
+          "repeat": 2,
+          "exit": "concordance",
+          "label": "doors",
+          "ascend": 1
         },
         "north": {
           "art": "work:reel-01",
@@ -994,6 +1007,80 @@
           "exit": "reliquary",
           "label": "on",
           "turn": -40
+        }
+      }
+    },
+    "concordance": {
+      "name": "The Concordance",
+      "size": [
+        9.5,
+        3.4,
+        4.6
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:penrose",
+          "repeat": 5,
+          "exit": "antechamber",
+          "label": "down",
+          "ascend": -1
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 3
+        },
+        "north": {
+          "art": "mural:ornament",
+          "doors": [
+            {
+              "exit": "reliquary",
+              "label": "shaders",
+              "at": 0.14,
+              "tall": true
+            },
+            {
+              "exit": "workshop",
+              "label": "drumseek",
+              "at": 0.38,
+              "tall": true
+            },
+            {
+              "exit": "bench",
+              "label": "sp-404",
+              "at": 0.62,
+              "tall": true
+            },
+            {
+              "exit": "loft",
+              "label": "synthsoup",
+              "at": 0.86,
+              "tall": true
+            }
+          ]
+        },
+        "east": {
+          "art": "pattern:hex",
+          "repeat": 3,
+          "doors": [
+            {
+              "exit": "studio",
+              "label": "studio",
+              "at": 0.3,
+              "tall": true
+            },
+            {
+              "exit": "counting-house",
+              "label": "shop",
+              "at": 0.72,
+              "tall": true
+            }
+          ]
+        },
+        "west": {
+          "art": "mural:ornament",
+          "exit": "antechamber",
+          "label": "back",
+          "turn": 24
         }
       }
     }
