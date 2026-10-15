@@ -8,7 +8,9 @@ import path from 'node:path';
 
 export const MANIFEST_PATH = path.join('shaders', 'manifest.json');
 
-// Kept byte-identical to the wrapper in index.html. If one changes, change both.
+// The canonical shader wrapper. index.html and gallery.html each embed a copy;
+// checkWrappers() below asserts they still produce exactly this GLSL, because a
+// comment asking people to keep three copies in sync does not survive contact.
 export const PRELUDE = [
   '#ifdef GL_FRAGMENT_PRECISION_HIGH',
   'precision highp float;',
@@ -25,6 +27,54 @@ export const EPILOGUE = '\nvoid main(){\n' +
   '    vec4 lucidOut = vec4(0.0, 0.0, 0.0, 1.0);\n' +
   '    mainImage(lucidOut, gl_FragCoord.xy);\n' +
   '    gl_FragColor = vec4(lucidOut.rgb, 1.0);\n}\n';
+
+// ===== wrapper drift =====
+// Each host writes the wrapper as JS string literals, with its own indentation,
+// so compare what the literals EVALUATE to rather than their source text.
+const HOSTS = ['index.html', 'gallery.html'];
+
+function literalsToText(src) {
+  // Pull the single-quoted pieces out in order and undo the escapes we use.
+  const out = [];
+  const re = /'((?:[^'\\]|\\.)*)'/g;
+  let m;
+  while ((m = re.exec(src))) {
+    out.push(m[1].replace(/\\n/g, '\n').replace(/\\'/g, "'").replace(/\\\\/g, '\\'));
+  }
+  return out;
+}
+
+export function checkWrappers() {
+  const problems = [];
+  for (const host of HOSTS) {
+    if (!fs.existsSync(host)) { problems.push(`${host} is missing`); continue; }
+    const src = fs.readFileSync(host, 'utf8');
+
+    // PRELUDE: an array of literals joined with newlines.
+    let foundPrelude = false;
+    const preRe = /\[\s*'#ifdef GL_FRAGMENT_PRECISION_HIGH'[\s\S]*?\]\s*\.join\('\\n'\)/g;
+    let m;
+    while ((m = preRe.exec(src))) {
+      // slice(0,-1) drops the join('\n') argument, which the literal scan also picks up;
+      // the array's own empty last element already supplies the trailing newline.
+      if (literalsToText(m[0]).slice(0, -1).join('\n') === PRELUDE) foundPrelude = true;
+    }
+    if (!foundPrelude) {
+      problems.push(`${host}: no PRELUDE matching scripts/shader-validate.mjs`);
+    }
+
+    // EPILOGUE: a run of concatenated literals starting at void main().
+    let foundEpilogue = false;
+    const epiRe = /'\\nvoid main\(\)\{\\n'[\s\S]{0,400}?\}\\n'/g;
+    while ((m = epiRe.exec(src))) {
+      if (literalsToText(m[0]).join('') === EPILOGUE) foundEpilogue = true;
+    }
+    if (!foundEpilogue) {
+      problems.push(`${host}: no EPILOGUE matching scripts/shader-validate.mjs`);
+    }
+  }
+  return problems;
+}
 
 const BANNED = [
   [/#version/, 'contains a #version directive (the page compiles as GLSL ES 1.0)'],
@@ -169,6 +219,13 @@ export function writeManifest(manifest) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { shaders } = readManifest();
   let bad = 0;
+
+  // The hosts must still agree with this file's wrapper, or shaders that pass
+  // here can fail in the page.
+  const drift = checkWrappers();
+  for (const d of drift) { bad++; console.error(`\u2717 ${d}`); }
+  if (!drift.length) console.log('\u2713 shader wrapper matches in index.html and gallery.html');
+
   for (const entry of shaders) {
     const problems = staticChecks(entry);
     if (problems.length) { bad++; console.error(`✗ ${entry.id}: ${problems.join('; ')}`); }
@@ -178,6 +235,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     if (r.ok) console.log(`✓ ${r.id} (lit ${r.litPct}%)`);
     else { bad++; console.error(`✗ ${r.id}: ${r.error}`); }
   }
-  console.log(`\n${shaders.length} shader(s) checked, ${bad} problem(s).`);
+  console.log(`\n${shaders.length} shader(s) + ${HOSTS.length} host(s) checked, ${bad} problem(s).`);
   process.exit(bad ? 1 : 0);
 }

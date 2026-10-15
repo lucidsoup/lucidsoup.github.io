@@ -145,6 +145,41 @@
         }
         @keyframes capPulse { 0%,100% { opacity: .35; } 50% { opacity: .9; } }
         .box-open .box-lid { opacity: 0; transform: scale(.7) rotateX(60deg); pointer-events: none; }
+
+        /* The gate sits at the centre of the open box. It is not a nav item and
+           has no presence until the box is opened — the specific spot, not a link. */
+        .box-gate {
+            position: absolute; left: 50%; top: 50%;
+            width: 52%; height: 52%;
+            transform: translate(-50%, -50%) scale(.55);
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 6px;
+            border-radius: 50%; text-decoration: none;
+            opacity: 0; pointer-events: none;
+            transition: opacity .5s ease .45s, transform .5s ease .45s;
+            z-index: 3;
+        }
+        .box-open .box-gate { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+        .box-gate-ring {
+            position: absolute; inset: 0; border-radius: 50%;
+            border: 1px solid rgba(0,255,255,.5);
+            box-shadow: 0 0 26px rgba(0,255,255,.3), inset 0 0 34px rgba(0,0,0,.95);
+            background: radial-gradient(circle at 50% 50%, rgba(0,0,0,.96) 48%, rgba(0,255,255,.1) 100%);
+            animation: gatePulse 3.4s ease-in-out infinite;
+        }
+        .box-gate-cap {
+            position: relative; font-size: 10px; letter-spacing: .34em;
+            text-transform: uppercase; color: #00ffff;
+            text-shadow: 0 0 14px rgba(0,255,255,.8);
+        }
+        .box-gate:hover .box-gate-ring, .box-gate:focus-visible .box-gate-ring {
+            border-color: rgba(0,255,255,.95);
+            box-shadow: 0 0 44px rgba(0,255,255,.55), inset 0 0 30px rgba(0,0,0,.9);
+        }
+        @keyframes gatePulse {
+            0%, 100% { transform: scale(1); opacity: .9; }
+            50%      { transform: scale(1.06); opacity: 1; }
+        }
         .box-open .box-lid-cap { display: none; }
 
         /* The four flaps, hinged on the edge that touches the core. */
@@ -205,6 +240,8 @@
         @media (prefers-reduced-motion: reduce) {
             .box-core, .box-lid, .flap, .hero.box-lifted .hero-content { transition: none !important; }
             .box-lid-cap { animation: none; }
+            .box-gate { transition: none !important; }
+            .box-gate-ring { animation: none; }
         }
 
         .scanlines { position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(0,255,255,.03) 50%); background-size: 100% 4px; animation: scan .1s linear infinite; pointer-events: none; }
@@ -1214,6 +1251,12 @@
                             </svg>
                             <span class="box-lid-cap">Open</span>
                         </div>
+                        <!-- Revealed only once the box is open: the way into the gallery. -->
+                        <a class="box-gate" id="boxGate" href="gallery.html"
+                           aria-label="Enter the gallery">
+                            <span class="box-gate-ring" aria-hidden="true"></span>
+                            <span class="box-gate-cap">enter</span>
+                        </a>
                     </div>
                     <button type="button" class="box-reset" id="boxReset">Close the box</button>
                 </div>

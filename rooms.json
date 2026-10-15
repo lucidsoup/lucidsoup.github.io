@@ -1,0 +1,313 @@
+{
+  "_README": [
+    "The gallery is a GRAPH, not a space. Each room is described on its own and",
+    "knows nothing of the others; a doorway just names the room it leads to. That is",
+    "the whole trick behind the impossible geometry \u2014 nothing is ever checked for",
+    "global consistency, because there is no global space to be consistent with.",
+    "Four rooms can each be one flight UP from the last and still close into a loop.",
+    "",
+    "Adding a room is an entry here. Adding art to a wall is one string.",
+    "",
+    "ROOM",
+    "  name       shown in the HUD on arrival",
+    "  note       optional line of text, for a room that wants to say something",
+    "  size       [width, height, depth] in metres-ish. 4x3x4 is a normal room.",
+    "  surfaces   floor, ceiling, north, east, west \u2014 all optional. \"south\" is",
+    "             BEHIND the viewer and is never drawn, so put art on the other",
+    "             five; a \"south\" exit still works as a button in the HUD.",
+    "",
+    "SURFACE",
+    "  art        what is on it (see ART below). Optional.",
+    "  frame      true to hang it as a framed piece rather than cover the surface",
+    "  exit       room id this surface leads to. Makes a doorway.",
+    "  label      text on the doorway",
+    "  ascend     flights climbed by taking it (negative to descend). The HUD keeps",
+    "             a running total, so a staircase that loops proves it is impossible.",
+    "  repeat     tile the art N times across the surface (for patterns)",
+    "",
+    "ART \u2014 one string, resolved in this order:",
+    "  work:<id>        a work from media.json (video loop, or its poster)",
+    "  shader:<id>      a live shader from shaders/manifest.json \u2014 real WebGL on the",
+    "                   wall. 'shader:random' picks one per visit.",
+    "  image:<path>     any image in the repo",
+    "  pattern:<name>   a generated tessellation, drawn in code, so rooms look right",
+    "                   before any art exists. hex, penrose, triangle, escher, moire, grid",
+    "  color:<css>      a flat colour",
+    "",
+    "Nothing here is required. A room with no art still works; a missing asset",
+    "leaves the surface bare rather than breaking the gallery."
+  ],
+  "entry": "antechamber",
+  "rooms": {
+    "antechamber": {
+      "name": "Antechamber",
+      "note": "Three ways on. None of them come back.",
+      "size": [
+        5,
+        3.2,
+        5
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:escher",
+          "repeat": 3,
+          "exit": "well",
+          "label": "down",
+          "ascend": -1
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "work:reel-01",
+          "frame": true
+        },
+        "east": {
+          "exit": "stair-a",
+          "label": "up",
+          "ascend": 1
+        },
+        "west": {
+          "exit": "hall-of-tiles",
+          "label": "tiles"
+        }
+      }
+    },
+    "stair-a": {
+      "name": "First Flight",
+      "size": [
+        4,
+        3,
+        4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:triangle",
+          "repeat": 4
+        },
+        "ceiling": {
+          "art": "color:#0a0a12"
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "east": {
+          "exit": "stair-b",
+          "label": "up",
+          "ascend": 1
+        },
+        "south": {
+          "exit": "antechamber",
+          "label": "back",
+          "ascend": -1
+        }
+      }
+    },
+    "stair-b": {
+      "name": "Second Flight",
+      "size": [
+        4,
+        3,
+        4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:triangle",
+          "repeat": 4
+        },
+        "ceiling": {
+          "art": "color:#0a0a12"
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "east": {
+          "exit": "stair-c",
+          "label": "up",
+          "ascend": 1
+        },
+        "south": {
+          "exit": "stair-a",
+          "label": "back",
+          "ascend": -1
+        }
+      }
+    },
+    "stair-c": {
+      "name": "Third Flight",
+      "size": [
+        4,
+        3,
+        4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:triangle",
+          "repeat": 4
+        },
+        "ceiling": {
+          "art": "color:#0a0a12"
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "east": {
+          "exit": "stair-d",
+          "label": "up",
+          "ascend": 1
+        },
+        "south": {
+          "exit": "stair-b",
+          "label": "back",
+          "ascend": -1
+        }
+      }
+    },
+    "stair-d": {
+      "name": "Fourth Flight",
+      "note": "You have climbed four flights. You are where you started.",
+      "size": [
+        4,
+        3,
+        4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:penrose",
+          "repeat": 3
+        },
+        "ceiling": {
+          "art": "color:#0a0a12"
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "east": {
+          "exit": "stair-a",
+          "label": "up",
+          "ascend": 1
+        },
+        "south": {
+          "exit": "stair-c",
+          "label": "back",
+          "ascend": -1
+        }
+      }
+    },
+    "well": {
+      "name": "The Well",
+      "note": "The ceiling is the floor.",
+      "size": [
+        3.4,
+        5.5,
+        3.4
+      ],
+      "surfaces": {
+        "floor": {
+          "exit": "well",
+          "label": "down",
+          "ascend": -1,
+          "art": "pattern:hex",
+          "repeat": 3
+        },
+        "ceiling": {
+          "exit": "well",
+          "label": "up",
+          "ascend": 1,
+          "art": "pattern:hex",
+          "repeat": 3
+        },
+        "north": {
+          "art": "shader:random"
+        },
+        "south": {
+          "exit": "antechamber",
+          "label": "out"
+        },
+        "east": {
+          "art": "pattern:grid",
+          "repeat": 6
+        },
+        "west": {
+          "art": "pattern:grid",
+          "repeat": 6
+        }
+      }
+    },
+    "hall-of-tiles": {
+      "name": "Hall of Tiles",
+      "note": "Every surface is the same tile at a different scale.",
+      "size": [
+        7,
+        3,
+        4.5
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:hex",
+          "repeat": 6
+        },
+        "ceiling": {
+          "art": "pattern:hex",
+          "repeat": 3
+        },
+        "north": {
+          "art": "pattern:hex",
+          "repeat": 4
+        },
+        "south": {
+          "exit": "antechamber",
+          "label": "back"
+        },
+        "east": {
+          "exit": "reliquary",
+          "label": "reliquary"
+        },
+        "west": {
+          "art": "pattern:hex",
+          "repeat": 1
+        }
+      }
+    },
+    "reliquary": {
+      "name": "Reliquary",
+      "note": "Live shaders, running now. Not recordings of them.",
+      "size": [
+        6,
+        3.2,
+        4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 5
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "east": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "west": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "south": {
+          "exit": "hall-of-tiles",
+          "label": "back"
+        }
+      }
+    }
+  }
+}
