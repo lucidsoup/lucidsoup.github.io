@@ -90,6 +90,29 @@ a { color: inherit; }
 .keys, footer { margin: 16px 0 0; color: var(--dim); text-align: center; font-size: 13px; }
 .keys span { white-space: nowrap; margin: 0 8px; }
 kbd { font: 500 12px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--fg); background: var(--tray); }
+.console { margin: 16px 0 0; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
+.console fieldset { min-width: 0; margin: 0; padding: 14px 16px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--tray);
+                    display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; align-content: start; }
+.console legend { padding: 0 6px; font: 600 12px/1 var(--text); letter-spacing: .14em; text-transform: uppercase; color: var(--fg); }
+.console fieldset:disabled { opacity: .55; }
+.ctl { display: grid; gap: 4px; min-width: 0; }
+.ctl > span { font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.ctl select { font: 15px var(--text); color: var(--fg); background: var(--part); border: 1px solid var(--edge); border-radius: 8px;
+              padding: 7px 10px; max-width: 100%; min-width: 7.5em; }
+.seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
+.seg button { font: 500 13px/1 var(--mono); color: var(--dim); background: var(--part); border: 0; padding: 9px 11px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--edge); }
+.seg button[aria-pressed="true"] { background: var(--neon); color: var(--ink-on-lit); }
+.seg button:focus-visible, .ctl select:focus-visible, .check input:focus-visible { outline: 2px solid var(--acid); outline-offset: 2px; }
+.midi-line { display: flex; align-items: center; gap: 8px; flex-basis: 100%; min-width: 0; }
+.midi-line span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--slit-dark); box-shadow: inset 0 0 0 1px var(--edge); }
+.dot.ok { background: #4a7a2a; } .dot.hit { background: var(--acid); box-shadow: 0 0 10px var(--acid); }
+.dot.bad { background: var(--neon); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--fg); }
+.check input { accent-color: var(--neon); width: 16px; height: 16px; }
+.hint { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--dim); }
+@media (max-width: 760px) { .console { grid-template-columns: 1fr; } }
 .guide { margin: 40px 0 0; }
 .guide h2 { margin: 0 0 4px; font: 400 30px/1.1 var(--display); color: var(--fg); text-wrap: balance; }
 .guide > p { margin: 0 0 20px; color: var(--dim); max-width: 60ch; }
@@ -118,6 +141,23 @@ footer small { font-size: 11px; opacity: .8; }
   <div class="start" id="start"><button id="go" type="button">Switch on</button><p id="status" hidden></p></div>
 </div>
 
+<form class="console" id="console" aria-label="Sound and MIDI" onsubmit="return false">
+  <fieldset id="sound-set" disabled>
+    <legend>Sound</legend>
+    <div class="ctl"><span id="trk-l">Track</span><div class="seg" id="trk" role="group" aria-labelledby="trk-l"></div></div>
+    <label class="ctl"><span>Engine</span><select id="eng"></select></label>
+    <label class="ctl"><span>Preset</span><select id="pre"></select></label>
+    <div class="ctl"><span id="vce-l">Voices</span><div class="seg" id="vce" role="group" aria-labelledby="vce-l"></div></div>
+  </fieldset>
+  <fieldset id="midi-set" disabled>
+    <legend>MIDI</legend>
+    <div class="midi-line" aria-live="polite"><span class="dot" id="midi-dot"></span><span id="midi-status">Switch on to connect MIDI</span></div>
+    <label class="ctl"><span>Input</span><select id="midi-in"><option value="">All inputs</option></select></label>
+    <label class="check"><input type="checkbox" id="midi-any" checked> Any channel plays the selected track</label>
+    <p class="hint" id="midi-hint">Unticked: channels 1–4 play tracks 1–4. Program Change picks presets, CC74 / CC71 are cutoff and resonance, CC7 level, CC91 / CC94 reverb and delay sends.</p>
+  </fieldset>
+</form>
+
 <p class="keys">
   <span><kbd>Z</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> keys</span>
   <span><kbd>1</kbd>–<kbd>=</kbd> FX … REC</span>
@@ -129,7 +169,7 @@ footer small { font-size: 11px; opacity: .8; }
 
 <section class="guide" aria-labelledby="guide-h">
   <h2 id="guide-h">What's in the soup</h2>
-  <p>Switch on, wait for the cat, then try these. Keys in brackets are the computer-keyboard shortcuts. Tap FX one press at a time; a quick double tap does something else.</p>
+  <p>Switch on, wait for the cat, then try these. The Sound panel under the synth picks any engine and preset for each track, and POLY plays chords. Keys in brackets are the computer-keyboard shortcuts. Tap FX one press at a time; a quick double tap does something else.</p>
   <ul class="cards">
     <li><h3>TABLE wavetables</h3>
       <p class="how">hold EDIT <kbd>5</kbd> + tap A3 <kbd>C</kbd></p>
@@ -402,7 +442,7 @@ const KEYMAP = {};
 Object.assign(KEYMAP, { BracketLeft: { btn: B["OCT-"] }, BracketRight: { btn: B["OCT+"] } });
 const ARROWS = { ArrowUp: [EN.SELECT, 1], ArrowDown: [EN.SELECT, -1], ArrowRight: [EN.ALGORITHM, 1], ArrowLeft: [EN.ALGORITHM, -1] };
 addEventListener("keydown", (e) => {
-  if (!node || e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.(".hit.knob")) return;
+  if (!node || e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.(".hit.knob, .console")) return;
   if (ARROWS[e.code]) { const [r, n] = ARROWS[e.code]; turn(knobs.find((k) => k.role === r), n); e.preventDefault(); return; }
   const m = KEYMAP[e.code];
   if (!m) return;
@@ -489,22 +529,107 @@ function saveFlash(sectors) {
   } catch { return false; }                                       // private mode, full: this session only
 }
 
+// ------------------------------------------------------------------ Sound: the track's engine, preset, voices
+const $ = (id) => document.getElementById(id);
+const VOICES = ["POLY", "MONO", "LEG", "UNI"], VOICE_TIPS = ["Polyphonic: chords", "Mono: one note", "Legato: one note, gliding", "Unison: one note, stacked voices"];
+let cat = null, cur = null;
+const PREF = "synthsoup-emu-prefs";
+const prefs = (() => { try { return JSON.parse(localStorage.getItem(PREF) || "{}"); } catch { return {}; } })();
+const savePrefs = () => { try { localStorage.setItem(PREF, JSON.stringify(prefs)); } catch { /* this session only */ } };
+function seg(box, labels, tips, on) {
+  box.innerHTML = "";
+  labels.forEach((l, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = l;
+    if (tips) b.title = tips[i];
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => on(i));
+    box.appendChild(b);
+  });
+}
+function presetsOf(engine) {
+  const e = cat.find((x) => x.id === engine), sel = $("pre");
+  sel.innerHTML = "";
+  (e ? e.presets : []).forEach((n, i) => sel.add(new Option(`${i + 1} ${n}`, i)));
+  sel.add(new Option("(edited)", 255));
+  sel.lastChild.disabled = true;
+}
+function setupSound(catalog) {
+  cat = catalog;
+  if (!cat) return;
+  seg($("trk"), ["1", "2", "3", "4"], null, (t) => send({ type: "select", track: t }));
+  seg($("vce"), VOICES, VOICE_TIPS, (v) => cur && send({ type: "voice", track: cur.track, voice: v }));
+  const eng = $("eng");
+  eng.innerHTML = "";
+  cat.forEach((e) => eng.add(new Option(e.name, e.id)));
+  eng.addEventListener("change", () => cur && send({ type: "sound", track: cur.track, engine: +eng.value, preset: 0 }));
+  $("pre").addEventListener("change", (ev) => cur && send({ type: "sound", track: cur.track, engine: cur.engine, preset: +ev.target.value }));
+  $("sound-set").disabled = false;
+}
+function showState(st) {
+  if (!st || !cat) return;
+  const engineChanged = !cur || cur.engine !== st.engine;
+  cur = st;
+  [...$("trk").children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === st.track)));
+  [...$("vce").children].forEach((b, i) => b.setAttribute("aria-pressed", String(i === st.voice)));
+  if (engineChanged) presetsOf(st.engine);
+  $("eng").value = String(st.engine);
+  $("pre").value = String(st.preset);
+  $("midi-any").checked = st.route === 1;
+}
+
 // ------------------------------------------------------------------ Web MIDI in (channel messages)
+let midiAccess = null, dotTimer = 0;
+function midiSay(text, cls) {
+  $("midi-status").textContent = text;
+  $("midi-dot").className = "dot" + (cls ? " " + cls : "");
+}
+function midiFlash() {
+  const d = $("midi-dot");
+  d.classList.add("hit");
+  clearTimeout(dotTimer);
+  dotTimer = setTimeout(() => d.classList.remove("hit"), 90);
+}
+function midiBind() {
+  const ins = [...midiAccess.inputs.values()], sel = $("midi-in");
+  const keep = sel.value;
+  sel.innerHTML = "";
+  sel.add(new Option(ins.length ? "All inputs" : "No inputs", ""));
+  ins.forEach((i) => sel.add(new Option(i.name || "MIDI input", i.id)));
+  sel.value = ins.some((i) => i.id === keep) ? keep : "";
+  for (const input of ins) {
+    const on = !sel.value || input.id === sel.value;
+    input.onmidimessage = on ? (e) => {
+      const d = e.data;
+      if (d.length >= 2 && d[0] >= 0x80 && d[0] < 0xF0) { send({ type: "midi", data: [d[0], d[1], d[2] || 0] }); midiFlash(); }
+    } : null;
+  }
+  const n = sel.value ? 1 : ins.length;
+  if (!ins.length) midiSay("No MIDI device found. Plug one in; it connects on its own.", "");
+  else midiSay(sel.value ? `Listening to ${sel.selectedOptions[0].text}` : n === 1 ? `Listening to ${ins[0].name || "1 input"}` : `Listening to ${n} inputs`, "ok");
+}
 async function midiOn() {
-  if (!navigator.requestMIDIAccess) return;
+  $("midi-set").disabled = false;
+  $("midi-any").addEventListener("change", (e) => {
+    prefs.route = e.target.checked ? 1 : 0;
+    savePrefs();
+    send({ type: "route", route: prefs.route });
+  });
+  if (!navigator.requestMIDIAccess) {
+    midiSay("This browser has no Web MIDI. Use Chrome or Edge on a computer or Android; iPhone and iPad browsers can't connect MIDI.", "bad");
+    $("midi-in").disabled = true;
+    return;
+  }
   try {
-    const access = await navigator.requestMIDIAccess();
-    const bind = () => {
-      for (const input of access.inputs.values()) {
-        input.onmidimessage = (e) => {
-          const d = e.data;
-          if (d.length >= 2 && d[0] >= 0x80 && d[0] < 0xF0) send({ type: "midi", data: [d[0], d[1], d[2] || 0] });
-        };
-      }
-    };
-    access.onstatechange = bind;
-    bind();
-  } catch { /* no permission: the panel only */ }
+    midiAccess = await navigator.requestMIDIAccess();
+    midiAccess.onstatechange = midiBind;
+    $("midi-in").addEventListener("change", midiBind);
+    midiBind();
+  } catch {
+    midiSay("MIDI permission was refused. Allow MIDI for this site in the browser's settings, then reload.", "bad");
+    $("midi-in").disabled = true;
+  }
 }
 
 // ------------------------------------------------------------------ switching on
@@ -525,18 +650,19 @@ async function switchOn() {
     await new Promise((res, rej) => {
       node.port.onmessage = (e) => {
         const m = e.data;
-        if (m.type === "ready") res();
+        if (m.type === "ready") { setupSound(m.catalog); res(); }
         else if (m.type === "error") rej(new Error(m.message));
         else if (m.type === "frame") {
           if (m.fb) drawScreen(m.fb);
           if (m.leds) drawLights(lastLeds = m.leds, m.anim);
+          if (m.state) showState(m.state);
           if (m.sectors && !saveFlash(m.sectors) && !warned) {
             warned = true;
             console.warn("SynthSoup: this browser does not keep the saves; they last until the page closes.");
           }
         }
       };
-      node.port.postMessage({ type: "load", wasm, sectors: loadFlash(), master: masterValue }, [wasm]);
+      node.port.postMessage({ type: "load", wasm, sectors: loadFlash(), master: masterValue, route: prefs.route ?? 1 }, [wasm]);
     });
     await ac.resume();
     document.getElementById("start").hidden = true;
