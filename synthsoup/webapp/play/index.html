@@ -967,8 +967,8 @@ async function switchOn() {
   try {
     if (!ac) audioStart();
     const [wasm] = await Promise.all([
-      fetch("felucca.wasm").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
-      ac.audioWorklet.addModule("worklet.js")]);
+      fetch("felucca.wasm?v=8286941187").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
+      ac.audioWorklet.addModule("worklet.js?v=b365f9a0ad")]);
     node = new AudioWorkletNode(ac, "felucca", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
     node.connect(ac.destination);
     let warned = false;
