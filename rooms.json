@@ -506,7 +506,20 @@
         "href": "index.html#drumseek",
         "title": "DrumSeek",
         "note": "live beat sequencer"
-      }
+      },
+      "stairs": [
+        {
+          "to": "loft",
+          "label": "loft",
+          "ascend": 1,
+          "steps": 9,
+          "facing": "north",
+          "gravity": "down",
+          "width": 0.34,
+          "offset": 0.2,
+          "from": 0.1
+        }
+      ]
     },
     "bench": {
       "name": "The Bench",
@@ -621,6 +634,48 @@
         "title": "Shop",
         "note": "prints and editions"
       }
+    },
+    "loft": {
+      "name": "The Loft",
+      "note": "An instrument that also runs without the instrument.",
+      "size": [
+        5.0,
+        3.4,
+        4.6
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:triangle",
+          "repeat": 4
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "west": {
+          "art": "pattern:grid",
+          "repeat": 4,
+          "exit": "workshop",
+          "label": "down",
+          "ascend": -1
+        }
+      },
+      "opens": [
+        {
+          "href": "synthsoup/webapp/play/",
+          "title": "Play it",
+          "note": "in the browser, no hardware"
+        },
+        {
+          "href": "index.html#synthsoup",
+          "title": "SynthSoup",
+          "note": "firmware for the FM-1"
+        }
+      ]
     }
   },
   "fractal": {

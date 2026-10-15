@@ -1054,6 +1054,22 @@
             </div>
         </section>
 
+        <section id="synthsoup">
+            <h2>SynthSoup</h2>
+            <div class="contact">
+                <p style="margin-bottom: 1.25rem;">
+                    Custom firmware for the M-VAVE FM-1: morphing wavetables, the Commodore 64's SID chip,
+                    granular and tape delays, a <strong>shimmer</strong> reverb that climbs in octaves, and
+                    sampling on the device. The whole instrument also runs in your browser &mdash; the same code,
+                    compiled to WebAssembly &mdash; so you can play it without an FM-1.
+                </p>
+                <div class="contact-links">
+                    <a href="synthsoup/webapp/play/" class="contact-link">Play it in your browser</a>
+                    <a href="synthsoup/" class="contact-link">About &amp; install</a>
+                </div>
+            </div>
+        </section>
+
         <section id="portfolio">
             <h2>Portfolio</h2>
             <div id="portfolio-body">
@@ -1464,8 +1480,8 @@
         // and only when the gallery has sent you to it by name; with no hash you
         // get the entrance and nothing else. This is what makes the gallery the
         // site's only index rather than a second way in beside the old one.
-        var SECTION_IDS = ['drumseek', 'sp404', 'portfolio', 'shader-library',
-                           'shop', 'about', 'contact'];
+        var SECTION_IDS = ['drumseek', 'sp404', 'synthsoup', 'portfolio',
+                           'shader-library', 'shop', 'about', 'contact'];
 
         function routeSections() {
             var want = (location.hash || '').replace(/^#/, '').split('&')[0];
