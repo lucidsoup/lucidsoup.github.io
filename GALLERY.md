@@ -209,6 +209,46 @@ plane. The filter therefore goes on `#stage`, outside the 3D chain. The style
 looks correct either way; only the picture tells you. Echo copies have their
 media and doorways stripped, so they stay cheap and never steal a click.
 
+## The gallery is the only index
+
+`index.html` is no longer a page you scroll. It shows the entrance, or exactly
+one section, and only when the gallery has sent it there by name. The nav lists
+no sections — just the way in and the way back.
+
+A room says what it holds with `opens`:
+
+```json
+"opens": { "href": "index.html#shop", "title": "Shop", "note": "prints and editions" }
+```
+
+or several, when one room holds more than one thing:
+
+```json
+"opens": [
+  { "href": "index.html#about",   "title": "About",   "note": "what this practice is" },
+  { "href": "index.html#contact", "title": "Contact", "note": "how to reach it" }
+]
+```
+
+That draws a plinth in the room, and a `▣` button in the HUD beside the exits.
+Clicking either leaves the gallery for that section, which then shows alone with
+a way back.
+
+**Keep exactly one room per section.** Nothing else links to them, so a section
+with no room is unreachable. Current wiring:
+
+| section | room |
+|---|---|
+| Portfolio | Antechamber |
+| Shader Library | Reliquary |
+| DrumSeek | Workshop |
+| SP-404 Converter | The Bench |
+| About, Contact | Studio |
+| Shop | Counting House |
+
+The box on the entrance dives into the gallery rather than scrolling — each flap
+arrives at the room that holds that part of the site.
+
 ## Getting in
 
 The centre of the box on the home page, once the box is open. It does not

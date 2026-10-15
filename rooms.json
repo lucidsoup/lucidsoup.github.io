@@ -64,13 +64,21 @@
     "             stacking through the middle",
     "    from     how far back the flight begins (0-1 of room depth)",
     "  The viewer can rotate their own gravity with G, which makes a flight",
-    "  that looked unusable become the one underfoot."
+    "  that looked unusable become the one underfoot.",
+    "",
+    "OPENS",
+    "  A room may carry \"opens\": one { href, title, note } or an array of them.",
+    "  Each draws a plinth, and clicking it leaves the gallery for that part of",
+    "  clicking it leaves the gallery for that part of the site. The gallery is",
+    "  the only index \u2014 index.html shows one section at a time and only when",
+    "  sent there by name, so a room is the single route to what it holds.",
+    "  Keep exactly one room per section, or something becomes unreachable."
   ],
   "entry": "antechamber",
   "rooms": {
     "antechamber": {
       "name": "Antechamber",
-      "note": "Three ways on. None of them come back.",
+      "note": "Three ways on, and one way into the work itself.",
       "size": [
         5,
         3.2,
@@ -90,7 +98,9 @@
         },
         "north": {
           "art": "work:reel-01",
-          "frame": true
+          "frame": true,
+          "exit": "studio",
+          "label": "studio"
         },
         "east": {
           "exit": "stair-a",
@@ -101,6 +111,11 @@
           "exit": "hall-of-tiles",
           "label": "tiles"
         }
+      },
+      "opens": {
+        "href": "index.html#portfolio",
+        "title": "Portfolio",
+        "note": "every piece, as a list"
       }
     },
     "stair-a": {
@@ -325,7 +340,9 @@
         },
         "west": {
           "art": "pattern:hex",
-          "repeat": 1
+          "repeat": 1,
+          "exit": "workshop",
+          "label": "workshop"
         }
       }
     },
@@ -365,6 +382,11 @@
           "exit": "hall-of-tiles",
           "label": "back"
         }
+      },
+      "opens": {
+        "href": "index.html#shader-library",
+        "title": "Shader Library",
+        "note": "copy the GLSL"
       }
     },
     "relativity": {
@@ -445,6 +467,160 @@
           "from": 0.42
         }
       ]
+    },
+    "workshop": {
+      "name": "Workshop",
+      "note": "Two machines. Both of them work.",
+      "size": [
+        5.6,
+        3.3,
+        4.6
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 5
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "shader:random",
+          "frame": true
+        },
+        "east": {
+          "art": "pattern:triangle",
+          "repeat": 3,
+          "exit": "bench",
+          "label": "bench"
+        },
+        "west": {
+          "art": "pattern:grid",
+          "repeat": 4,
+          "exit": "antechamber",
+          "label": "back"
+        }
+      },
+      "opens": {
+        "href": "index.html#drumseek",
+        "title": "DrumSeek",
+        "note": "live beat sequencer"
+      }
+    },
+    "bench": {
+      "name": "The Bench",
+      "note": "Audio in one shape, out another.",
+      "size": [
+        4.4,
+        3.2,
+        4.2
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:hex",
+          "repeat": 4
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 3
+        },
+        "north": {
+          "art": "pattern:penrose",
+          "repeat": 2
+        },
+        "west": {
+          "art": "pattern:hex",
+          "repeat": 3,
+          "exit": "workshop",
+          "label": "back"
+        }
+      },
+      "opens": {
+        "href": "sp404.html",
+        "title": "SP-404 Converter",
+        "note": "wav to card, card to wav"
+      }
+    },
+    "studio": {
+      "name": "Studio",
+      "note": "Who does this, and how to reach them.",
+      "size": [
+        5.2,
+        3.3,
+        4.4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:escher",
+          "repeat": 3
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "work:random",
+          "frame": true
+        },
+        "east": {
+          "art": "pattern:triangle",
+          "repeat": 3,
+          "exit": "counting-house",
+          "label": "shop"
+        },
+        "west": {
+          "art": "pattern:escher",
+          "repeat": 3,
+          "exit": "antechamber",
+          "label": "back"
+        }
+      },
+      "opens": [
+        {
+          "href": "index.html#about",
+          "title": "About",
+          "note": "what this practice is"
+        },
+        {
+          "href": "index.html#contact",
+          "title": "Contact",
+          "note": "how to reach it"
+        }
+      ]
+    },
+    "counting-house": {
+      "name": "Counting House",
+      "size": [
+        4.6,
+        3.2,
+        4.2
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 5
+        },
+        "ceiling": {
+          "art": "pattern:hex",
+          "repeat": 2
+        },
+        "north": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "west": {
+          "art": "pattern:grid",
+          "repeat": 4,
+          "exit": "studio",
+          "label": "back"
+        }
+      },
+      "opens": {
+        "href": "index.html#shop",
+        "title": "Shop",
+        "note": "prints and editions"
+      }
     }
   },
   "fractal": {

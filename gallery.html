@@ -221,6 +221,33 @@
         .fx-btn { font-size: 9px; padding: 7px; min-width: 34px; }
     }
 
+    /* ===== plinth =====
+       A room that holds part of the site shows a plinth. Clicking it leaves the
+       gallery for that section, which is now the only route to it. */
+    .plinths {
+        position: absolute; left: 50%; bottom: 4%;
+        transform: translateX(-50%);
+        display: flex; gap: 10px; justify-content: center; width: 86%;
+    }
+    .plinth {
+        flex: 1 1 0; min-width: 0; padding: 14px 16px;
+        background: linear-gradient(rgba(0,0,0,.4), rgba(0,0,0,.88));
+        border: 1px solid rgba(0,255,255,.34);
+        border-radius: 3px; cursor: pointer; text-align: center;
+        box-shadow: 0 0 34px rgba(0,255,255,.12), inset 0 0 26px rgba(0,0,0,.8);
+        transition: border-color .25s, box-shadow .25s;
+    }
+    .plinth:hover, .plinth:focus-visible {
+        border-color: rgba(0,255,255,.9);
+        box-shadow: 0 0 52px rgba(0,255,255,.34), inset 0 0 26px rgba(0,0,0,.7);
+        outline: none;
+    }
+    .plinth-title {
+        font-size: 12px; letter-spacing: .26em; text-transform: uppercase;
+        color: var(--cyan); text-shadow: 0 0 12px rgba(0,255,255,.6);
+    }
+    .plinth-sub { margin-top: 5px; font-size: 10px; letter-spacing: .08em; color: var(--dim); }
+
     /* ===== travel fade ===== */
     #veil {
         position: fixed; inset: 0; background: #000; pointer-events: none;
@@ -570,6 +597,7 @@ function getRoom(id) {
 var state = { room: null, yaw: 0, pitch: 0, altitude: 0, steps: 0, visited: {} };
 var live = [];     // teardown functions for the current room's running media
 var stairExits = [];   // flights in this room, surfaced as HUD buttons too
+var roomOpens = [];    // the sections this room is the only route to
 
 function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -1124,6 +1152,32 @@ function buildRoom(id) {
         roomEl.appendChild(fl);
     });
 
+    // What this room opens, if anything. This is the only route to those parts
+    // of the site — nothing links to them from anywhere else.
+    // A room may open more than one thing — the studio holds both the about
+    // text and the contact details, and both need a route.
+    roomOpens = [].concat(room.opens || []).filter(function (o) { return o && o.href; });
+    if (roomOpens.length) {
+        var rack = document.createElement('div');
+        rack.className = 'plinths';
+        roomOpens.forEach(function (o) {
+            var pl = document.createElement('div');
+            pl.className = 'plinth';
+            pl.setAttribute('role', 'button');
+            pl.setAttribute('tabindex', '0');
+            pl.setAttribute('aria-label', 'Open ' + (o.title || o.href));
+            pl.innerHTML = '<div class="plinth-title">' + esc(o.title || 'open') + '</div>' +
+                (o.note ? '<div class="plinth-sub">' + esc(o.note) + '</div>' : '');
+            var leave = function () { window.location.href = o.href; };
+            pl.addEventListener('click', function (e) { e.stopPropagation(); leave(); });
+            pl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); leave(); }
+            });
+            rack.appendChild(pl);
+        });
+        roomEl.appendChild(rack);
+    }
+
     state.room = id;
     state.visited[id] = (state.visited[id] || 0) + 1;
     paintHUD(room, surfaces);
@@ -1173,9 +1227,18 @@ function paintHUD(room, surfaces) {
         hudBottom.appendChild(b);
     });
 
+    roomOpens.forEach(function (o) {
+        var ob = document.createElement('button');
+        ob.className = 'exit-chip';
+        ob.style.borderColor = 'rgba(0,255,255,.6)';
+        ob.innerHTML = '\u25a3 ' + esc(o.title || 'open');
+        ob.addEventListener('click', function () { window.location.href = o.href; });
+        hudBottom.appendChild(ob);
+    });
+
     var leave = document.createElement('button');
     leave.id = 'leave';
-    leave.textContent = 'leave';
+    leave.textContent = 'entrance';
     leave.addEventListener('click', function () { window.location.href = 'index.html'; });
     hudBottom.appendChild(leave);
 }
