@@ -88,6 +88,9 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
   .screen { order: -1; width: min(100%, 320px); }
   .install { padding: 20px; }
 }
+/* the screen is first on a phone and its splatter reaches the top-right corner,
+   where the fixed way back to the gallery sits */
+@media (max-width: 640px) { main { padding-top: 56px; } }
 @media (prefers-reduced-motion: reduce) { body::before, .wordmark { animation: none; } }
 </style>
 </head>
