@@ -50,6 +50,7 @@ export function catalogExtra(ex) {
   return {
     sources: ex.web_smp_all_count ? Array.from({ length: ex.web_smp_all_count() }, (_, k) => cstr(ex, ex.web_smp_all_name(k))) : [],
     grain: ex.web_grain_engine ? ex.web_grain_engine() : -1,
+    palettes: ex.web_pal_count ? Array.from({ length: ex.web_pal_count() }, (_, k) => cstr(ex, ex.web_pal_name(k))) : [],
     pid: ex.web_pid ? { glide: ex.web_pid(0), e0: ex.web_pid(1), glmode: ex.web_pid(2) } : null,
   };
 }
@@ -60,7 +61,8 @@ export function soundState(ex) {
   const insert = ex.web_trk_insert ? ex.web_trk_insert(t) : 0;
   const P = (id) => ex.web_get_param(t, id), e0 = ex.web_pid ? ex.web_pid(1) : 0;
   const params = ex.web_get_param ? { glide: P(ex.web_pid(0)), glmode: P(ex.web_pid(2)), e: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => P(e0 + k)) } : null;
-  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route(), samples, insert, params };
+  return { track: t, engine: ex.web_trk_engine(t), preset: ex.web_trk_preset(t), voice: ex.web_trk_voice(t), route: ex.web_route(), samples, insert, params,
+           palette: ex.web_palette ? ex.web_palette() : -1 };
 }
 
 if (typeof registerProcessor === "function") {
@@ -119,6 +121,7 @@ if (typeof registerProcessor === "function") {
       else if (m.type === "select" && ex.web_select) ex.web_select(m.track | 0);
       else if (m.type === "sound" && ex.web_set_sound) ex.web_set_sound(m.track | 0, m.engine | 0, m.preset | 0);
       else if (m.type === "voice" && ex.web_set_voice) ex.web_set_voice(m.track | 0, m.voice | 0);
+      else if (m.type === "palette" && ex.web_set_palette) ex.web_set_palette(m.index | 0);
       else if (m.type === "route" && ex.web_set_route) ex.web_set_route(m.route | 0);
       else if (m.type === "param" && ex.web_set_param) ex.web_set_param(m.track | 0, m.id | 0, m.value | 0);
       else if (m.type === "granular" && ex.web_granular) ex.web_granular(m.track | 0, m.src | 0);
