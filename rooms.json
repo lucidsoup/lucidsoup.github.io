@@ -72,13 +72,44 @@
     "  clicking it leaves the gallery for that part of the site. The gallery is",
     "  the only index \u2014 index.html shows one section at a time and only when",
     "  sent there by name, so a room is the single route to what it holds.",
-    "  Keep exactly one room per section, or something becomes unreachable."
+    "  Keep exactly one room per section, or something becomes unreachable.",
+    "",
+    "MURALS",
+    "  \"mural:ornament\" fills a surface with one bilateral ornament rather than",
+    "  a repeating tile \u2014 a violet mass under crisp outlines, acid-green hooked",
+    "  horns, magenta ribbing, contour lines inside every large form, pods along",
+    "  an arc, a segmented spine, one cyan lens. It is built from the same",
+    "  vocabulary as the reference artwork, and quieter than it on purpose: a",
+    "  wall stands behind a staircase and should not compete with it. Seeded per",
+    "  room and surface, so a given wall is always that wall.",
+    "",
+    "LABYRINTH",
+    "  A corridor is just a room with a long, narrow size \u2014 around",
+    "  [2.2, 2.9, 10]. The eye sits further into a deep room so it reads as",
+    "  something you are inside rather than a wall with a hole in it, and",
+    "  travelling into one takes longer.",
+    "",
+    "  An exit may carry \"turn\": the degrees you are facing when you arrive.",
+    "  Without it every room is entered square-on and a sequence reads as a",
+    "  slideshow. With it a doorway is a corner, and keeping track of where",
+    "  you are becomes the work. Clamped to the look limits.",
+    "",
+    "  Nothing marks a dead end as a dead end.",
+    "",
+    "DOORS ON ONE WALL",
+    "  A surface may carry \"doors\": an array of { exit, label, at, tall }",
+    "  instead of, or as well as, a single \"exit\". \"at\" places a door along",
+    "  the wall from 0 to 1; without it they share the wall evenly.",
+    "",
+    "  The Concordance uses this: a hall whose doors are each named for where",
+    "  they go and lead straight there. It is the short way round for anyone",
+    "  who does not want to walk the labyrinth, kept as architecture rather",
+    "  than as a menu over the top of it. One step up from the entrance."
   ],
   "entry": "antechamber",
   "rooms": {
     "antechamber": {
       "name": "Antechamber",
-      "note": "Three ways on, and one way into the work itself.",
       "size": [
         5,
         3.2,
@@ -94,28 +125,35 @@
         },
         "ceiling": {
           "art": "pattern:moire",
-          "repeat": 2
+          "repeat": 2,
+          "exit": "concordance",
+          "label": "shortcuts",
+          "ascend": 1
         },
         "north": {
           "art": "work:reel-01",
           "frame": true,
-          "exit": "studio",
-          "label": "studio"
+          "exit": "vein",
+          "label": "on",
+          "turn": 22
         },
         "east": {
-          "exit": "stair-a",
-          "label": "up",
-          "ascend": 1
+          "exit": "crook",
+          "label": "on",
+          "turn": 30,
+          "art": "mural:ornament"
         },
         "west": {
-          "exit": "hall-of-tiles",
-          "label": "tiles"
+          "exit": "long-seam",
+          "label": "on",
+          "turn": -28,
+          "art": "pattern:escher",
+          "repeat": 3
         }
       },
       "opens": {
         "href": "index.html#portfolio",
-        "title": "Portfolio",
-        "note": "every piece, as a list"
+        "title": "Portfolio"
       }
     },
     "stair-a": {
@@ -134,13 +172,16 @@
           "art": "color:#0a0a12"
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament",
+          "frame": false
         },
         "south": {
           "exit": "antechamber",
           "label": "back",
           "ascend": -1
+        },
+        "west": {
+          "art": "mural:ornament"
         }
       },
       "stairs": [
@@ -171,13 +212,16 @@
           "art": "color:#0a0a12"
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament",
+          "frame": false
         },
         "south": {
           "exit": "stair-a",
           "label": "back",
           "ascend": -1
+        },
+        "west": {
+          "art": "mural:ornament"
         }
       },
       "stairs": [
@@ -208,13 +252,16 @@
           "art": "color:#0a0a12"
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament",
+          "frame": false
         },
         "south": {
           "exit": "stair-b",
           "label": "back",
           "ascend": -1
+        },
+        "west": {
+          "art": "mural:ornament"
         }
       },
       "stairs": [
@@ -231,7 +278,6 @@
     },
     "stair-d": {
       "name": "Fourth Flight",
-      "note": "Four flights up from the first. This is the first.",
       "size": [
         4.6,
         3.4,
@@ -246,13 +292,16 @@
           "art": "color:#0a0a12"
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament",
+          "frame": false
         },
         "south": {
           "exit": "stair-c",
           "label": "back",
           "ascend": -1
+        },
+        "west": {
+          "art": "mural:ornament"
         }
       },
       "stairs": [
@@ -269,7 +318,6 @@
     },
     "well": {
       "name": "The Well",
-      "note": "The ceiling is the floor.",
       "size": [
         3.4,
         5.5,
@@ -291,7 +339,7 @@
           "repeat": 3
         },
         "north": {
-          "art": "shader:random"
+          "art": "mural:ornament"
         },
         "south": {
           "exit": "antechamber",
@@ -309,7 +357,6 @@
     },
     "hall-of-tiles": {
       "name": "Hall of Tiles",
-      "note": "Every surface is the same tile at a different scale.",
       "size": [
         7,
         3,
@@ -331,8 +378,9 @@
           "label": "relativity"
         },
         "south": {
-          "exit": "antechamber",
-          "label": "back"
+          "exit": "junction-i",
+          "label": "back",
+          "turn": -20
         },
         "east": {
           "exit": "reliquary",
@@ -341,14 +389,14 @@
         "west": {
           "art": "pattern:hex",
           "repeat": 1,
-          "exit": "workshop",
-          "label": "workshop"
+          "exit": "throat",
+          "label": "on",
+          "turn": 36
         }
       }
     },
     "reliquary": {
       "name": "Reliquary",
-      "note": "Live shaders, running now. Not recordings of them.",
       "size": [
         6,
         3.2,
@@ -379,19 +427,18 @@
           "frame": true
         },
         "south": {
-          "exit": "hall-of-tiles",
-          "label": "back"
+          "exit": "gullet",
+          "label": "back",
+          "turn": 30
         }
       },
       "opens": {
         "href": "index.html#shader-library",
-        "title": "Shader Library",
-        "note": "copy the GLSL"
+        "title": "Shader Library"
       }
     },
     "relativity": {
       "name": "Relativity",
-      "note": "Four staircases. Four directions of down. Press G to change which one is yours.",
       "size": [
         6.4,
         5.0,
@@ -407,18 +454,16 @@
           "repeat": 5
         },
         "north": {
-          "art": "pattern:penrose",
-          "repeat": 3
+          "art": "mural:ornament"
         },
         "east": {
-          "art": "pattern:triangle",
-          "repeat": 4
+          "art": "mural:ornament"
         },
         "west": {
-          "exit": "hall-of-tiles",
-          "label": "out",
-          "art": "pattern:triangle",
-          "repeat": 4
+          "art": "mural:ornament",
+          "exit": "gullet",
+          "label": "on",
+          "turn": -32
         }
       },
       "stairs": [
@@ -470,7 +515,6 @@
     },
     "workshop": {
       "name": "Workshop",
-      "note": "Two machines. Both of them work.",
       "size": [
         5.6,
         3.3,
@@ -498,14 +542,14 @@
         "west": {
           "art": "pattern:grid",
           "repeat": 4,
-          "exit": "antechamber",
-          "label": "back"
+          "exit": "throat",
+          "label": "back",
+          "turn": -42
         }
       },
       "opens": {
         "href": "index.html#drumseek",
-        "title": "DrumSeek",
-        "note": "live beat sequencer"
+        "title": "DrumSeek"
       },
       "stairs": [
         {
@@ -523,7 +567,6 @@
     },
     "bench": {
       "name": "The Bench",
-      "note": "Audio in one shape, out another.",
       "size": [
         4.4,
         3.2,
@@ -551,13 +594,11 @@
       },
       "opens": {
         "href": "sp404.html",
-        "title": "SP-404 Converter",
-        "note": "wav to card, card to wav"
+        "title": "SP-404 Converter"
       }
     },
     "studio": {
       "name": "Studio",
-      "note": "Who does this, and how to reach them.",
       "size": [
         5.2,
         3.3,
@@ -585,20 +626,19 @@
         "west": {
           "art": "pattern:escher",
           "repeat": 3,
-          "exit": "antechamber",
-          "label": "back"
+          "exit": "junction-ii",
+          "label": "back",
+          "turn": 26
         }
       },
       "opens": [
         {
           "href": "index.html#about",
-          "title": "About",
-          "note": "what this practice is"
+          "title": "About"
         },
         {
           "href": "index.html#contact",
-          "title": "Contact",
-          "note": "how to reach it"
+          "title": "Contact"
         }
       ]
     },
@@ -631,13 +671,11 @@
       },
       "opens": {
         "href": "index.html#shop",
-        "title": "Shop",
-        "note": "prints and editions"
+        "title": "Shop"
       }
     },
     "loft": {
       "name": "The Loft",
-      "note": "An instrument that also runs without the instrument.",
       "size": [
         5.0,
         3.4,
@@ -653,8 +691,7 @@
           "repeat": 2
         },
         "north": {
-          "art": "shader:random",
-          "frame": true
+          "art": "mural:ornament"
         },
         "west": {
           "art": "pattern:grid",
@@ -667,15 +704,385 @@
       "opens": [
         {
           "href": "synthsoup/webapp/play/",
-          "title": "Play it",
-          "note": "in the browser, no hardware"
+          "title": "Play it"
         },
         {
           "href": "index.html#synthsoup",
-          "title": "SynthSoup",
-          "note": "firmware for the FM-1"
+          "title": "SynthSoup"
         }
       ]
+    },
+    "crook": {
+      "name": "The Crook",
+      "size": [
+        2.3,
+        2.9,
+        9.5
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 7
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 6
+        },
+        "east": {
+          "exit": "antechamber",
+          "label": "back",
+          "turn": 38,
+          "art": "mural:ornament"
+        },
+        "west": {
+          "art": "mural:ornament"
+        },
+        "north": {
+          "exit": "stair-a",
+          "label": "on",
+          "turn": -44
+        }
+      }
+    },
+    "long-seam": {
+      "name": "Long Seam",
+      "size": [
+        2.3,
+        2.9,
+        12.0
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 7
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 6
+        },
+        "east": {
+          "exit": "antechamber",
+          "label": "back",
+          "turn": -36,
+          "art": "mural:ornament"
+        },
+        "west": {
+          "art": "mural:ornament"
+        },
+        "north": {
+          "exit": "junction-i",
+          "label": "on",
+          "turn": 30
+        }
+      }
+    },
+    "junction-i": {
+      "name": "First Junction",
+      "size": [
+        4.4,
+        3.2,
+        4.4
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:escher",
+          "repeat": 3
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 2
+        },
+        "north": {
+          "art": "mural:ornament",
+          "exit": "hall-of-tiles",
+          "label": "on",
+          "turn": -24
+        },
+        "east": {
+          "art": "pattern:hex",
+          "repeat": 3,
+          "exit": "blind-turn",
+          "label": "on",
+          "turn": 52
+        },
+        "west": {
+          "art": "pattern:hex",
+          "repeat": 3,
+          "exit": "long-seam",
+          "label": "back",
+          "turn": 14
+        }
+      }
+    },
+    "blind-turn": {
+      "name": "Blind Turn",
+      "size": [
+        2.3,
+        2.9,
+        7.5
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 7
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 6
+        },
+        "east": {
+          "exit": "junction-i",
+          "label": "back",
+          "turn": -50,
+          "art": "pattern:hex",
+          "repeat": 2
+        },
+        "west": {
+          "art": "mural:ornament"
+        },
+        "north": {
+          "art": "mural:ornament"
+        }
+      }
+    },
+    "throat": {
+      "name": "The Throat",
+      "size": [
+        2.0,
+        2.6,
+        11.0
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 7
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 6
+        },
+        "east": {
+          "exit": "hall-of-tiles",
+          "label": "back",
+          "turn": -30,
+          "art": "mural:ornament"
+        },
+        "west": {
+          "art": "mural:ornament"
+        },
+        "north": {
+          "exit": "workshop",
+          "label": "on",
+          "turn": 40
+        }
+      }
+    },
+    "vein": {
+      "name": "The Vein",
+      "size": [
+        2.3,
+        2.9,
+        10.5
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 7
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 6
+        },
+        "east": {
+          "exit": "antechamber",
+          "label": "back",
+          "turn": 46,
+          "art": "mural:ornament"
+        },
+        "west": {
+          "art": "mural:ornament"
+        },
+        "north": {
+          "exit": "junction-ii",
+          "label": "on",
+          "turn": -34
+        }
+      }
+    },
+    "junction-ii": {
+      "name": "Second Junction",
+      "size": [
+        4.2,
+        3.4,
+        4.2
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:penrose",
+          "repeat": 3
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 3
+        },
+        "north": {
+          "art": "mural:ornament",
+          "exit": "studio",
+          "label": "on",
+          "turn": 28
+        },
+        "east": {
+          "art": "pattern:triangle",
+          "repeat": 3,
+          "exit": "the-stub",
+          "label": "on",
+          "turn": -48
+        },
+        "west": {
+          "art": "pattern:triangle",
+          "repeat": 3,
+          "exit": "vein",
+          "label": "back",
+          "turn": 20
+        }
+      }
+    },
+    "the-stub": {
+      "name": "The Stub",
+      "size": [
+        2.3,
+        2.9,
+        6.0
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 7
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 6
+        },
+        "east": {
+          "exit": "junction-ii",
+          "label": "back",
+          "turn": 44,
+          "art": "pattern:triangle",
+          "repeat": 2
+        },
+        "west": {
+          "art": "mural:ornament"
+        },
+        "north": {
+          "art": "mural:ornament"
+        }
+      }
+    },
+    "gullet": {
+      "name": "The Gullet",
+      "size": [
+        2.1,
+        2.9,
+        10.0
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:grid",
+          "repeat": 7
+        },
+        "ceiling": {
+          "art": "pattern:grid",
+          "repeat": 6
+        },
+        "east": {
+          "exit": "relativity",
+          "label": "back",
+          "turn": 34,
+          "art": "mural:ornament"
+        },
+        "west": {
+          "art": "mural:ornament"
+        },
+        "north": {
+          "exit": "reliquary",
+          "label": "on",
+          "turn": -40
+        }
+      }
+    },
+    "concordance": {
+      "name": "The Concordance",
+      "size": [
+        9.5,
+        3.4,
+        4.6
+      ],
+      "surfaces": {
+        "floor": {
+          "art": "pattern:penrose",
+          "repeat": 5,
+          "exit": "antechamber",
+          "label": "down",
+          "ascend": -1
+        },
+        "ceiling": {
+          "art": "pattern:moire",
+          "repeat": 3
+        },
+        "north": {
+          "art": "mural:ornament",
+          "doors": [
+            {
+              "exit": "reliquary",
+              "label": "shaders",
+              "at": 0.14,
+              "tall": true
+            },
+            {
+              "exit": "workshop",
+              "label": "drumseek",
+              "at": 0.38,
+              "tall": true
+            },
+            {
+              "exit": "bench",
+              "label": "sp-404",
+              "at": 0.62,
+              "tall": true
+            },
+            {
+              "exit": "loft",
+              "label": "synthsoup",
+              "at": 0.86,
+              "tall": true
+            }
+          ]
+        },
+        "east": {
+          "art": "pattern:hex",
+          "repeat": 3,
+          "doors": [
+            {
+              "exit": "studio",
+              "label": "studio",
+              "at": 0.3,
+              "tall": true
+            },
+            {
+              "exit": "counting-house",
+              "label": "shop",
+              "at": 0.72,
+              "tall": true
+            }
+          ]
+        },
+        "west": {
+          "art": "mural:ornament",
+          "exit": "antechamber",
+          "label": "back",
+          "turn": 24
+        }
+      }
     }
   },
   "fractal": {

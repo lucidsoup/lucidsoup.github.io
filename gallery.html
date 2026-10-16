@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/lucid.css">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>LucidSoup — The Gallery</title>
 <meta name="description" content="A gallery whose rooms do not add up.">
 <style>
     :root {
-        --ink: #e8e8f0;
-        --dim: #7a7a8c;
-        --cyan: #00ffff;
-        --mag: #ff00ff;
+        /* Pulled from lucid.css so the gallery is the same cyan as the rest of
+           the site rather than its own near-miss. */
+        --ink: var(--lucid-ink, #e8e8f0);
+        --dim: var(--lucid-dim, #7a7a8c);
+        --cyan: var(--lucid-accent, #8b6cf5);
+        --mag: var(--lucid-accent-3, #d44fb0);
         --metre: 112px;          /* one "metre" of room, in px */
         --persp: 640px;          /* eye distance; JS reads this too */
     }
     * { box-sizing: border-box; }
     html, body {
         margin: 0; padding: 0; height: 100%; overflow: hidden;
-        background: #05050a; color: var(--ink);
-        font-family: 'Courier New', ui-monospace, monospace;
+        background: var(--lucid-bg-deep, #05050a); color: var(--ink);
+        font-family: var(--lucid-mono, ui-monospace, SFMono-Regular, Menlo, 'Courier New', monospace);
         -webkit-text-size-adjust: 100%;
     }
     body { touch-action: none; }
@@ -50,11 +53,11 @@
         /* Centred on the room origin before its own transform moves it out. */
         left: 50%; top: 50%;
         transform-origin: 50% 50%;
-        background-color: #0b0b14;
+        background-color: var(--lucid-panel, #0b0b14);
         background-repeat: repeat;
         overflow: hidden;
         /* A seam-hiding hairline; CSS 3D leaves sub-pixel gaps at some angles. */
-        outline: 1px solid #0b0b14;
+        outline: 1px solid var(--lucid-panel, #0b0b14);
     }
     /* Depth cue: without it, an untextured room reads as a flat rectangle. */
     .surface::after {
@@ -78,7 +81,7 @@
         background: #000;
         border: 2px solid rgba(255,255,255,.14);
         box-shadow: 0 0 0 10px #07070d, 0 24px 60px rgba(0,0,0,.8),
-                    0 0 50px rgba(0,255,255,.07);
+                    0 0 50px rgba(139, 108, 245,.07);
         overflow: hidden;
         cursor: pointer;
     }
@@ -109,36 +112,36 @@
     .flight .tread, .flight .riser {
         position: absolute; left: 50%; top: 50%;
         transform-origin: 50% 50%;
-        border: 1px solid rgba(0,255,255,.16);
+        border: 1px solid rgba(139, 108, 245,.16);
     }
     .flight .tread {
-        background: linear-gradient(rgba(0,255,255,.10), rgba(0,255,255,.03));
+        background: linear-gradient(rgba(139, 108, 245,.10), rgba(139, 108, 245,.03));
         box-shadow: inset 0 0 18px rgba(0,0,0,.6);
     }
     .flight .riser {
         background: linear-gradient(rgba(10,14,22,.82), rgba(0,0,0,.94));
-        border-color: rgba(0,255,255,.16);
+        border-color: rgba(139, 108, 245,.16);
     }
     .flight.clickable { cursor: pointer; }
     .flight.clickable:hover .tread,
     .flight.clickable:focus-visible .tread {
-        background: linear-gradient(rgba(0,255,255,.3), rgba(0,255,255,.1));
-        border-color: rgba(0,255,255,.6);
+        background: linear-gradient(rgba(138, 224, 75,.3), rgba(138, 224, 75,.1));
+        border-color: rgba(138, 224, 75,.6);
     }
     .flight-label {
         position: absolute; left: 50%; top: 50%;
         transform: translate(-50%, -50%);
         font-size: 12px; letter-spacing: .3em; text-transform: uppercase;
-        color: var(--cyan); text-shadow: 0 0 14px rgba(0,255,255,.75);
+        color: var(--cyan); text-shadow: 0 0 14px rgba(139, 108, 245,.75);
         white-space: nowrap; pointer-events: none;
     }
     /* A flight serving a different gravity is tinted, so the eye reads it as
        belonging to another "down" rather than as a mistake. */
-    .flight.g1 .tread { background: linear-gradient(rgba(255,0,255,.12), rgba(255,0,255,.03)); border-color: rgba(255,0,255,.2); }
-    .flight.g2 .tread { background: linear-gradient(rgba(57,255,20,.11), rgba(57,255,20,.03)); border-color: rgba(57,255,20,.2); }
+    .flight.g1 .tread { background: linear-gradient(rgba(212, 79, 176,.12), rgba(212, 79, 176,.03)); border-color: rgba(212, 79, 176,.2); }
+    .flight.g2 .tread { background: linear-gradient(rgba(138, 224, 75,.11), rgba(138, 224, 75,.03)); border-color: rgba(138, 224, 75,.2); }
     .flight.g3 .tread { background: linear-gradient(rgba(255,190,0,.12), rgba(255,190,0,.03)); border-color: rgba(255,190,0,.22); }
-    .flight.g1 .flight-label { color: #ff6cff; text-shadow: 0 0 14px rgba(255,0,255,.7); }
-    .flight.g2 .flight-label { color: #7cff6c; text-shadow: 0 0 14px rgba(57,255,20,.7); }
+    .flight.g1 .flight-label { color: #ff6cff; text-shadow: 0 0 14px rgba(212, 79, 176,.7); }
+    .flight.g2 .flight-label { color: #b6f58a; text-shadow: 0 0 14px rgba(138, 224, 75,.7); }
     .flight.g3 .flight-label { color: #ffd34d; text-shadow: 0 0 14px rgba(255,190,0,.7); }
 
     /* ===== a doorway ===== */
@@ -148,18 +151,19 @@
         width: 38%; height: 72%;
         border-radius: 48% 48% 0 0 / 22% 22% 0 0;
         background:
-            radial-gradient(ellipse at 50% 100%, rgba(0,255,255,.16), transparent 62%),
+            radial-gradient(ellipse at 50% 100%, rgba(139, 108, 245,.16), transparent 62%),
             #02020a;
         box-shadow: inset 0 0 44px rgba(0,0,0,.95),
-                    0 0 0 2px rgba(0,255,255,.16),
-                    0 0 34px rgba(0,255,255,.10);
+                    0 0 0 2px rgba(139, 108, 245,.16),
+                    0 0 34px rgba(139, 108, 245,.10);
         cursor: pointer;
         transition: box-shadow .3s ease;
     }
     .doorway:hover, .doorway:focus-visible {
+        color: var(--lucid-accent-2, #8ae04b);
         box-shadow: inset 0 0 44px rgba(0,0,0,.9),
-                    0 0 0 2px rgba(0,255,255,.5),
-                    0 0 60px rgba(0,255,255,.3);
+                    0 0 0 2px rgba(138, 224, 75,.5),
+                    0 0 60px rgba(138, 224, 75,.3);
         outline: none;
     }
     .doorway-label {
@@ -167,9 +171,11 @@
         transform: translateX(-50%);
         font-size: 12px; letter-spacing: .3em; text-transform: uppercase;
         color: var(--cyan); opacity: .8; white-space: nowrap;
-        text-shadow: 0 0 12px rgba(0,255,255,.6);
+        text-shadow: 0 0 12px rgba(139, 108, 245,.6);
         pointer-events: none;
     }
+    .doorway.tall { height: 82%; }
+
     /* A doorway on the floor or ceiling reads as a shaft, not an arch. */
     .doorway.shaft {
         width: 44%; height: 44%; top: 50%; bottom: auto;
@@ -184,8 +190,8 @@
 
     .surface.touched { animation: touched .5s ease-out; }
     @keyframes touched {
-        0%   { box-shadow: inset 0 0 0 3px rgba(0,255,255,.9); }
-        100% { box-shadow: inset 0 0 0 3px rgba(0,255,255,0); }
+        0%   { box-shadow: inset 0 0 0 3px rgba(139, 108, 245,.9); }
+        100% { box-shadow: inset 0 0 0 3px rgba(139, 108, 245,0); }
     }
     .surface.alterable { cursor: crosshair; }
 
@@ -201,16 +207,16 @@
     }
     .fx-row { display: flex; gap: 6px; align-items: center; }
     .fx-btn {
-        background: rgba(255,0,255,.07); border: 1px solid rgba(255,0,255,.32);
-        color: #ff8cff; font: inherit; font-size: 10px; letter-spacing: .14em;
+        background: rgba(212, 79, 176,.07); border: 1px solid rgba(212, 79, 176,.32);
+        color: #c9a6ff; font: inherit; font-size: 10px; letter-spacing: .14em;
         text-transform: uppercase; padding: 7px 9px; border-radius: 3px;
         cursor: pointer; min-width: 40px; min-height: 34px;
         transition: background .18s, border-color .18s;
     }
     .fx-btn:hover, .fx-btn:focus-visible {
-        background: rgba(255,0,255,.18); border-color: rgba(255,0,255,.7); outline: none;
+        background: rgba(212, 79, 176,.18); border-color: rgba(212, 79, 176,.7); outline: none;
     }
-    .fx-btn.on { background: rgba(255,0,255,.26); border-color: rgba(255,0,255,.85); color: #fff; }
+    .fx-btn.on { background: rgba(212, 79, 176,.26); border-color: rgba(212, 79, 176,.85); color: #fff; }
     .fx-val { color: #7a7a8c; font-size: 10px; min-width: 26px; }
     #fx-title { color: #7a7a8c; font-size: 10px; letter-spacing: .24em; text-transform: uppercase; }
     #fx.folded .fx-row:not(.always) { display: none; }
@@ -232,21 +238,20 @@
     .plinth {
         flex: 1 1 0; min-width: 0; padding: 14px 16px;
         background: linear-gradient(rgba(0,0,0,.4), rgba(0,0,0,.88));
-        border: 1px solid rgba(0,255,255,.34);
+        border: 1px solid rgba(139, 108, 245,.34);
         border-radius: 3px; cursor: pointer; text-align: center;
-        box-shadow: 0 0 34px rgba(0,255,255,.12), inset 0 0 26px rgba(0,0,0,.8);
+        box-shadow: 0 0 34px rgba(139, 108, 245,.12), inset 0 0 26px rgba(0,0,0,.8);
         transition: border-color .25s, box-shadow .25s;
     }
     .plinth:hover, .plinth:focus-visible {
-        border-color: rgba(0,255,255,.9);
-        box-shadow: 0 0 52px rgba(0,255,255,.34), inset 0 0 26px rgba(0,0,0,.7);
+        border-color: rgba(138, 224, 75,.9);
+        box-shadow: 0 0 52px rgba(138, 224, 75,.34), inset 0 0 26px rgba(0,0,0,.7);
         outline: none;
     }
     .plinth-title {
         font-size: 12px; letter-spacing: .26em; text-transform: uppercase;
-        color: var(--cyan); text-shadow: 0 0 12px rgba(0,255,255,.6);
+        color: var(--cyan); text-shadow: 0 0 12px rgba(139, 108, 245,.6);
     }
-    .plinth-sub { margin-top: 5px; font-size: 10px; letter-spacing: .08em; color: var(--dim); }
 
     /* ===== travel fade ===== */
     #veil {
@@ -267,15 +272,14 @@
         gap: 12px;
         background: linear-gradient(rgba(0,0,0,.72), transparent);
     }
-    #hud-room { text-transform: uppercase; letter-spacing: .28em; font-size: 13px; }
-    #hud-note {
-        margin-top: 6px; color: var(--dim); font-size: 11px;
-        letter-spacing: .04em; max-width: 46ch; text-transform: none;
+    #hud-room {
+        font-family: var(--lucid-display, 'Orbitron', 'Arial Black', sans-serif);
+        text-transform: uppercase; letter-spacing: .24em; font-size: 13px;
     }
     #hud-stats { text-align: right; color: var(--dim); font-size: 11px; line-height: 1.7; white-space: nowrap; }
     #hud-stats b { color: var(--ink); font-weight: normal; }
     /* The proof: altitude that cannot be squared with having come back. */
-    #hud-stats .impossible b { color: var(--mag); text-shadow: 0 0 14px rgba(255,0,255,.6); }
+    #hud-stats .impossible b { color: var(--mag); text-shadow: 0 0 14px rgba(212, 79, 176,.6); }
 
     #hud-bottom {
         bottom: 0; left: 0; right: 0;
@@ -288,8 +292,8 @@
        fiddly, so the gallery is fully navigable without touching the room. */
     .exit-chip {
         pointer-events: auto;
-        background: rgba(0,255,255,.07);
-        border: 1px solid rgba(0,255,255,.3);
+        background: rgba(139, 108, 245,.07);
+        border: 1px solid rgba(139, 108, 245,.3);
         color: var(--cyan);
         padding: 9px 14px; border-radius: 3px;
         font: inherit; font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
@@ -297,7 +301,7 @@
         min-height: 40px;
     }
     .exit-chip:hover, .exit-chip:focus-visible {
-        background: rgba(0,255,255,.16); border-color: rgba(0,255,255,.65); outline: none;
+        background: rgba(138, 224, 75,.16); border-color: rgba(138, 224, 75,.65); outline: none;
     }
     .exit-chip .asc { color: var(--mag); margin-left: 6px; }
     #leave {
@@ -335,8 +339,7 @@
 
     @media (max-width: 640px) {
         :root { --metre: 86px; --persp: 460px; }
-        #hud-note { display: none; }
-        #hud-room { font-size: 11px; letter-spacing: .2em; }
+            #hud-room { font-size: 11px; letter-spacing: .2em; }
         .doorway-label { font-size: 10px; letter-spacing: .2em; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -345,7 +348,7 @@
     }
 </style>
 </head>
-<body>
+<body data-lucid-no-return>
 
 <div id="stage" aria-label="Gallery">
     <div id="camera"><div id="lens"><div id="room"></div></div></div>
@@ -358,7 +361,6 @@
 <div class="hud" id="hud-top">
     <div>
         <div id="hud-room">—</div>
-        <div id="hud-note"></div>
     </div>
     <div id="hud-stats"></div>
 </div>
@@ -414,7 +416,6 @@ var cameraEl = document.getElementById('camera');
 var roomEl = document.getElementById('room');
 var veil = document.getElementById('veil');
 var hudRoom = document.getElementById('hud-room');
-var hudNote = document.getElementById('hud-note');
 var hudStats = document.getElementById('hud-stats');
 var hudBottom = document.getElementById('hud-bottom');
 var hint = document.getElementById('hint');
@@ -630,7 +631,7 @@ function tile(size, draw) {
 PATTERNS.hex = function () {
     return tile(160, function (x, s) {
         var r = s / 4, h = r * Math.sqrt(3);
-        x.strokeStyle = 'rgba(0,255,255,.26)';
+        x.strokeStyle = 'rgba(139, 108, 245,.26)';
         x.lineWidth = 1.2;
         for (var row = 0; row < 3; row++) {
             for (var col = 0; col < 3; col++) {
@@ -651,7 +652,7 @@ PATTERNS.hex = function () {
 PATTERNS.triangle = function () {
     return tile(140, function (x, s) {
         var n = 4, w = s / n, h = w * Math.sqrt(3) / 2;
-        x.strokeStyle = 'rgba(255,0,255,.22)';
+        x.strokeStyle = 'rgba(212, 79, 176,.22)';
         x.lineWidth = 1;
         for (var r = 0; r * h <= s; r++) {
             for (var c = 0; c <= n; c++) {
@@ -678,7 +679,7 @@ PATTERNS.grid = function () {
 
 PATTERNS.moire = function () {
     return tile(200, function (x, s) {
-        x.strokeStyle = 'rgba(0,255,255,.16)';
+        x.strokeStyle = 'rgba(139, 108, 245,.16)';
         x.lineWidth = 1;
         for (var r = 4; r < s; r += 7) {
             x.beginPath(); x.arc(s / 2, s / 2, r, 0, Math.PI * 2); x.stroke();
@@ -690,7 +691,7 @@ PATTERNS.moire = function () {
 // claiming to be a correct one.
 PATTERNS.penrose = function () {
     return tile(180, function (x, s) {
-        x.strokeStyle = 'rgba(255,0,255,.26)';
+        x.strokeStyle = 'rgba(212, 79, 176,.26)';
         x.lineWidth = 1.1;
         var R = s / 2.6;
         for (var k = 0; k < 5; k++) {
@@ -718,7 +719,7 @@ PATTERNS.escher = function () {
         for (var r = 0; r < n; r++) {
             for (var c = 0; c < n; c++) {
                 var ox = c * u, oy = r * u;
-                x.strokeStyle = ((r + c) % 2) ? 'rgba(0,255,255,.3)' : 'rgba(255,0,255,.24)';
+                x.strokeStyle = ((r + c) % 2) ? 'rgba(139, 108, 245,.3)' : 'rgba(212, 79, 176,.24)';
                 x.beginPath();
                 x.moveTo(ox, oy);
                 x.bezierCurveTo(ox + u * .3, oy + u * .22, ox + u * .7, oy - u * .22, ox + u, oy);
@@ -737,6 +738,303 @@ function patternURL(name) {
     if (!patternCache[name]) patternCache[name] = PATTERNS[name]().toDataURL('image/png');
     return patternCache[name];
 }
+
+/* ========================= murals =========================
+   The surfaces between the flights. Patterns are lattices and read as tiling;
+   these are single bilateral ornaments, built from the same vocabulary as the
+   artwork they were drawn from: a violet mass under crisp outlines, acid-green
+   hooked horns, magenta ribbing fans, contour lines following every large form,
+   pods along an arc, a segmented spine, and one cyan lens.
+
+   Quieter than the reference on purpose. The reference is 39% black ground and
+   these are around 60%: a wall stands behind a staircase and should not compete
+   with it. The edges fall to black so one surface meets the next without a seam.
+
+   Seeded, so a given wall is always that wall.
+   ========================================================= */
+
+// A bilateral ornament in the manner of the reference: a violet mass with a
+// stacked central spine, acid-green blades radiating out, magenta ribbing, and
+// curling ribbons with spiral ends. Everything is mirrored about the vertical
+// axis, and everything is seeded, so a given wall is always the same wall.
+
+function rng(seed) {
+    var s = seed >>> 0 || 1;
+    return function () {
+        s ^= s << 13; s >>>= 0;
+        s ^= s >> 17;
+        s ^= s << 5;  s >>>= 0;
+        return s / 4294967296;
+    };
+}
+
+var VIOLET  = [ [32,10,92], [48,30,130], [75,56,150], [119,95,166] ];
+var GREEN   = [ [70,146,41], [93,176,77], [120,200,90] ];
+var MAGENTA = [ [117,34,100], [160,45,110], [196,70,130] ];
+var FOCAL   = [111,227,232];
+
+function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+function pick(r, arr) { return arr[Math.floor(r() * arr.length)]; }
+
+// A tapered blade — the green leaf forms sweeping out of the mass.
+function blade(x, cx, cy, len, wide, ang, curve) {
+    x.beginPath();
+    x.moveTo(cx, cy);
+    var tx = cx + Math.cos(ang) * len, ty = cy + Math.sin(ang) * len;
+    var nx = Math.cos(ang + Math.PI / 2), ny = Math.sin(ang + Math.PI / 2);
+    x.bezierCurveTo(
+        cx + nx * wide + Math.cos(ang) * len * .25, cy + ny * wide + Math.sin(ang) * len * .25,
+        tx + nx * wide * curve, ty + ny * wide * curve, tx, ty);
+    x.bezierCurveTo(
+        tx - nx * wide * curve * .6, ty - ny * wide * curve * .6,
+        cx - nx * wide * .7 + Math.cos(ang) * len * .22, cy - ny * wide * .7 + Math.sin(ang) * len * .22,
+        cx, cy);
+    x.closePath();
+}
+
+// A ribbon that ends in a spiral, the curling tendrils around the edges.
+function tendril(x, sx, sy, ex, ey, bow, turns, step) {
+    x.beginPath();
+    x.moveTo(sx, sy);
+    var mx = (sx + ex) / 2 + bow, my = (sy + ey) / 2 - bow * .4;
+    x.quadraticCurveTo(mx, my, ex, ey);
+    var a = Math.atan2(ey - my, ex - mx), r = step;
+    var px = ex, py = ey;
+    for (var i = 0; i < turns * 12; i++) {
+        a += Math.PI / 6;
+        r *= .88;
+        px += Math.cos(a) * r; py += Math.sin(a) * r;
+        x.lineTo(px, py);
+    }
+    x.stroke();
+}
+
+// A family of parallel curved strokes — the magenta fans in the mid-body.
+function ribbing(x, cx, cy, n, spread, len, ang, col) {
+    for (var i = 0; i < n; i++) {
+        var t = i / (n - 1 || 1);
+        var a = ang - spread / 2 + spread * t;
+        x.strokeStyle = rgba(col, .28 + .4 * (1 - Math.abs(t - .5) * 2));
+        x.lineWidth = 2 + 3 * (1 - Math.abs(t - .5) * 2);
+        x.beginPath();
+        x.moveTo(cx, cy);
+        x.quadraticCurveTo(cx + Math.cos(a) * len * .5, cy + Math.sin(a) * len * .5 - len * .25,
+                           cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+        x.stroke();
+    }
+}
+
+// A long curved horn, tapering — the big green claw forms sweeping off the top
+// corners of the reference. A blade is symmetric; a horn hooks.
+function horn(x, cx, cy, len, wide, ang, hook) {
+    var steps = 26, pts = [];
+    for (var i = 0; i <= steps; i++) {
+        var t = i / steps;
+        var a = ang + hook * t * t;                 // curvature accelerates
+        var rr = len * t;
+        pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, (1 - t) * wide + wide * .08]);
+    }
+    x.beginPath();
+    for (i = 0; i < pts.length; i++) {
+        var pp = pts[i], aa = ang + hook * (i / steps) * (i / steps) + Math.PI / 2;
+        x[i ? 'lineTo' : 'moveTo'](pp[0] + Math.cos(aa) * pp[2], pp[1] + Math.sin(aa) * pp[2]);
+    }
+    for (i = pts.length - 1; i >= 0; i--) {
+        pp = pts[i]; aa = ang + hook * (i / steps) * (i / steps) + Math.PI / 2;
+        x.lineTo(pp[0] - Math.cos(aa) * pp[2], pp[1] - Math.sin(aa) * pp[2]);
+    }
+    x.closePath();
+    return pts;
+}
+
+// Contour lines following the inside of a horn — the ribbing the reference puts
+// inside every large form.
+function hornRibs(x, pts, ang, hook, col, n) {
+    x.strokeStyle = rgba(col, .55); x.lineWidth = 1;
+    for (var k = 1; k <= n; k++) {
+        var f = k / (n + 1);
+        x.beginPath();
+        for (var i = 2; i < pts.length - 1; i++) {
+            var pp = pts[i], aa = ang + hook * (i / (pts.length - 1)) * (i / (pts.length - 1)) + Math.PI / 2;
+            var o = pp[2] * (1 - 2 * f);
+            x[i === 2 ? 'moveTo' : 'lineTo'](pp[0] + Math.cos(aa) * o, pp[1] + Math.sin(aa) * o);
+        }
+        x.stroke();
+    }
+}
+
+// A scalloped fringe: the repeated lobes along the edges of the reference.
+function scallop(x, cx, cy, r0, a0, a1, n, amp, col, a) {
+    x.strokeStyle = rgba(col, a); x.lineWidth = 1.6;
+    x.beginPath();
+    for (var i = 0; i <= n * 12; i++) {
+        var t = i / (n * 12);
+        var ang = a0 + (a1 - a0) * t;
+        var rr = r0 + Math.sin(t * n * Math.PI * 2) * amp;
+        x[i ? 'lineTo' : 'moveTo'](cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr);
+    }
+    x.stroke();
+}
+
+function drawHalf(x, W, H, r) {
+    var cx = W, cy = H * .5;          // the mirror axis is the right edge of this half
+
+    // 1. the violet mass — crisp silhouettes with outlines and inner contours,
+    //    not soft blobs. The reference has edges you can follow.
+    for (var i = 0; i < 6; i++) {
+        var c = pick(r, VIOLET);
+        var bx = cx - W * (.08 + r() * .58), by = cy + (r() - .5) * H * .72;
+        var rx = W * (.13 + r() * .24), ry = H * (.1 + r() * .22);
+        var rot = (r() - .5) * .9;
+        x.fillStyle = rgba(c, .17 + r() * .16);
+        x.beginPath(); x.ellipse(bx, by, rx, ry, rot, 0, Math.PI * 2); x.fill();
+        x.strokeStyle = rgba(VIOLET[3], .4); x.lineWidth = 1.2; x.stroke();
+        for (var k = 1; k <= 3; k++) {          // contours inside the mass
+            x.strokeStyle = rgba(VIOLET[3], .16);
+            x.beginPath(); x.ellipse(bx, by, rx * (1 - k * .22), ry * (1 - k * .22), rot, 0, Math.PI * 2); x.stroke();
+        }
+    }
+
+    // 2. the big green horns off the upper corners, with ribs inside
+    var nH = 3 + Math.floor(r() * 2);
+    for (i = 0; i < nH; i++) {
+        var g = pick(r, GREEN);
+        var ang = Math.PI * (1.02 + .22 * (i / nH)) + (r() - .5) * .16;
+        var hook = -(0.5 + r() * .7);
+        var pts = horn(x, cx - W * (.05 + r() * .12), cy - H * (.05 - r() * .34),
+                       W * (.6 + r() * .4), W * (.07 + r() * .05), ang, hook);
+        x.fillStyle = rgba(g, .42 + r() * .22); x.fill();
+        x.strokeStyle = rgba(GREEN[2], .8); x.lineWidth = 1.4; x.stroke();
+        hornRibs(x, pts, ang, hook, GREEN[0], 2);
+    }
+
+    // 3. lower horns, sweeping the other way
+    for (i = 0; i < 2; i++) {
+        g = pick(r, VIOLET);
+        ang = Math.PI * (.72 + .2 * r());
+        hook = (0.4 + r() * .6);
+        pts = horn(x, cx - W * .1, cy + H * (.1 + r() * .22), W * (.5 + r() * .36), W * (.06 + r() * .05), ang, hook);
+        x.fillStyle = rgba(g, .5); x.fill();
+        x.strokeStyle = rgba(VIOLET[3], .7); x.lineWidth = 1.2; x.stroke();
+        hornRibs(x, pts, ang, hook, VIOLET[3], 2);
+    }
+
+    // 4. scalloped fringes, the lobed edges
+    for (i = 0; i < 3; i++) {
+        scallop(x, cx - W * .05, cy + (r() - .5) * H * .4,
+                W * (.3 + r() * .4), Math.PI * (.7 + r() * .2), Math.PI * (1.35 + r() * .2),
+                4 + Math.floor(r() * 5), W * (.02 + r() * .03),
+                r() < .5 ? pick(r, GREEN) : pick(r, VIOLET), .35 + r() * .3);
+    }
+
+    // 5. ribbons with spiral ends
+    x.lineCap = 'round';
+    for (i = 0; i < 6; i++) {
+        x.strokeStyle = rgba(pick(r, VIOLET), .5 + r() * .4);
+        x.lineWidth = 2 + r() * 8;
+        tendril(x,
+            cx - W * (.08 + r() * .2), cy + (r() - .5) * H * .7,
+            cx - W * (.5 + r() * .45), cy + (r() - .5) * H * .85,
+            (r() - .5) * W * .9, .9, 6 + r() * 7);
+    }
+
+    // 6. magenta ribbing fans, more of them and stronger
+    for (i = 0; i < 4; i++) {
+        ribbing(x, cx - W * (.04 + r() * .14), cy + (r() - .3) * H * .44,
+                9 + Math.floor(r() * 7), .75 + r() * .5, W * (.28 + r() * .28),
+                Math.PI * (.72 + r() * .55), pick(r, MAGENTA));
+    }
+
+    // 7. pods along two arcs
+    for (var arc = 0; arc < 2; arc++) {
+        var nP = 8 + Math.floor(r() * 8);
+        for (i = 0; i < nP; i++) {
+            var t = i / nP;
+            var pa = Math.PI * (1.03 + .68 * t);
+            var pr = W * (.3 + arc * .3 + r() * .22);
+            x.fillStyle = rgba(r() < .55 ? pick(r, GREEN) : pick(r, VIOLET), .6 + r() * .35);
+            x.beginPath();
+            x.ellipse(cx + Math.cos(pa) * pr, cy + Math.sin(pa) * pr * .92,
+                      W * (.016 + r() * .026), W * (.007 + r() * .012), pa, 0, Math.PI * 2);
+            x.fill();
+        }
+    }
+
+    // 8. the spine: a hood at the top, then narrowing ornamented segments
+    x.fillStyle = rgba(VIOLET[1], .42);
+    x.beginPath();
+    x.moveTo(cx, cy - H * .46);
+    x.bezierCurveTo(cx - W * .42, cy - H * .44, cx - W * .36, cy + H * .06, cx, cy + H * .08);
+    x.closePath(); x.fill();
+    x.strokeStyle = rgba(VIOLET[3], .55); x.lineWidth = 1.3; x.stroke();
+    for (k = 1; k <= 5; k++) {           // contour lines following the hood
+        x.strokeStyle = rgba(VIOLET[3], .22);
+        x.beginPath();
+        x.moveTo(cx, cy - H * .46 + k * H * .035);
+        x.bezierCurveTo(cx - W * (.42 - k * .05), cy - H * .44 + k * H * .03,
+                        cx - W * (.36 - k * .045), cy + H * .06 - k * H * .012, cx, cy + H * .07 - k * H * .01);
+        x.stroke();
+    }
+
+    var segs = 6 + Math.floor(r() * 3);
+    var y = cy - H * .2, hgt = (H * .62) / segs;
+    for (i = 0; i < segs; i++) {
+        var taper = 1 - .55 * (i / segs);
+        var wdt = W * (.055 + .13 * Math.sin(Math.PI * (i + .6) / segs)) * taper + W * .025;
+        x.fillStyle = rgba(pick(r, VIOLET), .5);
+        x.beginPath();
+        x.moveTo(cx, y);
+        x.quadraticCurveTo(cx - wdt, y + hgt * .18, cx - wdt * .86, y + hgt * .56);
+        x.quadraticCurveTo(cx - wdt * .55, y + hgt * .96, cx, y + hgt);
+        x.closePath(); x.fill();
+        x.strokeStyle = rgba(i % 2 ? GREEN[2] : MAGENTA[2], .7); x.lineWidth = 1.3; x.stroke();
+        x.strokeStyle = rgba(pick(r, GREEN), .6); x.lineWidth = 1.2;
+        for (k = 1; k < 6; k++) {
+            var yy = y + hgt * (k / 6);
+            x.beginPath(); x.moveTo(cx - wdt * .8, yy);
+            x.quadraticCurveTo(cx - wdt * .42, yy + hgt * .05, cx, yy);
+            x.stroke();
+        }
+        y += hgt;
+    }
+
+    // 9. the single focal lens, the one cyan note in the whole thing
+    x.fillStyle = rgba(FOCAL, .42);
+    x.beginPath(); x.ellipse(cx, cy - H * .38, W * .085, H * .075, 0, 0, Math.PI * 2); x.fill();
+    x.strokeStyle = rgba(FOCAL, .9); x.lineWidth = 1.6; x.stroke();
+    for (k = 1; k <= 3; k++) {
+        x.strokeStyle = rgba(FOCAL, .4);
+        x.beginPath(); x.ellipse(cx, cy - H * .38, W * .085 * (1 - k * .25), H * .075 * (1 - k * .25), 0, 0, Math.PI * 2); x.stroke();
+    }
+}
+
+function buildMural(w, h, seed) {
+    var c = (typeof document !== 'undefined') ? document.createElement('canvas') : null;
+    c.width = w; c.height = h;
+    var x = c.getContext('2d');
+    x.fillStyle = '#05050a';
+    x.fillRect(0, 0, w, h);
+    var r = rng(seed);
+    // Draw one half, then mirror it. The symmetry is the whole character.
+    x.save();
+    drawHalf(x, w / 2, h, r);
+    x.restore();
+    x.save();
+    x.translate(w, 0); x.scale(-1, 1);
+    drawHalf(x, w / 2, h, rng(seed));   // same seed -> a true mirror
+    x.restore();
+
+    // Let the edges fall to black: the reference keeps its margins dark, and a
+    // wall that fades at its border meets the next surface without a seam.
+    var g = x.createRadialGradient(w / 2, h / 2, Math.min(w, h) * .25,
+                                   w / 2, h / 2, Math.max(w, h) * .62);
+    g.addColorStop(0, 'rgba(5,5,10,0)');
+    g.addColorStop(1, 'rgba(5,5,10,.92)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, w, h);
+    return c;
+}
+
 
 /* ========================= shaders on walls ========================= */
 function startShader(canvas, glsl) {
@@ -826,6 +1124,16 @@ function buildArt(ref, opts) {
         var url = patternURL(arg);
         if (!url) return null;
         return { pattern: url };
+    }
+
+    if (kind === 'mural') {
+        // Sized to the surface, capped so a big wall does not cost a huge canvas.
+        var mw = Math.max(240, Math.min(820, Math.round(opts && opts.w || 520)));
+        var mh = Math.max(180, Math.min(820, Math.round((opts && opts.h || 400))));
+        var seed = hash32((state.room || 'x') + ':' + (arg || 'ornament') + ':' + mw);
+        var mc = buildMural(mw, mh, seed);
+        mc.className = 'fill';
+        return { el: mc };
     }
 
     if (kind === 'image') {
@@ -983,7 +1291,7 @@ function placement(side, w, h, d) {
 
 // Paints one surface's art. Pulled out of buildRoom so a wall can be repainted
 // on its own when someone changes it, without rebuilding the room around it.
-function paintArt(el, spec, surfaceW) {
+function paintArt(el, spec, surfaceW, surfaceH) {
     // Clear what was there, but never the doorway.
     Array.prototype.slice.call(el.children).forEach(function (ch) {
         if (!ch.classList.contains('doorway')) ch.remove();
@@ -991,7 +1299,7 @@ function paintArt(el, spec, surfaceW) {
     el.style.backgroundImage = '';
     el.classList.remove('lit');
 
-    var art = buildArt(spec.art, { framed: !!spec.frame });
+    var art = buildArt(spec.art, { framed: !!spec.frame, w: surfaceW, h: surfaceH });
 
     if (art && art.pattern) {
         el.style.backgroundImage = 'url(' + art.pattern + ')';
@@ -1040,15 +1348,15 @@ function paintArt(el, spec, surfaceW) {
 // work; the live ones come last.
 var SURFACE_CYCLE = ['pattern:hex', 'pattern:triangle', 'pattern:penrose',
                      'pattern:escher', 'pattern:moire', 'pattern:grid',
-                     'shader:random', 'work:random'];
+                     'mural:ornament', 'shader:random', 'work:random'];
 
-function cycleSurface(el, spec, surfaceW) {
+function cycleSurface(el, spec, surfaceW, surfaceH) {
     var i = SURFACE_CYCLE.indexOf(spec.art);
     var next = SURFACE_CYCLE[(i + 1) % SURFACE_CYCLE.length];
     // Do not promise a live shader the budget cannot pay for.
     if (next.indexOf('shader') === 0 && shaderBudget <= 0) next = SURFACE_CYCLE[0];
     spec.art = next;
-    paintArt(el, spec, surfaceW);
+    paintArt(el, spec, surfaceW, surfaceH);
     el.classList.remove('touched');
     void el.offsetWidth;
     el.classList.add('touched');
@@ -1077,7 +1385,9 @@ function buildRoom(id) {
     // Put the eye a little outside the room's front opening. Every surface then
     // sits wholly in front of the eye (max z = PERSP - d/4), which is what keeps
     // the perspective sane; a plane straddling the eye plane renders degenerately.
-    baseZ = PERSP - 0.75 * d;
+    // In a long room the eye sits further in, or a corridor reads as a wall
+    // with a hole in it rather than as something you are inside.
+    baseZ = PERSP - (d > 7 * METRE ? 0.42 : 0.75) * d;
     animZ = 0;
     applyRoomZ();
 
@@ -1096,39 +1406,58 @@ function buildRoom(id) {
         el.style.marginTop = (-p.h / 2) + 'px';
         el.style.transform = p.t;
 
-        paintArt(el, spec, p.w);
+        paintArt(el, spec, p.w, p.h);
 
         // Clicking a plain surface changes what is on it. The doorway and any
         // framed work stop the click first, so this never steals those.
         if (!spec.exit) {
             el.classList.add('alterable');
-            el.addEventListener('click', (function (surface, sp, sw) {
+            el.addEventListener('click', (function (surface, sp, sw, sh) {
                 return function (e) {
                     if (e.target.closest && e.target.closest('.frame, .doorway')) return;
-                    cycleSurface(surface, sp, sw);
+                    cycleSurface(surface, sp, sw, sh);
                 };
             })(el, spec, p.w));
         }
 
-        if (spec.exit) {
+        // A wall can carry one door or a row of them. A hall of named doors is
+        // how this place offers a short way round without a menu floating over
+        // it: the shortcut is a room you walk into, not an overlay.
+        var doors = [];
+        if (spec.exit) doors.push(spec);
+        (spec.doors || []).forEach(function (dspec) { if (dspec && dspec.exit) doors.push(dspec); });
+
+        doors.forEach(function (dspec, di) {
+            if (!getRoom(dspec.exit)) return;          // never draw a door to nowhere
             var dw = document.createElement('div');
             dw.className = 'doorway' + (side === 'floor' || side === 'ceiling' ? ' shaft' : '');
             dw.setAttribute('role', 'button');
             dw.setAttribute('tabindex', '0');
-            dw.setAttribute('aria-label', 'Go to ' + (spec.label || spec.exit));
-            if (spec.label) {
+            dw.setAttribute('aria-label', 'Go to ' + (dspec.label || dspec.exit));
+
+            // `at` places a door along the wall, 0 to 1. Several doors share the
+            // wall evenly when none of them say where they want to be.
+            var at = (typeof dspec.at === 'number') ? dspec.at
+                   : (doors.length > 1 ? (di + 0.5) / doors.length : 0.5);
+            if (doors.length > 1) {
+                dw.style.left = (at * 100) + '%';
+                dw.style.width = Math.min(34, 78 / doors.length) + '%';
+            }
+            if (dspec.tall) dw.classList.add('tall');
+
+            if (dspec.label) {
                 var lb = document.createElement('div');
                 lb.className = 'doorway-label';
-                lb.textContent = spec.label;
+                lb.textContent = dspec.label;
                 dw.appendChild(lb);
             }
-            var go = function (e) { if (e) e.stopPropagation(); travel(spec); };
+            var go = function (e) { if (e) e.stopPropagation(); travel(dspec); };
             dw.addEventListener('click', go);
             dw.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(e); }
             });
             el.appendChild(dw);
-        }
+        });
 
         roomEl.appendChild(el);
     });
@@ -1166,8 +1495,7 @@ function buildRoom(id) {
             pl.setAttribute('role', 'button');
             pl.setAttribute('tabindex', '0');
             pl.setAttribute('aria-label', 'Open ' + (o.title || o.href));
-            pl.innerHTML = '<div class="plinth-title">' + esc(o.title || 'open') + '</div>' +
-                (o.note ? '<div class="plinth-sub">' + esc(o.note) + '</div>' : '');
+            pl.innerHTML = '<div class="plinth-title">' + esc(o.title || 'open') + '</div>';
             var leave = function () { window.location.href = o.href; };
             pl.addEventListener('click', function (e) { e.stopPropagation(); leave(); });
             pl.addEventListener('keydown', function (e) {
@@ -1187,7 +1515,6 @@ function buildRoom(id) {
 
 function paintHUD(room, surfaces) {
     hudRoom.textContent = room.name || state.room;
-    hudNote.textContent = room.note || '';
 
     var seen = Object.keys(state.visited).length;
     var authored = Object.keys(DATA.rooms).length;
@@ -1206,9 +1533,14 @@ function paintHUD(room, surfaces) {
         (impossible ? '<div style="color:#ff00ff">this room is below you</div>' : '');
 
     hudBottom.innerHTML = '';
+    var listed = [];
     SIDES.forEach(function (side) {
         var spec = surfaces[side];
-        if (!spec || !spec.exit) return;
+        if (!spec) return;
+        if (spec.exit) listed.push(spec);
+        (spec.doors || []).forEach(function (d) { if (d && d.exit) listed.push(d); });
+    });
+    listed.forEach(function (spec) {
         var b = document.createElement('button');
         b.className = 'exit-chip';
         var asc = spec.ascend || 0;
@@ -1230,7 +1562,7 @@ function paintHUD(room, surfaces) {
     roomOpens.forEach(function (o) {
         var ob = document.createElement('button');
         ob.className = 'exit-chip';
-        ob.style.borderColor = 'rgba(0,255,255,.6)';
+        ob.style.borderColor = 'rgba(139, 108, 245,.6)';
         ob.innerHTML = '\u25a3 ' + esc(o.title || 'open');
         ob.addEventListener('click', function () { window.location.href = o.href; });
         hudBottom.appendChild(ob);
@@ -1439,7 +1771,9 @@ function travel(spec) {
     hint.classList.add('gone');
 
     var climbing = !!spec.climb && !reduced;
-    var ms = reduced ? 10 : (climbing ? 480 : 220);
+    var into = getRoom(spec.exit);
+    var longWay = into && into.size && into.size[2] >= 7;     // a corridor
+    var ms = reduced ? 10 : (climbing ? 480 : (longWay ? 380 : 220));
     veil.classList.add('on');
     if (climbing) {
         // Ascend: the room drops away beneath you as you move into it, so a
@@ -1451,14 +1785,19 @@ function travel(spec) {
         applyRoomZ();
     } else if (!reduced) {
         roomEl.style.transition = 'transform ' + ms + 'ms ease-in';
-        animZ = 150;
+        animZ = longWay ? 320 : 150;
         applyRoomZ();
     }
 
     setTimeout(function () {
         state.altitude += (spec.ascend || 0);
         state.steps += 1;
-        state.yaw = 0; state.pitch = 0;
+        // A turn carries into the next space: you arrive facing where the
+        // corner left you, not squared up. This is most of what makes a run of
+        // corridors feel like a labyrinth rather than a slideshow.
+        var turn = Number(spec.turn) || 0;
+        state.yaw = Math.max(-58, Math.min(58, turn));
+        state.pitch = 0;
         buildRoom(spec.exit);          // resets baseZ for the new room's depth
         roomEl.style.transition = 'none';
         animZ = reduced ? 0 : -110;
@@ -1586,7 +1925,16 @@ Promise.all([
     applyCamera();
     applyFold();
     if (!buildRoom(start)) throw new Error('could not build ' + start);
-    setTimeout(function () { hint.classList.add('gone'); }, 7000);
+    // Said once, then the space is left to itself.
+    var seen = false;
+    try { seen = localStorage.getItem('lucid.hinted') === '1'; } catch (e) {}
+    if (seen) { hint.classList.add('gone'); }
+    else {
+        setTimeout(function () {
+        hint.classList.add('gone');
+        try { localStorage.setItem('lucid.hinted', '1'); } catch (e) {}
+        }, 7000);
+    }
 }).catch(function (err) {
     fail(String(err && err.message || err));
 });
@@ -1605,5 +1953,6 @@ window.lucidGallery = {
 };
 })();
 </script>
+<script src="/lucid.js" defer></script>
 </body>
 </html>

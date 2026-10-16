@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/lucid.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SP-404 Converter — LucidSoup</title>
@@ -13,25 +14,27 @@
             font-family: 'Arial', sans-serif; line-height: 1.6; color: #fff;
             background: #0a0a0a; min-height: 100vh; overflow-x: hidden;
         }
-        a { color: #00ffff; }
+        a { color: var(--lucid-accent, #8b6cf5); }
 
         .wrap { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
 
         header { text-align: center; margin-bottom: 2.5rem; }
+        /* clear the fixed way-back link on a phone, where the title spans the width */
+        @media (max-width: 640px) { header { padding-top: 1.75rem; } }
         .back { display: inline-block; font-size: .75rem; letter-spacing: .15em;
                 text-transform: uppercase; color: rgba(255,255,255,.5);
                 text-decoration: none; margin-bottom: 1.5rem; }
-        .back:hover { color: #00ffff; }
+        .back:hover { color: var(--lucid-accent, #8b6cf5); }
         h1 {
             font-family: 'Orbitron', monospace; font-weight: 900;
             font-size: clamp(1.6rem, 5vw, 2.6rem); letter-spacing: .06em;
             text-transform: uppercase;
-            background: linear-gradient(90deg, #ff10f0, #00ffff, #39ff14);
+            background: linear-gradient(90deg, var(--lucid-accent-3, #d44fb0), var(--lucid-accent, #8b6cf5), var(--lucid-accent-2, #8ae04b));
             -webkit-background-clip: text; background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .tagline { color: rgba(255,255,255,.6); font-size: .95rem; margin-top: .75rem; }
-        .tagline strong { color: rgba(0,255,255,.85); font-weight: normal; }
+        .tagline strong { color: rgba(139, 108, 245,.85); font-weight: normal; }
 
         .panel {
             background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
@@ -39,7 +42,7 @@
         }
         .panel h2 {
             font-size: .72rem; text-transform: uppercase; letter-spacing: .18em;
-            color: rgba(0,255,255,.75); font-weight: bold; margin-bottom: 1.1rem;
+            color: rgba(139, 108, 245,.75); font-weight: bold; margin-bottom: 1.1rem;
         }
 
         /* ---- model picker ---- */
@@ -49,16 +52,16 @@
             background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.1);
             transition: border-color .2s ease, background .2s ease;
         }
-        .model:hover { border-color: rgba(0,255,255,.4); }
+        .model:hover { border-color: rgba(139, 108, 245,.4); }
         .model input { position: absolute; opacity: 0; pointer-events: none; }
         .model.sel {
-            border-color: rgba(0,255,255,.75);
-            background: linear-gradient(135deg, rgba(0,255,255,.1), rgba(255,0,255,.08));
-            box-shadow: 0 0 20px rgba(0,255,255,.12);
+            border-color: rgba(139, 108, 245,.75);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.1), rgba(212, 79, 176,.08));
+            box-shadow: 0 0 20px rgba(139, 108, 245,.12);
         }
         .model-name { font-weight: bold; font-size: 1rem; }
         .model-spec { font-size: .76rem; color: rgba(255,255,255,.5); margin-top: .3rem; line-height: 1.5; }
-        .model-spec code { color: rgba(57,255,20,.8); font-size: .95em; }
+        .model-spec code { color: rgba(138, 224, 75,.8); font-size: .95em; }
 
         /* ---- dropzone ---- */
         #drop {
@@ -66,14 +69,14 @@
             padding: 2.5rem 1.5rem; text-align: center; cursor: pointer;
             transition: border-color .2s ease, background .2s ease;
         }
-        #drop:hover, #drop.over { border-color: rgba(0,255,255,.7); background: rgba(0,255,255,.04); }
+        #drop:hover, #drop.over { border-color: rgba(139, 108, 245,.7); background: rgba(139, 108, 245,.04); }
         #drop .big { font-size: 1.05rem; margin-bottom: .4rem; }
         #drop .small { font-size: .8rem; color: rgba(255,255,255,.45); }
 
         /* ---- options ---- */
         .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem 1.5rem; }
         .opt { display: flex; align-items: flex-start; gap: .6rem; }
-        .opt input[type=checkbox] { margin-top: .32rem; accent-color: #00ffff; width: 15px; height: 15px; flex: none; }
+        .opt input[type=checkbox] { margin-top: .32rem; accent-color: var(--lucid-accent, #8b6cf5); width: 15px; height: 15px; flex: none; }
         .opt-label { font-size: .85rem; }
         .opt-help { font-size: .72rem; color: rgba(255,255,255,.4); line-height: 1.45; }
         .field { display: flex; align-items: center; gap: .55rem; font-size: .85rem; }
@@ -82,7 +85,7 @@
             background: rgba(0,0,0,.6); color: #fff; border: 1px solid rgba(255,255,255,.18);
             border-radius: 6px; padding: .35rem .5rem; font-size: .85rem;
         }
-        select:focus { outline: none; border-color: rgba(0,255,255,.7); }
+        select:focus { outline: none; border-color: rgba(139, 108, 245,.7); }
 
         /* ---- file table ---- */
         .files { width: 100%; border-collapse: collapse; font-size: .84rem; }
@@ -93,11 +96,11 @@
         }
         .files td { padding: .55rem .6rem; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: middle; }
         .files tr:last-child td { border-bottom: none; }
-        .pad { font-weight: bold; color: #39ff14; white-space: nowrap; }
+        .pad { font-weight: bold; color: var(--lucid-accent-2, #8ae04b); white-space: nowrap; }
         .pad.over { color: #ff3b6b; }
         .fname { word-break: break-word; }
         .dest { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-                font-size: .76rem; color: rgba(0,255,255,.75); white-space: nowrap; }
+                font-size: .76rem; color: rgba(139, 108, 245,.75); white-space: nowrap; }
         .meta { color: rgba(255,255,255,.45); font-size: .76rem; white-space: nowrap; }
         .err { color: #ff3b6b; font-size: .76rem; }
         .row-btn {
@@ -105,19 +108,19 @@
             border-radius: 5px; cursor: pointer; font-size: .7rem; padding: .2rem .45rem;
             font-family: inherit; line-height: 1.4;
         }
-        .row-btn:hover { border-color: rgba(0,255,255,.7); color: #fff; }
+        .row-btn:hover { border-color: rgba(139, 108, 245,.7); color: #fff; }
         .row-btns { display: flex; gap: .3rem; justify-content: flex-end; }
 
         /* ---- buttons / notices ---- */
         .btn {
-            background: linear-gradient(135deg, rgba(0,255,255,.14), rgba(255,0,255,.14));
-            border: 1px solid rgba(0,255,255,.45); color: #fff; padding: .8rem 1.6rem;
+            background: linear-gradient(135deg, rgba(139, 108, 245,.14), rgba(212, 79, 176,.14));
+            border: 1px solid rgba(139, 108, 245,.45); color: #fff; padding: .8rem 1.6rem;
             border-radius: 8px; font-size: .8rem; font-weight: bold; letter-spacing: .12em;
             text-transform: uppercase; cursor: pointer; font-family: inherit; transition: all .2s ease;
         }
         .btn:hover:not(:disabled) {
-            background: linear-gradient(135deg, rgba(0,255,255,.3), rgba(255,0,255,.3));
-            border-color: rgba(0,255,255,.9); box-shadow: 0 0 18px rgba(0,255,255,.28);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.3), rgba(212, 79, 176,.3));
+            border-color: rgba(139, 108, 245,.9); box-shadow: 0 0 18px rgba(139, 108, 245,.28);
         }
         .btn:disabled { opacity: .35; cursor: not-allowed; }
         .actions { display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap; }
@@ -131,7 +134,7 @@
         .note strong { color: rgba(255,196,0,.95); }
         .note code, .steps code {
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            font-size: .92em; color: rgba(0,255,255,.8);
+            font-size: .92em; color: rgba(139, 108, 245,.8);
         }
         .steps { font-size: .84rem; color: rgba(255,255,255,.65); line-height: 1.8; padding-left: 1.2rem; }
         .steps li { margin-bottom: .2rem; }
@@ -151,12 +154,12 @@
         .mode-btn:hover { color: #fff; }
         .mode-btn.active {
             color: #fff;
-            background: linear-gradient(135deg, rgba(0,255,255,.16), rgba(255,0,255,.14));
-            box-shadow: 0 0 14px rgba(0,255,255,.14);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.16), rgba(212, 79, 176,.14));
+            box-shadow: 0 0 14px rgba(139, 108, 245,.14);
         }
 
         .srcinfo { font-size: .84rem; color: rgba(255,255,255,.6); line-height: 1.7; }
-        .srcinfo b { color: #39ff14; }
+        .srcinfo b { color: var(--lucid-accent-2, #8ae04b); }
         .srcinfo .warn { color: rgba(255,196,0,.9); }
         .pick-row { display: flex; gap: .6rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
         .pick-btn {
@@ -165,7 +168,7 @@
             font-size: .74rem; font-weight: bold; letter-spacing: .08em; text-transform: uppercase;
             cursor: pointer; font-family: inherit; transition: all .2s ease;
         }
-        .pick-btn:hover { border-color: rgba(0,255,255,.7); color: #fff; }
+        .pick-btn:hover { border-color: rgba(139, 108, 245,.7); color: #fff; }
 
         .hidden { display: none !important; }
         footer { text-align: center; font-size: .75rem; color: rgba(255,255,255,.3); margin-top: 3rem; }
@@ -193,7 +196,6 @@
 <body>
 <div class="wrap">
     <header>
-        <a class="back" href="index.html">&larr; LucidSoup</a>
         <h1>SP-404 Converter</h1>
         <p class="tagline">
             Audio in, card-ready ZIP out — or pull the samples back off your card as clean,
@@ -294,7 +296,7 @@
             </div>
             <div class="field">
                 <label for="padInfoIn" style="cursor:pointer;">
-                    Existing <code style="color:rgba(0,255,255,.8)">PAD_INFO.BIN</code>
+                    Existing <code style="color:rgba(139, 108, 245,.8)">PAD_INFO.BIN</code>
                 </label>
                 <input type="file" id="padInfoIn" accept=".bin,.BIN" style="font-size:.78rem; max-width:200px;">
             </div>
@@ -389,8 +391,8 @@
                     </label>
                 </div>
             </div>
-            <div class="note" style="border-left-color: rgba(0,255,255,.5); background: rgba(0,255,255,.04);">
-                <strong style="color:rgba(0,255,255,.95)">How this works.</strong>
+            <div class="note" style="border-left-color: rgba(139, 108, 245,.5); background: rgba(139, 108, 245,.04);">
+                <strong style="color:rgba(139, 108, 245,.95)">How this works.</strong>
                 An SX/A card holds plain WAVs, so they are read straight off it and the pad each one sits on
                 comes from <code>PAD_INFO.BIN</code>. The MKII keeps its samples in internal memory, so export
                 them to the card from the unit first (<code>EXPORT SAMPLE</code>) and this tool tidies up what
@@ -1464,7 +1466,7 @@
     $('exFiles').addEventListener('change', function (e) { addCardFiles(e.target.files); e.target.value = ''; });
 
     ['dragenter', 'dragover'].forEach(function (ev) {
-        exDrop.addEventListener(ev, function (e) { e.preventDefault(); exDrop.style.borderColor = 'rgba(0,255,255,.7)'; });
+        exDrop.addEventListener(ev, function (e) { e.preventDefault(); exDrop.style.borderColor = 'rgba(139, 108, 245,.7)'; });
     });
     ['dragleave', 'drop'].forEach(function (ev) {
         exDrop.addEventListener(ev, function (e) { e.preventDefault(); exDrop.style.borderColor = ''; });
@@ -1635,5 +1637,6 @@
     };
 })();
 </script>
+<script src="/lucid.js" defer></script>
 </body>
 </html>

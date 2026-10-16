@@ -9,7 +9,6 @@ HTML to touch.
 ```json
 "my-room": {
   "name": "Whatever It Is Called",
-  "note": "One optional line, shown on arrival.",
   "size": [5, 3.2, 5],
   "surfaces": {
     "floor":   { "art": "pattern:hex", "repeat": 4 },
@@ -23,6 +22,26 @@ HTML to touch.
 
 `size` is `[width, height, depth]` in metres-ish. `[4, 3, 4]` is an ordinary
 room, `[7, 3, 4.5]` a hall, `[3.4, 5.5, 3.4]` a shaft.
+
+## Corridors and turning
+
+A corridor is just a room with a long, narrow `size` — around `[2.2, 2.9, 10]`.
+The eye sits further into a deep room, or a corridor reads as a wall with a hole
+in it rather than something you are inside, and travelling into one takes longer.
+
+An exit may carry **`turn`**: the degrees you are facing when you arrive.
+
+```json
+"east": { "exit": "crook", "label": "on", "turn": 30 }
+```
+
+Without it every room is entered square-on and a sequence reads as a slideshow.
+With it a doorway is a corner, and keeping track of where you are becomes the
+work. Clamped to the same limits as looking around.
+
+**The space carries names and nothing else.** No descriptions, no subtitles on
+the plinths, and nothing marks a dead end as a dead end. The hint says its piece
+once and then stays gone.
 
 ## The one geometry rule
 
@@ -209,6 +228,33 @@ plane. The filter therefore goes on `#stage`, outside the 3D chain. The style
 looks correct either way; only the picture tells you. Echo copies have their
 media and doorways stripped, so they stay cheap and never steal a click.
 
+## The short way round
+
+Not everyone wants to walk a labyrinth to reach the SP-404 converter. The
+shortcut is **The Concordance** — a hall one step up from the entrance whose
+doors are each named for where they go and lead straight there. It keeps the
+short route inside the architecture instead of floating a menu over it, so the
+labyrinth stays the default without becoming a toll.
+
+A surface can carry several doors to make a hall like that:
+
+```json
+"north": {
+  "art": "mural:ornament",
+  "doors": [
+    { "exit": "reliquary", "label": "shaders",  "at": 0.14, "tall": true },
+    { "exit": "workshop",  "label": "drumseek", "at": 0.38, "tall": true }
+  ]
+}
+```
+
+`at` places a door along the wall from 0 to 1; without it they share the wall
+evenly. `tall` makes an arch rather than a low door. A door to a room that does
+not exist is never drawn.
+
+Everything in the site is two rooms from the entrance this way, and three to six
+if you wander instead.
+
 ## The gallery is the only index
 
 `index.html` is no longer a page you scroll. It shows the entrance, or exactly
@@ -248,6 +294,29 @@ with no room is unreachable. Current wiring:
 
 The box on the entrance dives into the gallery rather than scrolling — each flap
 arrives at the room that holds that part of the site.
+
+## The shared layer
+
+`lucid.css` and `lucid.js` are the only things every page loads. The site had
+grown four separate design languages — the entrance and the SP-404 tool on
+Orbitron and cyan, the gallery on Courier with its own black, DrumSeek on red
+and yellow, SynthSoup on pink, lime and Shrikhand — so cyan was three slightly
+different cyans and no page but the entrance linked back to the gallery.
+
+`lucid.css` holds the palette, the type and the way back, and nothing else.
+Every token is prefixed `--lucid-` because SynthSoup already defines
+`--display`, and overwriting that would break it. Each use carries its original
+value as a fallback (`var(--lucid-cyan, #00ffff)`), so a page still looks right
+if the stylesheet fails to load.
+
+`lucid.js` injects the return link. It skips three cases: inside an iframe
+(DrumSeek is embedded in a section and would otherwise show the bar inside the
+frame), a page carrying `data-lucid-no-return` (the entrance and the gallery
+have their own), and the gallery itself.
+
+**SynthSoup keeps its own interior on purpose.** It is a separate instrument
+with a deliberate identity, and repainting it cyan would destroy something that
+works. Cohesion there means shared chrome, not a shared skin.
 
 ## Getting in
 

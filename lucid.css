@@ -1,0 +1,108 @@
+/* ===========================================================================
+   lucid.css — the one thing every page on this site shares.
+
+   The site had grown four separate design languages: the entrance and the
+   SP-404 tool on Orbitron and cyan, the gallery on Courier with its own black,
+   DrumSeek on red and yellow, and SynthSoup on pink, lime and Shrikhand. Five
+   body fonts, four backgrounds, five Google Fonts requests.
+
+   This file holds what they should agree on — the palette, the type, and the
+   way back into the gallery — and nothing else. Every token is prefixed
+   --lucid- so it cannot collide with a page's own variables; SynthSoup already
+   defines --display, and overwriting that would break it.
+
+   SynthSoup keeps its own interior on purpose. It is a separate instrument with
+   a deliberate identity, and repainting it cyan would destroy something that
+   works. Cohesion there means shared chrome, not a shared skin.
+   =========================================================================== */
+
+:root {
+    /* Surfaces */
+    --lucid-bg:        #06060b;
+    --lucid-bg-deep:   #05050a;   /* inside the gallery's rooms */
+    --lucid-panel:     #0b0b14;
+    --lucid-line:      rgba(255, 255, 255, .12);
+
+    /* Ink */
+    --lucid-ink:       #e8e8f0;
+    --lucid-dim:       #7a7a8c;
+
+    /* Accents, taken from the artwork rather than chosen beside it.
+       Sampling a finished piece: 48% violet, 24% acid green, 7% blue, 4.5%
+       magenta — and no cyan at all beyond one small focal eye. The site had
+       been built the other way round, cyan everywhere, so it did not look like
+       the work it exists to show. These are the artwork's own hues, lifted to
+       the lightness that reads on black.
+
+       Roles, not colour names, so this can be re-anchored again without the
+       names becoming lies. */
+    --lucid-accent:    #9b7bff;   /* violet — the dominant one, hue 257 */
+    --lucid-accent-2:  #8ae04b;   /* acid green, hue 102 */
+    --lucid-accent-3:  #d44fb0;   /* magenta, hue 312 */
+    --lucid-focal:     #6fe3e8;   /* the cyan of that one eye: used sparingly */
+    --lucid-warn:      #ffd34d;
+
+    /* Kept so anything still asking for them resolves, but prefer the roles. */
+    --lucid-cyan:      var(--lucid-focal);
+    --lucid-magenta:   var(--lucid-accent-3);
+    --lucid-green:     var(--lucid-accent-2);
+
+    /* Type */
+    --lucid-display:   'Orbitron', 'Arial Black', sans-serif;
+    --lucid-mono:      ui-monospace, SFMono-Regular, Menlo, 'Courier New', monospace;
+
+    /* Rhythm */
+    --lucid-radius:    3px;
+    --lucid-track:     .18em;     /* the letter-spacing used on small caps */
+}
+
+/* ===== the way back =====
+   Every page that is not the gallery itself gets the same return. Before this,
+   the entrance was the only page that linked back, so each tool was a dead end:
+   you could enter the architecture and not leave it. */
+.lucid-return {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 2147483000;          /* above whatever the page has */
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid rgba(139, 108, 245, .40);
+    border-radius: var(--lucid-radius);
+    background: rgba(5, 5, 10, .82);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    color: var(--lucid-accent);
+    font-family: var(--lucid-mono);
+    font-size: 10px;
+    letter-spacing: var(--lucid-track);
+    text-transform: uppercase;
+    text-decoration: none;
+    line-height: 1;
+    opacity: .78;
+    transition: opacity .2s ease, border-color .2s ease, background .2s ease;
+}
+.lucid-return:hover,
+.lucid-return:focus-visible {
+    opacity: 1;
+    color: var(--lucid-accent-2);
+    border-color: rgba(138, 224, 75, .8);
+    background: rgba(138, 224, 75, .14);
+    outline: none;
+}
+.lucid-return::before {
+    content: '';
+    width: 9px; height: 9px;
+    border: 1px solid currentColor;
+    /* A small plan of a room: the mark the gallery is named by. */
+    border-right-color: transparent;
+    transform: rotate(45deg);
+}
+@media (max-width: 640px) {
+    .lucid-return { font-size: 9px; padding: 7px 10px; top: 8px; right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lucid-return { transition: none; }
+}
