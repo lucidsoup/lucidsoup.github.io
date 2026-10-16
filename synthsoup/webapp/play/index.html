@@ -90,9 +90,9 @@ a { color: inherit; }
 .keys, footer { margin: 16px 0 0; color: var(--dim); text-align: center; font-size: 13px; }
 .keys span { white-space: nowrap; margin: 0 8px; }
 kbd { font: 500 12px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--fg); background: var(--tray); }
-.notice { margin: 12px 0 0; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--neon); color: var(--fg); background: var(--tray); }
-.console { margin: 16px 0 0; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
-.console fieldset { min-width: 0; margin: 0; padding: 14px 16px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--tray);
+.notice { margin: 12px 0 0; padding: 10px 14px; color: var(--fg); }   /* (its box: a splat, splat.js) */
+.console { margin: 16px 0 0; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 34px 18px; }   /* (room for the splats' drips) */
+.console fieldset { min-width: 0; margin: 0; padding: 14px 16px 16px; border: 0;   /* (its box: a splat, splat.js) */
                     display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: end; align-content: start; }
 .console legend { padding: 0 6px; font: 600 12px/1 var(--text); letter-spacing: .14em; text-transform: uppercase; color: var(--fg); }
 .console fieldset:disabled { opacity: .55; }
@@ -256,6 +256,7 @@ footer small { font-size: 11px; opacity: .8; }
 </footer>
 </main>
 
+<script src="splat.js?v=8ae715e553"></script>
 <script type="module">
 const NS = "http://www.w3.org/2000/svg";
 // panel.c's labels (bit = label) and encoder roles
@@ -275,20 +276,18 @@ const ROW1 = ["FX", "SCL", "ENV", "LFO", "EDIT", "GLO"], ROW2 = ["HOME", "SAVE",
 const KNOBS = ["MASTER", "SELECT", "PRESETS", "ALGORITHM", "KNOB 1", "KNOB 2", "KNOB 3", "KNOB 4"];
 const LAYOUTS = {
   wide: {
-    w: 1000, h: 624, screen: [292, 44, 256],
+    w: 1000, h: 624, screen: [272, 16, 294],
     knobs: [[105, 100, 24], [215, 100, 24], [105, 205, 24], [215, 205, 24], [610, 100, 22], [714, 100, 22], [818, 100, 22], [922, 100, 22]],
     trays: [[50, 250, 220, 50], [568, 160, 400, 140]],
     oct: [[60, 258, 90, 34], [170, 258, 90, 34]],
     grid: [582, 174, 54, 48, 63, 62], keybed: [36, 332, 928, 256],
-    cat: { ears: [70, 250, 125, 78], whiskers: [150, 132, 56], paws: [300, 700, 620, 58, 26], nose: 314 },
   },
   tall: {
-    w: 600, h: 1070, screen: [130, 104, 340],
-    knobs: [[66, 64, 24], [186, 64, 24], [414, 64, 24], [534, 64, 24], [90, 512, 26], [230, 512, 26], [370, 512, 26], [510, 512, 26]],
-    trays: [[14, 572, 572, 146], [150, 728, 300, 62]],
-    oct: [[164, 737, 128, 44], [308, 737, 128, 44]],
-    grid: [24, 582, 86, 60, 94, 70], keybed: [14, 800, 572, 256],
-    cat: { ears: [36, 196, 84, 80], whiskers: [290, 290, 34], paws: [170, 430, 1078, 50, 20], nose: 452 },
+    w: 600, h: 1110, screen: [105, 100, 390],
+    knobs: [[66, 64, 24], [186, 64, 24], [414, 64, 24], [534, 64, 24], [90, 552, 26], [230, 552, 26], [370, 552, 26], [510, 552, 26]],
+    trays: [[14, 612, 572, 146], [150, 768, 300, 62]],
+    oct: [[164, 777, 128, 44], [308, 777, 128, 44]],
+    grid: [24, 622, 86, 60, 94, 70], keybed: [14, 840, 572, 256],
   },
 };
 const svg = document.getElementById("panel"), device = document.getElementById("device"), canvas = document.getElementById("screen");
@@ -315,46 +314,6 @@ const knobs = [], buttons = [], keys = [];
 const btnBy = new Map(), keyBy = new Map();                   // pointer / key code -> label bit or key
 const send = (m) => { if (node) node.port.postMessage(m); };
 
-// the body as a cat: ears up from the top edge (pink inside), whiskers out of both sides, two paws on the bottom edge
-// and a nose and mouth under the screen; the page leaves room around the panel for what sticks out
-function catBody(L) {
-  const { ears: [a, b, tip, eh], whiskers: [wl, wr, wo], paws: [p1, p2, py, prx, pry], nose } = L.cat;
-  const x0 = 4, y0 = 4, x1 = L.w - 4, y1 = L.h - 4, r = 40, m = (x) => L.w - x;
-  const ear = (a, t, b) => `L${a},${y0} Q${a + (t - a) * .35},${y0 - eh * .55} ${t},${y0 - eh} ` +
-                           `Q${b - (b - t) * .3},${y0 - eh * .45} ${b},${y0}`;
-  const d = `M${x0},${y0 + r} Q${x0},${y0} ${x0 + r},${y0} ${ear(a, tip, b)} ${ear(m(b), m(tip), m(a))} ` +
-            `L${x1 - r},${y0} Q${x1},${y0} ${x1},${y0 + r} L${x1},${y1 - r} Q${x1},${y1} ${x1 - r},${y1} ` +
-            `L${x0 + r},${y1} Q${x0},${y1} ${x0},${y1 - r} Z`;
-  el("path", { d, fill: "var(--body)", stroke: "url(#rim)", "stroke-width": 3, "stroke-linejoin": "round" });
-  for (const [ea, et, eb] of [[a, tip, b], [m(b), m(tip), m(a)]]) {   // the inner ears
-    const ia = ea + (eb - ea) * .22, ib = eb - (eb - ea) * .22, it = et + (ea + eb - 2 * et) * .08;
-    el("path", { d: `M${ia},${y0 + 2} Q${ia + (it - ia) * .4},${y0 - eh * .4} ${it},${y0 - eh * .68} ` +
-                    `Q${ib - (ib - it) * .35},${y0 - eh * .35} ${ib},${y0 + 2} Z`, fill: "#ff4fd8", opacity: .38 });
-  }
-  for (let k = -1; k <= 1; k++)                                  // the whiskers: three a side
-    for (const [s, cy] of [[-1, wl], [1, wr]]) {
-      const xin = s < 0 ? x0 + 16 : x1 - 16, xout = s < 0 ? x0 - wo : x1 + wo;
-      el("path", { d: `M${xin},${cy + k * 9} Q${(xin + xout) / 2},${cy + k * 14 - 6} ${xout},${cy + k * 24 - 4}`,
-                   fill: "none", stroke: "var(--label)", "stroke-width": 2.5, "stroke-linecap": "round", opacity: .75 });
-    }
-  for (const px of [p1, p2]) {                                   // the paws, toes down
-    el("ellipse", { cx: px, cy: py, rx: prx, ry: pry, fill: "var(--body)", stroke: "url(#rim)", "stroke-width": 3 });
-    for (const t of [-1, 0, 1])
-      el("line", { x1: px + t * prx * .36, y1: py + pry * .25, x2: px + t * prx * .36, y2: py + pry * .85,
-                   stroke: "var(--edge)", "stroke-width": 3, "stroke-linecap": "round" });
-  }
-  const [sx, , ss] = L.screen, nx = sx + ss / 2;                 // the nose and an ω mouth
-  el("path", { d: `M${nx - 8},${nose - 6} L${nx + 8},${nose - 6} L${nx},${nose + 2} Z`, fill: "#ff4fd8",
-               stroke: "#ff4fd8", "stroke-width": 2, "stroke-linejoin": "round" });
-  el("path", { d: `M${nx},${nose + 2} Q${nx - 2},${nose + 10} ${nx - 9},${nose + 9} M${nx},${nose + 2} ` +
-                  `Q${nx + 2},${nose + 10} ${nx + 9},${nose + 9}`, fill: "none", stroke: "var(--label)",
-               "stroke-width": 2, "stroke-linecap": "round" });
-  const side = (L.cat.whiskers[2] + 8) / L.w, wide = 1 / (1 + 2 * side);   // (margins: % of the page's width)
-  Object.assign(device.style, { width: `${100 * wide}%`, marginLeft: "auto", marginRight: "auto",
-                                marginTop: `${(eh + 8) / L.w * 100 * wide}%`,
-                                marginBottom: `${Math.max(0, py + pry + 6 - L.h) / L.w * 100 * wide}%` });
-}
-
 function build(name) {
   const L = LAYOUTS[name];
   layout = name;
@@ -365,10 +324,17 @@ function build(name) {
   knobs.length = buttons.length = keys.length = 0;
   const rim = el("linearGradient", { id: "rim", x1: 0, y1: 0, x2: 1, y2: 1 }, el("defs", {}));
   ["#ff4fd8", "#ff9a3c", "#9dff4f", "#4fe0ff", "#8a6cff"].forEach((c, i) => el("stop", { offset: i / 4, "stop-color": c }, rim));
-  catBody(L);
-  for (const [x, y, w, h] of L.trays) el("rect", { x, y, width: w, height: h, rx: 14, fill: "var(--tray)" });
+  // every box a liquid splatter (splat.js): the body (its drips run off the bottom: room left under the panel), the
+  // trays, the screen's bezel, the buttons and keys
+  const { splatSvg } = window.SoupSplat;
+  let seed = 1;
+  const body = splatSvg(svg, 14, 14, L.w - 28, L.h - 28, seed++, 16, 64,
+                        { fill: "var(--body)", stroke: "url(#rim)", "stroke-width": 3, "stroke-linejoin": "round" }, 12);
+  Object.assign(device.style, { width: "94%", marginLeft: "auto", marginRight: "auto", marginTop: "3%",
+                                marginBottom: `${Math.max(0, body.bottom - L.h + 8) / L.w * 94}%` });
+  for (const [x, y, w, h] of L.trays) splatSvg(svg, x, y, w, h, seed++, 7, 20, { fill: "var(--tray)" }, 4);
   const [sx, sy, ss] = L.screen;
-  el("rect", { x: sx, y: sy, width: ss, height: ss, rx: 18, fill: "#0b0b0c" });
+  splatSvg(svg, sx, sy, ss, ss, seed++, 9, 30, { fill: "#0b0b0c" }, 5);
   const inset = ss / 32;                                         // the 240 x 240 panel inside its bezel
   Object.assign(canvas.style, { left: `${(sx + inset) / L.w * 100}%`, top: `${(sy + inset) / L.h * 100}%`,
                                 width: `${(ss - 2 * inset) / L.w * 100}%`, height: `${(ss - 2 * inset) / L.h * 100}%` });
@@ -383,7 +349,7 @@ function build(name) {
   });
   const button = ([x, y, w, h], n, sub) => {
     const g = el("g", {});
-    el("rect", { x, y, width: w, height: h, rx: 8, fill: "var(--part)", stroke: "var(--edge)", "stroke-width": 1.5, class: "face btn" }, g);
+    splatSvg(g, x + 1, y + 1, w - 2, h - 2, seed++, 3.5, 9, { fill: "var(--part)", stroke: "var(--edge)", "stroke-width": 1.5, class: "face btn" });
     const ink = n === "REC" ? "#ff453a" : undefined;
     if (sub) { label(g, x + w / 2, y + h / 2 - 2, n, 10.8, SANS, ink); label(g, x + w / 2, y + h / 2 + 11, sub, 9.9); }
     else label(g, x + w / 2, y + h / 2 + 4.5, n, 12.6, SANS, ink);
@@ -397,12 +363,12 @@ function build(name) {
     button([gx + i * dx, gy + dy, gw, gh], ROW2[i], ROW2[i] === "PLAY" ? "STOP" : "");
   }
   const [x0, y0, w, h] = L.keybed;
-  el("rect", { x: x0, y: y0, width: w, height: h, rx: 18, fill: "var(--tray)" });
+  splatSvg(svg, x0, y0, w, h, seed++, 8, 22, { fill: "var(--tray)" }, 5);
   // the keys: two rows of the same black keys, each with a slit down its middle that lights
   const pitch = (w - 24) / 16, kw = pitch * 0.78, kh = h * 0.425, sw = Math.max(3, kw * 0.14);
   const key = (cx, cy, k) => {
     const g = el("g", {}), y = cy - kh / 2;
-    el("rect", { x: cx - kw / 2, y, width: kw, height: kh, rx: kw / 2, class: "face key" }, g);
+    splatSvg(g, cx - kw / 2 + 1, y + 1, kw - 2, kh - 2, seed++, 2.5, 7, { class: "face key" });
     el("rect", { x: cx - sw / 2, y: y + kw * 0.4, width: sw, height: kh - kw * 0.8, rx: sw / 2, class: "slit" }, g);
     el("rect", { x: cx - pitch / 2, y: cy - h * 0.24, width: pitch, height: h * 0.48, fill: "transparent" }, g);   // its target
     keys[k] = { g, name: keyName(k) };
@@ -541,6 +507,9 @@ function bindKnob(k) {
 }
 const tall = matchMedia("(orientation: portrait) and (max-width: 700px)");
 build(tall.matches ? "tall" : "wide");
+// the boxes under the panel as splats too
+document.querySelectorAll(".console fieldset").forEach((f, i) => window.SoupSplat.splatBox(f, 101 + i, { fill: "var(--tray)", stroke: "var(--rule)", amp: 12, drip: 30, splash: 6 }));
+window.SoupSplat.splatBox(document.getElementById("notice"), 120, { fill: "var(--tray)", stroke: "var(--neon)", amp: 7, drip: 16 });
 tall.addEventListener("change", () => build(tall.matches ? "tall" : "wide"));
 document.fonts?.load("16px DotGothic16").then(() => build(layout), () => {});   // the labels' width: the hit areas
 
@@ -1009,7 +978,7 @@ async function switchOn() {
   try {
     if (!ac) audioStart();
     const [wasm] = await Promise.all([
-      fetch("felucca.wasm?v=8286941187").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
+      fetch("felucca.wasm?v=822b432647").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
       ac.audioWorklet.addModule("worklet.js?v=b365f9a0ad")]);
     node = new AudioWorkletNode(ac, "felucca", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
     node.connect(ac.destination);
