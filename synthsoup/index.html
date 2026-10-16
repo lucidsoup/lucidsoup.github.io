@@ -54,14 +54,14 @@ h2 { font-size: clamp(28px, 4vw, 36px); line-height: 1.1; }
 .tag { display: inline-flex; gap: 8px; align-items: center; width: fit-content; padding: 4px 12px; border-radius: 999px;
        border: 1px solid var(--warn); color: var(--warn); font: 500 13px/1.4 var(--mono); }
 .screen { margin: 0; justify-self: center; width: min(100%, 420px); }
-.screen img { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; border-radius: 22px;
-              border: 10px solid #07040c; box-shadow: 0 0 0 2px var(--rule), 0 20px 60px rgba(0, 0, 0, .6); }
-.screen figcaption { margin-top: 10px; text-align: center; color: var(--dim); font: 13px var(--mono); }
+.screen .frame { display: block; padding: 12px; }   /* (the frame: a splat, splat.js) */
+.screen img { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; }
+.screen figcaption { margin-top: 30px; text-align: center; color: var(--dim); font: 13px var(--mono); }
 
 .section-head { display: grid; gap: 6px; margin-bottom: 24px; }
 .section-head p { margin: 0; color: var(--dim); max-width: 60ch; }
-.tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px 24px; margin: 0; padding: 0; list-style: none; }
-.tracks li { min-width: 0; display: grid; gap: 8px; padding: 14px 16px; background: var(--panel); border-radius: 14px; }
+.tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 36px 28px; margin: 0; padding: 0; list-style: none; }
+.tracks li { min-width: 0; display: grid; gap: 8px; padding: 14px 16px; }   /* (their boxes: splats) */
 .tracks .name { font-weight: 600; }
 .tracks .what { color: var(--dim); font-size: 14px; }
 .tracks audio { width: 100%; height: 36px; }
@@ -74,8 +74,7 @@ h2 { font-size: clamp(28px, 4vw, 36px); line-height: 1.1; }
 .features h3 { margin: 0 0 6px; font: 600 14px/1.3 var(--text); letter-spacing: .14em; text-transform: uppercase; }
 .features p { margin: 0; color: var(--dim); }
 
-.install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 48px; padding: 28px; border-radius: 20px;
-           background: var(--panel); border: 1px solid var(--rule); }
+.install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 48px; padding: 28px; }   /* (its box: a splat) */
 .install > * { min-width: 0; }
 .install ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
 .install p { margin: 0 0 12px; }
@@ -106,7 +105,7 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
       <span class="tag">Version 0.1 · untested on hardware</span>
     </div>
     <figure class="screen">
-      <img src="assets/synthsoup-boot.gif?v=9f660d1893" width="240" height="240" alt="The power-on animation: a cartoon cat in a bowl of swirling rainbow soup opens its fanged mouth on a little synth held in its teeth, the name SynthSoup above it.">
+ <span class="frame"><img src="assets/synthsoup-boot.gif?v=e49ce00cf6" width="240" height="240" alt="The power-on animation: a cartoon cat in a bowl of swirling rainbow soup opens its fanged mouth on a little synth held in its teeth, the name SynthSoup above it."></span>
       <figcaption>Power-on, 240 × 240, as the FM-1 shows it</figcaption>
     </figure>
   </section>
@@ -170,5 +169,15 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
     <span>M-VAVE and FM-1 are trademarks of their respective owners. SynthSoup is not affiliated with or endorsed by them.</span>
   </footer>
 </main>
+<script src="assets/splat.js?v=8ae715e553"></script>
+<script>
+  // the boxes as liquid splatters (assets/splat.js): the screen's frame, the tracks, the install box
+  (() => {
+    const { splatBox } = window.SoupSplat;
+    splatBox(document.querySelector(".screen .frame"), 7, { fill: "#07040c", stroke: "var(--rule)", amp: 10, drip: 28, splash: 6 });
+    document.querySelectorAll(".tracks li").forEach((li, i) => splatBox(li, 31 + i, { fill: "var(--panel)", amp: 7, drip: 18, splash: 3 }));
+    splatBox(document.querySelector(".install"), 61, { fill: "var(--panel)", stroke: "var(--rule)", amp: 12, drip: 30, splash: 6 });
+  })();
+</script>
 </body>
 </html>
