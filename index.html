@@ -998,7 +998,7 @@
                         <div class="flap flap-e" data-dive="portfolio" tabindex="0" role="button"
                              aria-label="Open: Visuals"></div>
                         <div class="flap flap-s" data-dive="drumseek" tabindex="0" role="button"
-                             aria-label="Open: Tools"></div>
+                             aria-label="Open: Tools — SynthSoup, DrumSeek, SP-404"></div>
                         <div class="flap flap-w" data-dive="shop" tabindex="0" role="button"
                              aria-label="Open: Studio"></div>
                         <div class="box-lid" id="boxLid" tabindex="0" role="button"
@@ -3322,7 +3322,10 @@
         var PANELS = {
             'shader-library': { label: 'Shaders',  sub: 'live',        kind: 'shader', room: 'reliquary' },
             'portfolio':      { label: 'Visuals',  sub: 'reel',        kind: 'media',  room: 'antechamber' },
-            'drumseek':       { label: 'Tools',    sub: 'drumseek',    kind: 'glyph', glyph: '\u25a6', room: 'workshop' },
+            // Tools lands in the Concordance, the hall whose doors are named for
+            // each tool, so SynthSoup, DrumSeek and the SP-404 converter are one
+            // door away. The Workshop only reached SynthSoup up an unnamed stair.
+            'drumseek':       { label: 'Tools',    sub: 'synthsoup \u00b7 drumseek \u00b7 sp\u2011404', kind: 'glyph', glyph: '\u25a6', room: 'concordance' },
             'shop':           { label: 'Studio',   sub: 'shop \u00b7 about', kind: 'glyph', glyph: '\u2726', room: 'studio' }
         };
 
