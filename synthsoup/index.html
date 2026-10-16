@@ -155,13 +155,18 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
       <p class="warn">Nobody has run SynthSoup on an FM-1 yet. It passes the full Felucca test suite plus its own tests, and it was built with the
         FM-1's real toolchain, but there is no proven recovery from a failed install. Install it only if you accept that risk.</p>
       <p>Keep M-VAVE's official V15 firmware file before you start: it is how you go back to stock.</p>
+      <div class="ctas">
+        <a class="btn quiet" href="webapp/installer/">Install SynthSoup</a>
+        <a class="btn quiet" href="webapp/installer/#stock">Revert to stock firmware</a>
+      </div>
     </div>
     <div>
       <ol>
         <li>Back up your projects with the <a href="webapp/editor/">editor</a>'s full backup.</li>
         <li>Connect the FM-1 by USB and open the <a href="webapp/installer/">web installer</a> in Chrome or Edge (it needs Web MIDI).</li>
         <li>Or download <a href="firmware/synthsoup-0.1.fwsc"><code>synthsoup-0.1.fwsc</code></a> and run <code>tools/fm1_install.py</code> from a terminal.</li>
-        <li>To go back: M-VAVE's updater with the official file.</li>
+        <li>To go back: <a href="webapp/installer/#stock">Revert to stock firmware</a> in the installer, with M-VAVE's official
+          <code>FM-1.fwsc</code> (V15): it backs up your music, sounds and settings first. M-VAVE's own updater works too.</li>
       </ol>
     </div>
   </section>
