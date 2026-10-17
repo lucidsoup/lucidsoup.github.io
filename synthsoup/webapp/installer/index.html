@@ -22,6 +22,7 @@
   p { margin: 0 0 16px; }
   button { font: inherit; background: var(--fg); color: var(--bg); border: 0; padding: 8px 20px; cursor: pointer; }
   button:disabled { opacity: .3; cursor: default; }
+  button.ghost { background: none; color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); margin-left: 8px; }
   #status { margin-top: 16px; min-height: 1.6em; }
   .small { color: var(--dim); font-size: 13px; }
   progress { width: 100%; height: 4px; margin-top: 16px; }
@@ -38,8 +39,9 @@
   <p class="small" data-t="beta"></p>
   <p class="small"><span data-t="brick"></span>
     <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener" style="color:inherit">FM-1-transporter</a></p>
-  <p><button id="go" disabled data-t="install"></button></p>
-  <details style="margin-top:24px">
+  <p><button id="go" disabled data-t="install"></button>
+    <button id="revert" class="ghost" type="button" data-t="revert"></button></p>
+  <details id="stock" style="margin-top:24px">
     <summary data-t="stockTitle"></summary>
     <p class="small" data-t="back"></p>
     <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener" style="color:inherit">M-VAVE Downloads</a></p>
@@ -734,7 +736,8 @@ const TEXT = {
     brick: "万一インストールに失敗して起動しなくなった場合は、復旧に Transporter が必要です:",
     beta: "Felucca 1.0 は実地テスト版です。不具合は GitHub で知らせてください。このカスタムファームウェアを使ったことで FM-1 が壊れたり不具合が起きたりしても、作者は一切の責任を負いません。自己責任でお使いください。",
     back: "M-VAVEから公式FM-1 V15を取得し、未変更のFM-1.fwscを選んでください。ファイルはこのブラウザ内で検証し、サーバーへ送りません。",
-    stockTitle: "公式V15に戻す", stockFile: "公式FM-1.fwsc", stockGo: "バックアップして公式V15へ戻す",
+    revert: "純正ファームウェアに戻す", revertPick: "M-VAVEの公式FM-1.fwsc（V15）を選んでください。",
+    stockTitle: "純正ファームウェアに戻す（公式V15）", stockFile: "公式FM-1.fwsc", stockGo: "バックアップして公式V15へ戻す",
     stockBackup: "現在の曲・保存曲・音色バンク・サンプル・設定を先に保存します。全体バックアップ非対応版は、Feluccaを更新してから行ってください。復元はFeluccaを再インストールしてエディタから行います。",
     stockRecovery: "更新中断の再開：全体バックアップはすでにパソコンへ保存済み",
     stockValid: "公式V15を確認しました", stockConfirm: "全体バックアップファイルをパソコンに保存できましたか？ 続けると公式V15へ戻します。Feluccaの曲は公式V15では開けません。",
@@ -765,7 +768,8 @@ const TEXT = {
     brick: "If an install fails and the FM-1 no longer starts, recovering it needs a Transporter:",
     beta: "Felucca 1.0 is a field-testing release; please report problems on GitHub. The author accepts no responsibility if your FM-1 is damaged or misbehaves because of this custom firmware. Use it at your own risk.",
     back: "Get official FM-1 V15 from M-VAVE and select the unmodified FM-1.fwsc. The browser validates it locally; it is not sent to a server.",
-    stockTitle: "Return to official V15", stockFile: "Official FM-1.fwsc", stockGo: "Back up and return to official V15",
+    revert: "Revert to stock firmware", revertPick: "Select M-VAVE's official FM-1.fwsc (V15) to go back to stock.",
+    stockTitle: "Revert to stock firmware (official V15)", stockFile: "Official FM-1.fwsc", stockGo: "Back up and return to official V15",
     stockBackup: "Current music, saved music, sound banks, samples and settings are saved first. Older firmware needs a Felucca update for complete backups. To restore an archive later, reinstall Felucca and use the editor.",
     stockRecovery: "Resume an interrupted update: I already saved a complete backup to this computer",
     stockValid: "Official V15 verified", stockConfirm: "Has the complete backup file been saved to this computer? Continue to return to official V15. Official V15 cannot open Felucca music.",
@@ -806,7 +810,17 @@ let image = null;
 const meta = {"version": "0.1", "product": "FM-1_900", "pkg": "../../firmware/synthsoup-0.1.fwsc"};
 
 let writing = false, stock = null, stockFileEpoch = 0;
-const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on; };
+const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on; $("revert").disabled = on; };
+/* SynthSoup: the way back in plain sight. The button opens "Revert to stock firmware" and asks for the official
+ * file at once (the rest is Felucca's own return: validated locally, a complete backup first); installer/#stock
+ * opens it too */
+const openStock = (pick) => {
+  $("stock").open = true;
+  $("stock").scrollIntoView({ behavior: "smooth", block: "start" });
+  if (pick && !writing) { sayK("revertPick"); $("stock-file").click(); }
+};
+$("revert").addEventListener("click", () => openStock(true));
+if (location.hash === "#stock") openStock(false);
 window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
 
 (async () => {
