@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <link rel="stylesheet" href="/lucid.css">
+    <link rel="stylesheet" href="/stack.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LucidSoup — Visual Art &amp; Projection Mapping (v3.0)</title>
@@ -257,6 +258,16 @@
         }
         .box-open ~ .box-reset, .box-stage-open .box-reset { display: block; }
         .box-reset:hover { border-color: rgba(139, 108, 245,.6); color: #fff; }
+        /* Two controls under the open box: shut it again, or go to the index of
+           everything. They share one row so the big top margin is paid once. */
+        .box-foot {
+            display: none; margin: calc(1.7rem + var(--plate)) auto 0;
+            justify-content: center; align-items: center; gap: .6rem; flex-wrap: wrap;
+        }
+        .box-stage-open .box-foot { display: flex; }
+        .box-foot .box-reset { display: block; margin: 0; }
+        #boxStack { border-color: rgba(155, 123, 255,.45); color: rgba(155, 123, 255,.9); }
+        #boxStack:hover { border-color: rgba(138, 224, 75,.7); color: #d9ffb8; }
 
         @media (max-width: 600px) {
             #boxstage { --plate: clamp(78px, 25vw, 110px); --gap: 6px; margin-top: 1.6rem; }
@@ -977,6 +988,7 @@
             <!-- The gallery is the only index. Nothing here lists the sections;
                  each one is reached from the room that holds it. -->
             <ul>
+                <li><a href="#" id="nav-stack">The Stack</a></li>
                 <li><a href="gallery.html" id="nav-gallery">The Gallery</a></li>
                 <li class="only-focused"><a href="#" id="nav-home">Entrance</a></li>
             </ul>
@@ -1020,7 +1032,11 @@
                             <span class="box-gate-cap">enter</span>
                         </a>
                     </div>
-                    <button type="button" class="box-reset" id="boxReset">Close the box</button>
+                    <div class="box-foot">
+                        <button type="button" class="box-reset" id="boxReset">Close the box</button>
+                        <button type="button" class="box-reset" id="boxStack"
+                                aria-label="Open the index of every page">The Stack</button>
+                    </div>
                 </div>
             </div>
             <div class="scanlines"></div>
@@ -1509,6 +1525,19 @@
 
         window.addEventListener('hashchange', routeSections);
         routeSections();
+
+        // The Stack is the site's index: a tower of plates with every page on it.
+        // Two ways in from here, because the entrance is where someone who does
+        // not want to go hunting arrives.
+        ['nav-stack', 'boxStack'].forEach(function (id) {
+            var t = document.getElementById(id);
+            if (!t) return;
+            t.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (window.lucidStack) window.lucidStack.open(t);
+                else window.location.href = 'gallery.html';
+            });
+        });
 
         var navHome = document.getElementById('nav-home');
         if (navHome) {
@@ -2711,6 +2740,8 @@
             function render() {
                 requestAnimationFrame(render);
                 if (!controlState.enabled) return;
+                // The Stack covers the page; nothing behind it needs drawing.
+                if (document.body.classList.contains('lucid-stack-open')) return;
 
                 const time = (Date.now() - startTime) / 1000;
                 const dt = 1/60;
@@ -3635,5 +3666,6 @@
     </script>
 
 <script src="/lucid.js" defer></script>
+<script src="/stack.js" defer></script>
 </body>
 </html>
