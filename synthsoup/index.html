@@ -3,6 +3,8 @@
      Copyright (C) 2026 SynthSoup contributors. The site's front page (web/make_site.py fills in 0.1 and synthsoup-0.1.fwsc). -->
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="/lucid.css">
+    <link rel="stylesheet" href="/stack.css">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SynthSoup</title>
@@ -87,6 +89,9 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
   .screen { order: -1; width: min(100%, 320px); }
   .install { padding: 20px; }
 }
+/* the screen is first on a phone and its splatter reaches the top-right corner,
+   where the fixed way back to the gallery sits */
+@media (max-width: 640px) { main { padding-top: 56px; } }
 @media (prefers-reduced-motion: reduce) { body::before, .wordmark { animation: none; } }
 </style>
 </head>
@@ -186,6 +191,8 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
     <span>M-VAVE and FM-1 are trademarks of their respective owners. SynthSoup is not affiliated with or endorsed by them.</span>
   </footer>
 </main>
+<script src="/lucid.js" defer></script>
+<script src="/stack.js" defer></script>
 <script src="assets/splat.js?v=8ae715e553"></script>
 <script>
   // the boxes as liquid splatters (assets/splat.js): the screen's frame, the tracks, the install box

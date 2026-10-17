@@ -255,6 +255,61 @@ not exist is never drawn.
 Everything in the site is two rooms from the entrance this way, and three to six
 if you wander instead.
 
+## The Stack
+
+`stack.css` + `stack.js`. Every page the site has, on one tower of lit panels
+hanging in a void, which you turn and descend through. Open it from the nav or
+the box on the entrance, from the `≡ index` chip in the gallery's HUD, from
+the `index` button beside the way back on every other page, or with `` ` `` or
+`/` anywhere.
+
+The reference is the flythrough in *Hackers* (1995): orbiting translucent
+plates, wireframe boxes where nothing has resolved, a ruled floor, and a frame
+of readouts around all of it. It exists because the gallery being the only
+index made some pages four rooms deep, and because a dropdown would have been
+a second, duller way in beside the architecture rather than part of it.
+
+Tiers, top to bottom:
+
+| tier | what is on it |
+|---|---|
+| Surface | the entrance, the gallery |
+| Works | portfolio, shader library |
+| Instruments | DrumSeek, SP-404 converter, SynthSoup, SynthSoup live |
+| Trade | shop, about, contact |
+| Chambers | the rooms that hold something |
+| Flights | the stairs, the well, relativity |
+| Corridors | the long way round |
+| Descent | fractal addresses, which do not run out |
+
+The fixed half is a list in `stack.js`; **a new page has to be added to it** or
+it is not on the index. The architecture half is read from `rooms.json` at
+runtime and sorts itself, so a new room needs nothing. If `rooms.json` will not
+load the tower simply stops after Trade.
+
+Arrows turn the ring and change the tier, `↵` goes, `esc` closes; drag and
+the wheel do the same; every plate is also a real button, so tab and enter work
+and `prefers-reduced-motion` lays the whole thing out flat as a grid.
+
+Four things in it are load-bearing and easy to undo by accident:
+
+- **`#lucid-stack-cam` must stay `pointer-events: none`.** Hit testing inside a
+  `preserve-3d` context sorts by z, and that element's own box sits at z=0 —
+  nearer the eye than every plate. Left interactive it silently swallows every
+  click on the tower.
+- **Nothing between the perspective and the plates may carry a `filter`, a
+  `mask`, a `backdrop-filter` or an `opacity` below 1.** Any of them makes that
+  element a grouping element, which flattens the 3D into one plane. Dimming is
+  done on the leaves, and the grid's distance fade is painted into its own
+  background rather than masked.
+- **`--ls-ring` must stay below `--ls-dist`**, or a plate swings behind the eye
+  and renders degenerately. The same goes for the grid planes, which is why
+  they are pushed back past their own half-width.
+- **The page behind it stands down.** The overlay is opaque, so `stack.js`
+  fires `lucid:stack` and the gallery stops rendering its room, the entrance
+  stops its canvas. The keyboard is captured on the window for the same reason:
+  the gallery turns the room on the arrows and SynthSoup plays notes on them.
+
 ## The gallery is the only index
 
 `index.html` is no longer a page you scroll. It shows the entrance, or exactly
@@ -309,6 +364,9 @@ Every token is prefixed `--lucid-` because SynthSoup already defines
 value as a fallback (`var(--lucid-cyan, #00ffff)`), so a page still looks right
 if the stylesheet fails to load.
 
+`stack.js` loads next to it on every page and injects the `index` button beside
+that return link, wrapping both in `.lucid-chrome`.
+
 `lucid.js` injects the return link. It skips three cases: inside an iframe
 (DrumSeek is embedded in a section and would otherwise show the bar inside the
 frame), a page carrying `data-lucid-no-return` (the entrance and the gallery
@@ -322,3 +380,7 @@ works. Cohesion there means shared chrome, not a shared skin.
 
 The centre of the box on the home page, once the box is open. It does not
 exist before that — not in the nav, not in the tab order.
+
+The Stack is the other way in and is deliberately not hidden: it is in the nav
+from the first frame, under the open box beside *Close the box*, and one
+keystroke away anywhere. The labyrinth is the point, but it is not a toll.
