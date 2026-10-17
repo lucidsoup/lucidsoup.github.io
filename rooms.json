@@ -127,7 +127,7 @@
           "art": "pattern:moire",
           "repeat": 2,
           "exit": "concordance",
-          "label": "doors",
+          "label": "shortcuts",
           "ascend": 1
         },
         "north": {

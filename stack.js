@@ -537,10 +537,14 @@
         if (!ret) return;
         var wrap = el('div', 'lucid-chrome');
         ret.parentNode.insertBefore(wrap, ret);
+        // If stack.css did not load the wrapper is not positioned, the link
+        // would come out of its corner and the tower would have no styling to
+        // show anyway. Better to leave the page exactly as it was.
+        if (getComputedStyle(wrap).position !== 'fixed') {
+            wrap.parentNode.removeChild(wrap);
+            return;
+        }
         wrap.appendChild(ret);
-        ret.style.position = 'static';
-        ret.style.top = 'auto';
-        ret.style.right = 'auto';
         var b = el('button', 'lucid-index');
         b.type = 'button';
         b.textContent = 'index';

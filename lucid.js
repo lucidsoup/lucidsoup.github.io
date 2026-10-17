@@ -19,13 +19,17 @@
         a.href = '/gallery.html';
         a.textContent = 'the gallery';
         a.setAttribute('aria-label', 'Back to the gallery');
-        // Enough inline style to stay usable if lucid.css did not load; the
-        // stylesheet overrides all of it when present.
-        a.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483000;' +
-            'padding:8px 12px;border:1px solid rgba(139,108,245,.40);border-radius:3px;' +
-            'background:rgba(5,5,10,.82);color:#8b6cf5;text-decoration:none;' +
-            'font:10px ui-monospace,Menlo,monospace;letter-spacing:.18em;text-transform:uppercase';
         document.body.appendChild(a);
+        // Inline style always beats a stylesheet, so the fallback goes on only
+        // when lucid.css did not load (its rule makes the link position:fixed).
+        // Applied unconditionally, it silently overrode the stylesheet's phone
+        // sizing and its hover and focus states on every page.
+        if (getComputedStyle(a).position !== 'fixed') {
+            a.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483000;' +
+                'padding:8px 12px;border:1px solid rgba(139,108,245,.40);border-radius:3px;' +
+                'background:rgba(5,5,10,.82);color:#8b6cf5;text-decoration:none;' +
+                'font:10px ui-monospace,Menlo,monospace;letter-spacing:.18em;text-transform:uppercase';
+        }
     }
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', add);

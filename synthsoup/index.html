@@ -56,14 +56,14 @@ h2 { font-size: clamp(28px, 4vw, 36px); line-height: 1.1; }
 .tag { display: inline-flex; gap: 8px; align-items: center; width: fit-content; padding: 4px 12px; border-radius: 999px;
        border: 1px solid var(--warn); color: var(--warn); font: 500 13px/1.4 var(--mono); }
 .screen { margin: 0; justify-self: center; width: min(100%, 420px); }
-.screen img { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; border-radius: 22px;
-              border: 10px solid #07040c; box-shadow: 0 0 0 2px var(--rule), 0 20px 60px rgba(0, 0, 0, .6); }
-.screen figcaption { margin-top: 10px; text-align: center; color: var(--dim); font: 13px var(--mono); }
+.screen .frame { display: block; padding: 12px; }   /* (the frame: a splat, splat.js) */
+.screen img { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; }
+.screen figcaption { margin-top: 30px; text-align: center; color: var(--dim); font: 13px var(--mono); }
 
 .section-head { display: grid; gap: 6px; margin-bottom: 24px; }
 .section-head p { margin: 0; color: var(--dim); max-width: 60ch; }
-.tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px 24px; margin: 0; padding: 0; list-style: none; }
-.tracks li { min-width: 0; display: grid; gap: 8px; padding: 14px 16px; background: var(--panel); border-radius: 14px; }
+.tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 36px 28px; margin: 0; padding: 0; list-style: none; }
+.tracks li { min-width: 0; display: grid; gap: 8px; padding: 14px 16px; }   /* (their boxes: splats) */
 .tracks .name { font-weight: 600; }
 .tracks .what { color: var(--dim); font-size: 14px; }
 .tracks audio { width: 100%; height: 36px; }
@@ -76,8 +76,7 @@ h2 { font-size: clamp(28px, 4vw, 36px); line-height: 1.1; }
 .features h3 { margin: 0 0 6px; font: 600 14px/1.3 var(--text); letter-spacing: .14em; text-transform: uppercase; }
 .features p { margin: 0; color: var(--dim); }
 
-.install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 48px; padding: 28px; border-radius: 20px;
-           background: var(--panel); border: 1px solid var(--rule); }
+.install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 48px; padding: 28px; }   /* (its box: a splat) */
 .install > * { min-width: 0; }
 .install ol { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
 .install p { margin: 0 0 12px; }
@@ -90,6 +89,9 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
   .screen { order: -1; width: min(100%, 320px); }
   .install { padding: 20px; }
 }
+/* the screen is first on a phone and its splatter reaches the top-right corner,
+   where the fixed way back to the gallery sits */
+@media (max-width: 640px) { main { padding-top: 56px; } }
 @media (prefers-reduced-motion: reduce) { body::before, .wordmark { animation: none; } }
 </style>
 </head>
@@ -108,7 +110,7 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
       <span class="tag">Version 0.1 · untested on hardware</span>
     </div>
     <figure class="screen">
-      <img src="assets/synthsoup-boot.gif" width="240" height="240" alt="The power-on animation: a cartoon cat rising out of a bowl of swirling rainbow soup, the name SynthSoup above it.">
+ <span class="frame"><img src="assets/synthsoup-boot.gif?v=e49ce00cf6" width="240" height="240" alt="The power-on animation: a cartoon cat in a bowl of swirling rainbow soup opens its fanged mouth on a little synth held in its teeth, the name SynthSoup above it."></span>
       <figcaption>Power-on, 240 × 240, as the FM-1 shows it</figcaption>
     </figure>
   </section>
@@ -120,17 +122,17 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
     </div>
     <ul class="tracks">
       <li><span class="name">TABLE · PSYCH</span><span class="what">A wavetable of spiralling phases, scanned by an envelope</span>
-        <audio controls preload="none" src="assets/table-psych.mp3"></audio></li>
+        <audio controls preload="none" src="assets/table-psych.mp3?v=4958a19d32"></audio></li>
       <li><span class="name">TABLE · SUPRSAW</span><span class="what">A detuned saw stack from the wavetable engine</span>
-        <audio controls preload="none" src="assets/table-supersaw.mp3"></audio></li>
+        <audio controls preload="none" src="assets/table-supersaw.mp3?v=075b033d2f"></audio></li>
       <li><span class="name">DIMENSION · DIMEN</span><span class="what">A pad cut into a cloud of grains</span>
-        <audio controls preload="none" src="assets/dimension-cloud.mp3"></audio></li>
+        <audio controls preload="none" src="assets/dimension-cloud.mp3?v=4b8e139d8e"></audio></li>
       <li><span class="name">DIMENSION · TAPE</span><span class="what">A worn tape: wow, flutter, hiss and dropouts</span>
-        <audio controls preload="none" src="assets/tape-worn.mp3"></audio></li>
+        <audio controls preload="none" src="assets/tape-worn.mp3?v=d260aa466b"></audio></li>
       <li><span class="name">DIMENSION · TAPE</span><span class="what">TIME changed mid-phrase: the echoes bend with the tape's speed</span>
-        <audio controls preload="none" src="assets/tape-speed-bend.mp3"></audio></li>
+        <audio controls preload="none" src="assets/tape-speed-bend.mp3?v=63adbc1d5a"></audio></li>
       <li><span class="name">REVERB · SHIMMER</span><span class="what">A wavetable pad, its tail climbing in octaves</span>
-        <audio controls preload="none" src="assets/shimmer-pad.mp3"></audio></li>
+        <audio controls preload="none" src="assets/shimmer-pad.mp3?v=5063f18ca0"></audio></li>
     </ul>
   </section>
 
@@ -145,7 +147,10 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
       <li><h3>DIMENSION</h3><p>The delay in three modes: DELAY as before, DIMEN (a granular pocket dimension with octave shimmer and freeze) and TAPE (wow, flutter, drive, hiss and dropouts).</p></li>
       <li><h3>SHIMMER reverb</h3><p>A fourth reverb type beside ROOM, SPRING and HALL: the hall's tail is pitched up an octave and fed back, so held notes bloom upwards.</p></li>
       <li><h3>RESAMPLE</h3><p>Record what the FM-1 plays into one of three sample slots, then play it back with the SAMPLE, SLICE or GRAIN engine. Hold REC and tap C4, D4 or E4.</p></li>
-      <li><h3>The soup cat</h3><p>A power-on animation of the SynthSoup cat in a bowl of rainbow soup, and the SOUP colour palette across every screen.</p></li>
+      <li><h3>VOCODER</h3><p>A 12-band vocoder as a track insert: the synth sings what another track says. In the web player your microphone can be the voice.</p></li>
+      <li><h3>The cook</h3><p>On the SOUP theme's home screen the SynthSoup cat, in full psychedelic colour, peeks over a pot of soup, stirring all the time, dipping the spoon and lifting it to its tongue for a lick. In the web player, the Theme menu switches between SOUP, PRISM and the other palettes.</p><img src="assets/soup-cat.gif?v=c44b3f3cd8" width="120" height="120" alt="The SOUP home screen: the SynthSoup cat, spiral-eyed and grinning, behind a pot of purple soup, stirring with a spoon, then lifting it to its tongue." style="image-rendering: pixelated; border-radius: 10px;"></li>
+      <li><h3>PRISM theme</h3><p>A second look, all straight edges: hot pink, magenta and crystal cyan, crystal shards for steps, gems for notes, and its own power-on, a spinning crystal under a rainbow orb growing roots of light. Hold HOME for the menu, then DISPLAY &gt; COLOR &gt; PRISM.</p><img src="assets/prism-boot.gif?v=696f13b947" width="120" height="120" alt="The PRISM power-on: a dark crystal under a rainbow orb on hot pink with white dashes, green roots growing from its foot." style="image-rendering: pixelated; border-radius: 10px;"></li>
+      <li><h3>PD insert</h3><p>Casio CZ-style phase distortion on any track: DCW folds the sound brighter, KNEE bends it lopsided, RES adds the CZ's ringing resonance. Tap FX until INSERT, TYPE PD.</p></li>
     </ul>
   </section>
 
@@ -174,5 +179,15 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
 </main>
 <script src="/lucid.js" defer></script>
 <script src="/stack.js" defer></script>
+<script src="assets/splat.js?v=8ae715e553"></script>
+<script>
+  // the boxes as liquid splatters (assets/splat.js): the screen's frame, the tracks, the install box
+  (() => {
+    const { splatBox } = window.SoupSplat;
+    splatBox(document.querySelector(".screen .frame"), 7, { fill: "#07040c", stroke: "var(--rule)", amp: 10, drip: 28, splash: 6 });
+    document.querySelectorAll(".tracks li").forEach((li, i) => splatBox(li, 31 + i, { fill: "var(--panel)", amp: 7, drip: 18, splash: 3 }));
+    splatBox(document.querySelector(".install"), 61, { fill: "var(--panel)", stroke: "var(--rule)", amp: 12, drip: 30, splash: 6 });
+  })();
+</script>
 </body>
 </html>
