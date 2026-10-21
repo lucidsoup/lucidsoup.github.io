@@ -33,14 +33,14 @@
        because the entrance keeps its sections hidden and there is nothing in
        the DOM to scrape. */
     var TIERS = [
-        { key: 'surface',     name: 'Surface',     note: 'the way in' },
+        { key: 'surface',     name: 'Surface',     note: 'the bowl, and the long way round' },
         { key: 'works',       name: 'Works',       note: 'what there is to look at' },
         { key: 'instruments', name: 'Instruments', note: 'things that run' },
         { key: 'trade',       name: 'Trade',       note: 'ask, buy, write' }
     ];
 
     var NODES = [
-        { t: 0, name: 'Entrance',         tag: 'root',  href: '/index.html',    g: 'core' },
+        { t: 0, name: 'The Soup',         tag: 'root',  href: '/index.html',    g: 'core' },
         { t: 0, name: 'The Gallery',      tag: 'space', href: '/gallery.html',  g: 'room' },
 
         { t: 1, name: 'Portfolio',        tag: 'work',  href: '/index.html#portfolio',      g: 'frame' },
@@ -50,6 +50,8 @@
         { t: 2, name: 'SP-404 Converter', tag: 'tool',  href: '/sp404.html',           g: 'grid' },
         { t: 2, name: 'SynthSoup',        tag: 'tool',  href: '/index.html#synthsoup', g: 'grid' },
         { t: 2, name: 'SynthSoup — Play', tag: 'live', href: '/synthsoup/webapp/play/', g: 'core' },
+        { t: 2, name: 'BlackboxFX',       tag: 'tool',  href: '/index.html#blackboxfx', g: 'grid' },
+        { t: 2, name: 'BlackboxFX \u2014 Control', tag: 'live', href: '/blackboxfx/',   g: 'core' },
 
         { t: 3, name: 'Shop',             tag: 'trade', href: '/index.html#shop',    g: 'frame' },
         { t: 3, name: 'About',            tag: 'text',  href: '/index.html#about',   g: 'frame' },

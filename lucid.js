@@ -1,9 +1,13 @@
-/* Injects the shared return-to-the-gallery link. One script tag per page beats
-   six hand-written copies that drift apart.
+/* Injects the shared way back. One script tag per page beats six hand-written
+   copies that drift apart.
+
+   It used to point at the gallery, because the gallery was the only index.
+   It points at the bowl on the front page now: the labyrinth is a place you
+   can go, not the hallway every page has to be reached through.
 
    Skipped in three cases: inside an iframe (DrumSeek is embedded in a section
    and would show the bar inside the frame), on a page that already has its own
-   way back, and on the gallery itself. */
+   way back, and on the gallery, whose HUD carries one. */
 (function () {
     'use strict';
     try {
@@ -16,9 +20,9 @@
         if (document.querySelector('.lucid-return')) return;
         var a = document.createElement('a');
         a.className = 'lucid-return';
-        a.href = '/gallery.html';
-        a.textContent = 'the gallery';
-        a.setAttribute('aria-label', 'Back to the gallery');
+        a.href = '/';
+        a.textContent = 'the soup';
+        a.setAttribute('aria-label', 'Back to the soup');
         document.body.appendChild(a);
         // Inline style always beats a stylesheet, so the fallback goes on only
         // when lucid.css did not load (its rule makes the link position:fixed).

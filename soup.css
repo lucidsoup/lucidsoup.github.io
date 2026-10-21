@@ -1,0 +1,309 @@
+/* ===========================================================================
+   soup.css — the bowl.
+
+   The front page is a bowl of soup with the site floating in it. Every page is
+   a thing you can see from the doorway and click; nothing is behind a lid, a
+   stair, or a corridor.
+
+   This replaces the box. The box was a lovely object and the wrong front door:
+   it asked you to open it before it would tell you what was inside, and what
+   was inside was the labyrinth, which asked for more patience again. A bowl
+   asks for nothing. You look down into it and the whole site is already there.
+
+   The gallery is still here — it is one of the things floating in the soup,
+   and it says plainly that it is the strange way round. It is no longer the
+   toll gate on the way to a drum machine.
+   =========================================================================== */
+
+:root {
+    --soup-rim:    #2b1b52;
+    --soup-rim-lit:#6a4fd8;
+    --soup-deep:   #150a2e;
+}
+
+/* ===== the stage ===== */
+#soup {
+    position: relative;
+    /* The third term is the fit: the bowl never grows taller than the room the
+       hero has left after the wordmark and the tagline, so nothing is pushed
+       off the bottom of a short window. aspect-ratio turns width into height,
+       so the cap is written as a width. */
+    --soup-squash: .68;
+    --soup-reserve: 330px;
+    width: min(92vw, 880px, calc((100vh - var(--soup-reserve)) / var(--soup-squash)));
+    margin: 0 auto;
+    /* The pieces are sized in cqw against this box, so a narrower bowl holds
+       smaller pieces and the composition stays the composition instead of
+       collapsing into a pile. */
+    container-type: inline-size;
+    /* The bowl is an ellipse seen from above and in front, so its box is wide
+       and short; the rim and the body hang below it. */
+    aspect-ratio: 1 / var(--soup-squash);
+    z-index: 3;
+}
+
+/* Without JS the bowl never builds, so the links are in the page already and
+   this is what is left: a plain list of everywhere, which is no worse than
+   most front pages and a great deal better than an empty box. */
+.soup-fallback {
+    list-style: none; margin: 2rem auto 0; padding: 0;
+    display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+}
+.soup-fallback a {
+    display: block; padding: .6rem 1rem; text-decoration: none;
+    border: 1px solid rgba(155,123,255,.4); border-radius: 999px;
+    color: var(--lucid-accent, #9b7bff);
+    font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+    font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+}
+.soup-fallback a:hover { background: rgba(138,224,75,.14); border-color: rgba(138,224,75,.7); color: #d9ffb8; }
+#soup.built .soup-fallback { display: none; }
+
+/* ===== the vessel =====
+   Rim, body and broth are three ellipses stacked. The body is the rim pushed
+   down and darkened; nothing here is an image. */
+.bowl {
+    position: absolute; left: 0; right: 0; top: 0;
+    height: 78%;
+    transform-origin: 50% 40%;
+    transition: transform .62s cubic-bezier(.6,0,.85,.3), filter .62s ease;
+}
+.bowl-body {
+    position: absolute; left: 3%; right: 3%; top: 16%;
+    height: 110%;
+    border-radius: 50% 50% 46% 46% / 34% 34% 62% 62%;
+    background:
+        linear-gradient(180deg, #38246b 0%, #1d1038 46%, #0b0618 100%);
+    box-shadow: 0 44px 90px rgba(0,0,0,.6), inset 0 -24px 60px rgba(0,0,0,.55);
+}
+/* The light down one side, so it is a vessel and not a sticker. */
+.bowl-body::after {
+    content: ''; position: absolute; left: 8%; top: 18%; width: 26%; height: 44%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(176,150,255,.26), transparent 72%);
+    filter: blur(6px);
+}
+.bowl-rim {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: linear-gradient(170deg, var(--soup-rim-lit), var(--soup-rim) 58%, #1a1033);
+    box-shadow: 0 0 60px rgba(123, 86, 230,.28);
+}
+
+/* ===== the broth =====
+   A canvas clipped to the ellipse. soup.js draws a domain-warped swirl into
+   it; the gradient underneath is what shows if WebGL is unavailable, and it is
+   deliberately not a flat colour so that case still looks like soup. */
+.bowl-broth {
+    position: absolute; inset: 3.2%;
+    border-radius: 50%;
+    overflow: hidden;
+    background:
+        radial-gradient(60% 70% at 32% 30%, rgba(212,79,176,.55), transparent 70%),
+        radial-gradient(70% 80% at 72% 64%, rgba(138,224,75,.34), transparent 72%),
+        radial-gradient(90% 90% at 50% 50%, #3a1d6e, var(--soup-deep) 78%);
+    box-shadow: inset 0 8px 26px rgba(0,0,0,.42), inset 0 -6px 26px rgba(176,150,255,.14);
+}
+.bowl-broth canvas {
+    position: absolute; inset: -2%;
+    width: 104%; height: 104%;
+    display: block;
+}
+/* The meniscus: the broth is brighter where it meets the rim. */
+.bowl-sheen {
+    position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+    background:
+        radial-gradient(closest-side, transparent 72%, rgba(190,165,255,.22) 93%, transparent),
+        radial-gradient(44% 38% at 36% 24%, rgba(255,255,255,.14), transparent 70%);
+    mix-blend-mode: screen;
+}
+
+/* ===== steam ===== */
+.steam {
+    position: absolute; left: 50%; top: -6%;
+    width: 46%; height: 60%;
+    transform: translateX(-50%);
+    pointer-events: none; opacity: .5;
+}
+.steam i {
+    position: absolute; bottom: 0;
+    width: 26%; height: 100%;
+    border-radius: 50%;
+    background: linear-gradient(0deg, rgba(190,165,255,.34), transparent 76%);
+    filter: blur(13px);
+    animation: steamUp 7.5s ease-in-out infinite;
+}
+.steam i:nth-child(1) { left: 6%;  animation-duration: 8.5s; }
+.steam i:nth-child(2) { left: 37%; animation-duration: 6.8s; animation-delay: -2.4s; }
+.steam i:nth-child(3) { left: 66%; animation-duration: 9.6s; animation-delay: -4.8s; }
+@keyframes steamUp {
+    0%   { transform: translateY(14%) scaleX(.8); opacity: 0; }
+    28%  { opacity: .85; }
+    100% { transform: translateY(-46%) scaleX(1.5); opacity: 0; }
+}
+
+/* ===== the things in it ===== */
+.bits { position: absolute; inset: 0; }
+
+.bit {
+    position: absolute;
+    margin: 0; padding: 0;
+    background: none; border: 0;
+    font: inherit; color: inherit;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    transform: translate(-50%, -50%) scale(var(--s, 1));
+    /* The bob is one transform on the inner wrapper, so this one stays free
+       for placement and for the hover lift. */
+    transition: filter .25s ease;
+}
+.bit:focus { outline: none; }
+
+.bit-float {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    animation: bob var(--dur, 7s) ease-in-out var(--delay, 0s) infinite;
+    transition: transform .3s cubic-bezier(.2,1.3,.4,1);
+}
+/* Caught: the piece stops where it is and lifts. Chasing a moving target is
+   the single fastest way to make a playful thing annoying. */
+.bit:hover .bit-float,
+.bit:focus-visible .bit-float { animation-play-state: paused; transform: translateY(-9px) scale(1.14); }
+
+@keyframes bob {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25%      { transform: translate(calc(var(--dx, 7px) * 1), -6px) rotate(3deg); }
+    50%      { transform: translate(0, -11px) rotate(0deg); }
+    75%      { transform: translate(calc(var(--dx, 7px) * -1), -5px) rotate(-3deg); }
+}
+
+.bit-shape {
+    position: relative;
+    width: var(--d, 76px); height: var(--d, 76px);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    /* Everything sits in liquid, so everything gets the same wet edge. */
+    box-shadow: 0 10px 22px rgba(0,0,0,.45), inset 0 2px 7px rgba(255,255,255,.18);
+    overflow: hidden;
+    background: radial-gradient(70% 70% at 34% 28%, rgba(255,255,255,.3), transparent 62%);
+}
+.bit-shape svg { width: 100%; height: 100%; display: block; }
+.bit-shape video, .bit-shape canvas, .bit-shape img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block;
+}
+/* A wet highlight over whatever is inside, live content included. */
+.bit-shape::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background:
+        radial-gradient(38% 30% at 32% 22%, rgba(255,255,255,.42), transparent 70%),
+        radial-gradient(closest-side, transparent 60%, rgba(0,0,0,.34));
+    pointer-events: none;
+}
+
+.bit-label {
+    font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+    font-size: 10px; letter-spacing: .17em; text-transform: uppercase;
+    color: rgba(236,230,255,.86);
+    text-shadow: 0 1px 7px rgba(0,0,0,.95), 0 0 18px rgba(0,0,0,.8);
+    white-space: nowrap;
+    transition: color .2s ease;
+}
+.bit-label small {
+    display: block; margin-top: 2px;
+    font-size: 8.5px; letter-spacing: .12em;
+    color: rgba(155,123,255,.9);
+    text-transform: none;
+}
+.bit:hover .bit-label, .bit:focus-visible .bit-label { color: #d9ffb8; }
+.bit:hover .bit-label small, .bit:focus-visible .bit-label small { color: var(--lucid-accent-2, #8ae04b); }
+
+/* The ring the piece makes in the broth when you touch it. */
+.bit-ring {
+    position: absolute; left: 50%; top: calc(var(--d, 76px) / 2);
+    width: var(--d, 76px); height: var(--d, 76px);
+    margin-left: calc(var(--d, 76px) / -2); margin-top: calc(var(--d, 76px) / -2);
+    border: 1px solid rgba(138,224,75,.75); border-radius: 50%;
+    opacity: 0; pointer-events: none;
+}
+.bit:hover .bit-ring, .bit:focus-visible .bit-ring { animation: ripple 1.5s ease-out infinite; }
+@keyframes ripple {
+    0%   { opacity: .75; transform: scale(.55) scaleY(.4); }
+    100% { opacity: 0;   transform: scale(2.1) scaleY(.45); }
+}
+
+/* ===== going under ===== */
+#soup.diving .bowl {
+    transform: scale(var(--dive-scale, 9));
+    filter: saturate(1.9) brightness(1.25) blur(2px);
+}
+#soup.diving .bits, #soup.diving .steam { opacity: 0; transition: opacity .2s linear; }
+#soup.diving .bit.chosen {
+    opacity: 1;
+    transition: transform .55s cubic-bezier(.6,0,.85,.3), opacity .5s ease .12s;
+    transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 3.4));
+    z-index: 999;
+}
+#soup.diving .bits { opacity: 1; }
+#soup.diving .bit:not(.chosen) { opacity: 0; transition: opacity .22s linear; }
+
+/* The broth closing over the top of the screen. */
+#soup-veil {
+    position: fixed; inset: 0; z-index: 9000; pointer-events: none;
+    opacity: 0; transition: opacity .42s ease;
+    background:
+        radial-gradient(60% 60% at var(--vx, 50%) var(--vy, 50%), rgba(212,79,176,.75), transparent 68%),
+        radial-gradient(90% 90% at 50% 50%, #3a1d6e, #0b0618 82%);
+}
+#soup-veil.on { opacity: 1; }
+
+/* The page's own visualiser is the room the bowl sits in. It is turned down
+   while the bowl is on screen, because two psychedelic things competing is one
+   psychedelic thing too many. */
+body:not(.focused) #visual-canvas { opacity: .36; }
+
+/* ===== where you land =====
+   The dive has to arrive somewhere that is still liquid, or it reads as a
+   trapdoor. The focused section floats on the broth rather than sitting on a
+   flat page: the background keeps moving and the content does not. */
+body.focused .hero { display: none; }
+
+/* The broth you landed in.
+
+   It has to be a layer of its own rather than a rule on #visual-canvas: the
+   visual engine's sliders write opacity and mix-blend-mode straight onto that
+   canvas as inline style, which no stylesheet can outrank, and `screen` makes
+   it bright enough to swallow body text whole. So the canvas is left alone and
+   this sits over it, under the content. The z-indexes are the whole trick —
+   the canvas is z-index 0, so the scrim takes 1 and the page takes 2. */
+body.focused::before {
+    content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background:
+        radial-gradient(70% 55% at 22% 12%, rgba(212,79,176,.22), transparent 70%),
+        radial-gradient(60% 60% at 82% 78%, rgba(138,224,75,.15), transparent 72%),
+        linear-gradient(180deg, rgba(10,5,22,.76), rgba(10,5,22,.91));
+}
+body.focused #content-wrapper { z-index: 2; }
+body.focused section:not([hidden]) { position: relative; z-index: 2; }
+/* Surfacing: the page rises through the broth once, then holds still. */
+body.focused.soup-arrive section:not([hidden]) { animation: surface .85s cubic-bezier(.2,.9,.25,1) 1; }
+@keyframes surface {
+    0%   { opacity: 0; transform: translateY(26px) scale(.985); filter: blur(7px); }
+    100% { opacity: 1; transform: none; filter: none; }
+}
+
+/* ===== phones ===== */
+@media (max-width: 640px) {
+    /* Nearly square on a phone: you are looking further down into the bowl,
+       which is the only way a portrait screen gives eleven things room. */
+    #soup { --soup-squash: .98; --soup-reserve: 210px; width: min(96vw, calc((100vh - 210px) / .98)); }
+    .bowl { height: 82%; }
+    .bit-label { font-size: 8.5px; letter-spacing: .12em; }
+    .bit-label small { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bit-float, .steam i, .bit-ring { animation: none !important; }
+    .bowl, .bit-float, #soup-veil { transition: none !important; }
+    body.focused.soup-arrive section:not([hidden]) { animation: none; }
+    .bit:hover .bit-float, .bit:focus-visible .bit-float { transform: scale(1.1); }
+}
