@@ -80,6 +80,14 @@ async function connect(kind, portName) {
     await t.connect(portName);
   } catch (err) {
     if (err.code === "NO_PORT") return offerPorts(err);
+    if (kind === "ble" && (err.name === "NotFoundError" || /cancel/i.test(err.message))) {
+      // the picker was empty or closed: offer the unfiltered list and the usual fixes
+      $("btnBleAll").hidden = false;
+      status("Pedal not listed? Close M-EFCS and disconnect the pedal from other devices so it advertises again. "
+        + "On Android, turn Location on (Chrome needs it to scan). Or try “Show all Bluetooth devices”.", "err");
+      log(`bluetooth: ${err.message}`);
+      return;
+    }
     status(err.message, "err");
     log(`connect failed: ${err.message}`);
     return;
@@ -157,6 +165,7 @@ async function disconnect() {
 
 function showConnected(on) {
   for (const id of ["btnUsb", "btnBle", "btnSim"]) $(id).hidden = on;
+  if (on) $("btnBleAll").hidden = true;
   $("btnDisconnect").hidden = !on;
 }
 
@@ -448,6 +457,7 @@ function renderScenes() {
 
 $("btnUsb").onclick = () => connect("usb");
 $("btnBle").onclick = () => connect("ble");
+$("btnBleAll").onclick = () => connect("ble", "all");
 $("btnSim").onclick = () => connect("sim");
 $("btnDisconnect").onclick = () => disconnect();
 $("portSelect").onchange = (e) => e.target.value && connect("usb", e.target.value);

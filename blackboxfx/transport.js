@@ -60,17 +60,24 @@ export class UsbTransport extends Base {
 export class BleTransport extends Base {
   static supported() { return typeof navigator !== "undefined" && !!navigator.bluetooth; }
 
-  async connect() {
+  // mode "all" lists every nearby device, for pedals that advertise under
+  // an unexpected name
+  async connect(mode) {
     if (!BleTransport.supported()) {
       throw new Error("This browser has no Web Bluetooth. Use Chrome or Edge (Android, Windows, macOS, ChromeOS).");
     }
-    this.device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "BlackBox" }],
-      optionalServices: [SERVICE],
-    });
+    this.device = await navigator.bluetooth.requestDevice(mode === "all"
+      ? { acceptAllDevices: true, optionalServices: [SERVICE] }
+      : { filters: [{ namePrefix: "BlackBox" }, { services: [SERVICE] }], optionalServices: [SERVICE] });
     this.device.addEventListener("gattserverdisconnected", () => this.onClose());
     const server = await this.device.gatt.connect();
-    const svc = await server.getPrimaryService(SERVICE);
+    let svc;
+    try {
+      svc = await server.getPrimaryService(SERVICE);
+    } catch {
+      this.device.gatt.disconnect();
+      throw new Error(`"${this.device.name || "That device"}" isn't a BlackBox: it doesn't have the pedal's control service.`);
+    }
     this.tx = await svc.getCharacteristic(TX);
     const rx = await svc.getCharacteristic(RX);
     rx.addEventListener("characteristicvaluechanged", (e) => {
