@@ -209,6 +209,9 @@
         <input type="file" id="fm6file" accept=".syx,.SYX,.bin,application/octet-stream" hidden>
         <button id="fm6export" data-t="fm6Export" data-ic="symbol_download"></button>
         <button id="fm6init" data-t="fm6Init"></button></p>
+      <p class="bar"><button id="fm6soup" data-t="fm6Soup" data-ic="symbol_folder"></button>
+        <button id="fm6bankexport" data-t="fm6BankExport" data-ic="symbol_download" hidden></button>
+        <button id="fm6banksend" data-t="fm6BankSend" data-ic="symbol_upload" hidden></button></p>
       <div id="fm6imported"></div>
       <p class="bar"><label><span data-t="fm6Factories"></span> <select id="fm6slot"></select></label>
         <button id="fm6load" data-t="load"></button></p>
@@ -360,7 +363,8 @@ const CMD = { INFO: 1, GET: 2, SET: 3, DUMP: 4, DESC: 5, STEP_GET: 6, STEP_SET: 
   TRACK_PARAM: 31, TRACK_CHANGED: 32, SONG: 33,
   UI_STATE: 34, UI_SET: 35, UI_PALETTES: 36, FAV_GET: 37, FAV_SET: 38,
   MOTION: 64, BACKUP_LIST: 65, BACKUP_GET: 66, BACKUP_PUT: 67,
-  FM6_GET: 68, FM6_PUT: 69, FM6_LIST: 70, FM6_ERASE: 71 };
+  FM6_GET: 68, FM6_PUT: 69, FM6_LIST: 70, FM6_ERASE: 71,
+  FM6B_BEGIN: 74, FM6B_WRITE: 75, FM6B_END: 76, FM6B_LIST: 77 };
 /* frames the device sends on its own (while WATCH is on); never replies */
 const PUSH = new Set([CMD.CHANGED, CMD.RELOAD, CMD.STEP_CHANGED, CMD.TRACK_CHANGED]);
 /* user preset bank: name 1..12 printable ASCII, a 16-step pattern of (note, flags 1 acc 2 slide 4 tie) */
@@ -454,6 +458,15 @@ const parse = {
       if (trailer[r] === 0x4E && trailer[r + 1] === 1) r += 3;                            /* and the MENU settings (1.0.4) */
       if (o.syncCaps && trailer[r] === 0x52 && trailer[r + 1] === 1) o.ratchet = trailer[r + 2];   /* RATCH: max hits */
     }
+    /* 1.2: song sections with a slot per track (57 01 NTRK); 1.4.1: FM6's voice bank (cmds 74..77) right after it,
+       56 01 its size; 0 = none */
+    o.songLanes = 0; o.fm6Bank = 0;
+    if (o.fm6) for (let i = 8; i + 2 < trailer.length; i++)
+      if (trailer[i] === 0x57 && trailer[i + 1] === 1) {
+        o.songLanes = trailer[i + 2];
+        if (trailer[i + 3] === 0x56 && trailer[i + 4] === 1) o.fm6Bank = trailer[i + 5];
+        break;
+      }
     return o;
   },
   [CMD.UI_STATE](a) {
@@ -586,6 +599,15 @@ const parse = {
     return o;
   },
   [CMD.FM6_ERASE](a) { return { index: a[0], rc: a[1] }; },
+  /* the voice bank (1.4.1): BEGIN, a WRITE per voice, END with its name and the records' CRC-32; LIST what it holds */
+  [CMD.FM6B_BEGIN](a) { return { rc: a[0] }; },
+  [CMD.FM6B_WRITE](a) { return { index: a[0], rc: a[1] }; },
+  [CMD.FM6B_END](a) { return { rc: a[0], voices: a[1] }; },
+  [CMD.FM6B_LIST](a) {
+    const r = new Reader(a), o = { n: r.b(), valid: !!r.b(), name: r.s(), voices: [] };
+    for (let i = 0; i < o.n; i++) { const used = !!r.b(); o.voices.push({ used, name: r.s() }); }
+    return o;
+  },
 };
 
 /* a name the device accepts: printable ASCII, 1..12 characters */
@@ -652,6 +674,11 @@ const req = {
   /* FM6 patches (firmware with info.fm6) */
   fm6Get: (target, i) => [CMD.FM6_GET, [target & 0x7F, i & 0x7F]],
   fm6Put: (target, i, packed) => [CMD.FM6_PUT, [target & 0x7F, i & 0x7F, ...packed.map((x) => x & 0x7F)]],
+  fm6bBegin: () => [CMD.FM6B_BEGIN, []],
+  fm6bWrite: (i, packed) => [CMD.FM6B_WRITE, [i & 0x7F, ...packed.map((x) => x & 0x7F)]],
+  fm6bEnd: (name, crc) => [CMD.FM6B_END, [...String(name).toUpperCase().replace(/[^\x20-\x7E]/g, " ").slice(0, 10).padEnd(10, " ")]
+    .map((c) => c.charCodeAt(0)).concat([0, 7, 14, 21, 28].map((k) => (crc >>> k) & 0x7F))],
+  fm6bList: () => [CMD.FM6B_LIST, []],
   fm6List: () => [CMD.FM6_LIST, []],
   fm6Erase: (i) => [CMD.FM6_ERASE, [i & 0x7F]],
 };
@@ -671,7 +698,7 @@ function replyMatches(cmd, args, a) {
     case CMD.SMP_WRITE: return a[0] === args[0] && a[1] === args[1] && a[2] === args[2] && a[3] === args[3];
     case CMD.SONG: return a[0] === args[0];
     case CMD.FM6_GET: case CMD.FM6_PUT: return a[0] === args[0] && a[1] === args[1];
-    case CMD.FM6_ERASE: return a[0] === args[0];
+    case CMD.FM6_ERASE: case CMD.FM6B_WRITE: return a[0] === args[0];
     case CMD.PROJECT: return a[0] === args[0] && a[1] === args[1];
     case CMD.UP_LIST: case CMD.UP_GET: case CMD.UP_PUT: case CMD.UP_STORE: case CMD.UP_LOAD: case CMD.UP_ERASE:
     case CMD.TRACK_MIX: case CMD.TRACK_DUMP: return a[0] === args[0];
@@ -903,6 +930,45 @@ function parseWav(buf) {
     x[f] = acc / ch;
   }
   return { sr, x };
+}
+
+/* a wavetable WAV (Serum and Serum 2 save them, as do Vital and others: frames of 2048 samples, size in a "clm "
+   chunk "<!>2048 ...") -> TABLE's user table (eng_wave.c USR1..3): 16 frames picked evenly through it, each cut to its
+   first 64 harmonics at 256 points (what TABLE plays), 4096 samples, peak 30000. null: no clm chunk, not a wavetable
+   (force: frames of 2048 anyway) */
+function wavetableOf(buf, force = false) {
+  const d = new Uint8Array(buf), v = new DataView(d.buffer, d.byteOffset, d.byteLength);
+  const id = (i) => String.fromCharCode(d[i], d[i + 1], d[i + 2], d[i + 3]);
+  if (d.length < 12 || id(0) !== "RIFF" || id(8) !== "WAVE") return null;
+  let size = 0;
+  for (let i = 12; i + 8 <= d.length;) {
+    const n = v.getUint32(i + 4, true);
+    if (id(i) === "clm ") {
+      const m = /<!>(\d+)/.exec(String.fromCharCode(...d.subarray(i + 8, Math.min(d.length, i + 8 + Math.min(n, 64)))));
+      if (m) size = +m[1];
+    }
+    i += 8 + n + (n & 1);
+  }
+  if (!size && !force) return null;
+  size ||= 2048;
+  const { x } = parseWav(buf), F = Math.floor(x.length / size);
+  if (size < 16 || F < 1) return null;
+  const NF = 16, P = 256, H = Math.min(64, (size >> 1) - 1), out = new Float64Array(NF * P);
+  const cs = Float64Array.from({ length: size }, (_, n) => Math.cos(2 * Math.PI * n / size));
+  for (let i = 0; i < NF; i++) {
+    const base = (F > 1 ? Math.round(i * (F - 1) / (NF - 1)) : 0) * size;
+    for (let h = 1; h <= H; h++) {
+      let a = 0, b = 0;
+      for (let n = 0; n < size; n++) {
+        const k = (h * n) % size;
+        a += x[base + n] * cs[k];
+        b += x[base + n] * cs[(k + size - (size >> 2)) % size];   /* sin = cos shifted a quarter */
+      }
+      a *= 2 / size; b *= 2 / size;
+      for (let j = 0; j < P; j++) out[i * P + j] += a * Math.cos(2 * Math.PI * h * j / P) + b * Math.sin(2 * Math.PI * h * j / P);
+    }
+  }
+  return { s: normalize(out), frames: F, size };
 }
 
 /* gen_samples.resample: moving average over the ratio, then linear interpolation */
@@ -1465,12 +1531,68 @@ const FM6 = (() => {
     [99,99,99,85,99,99,99,0,39,0,0,0,56,0,72,2,50,99,99,99,85,99,99,99,0,39,0,0,0,56,0,78,8,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,76,6,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,86,4,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,84,0,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,90,2,0,99,99,99,99,50,50,50,50,31,8,60,0,3,0,57,24,68,82,65,87,66,65,82,83,32,32],   /* ORGAN */
     [99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,99,99,99,99,99,99,0,39,0,0,0,56,0,0,2,0,99,75,40,60,99,30,0,0,39,0,0,0,58,12,68,2,0,99,60,40,60,99,30,0,0,39,0,0,0,66,8,74,4,0,99,70,40,60,99,40,0,0,39,0,0,0,58,16,76,6,0,99,45,30,60,99,60,0,0,39,0,0,0,58,8,98,2,0,99,99,99,99,50,50,50,50,4,8,35,0,0,0,1,24,78,89,76,79,78,32,80,73,67,75],   /* PLUCK */
   ];
+  /*SOUPDX7-BEGIN*/ /* tools/gen_dx7_bank.py writes this: SOUP EP, BRIGHT EP, REED EP, FM GRAND, CLAVI, HARPSI, PERC ORGAN, JAZZ ORGAN, MARIMBA, VIBES, TUBE BELLS, GLOCKEN, MUSIC BOX, STEEL DRUM, SOLID BASS, SYN BASS, SLAP BASS, PLUCK BASS, FRETLESS, BRASS, SOFT HORNS, SYN BRASS, STRINGS, ENSEMBLE, WARM PAD, GLASS PAD, CHOIR, SPACE PAD, FLUTE, REED LEAD, SYNC LEAD, KOTO */
+  const SOUPDX7_PK = [
+    [95,50,35,78,99,70,0,0,39,0,0,0,43,20,52,2,0,95,30,25,60,99,88,0,0,39,0,0,0,75,8,86,2,0,95,55,40,75,99,0,0,0,39,0,40,0,60,28,58,28,0,95,20,20,50,99,95,0,0,39,0,0,0,51,8,93,2,0,95,50,35,78,99,75,0,0,39,0,24,0,67,24,74,2,0,96,25,25,67,99,75,0,0,39,0,0,0,59,8,99,2,0,99,99,99,99,50,50,50,50,4,14,30,0,0,0,40,24,83,79,85,80,32,69,80,32,32,32],
+    [97,55,35,78,99,50,0,0,39,0,0,0,59,24,46,6,0,96,30,25,60,99,85,0,0,39,0,0,0,83,8,84,2,0,98,62,40,75,99,0,0,0,39,0,36,0,61,28,70,28,0,97,24,22,55,99,90,0,0,39,0,0,0,43,8,92,2,0,97,45,30,70,99,72,0,0,39,0,20,0,75,28,82,2,0,98,28,25,60,99,78,0,0,39,0,0,0,59,8,99,2,0,99,99,99,99,50,50,50,50,4,15,35,0,0,0,48,24,66,82,73,71,72,84,32,69,80,32],
+    [92,50,35,70,99,60,0,0,39,0,0,0,59,20,40,2,0,96,35,25,60,99,70,0,0,39,0,0,0,59,8,70,4,0,95,50,35,70,99,40,0,0,39,0,30,0,59,28,62,6,0,96,26,22,55,99,85,0,0,39,0,0,0,51,12,90,2,0,90,40,30,60,99,60,20,0,39,0,30,0,66,28,80,2,0,96,30,28,60,99,80,0,0,39,0,0,0,59,12,99,2,0,99,99,99,99,50,50,50,50,4,13,35,0,0,0,48,24,82,69,69,68,32,69,80,32,32,32],
+    [99,65,40,70,99,30,0,0,39,0,50,0,61,28,60,10,0,99,40,30,65,99,70,0,0,39,0,30,0,52,24,70,2,0,99,32,24,55,99,80,0,0,39,0,0,0,43,12,95,2,0,99,55,32,65,99,60,0,0,39,0,40,0,60,24,72,6,0,99,45,30,65,99,70,0,0,39,0,30,0,76,24,82,2,0,99,32,24,55,99,80,0,0,39,0,0,0,59,12,99,2,0,99,99,99,99,50,50,50,50,2,14,35,0,0,0,48,24,70,77,32,71,82,65,78,68,32,32],
+    [99,70,40,75,99,30,0,0,39,0,0,0,60,20,60,2,0,99,60,40,75,99,40,0,0,39,0,0,0,60,24,66,14,0,99,45,30,75,99,65,0,0,39,0,0,0,75,12,90,4,0,99,70,40,75,99,30,0,0,39,0,0,0,60,24,70,10,0,99,60,40,75,99,50,0,0,39,0,20,0,60,24,78,6,0,99,45,30,75,99,65,0,0,39,0,0,0,59,12,99,2,0,99,99,99,99,50,50,50,50,2,13,35,0,0,0,48,24,67,76,65,86,73,32,32,32,32,32],
+    [99,55,35,70,99,40,0,0,39,0,0,0,60,12,62,18,0,99,40,28,70,99,70,0,0,39,0,0,0,35,4,88,2,0,99,50,35,70,99,50,0,0,39,0,0,0,60,12,70,14,0,99,36,28,70,99,70,0,0,39,0,0,0,83,4,90,4,0,99,50,35,70,99,60,0,0,39,0,0,0,60,12,76,8,0,99,38,28,70,99,70,0,0,39,0,0,0,59,4,99,2,0,99,99,99,99,50,50,50,50,4,15,35,0,0,0,48,24,72,65,82,80,83,73,32,32,32,32],
+    [99,55,99,80,99,0,0,0,39,0,0,0,56,12,74,12,0,99,99,99,80,99,99,99,0,39,0,0,0,56,4,88,0,0,99,60,99,80,99,0,0,0,39,0,0,0,56,12,84,8,0,99,99,99,80,99,99,99,0,39,0,0,0,48,4,82,6,0,99,99,99,80,99,99,99,0,39,0,0,0,64,4,90,4,0,99,99,99,80,99,99,99,0,39,0,0,0,56,4,92,2,0,99,99,99,99,50,50,50,50,31,8,34,0,4,0,40,24,80,69,82,67,32,79,82,71,65,78],
+    [99,99,99,85,99,99,99,0,39,0,0,0,56,0,62,16,0,99,99,99,85,99,99,99,0,39,0,0,0,72,0,74,8,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,80,6,0,99,99,99,85,99,99,99,0,39,0,0,0,64,0,88,4,0,99,99,99,85,99,99,99,0,39,0,0,0,48,0,92,0,0,99,99,99,85,99,99,99,0,39,0,0,0,56,0,94,2,0,99,99,99,99,50,50,50,50,31,10,40,0,6,0,56,24,74,65,90,90,32,79,82,71,65,78],
+    [99,99,99,99,0,0,0,0,39,0,0,0,56,0,0,2,0,99,85,50,60,99,0,0,0,39,0,0,0,61,28,52,20,0,99,80,50,60,99,0,0,0,39,0,0,0,61,24,60,6,17,99,40,35,60,99,0,0,0,39,0,0,0,68,12,96,2,0,99,75,50,60,99,0,0,0,39,0,0,0,61,24,72,8,0,99,42,35,60,99,0,0,0,39,0,0,0,60,12,99,2,0,99,99,99,99,50,50,50,50,6,8,35,0,0,0,48,24,77,65,82,73,77,66,65,32,32,32],
+    [99,50,35,50,99,40,0,0,39,0,0,0,59,20,30,2,0,99,36,24,45,99,50,0,0,39,0,0,0,59,13,74,6,0,99,70,40,50,99,0,0,0,39,0,0,0,60,28,48,20,0,99,22,20,45,99,84,0,0,39,0,0,0,67,9,94,2,0,99,50,35,50,99,30,0,0,39,0,0,0,60,24,62,8,0,99,24,20,45,99,82,0,0,39,0,0,0,59,9,99,2,0,99,99,99,99,50,50,50,50,4,11,48,0,0,30,8,24,86,73,66,69,83,32,32,32,32,32],
+    [99,40,30,40,99,30,0,0,39,0,0,0,59,20,58,10,4,99,24,20,40,99,60,0,0,39,0,0,0,58,8,80,4,0,99,30,25,40,99,60,0,0,39,0,0,0,42,20,76,6,17,99,20,18,40,99,72,0,0,39,0,0,0,74,8,92,2,0,99,32,25,40,99,60,0,0,39,0,0,0,58,20,78,6,17,99,22,18,40,99,70,0,0,39,0,0,0,58,8,99,2,0,99,99,99,99,50,50,50,50,4,12,35,0,0,0,48,24,84,85,66,69,32,66,69,76,76,83],
+    [99,55,30,40,99,30,0,0,39,0,0,0,61,24,56,10,4,99,34,24,40,99,55,0,0,39,0,0,0,44,8,80,4,0,99,50,30,40,99,30,0,0,39,0,0,0,61,24,58,22,0,99,32,24,40,99,55,0,0,39,0,0,0,76,8,86,8,0,99,45,30,40,99,40,0,0,39,0,0,0,61,24,66,14,0,99,30,22,40,99,60,0,0,39,0,0,0,60,8,99,4,0,99,99,99,99,50,50,50,50,4,8,35,0,0,0,48,36,71,76,79,67,75,69,78,32,32,32],
+    [99,60,30,45,99,20,0,0,39,0,0,0,61,20,30,2,0,99,50,30,45,99,20,0,0,39,0,0,0,61,12,62,16,0,99,60,30,45,99,10,0,0,39,0,0,0,61,24,52,18,0,99,40,25,45,99,45,0,0,39,0,0,0,68,8,84,8,0,99,55,30,45,99,20,0,0,39,0,0,0,61,24,60,12,0,99,35,25,45,99,50,0,0,39,0,0,0,60,8,99,4,0,99,99,99,99,50,50,50,50,4,8,35,0,0,0,48,36,77,85,83,73,67,32,66,79,88,32],
+    [99,70,40,55,99,0,0,0,39,0,0,0,60,24,50,2,0,99,55,30,50,99,30,0,0,39,0,0,0,59,12,66,6,0,99,65,35,55,99,10,0,0,39,0,0,0,60,24,60,8,2,99,45,28,50,99,45,0,0,39,0,0,0,67,12,88,4,0,99,60,35,55,99,20,0,0,39,0,0,0,60,24,70,4,20,99,42,26,50,99,55,0,0,39,0,0,0,59,12,99,2,0,99,99,99,99,50,50,50,50,4,10,35,0,0,0,48,24,83,84,69,69,76,32,68,82,85,77],
+    [99,70,40,70,99,40,30,0,39,0,0,0,56,20,56,2,0,99,60,40,70,99,50,40,0,39,0,0,0,56,12,60,0,0,99,75,45,70,99,30,0,0,39,0,0,0,56,24,66,6,0,99,70,40,70,99,45,30,0,39,0,0,0,72,20,74,2,0,99,65,40,70,99,55,40,0,39,0,0,0,58,24,82,2,0,99,45,30,65,99,94,90,0,39,0,0,0,58,8,99,2,0,99,99,99,99,50,50,50,50,15,14,35,0,0,0,48,12,83,79,76,73,68,32,66,65,83,83],
+    [99,60,40,70,99,60,50,0,39,0,0,0,56,20,72,2,0,99,60,40,70,99,50,40,0,39,0,0,0,56,20,70,2,0,99,65,40,70,99,55,45,0,39,0,0,0,40,24,76,2,0,99,50,35,70,99,94,91,0,39,0,0,0,80,8,90,2,0,99,70,40,70,99,60,50,0,39,0,0,0,56,24,86,2,0,99,50,35,70,99,94,91,0,39,0,0,0,56,8,99,2,0,99,99,99,99,50,50,50,50,0,15,35,0,0,0,48,12,83,89,78,32,66,65,83,83,32,32],
+    [99,90,50,70,99,0,0,0,39,0,0,0,60,28,62,22,0,99,70,40,70,99,40,0,0,39,0,0,0,59,28,70,6,0,99,48,30,70,99,75,0,0,39,0,0,0,74,12,90,2,0,99,85,50,70,99,0,0,0,39,0,0,0,60,28,72,10,0,99,65,35,70,99,55,0,0,39,0,0,0,59,28,80,2,0,99,50,30,70,99,75,0,0,39,0,0,0,58,12,99,2,0,99,99,99,99,50,50,50,50,2,13,35,0,0,0,48,12,83,76,65,80,32,66,65,83,83,32],
+    [99,70,40,70,99,30,0,0,39,0,0,0,56,20,52,2,0,99,60,40,70,99,40,0,0,39,0,0,0,72,20,58,0,0,99,80,45,70,99,10,0,0,39,0,0,0,56,28,60,4,0,99,75,45,70,99,20,0,0,39,0,0,0,56,28,66,2,50,99,60,40,70,99,40,0,0,39,0,0,0,58,24,78,0,0,99,42,30,70,99,70,0,0,39,0,0,0,58,12,99,0,0,99,99,99,99,50,50,50,50,16,14,35,0,0,0,48,24,80,76,85,67,75,32,66,65,83,83],
+    [75,60,35,60,99,30,10,0,39,0,0,0,56,16,40,6,0,70,50,35,60,99,60,40,0,39,0,0,0,56,12,56,0,0,70,55,35,60,99,50,30,0,39,0,0,0,72,16,52,2,0,75,60,35,60,99,40,20,0,39,0,0,0,56,16,60,4,0,70,50,35,60,99,60,40,0,39,0,0,0,56,20,74,2,0,80,40,30,60,99,94,90,0,39,0,0,0,56,8,99,2,0,80,70,99,99,46,50,50,50,15,11,35,0,0,0,48,12,70,82,69,84,76,69,83,83,32,32],
+    [48,50,40,60,99,88,85,0,39,0,0,0,56,16,82,2,0,62,50,40,60,99,92,90,0,39,0,0,0,80,8,94,2,0,60,50,40,60,99,92,90,0,39,0,0,0,40,8,97,2,0,64,50,40,60,99,92,90,0,39,0,0,0,72,8,98,2,0,50,50,40,60,99,85,82,0,39,0,0,0,56,16,84,2,0,62,50,40,60,99,92,90,0,39,0,0,0,56,8,99,2,0,84,95,95,60,46,50,50,50,21,15,34,30,6,0,56,24,66,82,65,83,83,32,32,32,32,32],
+    [40,45,40,55,99,85,82,0,39,0,0,0,56,12,70,2,0,52,45,40,55,99,92,90,0,39,0,0,0,80,4,92,2,0,50,45,40,55,99,90,88,0,39,0,0,0,40,4,82,4,0,54,45,40,55,99,92,90,0,39,0,0,0,72,4,96,2,0,42,45,40,55,99,85,82,0,39,0,0,0,56,12,70,2,0,52,45,40,55,99,92,90,0,39,0,0,0,56,4,99,2,0,99,99,99,99,50,50,50,50,21,13,30,40,5,0,56,24,83,79,70,84,32,72,79,82,78,83],
+    [50,40,40,55,99,80,75,0,39,0,0,0,56,16,76,2,0,55,45,40,55,99,75,70,0,39,0,0,0,64,16,72,2,0,55,45,40,55,99,75,70,0,39,0,0,0,56,16,78,2,0,60,45,40,55,99,80,75,0,39,0,0,0,32,16,84,2,0,60,45,40,55,99,80,75,0,39,0,0,0,80,16,86,2,0,75,50,40,55,99,92,88,0,39,0,0,0,56,8,99,2,0,99,99,99,99,50,50,50,50,17,15,30,0,3,0,32,24,83,89,78,32,66,82,65,83,83,32],
+    [40,40,40,45,99,85,80,0,39,0,0,0,40,8,60,2,0,40,40,40,45,99,85,80,0,39,0,0,0,56,8,58,6,0,40,40,40,45,99,88,85,0,39,0,0,0,72,8,70,2,0,46,40,40,45,99,95,92,0,39,0,0,0,32,4,96,2,0,40,40,40,45,99,90,88,0,39,0,0,0,80,8,76,2,0,45,40,40,45,99,95,92,0,39,0,0,0,56,4,99,2,0,99,99,99,99,50,50,50,50,1,12,32,35,5,0,56,24,83,84,82,73,78,71,83,32,32,32],
+    [38,35,40,42,99,85,82,0,39,0,0,0,64,8,66,2,0,40,35,40,42,99,95,92,0,39,0,0,0,64,4,86,4,0,38,35,40,42,99,88,85,0,39,0,0,0,24,8,72,2,0,40,35,40,42,99,95,92,0,39,0,0,0,24,4,97,2,0,38,35,40,42,99,88,85,0,39,0,0,0,88,8,72,2,0,40,35,40,42,99,95,92,0,39,0,0,0,88,4,99,2,0,99,99,99,99,50,50,50,50,4,13,28,20,4,0,56,24,69,78,83,69,77,66,76,69,32,32],
+    [25,30,30,38,99,85,80,0,39,0,0,0,56,0,50,2,0,30,30,30,38,99,95,92,0,39,0,0,0,56,0,88,0,0,25,30,30,38,99,85,80,0,39,0,0,0,32,0,58,4,0,30,30,30,38,99,95,92,0,39,0,0,0,32,0,96,2,0,25,30,30,38,99,90,85,0,39,0,0,0,80,0,62,2,0,30,30,30,38,99,95,92,0,39,0,0,0,80,0,99,2,0,99,99,99,99,50,50,50,50,4,11,24,0,3,8,40,24,87,65,82,77,32,80,65,68,32,32],
+    [30,30,30,40,99,70,65,0,39,0,0,0,56,0,46,6,0,40,30,30,40,99,85,80,0,39,0,0,0,64,0,78,8,0,30,30,30,40,99,75,70,0,39,0,0,0,40,0,50,14,0,35,30,30,40,99,92,90,0,39,0,0,0,40,0,92,4,0,30,30,30,40,99,80,75,0,39,0,0,0,72,0,56,10,0,35,30,30,40,99,92,90,0,39,0,0,0,72,0,99,2,0,99,99,99,99,50,50,50,50,4,10,30,0,2,12,40,24,71,76,65,83,83,32,80,65,68,32],
+    [35,35,35,42,99,75,70,0,39,0,0,0,56,0,40,8,0,38,35,35,42,99,95,92,0,39,0,0,0,32,0,90,2,0,35,35,35,42,99,80,75,0,39,0,0,0,40,0,48,6,0,38,35,35,42,99,95,92,0,39,0,0,0,40,0,82,4,0,35,35,35,42,99,85,80,0,39,0,0,0,72,0,54,4,0,38,35,35,42,99,95,92,0,39,0,0,0,72,0,99,2,0,99,99,99,99,50,50,50,50,4,10,36,25,6,0,56,24,67,72,79,73,82,32,32,32,32,32],
+    [24,20,25,32,99,80,75,0,39,0,0,0,56,0,52,14,0,28,22,25,32,99,85,80,0,39,0,0,0,56,0,70,0,0,28,22,25,32,99,85,80,0,39,0,0,0,56,0,60,6,0,34,25,25,32,99,95,92,0,39,0,0,0,24,0,96,2,0,30,22,25,32,99,90,85,0,39,0,0,0,80,0,70,2,41,34,25,25,32,99,95,92,0,39,0,0,0,88,0,99,2,0,99,99,99,99,50,50,50,50,1,14,18,0,8,10,34,24,83,80,65,67,69,32,80,65,68,32],
+    [99,80,40,55,99,20,0,0,39,0,0,0,56,16,46,7,28,55,45,40,55,99,60,50,0,39,0,0,0,56,12,40,6,0,60,45,40,55,99,60,50,0,39,0,0,0,72,12,44,2,0,55,45,40,55,99,70,60,0,39,0,0,0,56,12,48,4,0,55,45,40,55,99,85,80,0,39,0,0,0,56,12,66,2,0,60,45,40,55,99,95,92,0,39,0,0,0,56,8,99,2,0,99,99,99,99,50,50,50,50,15,11,36,40,7,0,56,24,70,76,85,84,69,32,32,32,32,32],
+    [70,45,40,55,99,85,80,0,39,0,0,0,56,12,66,2,0,70,45,40,55,99,80,75,0,39,0,0,0,56,12,62,4,0,70,45,40,55,99,80,75,0,39,0,0,0,72,12,60,2,0,70,45,40,55,99,80,75,0,39,0,0,0,56,12,66,6,0,70,45,40,55,99,85,82,0,39,0,0,0,56,12,78,2,0,75,45,40,55,99,92,90,0,39,0,0,0,56,8,99,2,0,99,99,99,99,50,50,50,50,15,14,38,40,6,0,56,24,82,69,69,68,32,76,69,65,68,32],
+    [99,40,40,55,99,92,90,0,39,0,0,0,56,8,80,2,0,99,40,40,55,99,88,85,0,39,0,0,0,56,8,74,2,0,99,40,40,55,99,90,85,0,39,0,0,0,56,8,80,4,0,99,40,40,55,99,95,92,0,39,0,0,0,32,4,92,2,0,99,40,40,55,99,92,90,0,39,0,0,0,80,8,88,2,0,99,40,40,55,99,95,92,0,39,0,0,0,56,4,99,2,0,99,99,99,99,50,50,50,50,0,15,40,30,5,0,56,24,83,89,78,67,32,76,69,65,68,32],
+    [99,80,40,60,99,10,0,0,39,0,0,0,60,28,58,14,0,99,60,35,60,99,40,0,0,39,0,0,0,60,24,70,4,0,99,42,30,60,99,60,0,0,39,0,0,0,75,12,92,2,0,99,75,40,60,99,20,0,0,39,0,0,0,60,28,64,10,0,99,60,35,60,99,40,0,0,39,0,0,0,60,24,74,6,0,99,45,30,60,99,60,0,0,39,0,0,0,59,12,99,2,0,99,99,99,99,50,50,50,50,2,13,35,0,0,0,48,36,75,79,84,79,32,32,32,32,32,32],
+  ];
+  /*SOUPDX7-END*/
   const init = () => unpack(INIT_PK);
   const factory = (k) => unpack(FACTORY_PK[k]);
+  const soup = () => SOUPDX7_PK.map((pk) => { const v = unpack(pk); return { v, name: name(v) }; });
   return { OP, VOICE, OPI, VI, NAME, SIZE, PACKED, max, at, sanitize, unpack, pack, name, setName, checksum, parseSysex,
-    singleSysex, bankSysex, ALG, carriers, feedbackOp, freqText, INIT_PK, FACTORY_PK, init, factory,
+    singleSysex, bankSysex, ALG, carriers, feedbackOp, freqText, INIT_PK, FACTORY_PK, SOUPDX7_PK, init, factory, soup,
     TARGET: { TRACK: 0, BANK: 1, FACTORY: 2, USER: 3 } };
 })();
+
+/* FM6's voice bank on the device (1.4.1, cmds 74..77; EDITOR_PROTOCOL.md "FM6 voice bank"): 32 voices written whole,
+   picked with SLOT B1..B32. packed: up to 32 records (null: an empty slot, not written) */
+const fm6Bank = {
+  nameOf: (file) => String(file).replace(/\.[^.]*$/, "").toUpperCase().replace(/[^\x20-\x7E]/g, " ").slice(0, 10).trim(),
+  fromVoices: (voices) => voices.slice(0, 32).map((x) => FM6.pack(x.v ?? x)),
+  async list(rq) { return parse[CMD.FM6B_LIST](await rq(req.fm6bList())); },
+  /* BEGIN, a WRITE per voice, END with the name and the CRC-32 of the records written: rc 0 = the device's bank now */
+  async send(rq, packed, name) {
+    let rc = parse[CMD.FM6B_BEGIN](await rq(req.fm6bBegin(), FLASH_OPT)).rc;
+    const recs = [];
+    for (let k = 0; !rc && k < Math.min(32, packed.length); k++) {
+      if (!packed[k]) continue;
+      rc = parse[CMD.FM6B_WRITE](await rq(req.fm6bWrite(k, packed[k]), FLASH_OPT)).rc;
+      recs.push(...packed[k]);
+    }
+    return rc || parse[CMD.FM6B_END](await rq(req.fm6bEnd(name, crc32(Uint8Array.from(recs))), FLASH_OPT)).rc;
+  },
+};
 
 /* ----------------------------------------------------------------- DIGITAL --- */
 /* DIGITAL (engine 1, four-operator FM) was replaced by FM6 (1.0): the firmware keeps engine 1 reserved (its name
@@ -1772,7 +1894,7 @@ function makeMockDevice(opt = {}) {
         E("DIV", ["4", "8", "16", "32", "AUTO", "MAN"], 2), D("START", F.INT, 0, 31, 0), D("PTCH", F.SEMI, -24, 24, 0),
         E("MODE", ["ONE", "GATE", "LOOP"], 0), E("REV", ["OFF", "ON"], 0), D("DCAY", F.TIME, 0, 127, 127), D("TONE", F.INT, 0, 127, 127)],
       presets: [P("CHOP", [0, 2, 0, 0, 0, 0, 127, 127], [0, 127, 127, 30], 0, 9), P("STUTTER", [0, 1, 0, 0, 1, 0, 90, 110], [0, 127, 127, 12], 0, 10)] },
-    { name: "TABLE", titles: ["TABLE", "OSC"], edit: [E("TABL", ["BASIC", "PWM", "SYNC", "VOCAL", "ORGAN", "BUILD", "FM", "FOLD", "RESO", "CHAOS", "COMB", "PSYCH", "HOLLW", "STEPS", "GROWL", "NOISE"], 0),
+    { name: "TABLE", titles: ["TABLE", "OSC"], edit: [E("TABL", ["BASIC", "PWM", "SYNC", "VOCAL", "ORGAN", "BUILD", "FM", "FOLD", "RESO", "CHAOS", "COMB", "PSYCH", "HOLLW", "STEPS", "GROWL", "NOISE", "USR1", "USR2", "USR3"], 0),
         D("POS", F.PCT, 0, 127, 0), E("WARP", ["OFF", "SYNC", "BND+", "BND-", "PWM", "MIRR", "FLIP", "QUANT", "FM", "RM"], 0), D("AMT", F.PCT, 0, 127, 0),
         D("CUT", F.CUTOFF, 0, 127, 127), D("RES", F.PCT, 0, 127, 0), D("SUB", F.PCT, 0, 127, 0), D("DTN", F.INT, 0, 100, 0, null, "ct")],
       presets: [P("MORPH", [0, 40, 0, 0, 127, 0, 0, 12], [4, 80, 100, 50], 0, 5), P("SUPRSAW", [0, 76, 0, 0, 110, 10, 0, 25], [2, 90, 110, 60], 0, 5),
@@ -1903,10 +2025,11 @@ function makeMockDevice(opt = {}) {
      patch back */
   function fm6Slot(t, s) {
     if (s === t.slot) return;
-    if (s > FM6_OWN) { t.p[P_E0 + 7] = t.slot ?? FM6_OWN; return; }   /* (B1..B32, 1.4.1: no voice bank here, refused) */
-    if (s >= FM6_OWN) { if (t.own) t.fm6 = t.own; t.own = null; t.slot = FM6_OWN; return; }
+    const bv = s > FM6_OWN ? st.fm6vb?.voices[s - FM6_OWN - 1] : null;   /* B1..B32 (1.4.1): the bank's voice */
+    if (s > FM6_OWN && !bv) { t.p[P_E0 + 7] = t.slot ?? FM6_OWN; return; }   /* (an empty bank slot: refused) */
+    if (s === FM6_OWN) { if (t.own) t.fm6 = t.own; t.own = null; t.slot = FM6_OWN; return; }
     if (t.slot === FM6_OWN && !t.own) t.own = t.fm6.slice();
-    t.fm6 = FM6.FACTORY_PK[s].slice(); t.slot = s;
+    t.fm6 = (bv ?? FM6.FACTORY_PK[s]).slice(); t.slot = s;
   }
   /* t's patch was put in as its own (eng_fm6.c fm6_adopt): SLOT = the factory patch it equals, else OWN */
   function fm6Adopt(t) {
@@ -2109,7 +2232,8 @@ function makeMockDevice(opt = {}) {
         if (!opt.legacy && !opt.v3 && !opt.v5) {
           b(16);
           if (st.uiCaps) { b(0x55); b(1); b(st.uiCaps); b(0x4d); b(1); b(64); b(1); if (!opt.noFm6) { b(0x46); b(1); b(FM6.FACTORY_PK.length); b(0); }
-            if (syncCaps()) { b(0x53); b(1); b(syncCaps()); if (!opt.noFm6) { b(0x50); b(1); b(3); } if (ratchetOn()) { b(0x52); b(1); b(4); } } }   /* (FM6 v2: no bank, preset patches) */
+            if (syncCaps()) { b(0x53); b(1); b(syncCaps()); if (!opt.noFm6) { b(0x50); b(1); b(3); } if (ratchetOn()) { b(0x52); b(1); b(4); } }
+            if (!opt.noFm6) { b(0x57); b(1); b(NTRK); if (!opt.noVbank) { b(0x56); b(1); b(32); } } }   /* (FM6 v2: preset patches; 1.2's song lanes, 1.4.1's voice bank) */
         }
         break;
       case CMD.GET: case CMD.SET: {
@@ -2206,6 +2330,35 @@ function makeMockDevice(opt = {}) {
           else if (!rc && a[0] === 3 && fm6User(a[1])) st.bank[a[1]].fm6 = pk;
           else rc = 1;
           b(a[0] ?? 127); b(a[1] ?? 127); b(rc);
+        }
+        break;
+      }
+      case CMD.FM6B_BEGIN: case CMD.FM6B_WRITE: case CMD.FM6B_END: case CMD.FM6B_LIST: {   /* editor_fm6.c, fm6_vbank.c */
+        if (opt.noFm6 || opt.noVbank || !st.uiCaps) return null;
+        const vb = st.fm6vb ??= { name: "", voices: Array(32).fill(null), xfer: null };
+        if (cmd === CMD.FM6B_BEGIN) { if (a.length) b(1); else { vb.xfer = Array(32).fill(null); b(0); } }
+        else if (cmd === CMD.FM6B_WRITE) {
+          b(a[0] ?? 127);
+          b(a.length !== 129 || a[0] > 31 ? 1 : !vb.xfer ? 5 : vb.xfer[a[0]] ? 1 : ((vb.xfer[a[0]] = a.slice(1)), 0));
+        } else if (cmd === CMD.FM6B_END) {
+          let rc = a.length !== 15 || a[14] > 15 ? 1 : !vb.xfer ? 5 : 0;
+          if (!rc) {
+            const crc = (a[10] | a[11] << 7 | a[12] << 14 | a[13] << 21 | a[14] << 28) >>> 0;
+            const recs = vb.xfer.filter(Boolean).flat();
+            if (crc32(Uint8Array.from(recs)) !== crc) rc = 2;
+            else {
+              vb.voices = vb.xfer; vb.name = String.fromCharCode(...a.slice(0, 10)).trimEnd(); vb.valid = true;
+              for (const t of st.tracks)                /* a track on a bank slot keeps its voice, as its own */
+                if (t.slot > FM6_OWN) { t.slot = FM6_OWN; t.own = null; if (t.p) t.p[P_E0 + 7] = FM6_OWN; }
+              if (st.engine === FM6_E && st.p[P_E0 + 7] > FM6_OWN) st.p[P_E0 + 7] = FM6_OWN;
+            }
+            vb.xfer = null;
+          }
+          b(rc); b(vb.voices.filter(Boolean).length);
+        } else {
+          if (a.length) return null;
+          b(32); b(vb.valid ? 1 : 0); s(vb.name);
+          vb.voices.forEach((pk) => { b(pk ? 1 : 0); s(pk ? FM6.name(FM6.unpack(pk)) : ""); });
         }
         break;
       }
@@ -2538,6 +2691,9 @@ const TEXT = {
     tabFm6: "6-OP FM", fm6Help: "FM6 エンジンの音色（6 オペレーター）をまるごと編集します。本体のノブはこの音色の上にかかるマクロです。SysEx を読み込み、音色を選んで編集し、トラックへ送るとすぐ鳴ります。トラックの音色はひとつで、読み込んだものがそのトラックの音色になります（SLOT は OWN）。",
     fm6Source: "音色の出し入れ", fm6ReadBtn: "トラックから読む", fm6SendBtn: "トラックへ送る", fm6Live: "編集しながら送る",
     fm6Import: "SysEx を読み込む", fm6Export: "SysEx に書き出し",
+    fm6Soup: "SynthSoup DX7 バンク（32 音色）", fm6BankExport: "バンクを .syx に書き出し", fm6BankSend: "バンクを FM-1 へ送る（B1〜B32）",
+    fm6BankConfirm: "{n} 音色のバンク「{name}」を FM-1 の B1〜B32 に送ります。本体のいまのバンクは置き換わります（プロジェクトとプリセットはそのまま）。",
+    fm6BankSent: "FM-1 へ送りました。FM6 トラックの SLOT（EDIT 2, KNOB 4）で B1〜B32:", fm6BankFail: "バンクを送れませんでした",
     fm6Init: "初期音色", fm6Voice: "ボイス", fm6Ops: "オペレーター", fm6Carriers: "キャリア", fm6Feedback: "フィードバック",
     fm6PitchEg: "ピッチ EG", fm6Freq: "周波数",
     fm6Legend: "R1〜R4 / L1〜L4: EG のレートとレベル、BP LD RD LC RC: キーボードレベルスケーリング、RS: レートスケーリング、AMS: LFO 音量変調、KVS: ベロシティ、OL: 出力レベル、MODE: 比率 / 固定、FC FF: 周波数（粗・細）、DET: デチューン（7 が中央）。● はキャリア。",
@@ -2596,12 +2752,12 @@ const TEXT = {
     savedSlot: "保存しました: スロット ", loadedSlot: "読み込みました: スロット ", emptySlot: "空のスロットです: ",
     confirmSave: "スロット {n} に上書き保存しますか？", confirmLoad: "スロット {n} を読み込みますか？ 4 トラックすべての音色とシーケンスが置き換わります（元に戻せません）。",
     confirmClear: "シーケンスを全部消しますか？", confirmInit: "音色を初期化しますか？ シーケンスはそのままです（本体の SAVE 長押しで元に戻せます）。",
-    samples: "サンプル", smpHelp: "ファイルを選択、または入力から録音。波形の両端でトリム、ホイールで拡大。1枠に16音、合計約7秒。",
+    samples: "サンプル", smpHelp: "ファイルを選択、または入力から録音。波形の両端でトリム、ホイールで拡大。1枠に16音、合計約7秒。ウェーブテーブルの .wav（Serum、Serum 2、Vital）は TABLE エンジンのテーブルになります（1枠に1つ）。",
     zones: "ゾーン", smpName: "名前", chooseFiles: "ファイルを選ぶ", upload: "書き込む", erase: "消去", clearList: "リストを消す",
     file: "ファイル", root: "ルート", keys: "鍵盤", length: "長さ", remove: "外す",
     record: "録音", stopRec: "停止", recInput: "入力", recDenied: "録音できません", recFull: "スロットがいっぱいです", recSilent: "無音でした。入力を確かめてください",
     preview: "試聴", autoTrim: "自動トリム", trim: "切り取り",
-    smpTooBig: "大きすぎます", smpDecodeFail: "読み込めません: ", smpUploading: "書き込み中 USR", smpDone: "書き込みました USR",
+    smpWavetable: "ウェーブテーブル（{n} フレーム → 16）: TABLE の TABL でこのスロット（USR）を選ぶと鳴ります", smpTooBig: "大きすぎます", smpDecodeFail: "読み込めません: ", smpUploading: "書き込み中 USR", smpDone: "書き込みました USR",
     smpFail: "サンプルの書き込みに失敗しました: ", smpErased: "消去しました USR",
     confirmErase: "USR{n} を消去しますか？", confirmUpload: "USR{n} に書き込みますか？ 今の内容は消えます。",
     layout: "（ファームウェアのパラメーター数が想定と違うため、簡易表示にしています）",
@@ -2641,6 +2797,9 @@ const TEXT = {
     tabFm6: "6-OP FM", fm6Help: "Edit the whole patch of the FM6 engine (six operators). The device's knobs are macros on top of it. Import a SysEx file, pick a voice, edit it and send it to a track: it plays at once. A track has one patch: whatever you load becomes it (SLOT shows OWN).",
     fm6Source: "Patches in and out", fm6ReadBtn: "Read from track", fm6SendBtn: "Send to track", fm6Live: "Send while editing",
     fm6Import: "Import SysEx", fm6Export: "Export SysEx",
+    fm6Soup: "SynthSoup DX7 bank (32 voices)", fm6BankExport: "Export bank .syx", fm6BankSend: "Send bank to FM-1 (B1–B32)",
+    fm6BankConfirm: "Send the {n}-voice bank \"{name}\" to the FM-1's B1–B32? It replaces the bank the FM-1 holds now (projects and presets are not touched).",
+    fm6BankSent: "Sent to the FM-1. On an FM6 track pick them with SLOT (EDIT 2, KNOB 4), B1–B32:", fm6BankFail: "The bank was not sent",
     fm6Init: "Init voice", fm6Voice: "Voice", fm6Ops: "Operators", fm6Carriers: "carriers", fm6Feedback: "feedback",
     fm6PitchEg: "Pitch EG", fm6Freq: "Frequency",
     fm6Legend: "R1..R4 / L1..L4: EG rates and levels; BP LD RD LC RC: keyboard level scaling; RS: rate scaling; AMS: LFO amplitude modulation; KVS: velocity; OL: output level; MODE: ratio / fixed; FC FF: coarse / fine frequency; DET: detune (7 = centre). ● = carrier.",
@@ -2699,12 +2858,12 @@ const TEXT = {
     savedSlot: "Saved to slot ", loadedSlot: "Loaded slot ", emptySlot: "Empty slot: ",
     confirmSave: "Overwrite slot {n}?", confirmLoad: "Load slot {n}? The sounds and sequences of all four tracks are replaced (no undo).",
     confirmClear: "Clear the whole sequence?", confirmInit: "Reset the sound to the engine defaults? The sequence stays (hold SAVE on the device to undo).",
-    samples: "Samples", smpHelp: "Choose files or record an input. Drag waveform ends to trim; wheel to zoom. Up to 16 sounds and about 7 s per slot.",
+    samples: "Samples", smpHelp: "Choose files or record an input. Drag waveform ends to trim; wheel to zoom. Up to 16 sounds and about 7 s per slot. A wavetable .wav (Serum, Serum 2, Vital) becomes a table for the TABLE engine: one per slot.",
     zones: "zones", smpName: "Name", chooseFiles: "Choose files", upload: "Upload", erase: "Erase", clearList: "Clear list",
     file: "File", root: "Root", keys: "Keys", length: "Length", remove: "Remove",
     record: "Record", stopRec: "Stop", recInput: "Input", recDenied: "Cannot record", recFull: "The slot is full", recSilent: "Silence: check the input",
     preview: "Play", autoTrim: "Auto trim", trim: "Trim",
-    smpTooBig: "too large", smpDecodeFail: "Cannot read: ", smpUploading: "Uploading USR", smpDone: "Uploaded USR",
+    smpWavetable: "wavetable ({n} frames -> 16): play it with TABLE, TABL = this slot (USR)", smpTooBig: "too large", smpDecodeFail: "Cannot read: ", smpUploading: "Uploading USR", smpDone: "Uploaded USR",
     smpFail: "Sample upload failed: ", smpErased: "Erased USR",
     confirmErase: "Erase USR{n}?", confirmUpload: "Write to USR{n}? Its current contents will be replaced.",
     layout: "(The firmware has a different parameter count; showing a plain list.)",
@@ -3633,6 +3792,9 @@ const draftBytes = (d) => d.files.reduce((a, f) => a + ((f.s.length + 1) >> 1), 
 
 async function decodeFile(f) {
   const buf = await f.arrayBuffer();
+  const wt = wavetableOf(buf);                      /* a Serum-style wavetable: TABLE's USR table, as it is */
+  if (wt) return { fname: f.name, raw: Float64Array.from(wt.s, (s) => s / 32768), a: 0, b: wt.s.length, s: wt.s, root: 60,
+                   wt: { frames: wt.frames, size: wt.size } };
   let x;
   try {
     const w = parseWav(buf);
@@ -3972,7 +4134,7 @@ function renderSamples() {
           f.root = n;
           renderSamples();
         });
-        tb.append(el("tr", {}, el("td", { text: f.fname }), el("td", {}, root),
+        tb.append(el("tr", {}, el("td", { text: f.wt ? `${f.fname} — ${t("smpWavetable").replace("{n}", f.wt.frames)}` : f.fname }), el("td", {}, root),
           el("td", { text: `${noteName(keys[i][0])}–${noteName(keys[i][1])}` }),
           el("td", { text: `${(f.s.length / SMP.RATE).toFixed(2)} s` }),
           el("td", {}, el("button", { text: t("remove"), disabled: smpBusy || recActive(), onclick: () => { d.files.splice(i, 1); renderSamples(); } }))));
@@ -4948,6 +5110,7 @@ $("bkexport").addEventListener("click", () => libOp(async (d, rqf) => {
 let fm6v = FM6.init();                 /* the patch being edited (155 bytes) */
 let fm6Imported = [];                  /* voices of the last imported file: [{name, v}] */
 let fm6Picked = -1;                    /* the imported voice last clicked (now in fm6v) */
+let fm6ImportedName = "";              /* its bank's name (the file's, or SOUPDX7): what the FM-1's bank gets */
 let fm6List = null;                    /* FM6_LIST of the device */
 let fm6Listing = false;                /* FM6_LIST on its way */
 let fm6Asked = false;                  /* FM6_LIST asked once for this connection (renderPanels) */
@@ -5001,6 +5164,8 @@ function renderFm6Ops() {
 }
 function renderFm6Imported() {
   const box = $("fm6imported");
+  $("fm6bankexport").hidden = !fm6Imported.length;
+  $("fm6banksend").hidden = !fm6Imported.length || !fm6Ok() || !dev.info.fm6Bank;
   if (!fm6Imported.length || !fm6Ok()) { box.replaceChildren(); return; }
   box.replaceChildren(el("p", { class: "dim", text: t("fm6Pick") }),
     el("p", { class: "bar" }, ...fm6Imported.map((x, k) => el("button", { text: `${k + 1} ${x.name}`,
@@ -5058,6 +5223,7 @@ $("fm6file").addEventListener("change", async (e) => {
   const r = FM6.parseSysex(new Uint8Array(await f.arrayBuffer()));
   if (!r.voices.length) { const [k, x] = fm6Why(r); sayK(k, `${x}: ${f.name}`); return; }
   fm6Imported = r.voices;
+  fm6ImportedName = f.name.replace(/\.[^.]*$/, "");
   fm6Picked = r.voices.length === 1 ? 0 : -1;
   if (r.voices.length === 1) fm6v = Uint8Array.from(r.voices[0].v);
   renderFm6();
@@ -5081,6 +5247,26 @@ function downloadBytes(name, bytes) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 $("fm6export").addEventListener("click", () => downloadBytes(`${fileSlug(FM6.name(fm6v))}.syx`, FM6.singleSysex(fm6v)));
+/* SynthSoup's own DX7 bank (assets/dx7, tools/gen_dx7_bank.py): its 32 voices as an imported file's */
+$("fm6soup").addEventListener("click", () => {
+  fm6Imported = FM6.soup();
+  fm6ImportedName = "SOUPDX7";
+  fm6Picked = -1;
+  renderFm6();
+  sayK("imported", `SOUPDX7.syx: ${fm6Imported.length}`);
+});
+const fm6BankName = () => fm6Bank.nameOf(fm6ImportedName) || "BANK";
+$("fm6bankexport").addEventListener("click", () =>
+  downloadBytes(`${fileSlug(fm6BankName())}.syx`, FM6.bankSysex(fm6Imported.slice(0, 32).map((x) => x.v))));
+/* the imported voices (the first 32) into the FM-1's voice bank, B1..B32 (cmds 74..77), after the user confirms:
+   written whole, the device checks the records' CRC before it replaces its old bank */
+$("fm6banksend").addEventListener("click", () => op(async () => {
+  const voices = fm6Imported.slice(0, 32), name = fm6BankName();
+  if (!voices.length || !dev.info.fm6Bank) return;
+  if (!confirm(t("fm6BankConfirm").replace("{n}", voices.length).replace("{name}", name))) return;
+  checkRc(await fm6Bank.send(rq, fm6Bank.fromVoices(voices), name));
+  sayK("fm6BankSent", ` ${name} (${voices.length})`);
+}));
 
 $("connect").addEventListener("click", () => {
   if (dev) { wantConnected = false; disconnect(); } else connect();
