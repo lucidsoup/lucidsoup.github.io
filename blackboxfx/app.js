@@ -8,6 +8,7 @@ const STORE_KEY = "bfx-control-v1";
 const POLL_MS = 2500;
 const EDIT_GRACE_MS = 1500;
 const NAME_TIMEOUT_MS = 4000;
+const SYNC_TIMEOUT_MS = 5000;
 
 const app = {
   transport: null,
@@ -72,7 +73,8 @@ function updateCounts() {
 
 async function connect(kind, portName) {
   await disconnect();
-  const t = kind === "usb" ? new UsbTransport() : kind === "ble" ? new BleTransport() : new SimTransport(E.clone(app.base));
+  const t = kind === "usb" ? new UsbTransport() : kind === "ble" ? new BleTransport() : new SimTransport(E.clone(app.base),
+    { silent: new URLSearchParams(location.search).get("sim") === "silent" });
   status("Connecting…", "off");
   try {
     await t.connect(portName);
@@ -95,15 +97,44 @@ async function connect(kind, portName) {
   $("main").classList.remove("disabled");
   showConnected(true);
 
-  await readNames();
+  // the pedal's current sound comes first: nothing works until it arrives,
+  // and the clocks keep re-asking for it
   await sendNow(P.requestPresetId());
   await sendNow(P.requestState());
   startClocks();
+  watchSync(t);
+}
+
+// If the pedal never sends its state, say so instead of sitting silently.
+function watchSync(t) {
+  const deadline = Date.now() + SYNC_TIMEOUT_MS;
+  const check = setInterval(async () => {
+    if (app.transport !== t) { clearInterval(check); return; }
+    if (app.synced) {
+      clearInterval(check);
+      if (!app.names.amp) await readNames();   // optional, after we're working
+      return;
+    }
+    if (Date.now() < deadline) return;
+    clearInterval(check);
+    const heard = app.stats.recv;
+    status(heard
+      ? `Connected to ${t.name}, but its replies weren't recognised. Open Activity below and send me what it shows.`
+      : `Connected to ${t.name}, but the pedal isn't answering. Check it's switched on and not in use by the M-EFCS app, then reconnect.`,
+      "err");
+    log(`no state after ${SYNC_TIMEOUT_MS / 1000}s; received ${heard} packet(s)`);
+    document.querySelector("details.log").open = true;
+  }, 250);
 }
 
 async function offerPorts(err) {
   const sel = $("portSelect");
   const names = await UsbTransport.listPorts();
+  if (!names.length) {
+    status("No MIDI devices found. Check the pedal is on and the USB cable carries data (some are charge-only).", "err");
+    log(err.message);
+    return;
+  }
   sel.replaceChildren(new Option("Choose the BlackBox MIDI port…", ""), ...names.map((n) => new Option(n, n)));
   sel.hidden = false;
   status("Pick the pedal's MIDI port", "err");
@@ -161,8 +192,8 @@ async function readNames() {
 
 function onPacket(raw) {
   app.stats.recv++;
-  if (app.nameWait) return app.nameWait(raw);
   const c = P.classify(raw);
+  if (app.nameWait && c.kind !== "state" && c.kind !== "preset" && c.kind !== "ack") return app.nameWait(raw);
   if (c.kind === "state") {
     if (!app.synced) {
       // first read after connecting or changing preset: adopt it wholesale
@@ -500,5 +531,8 @@ $("importFile").onchange = async (e) => {
 
 if (!UsbTransport.supported()) $("btnUsb").title = "Needs Chrome or Edge (Web MIDI)";
 if (!BleTransport.supported()) $("btnBle").title = "Needs Chrome or Edge (Web Bluetooth)";
+if (!UsbTransport.supported() && !BleTransport.supported()) {
+  status("This browser can't reach the pedal. Use Chrome or Edge on a computer or Android phone (iPhone browsers can't). The simulator still works here.", "err");
+}
 
 render();

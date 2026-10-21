@@ -91,9 +91,12 @@ export class BleTransport extends Base {
 // A pretend pedal that answers like the real one: ACKs writes, returns its
 // state, preset number and fragmented name lists.
 export class SimTransport extends Base {
-  constructor(state) {
+  // silent: records what it is sent but never answers, like a pedal that
+  // isn't listening
+  constructor(state, { silent = false } = {}) {
     super();
     this.state = state;
+    this.silent = silent;
     this.preset = 0;
     this.received = [];
     this.name = "Simulated BlackBox";
@@ -105,6 +108,7 @@ export class SimTransport extends Base {
 
   async send(raw) {
     this.received.push(P.hex(raw));
+    if (this.silent) return;
     if (raw[raw.length - 1] !== P.checksum(raw)) return;   // the pedal ignores bad packets
     const head = raw[2], target = raw[7], space = raw[10], data = raw.slice(14, -1);
     if (head === P.HEAD_READ) {
