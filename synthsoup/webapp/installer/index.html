@@ -748,6 +748,9 @@ const TEXT = {
     reboot: "再起動中", done: "完了しました", stopped: "途中で止まりました。USB を挿し直してもう一度押してください。",
     error: "エラー: ",
     denied: "MIDI（SysEx）の使用が許可されませんでした。アドレスバーのサイト設定で MIDI を許可して、もう一度押してください。",
+    asking: "Chrome に MIDI の使用を確認しています… アドレスバーの横に確認が出たら「許可」を押してください。",
+    askslow: "まだ MIDI の許可を待っています。アドレスバーの横の確認を見てください（許可）。Windows では FM-1 の MIDI は 1 つのアプリしか使えません: DAW、MIDI-OX、M-VAVE のアプリ、他のタブのエディターやプレーヤーを閉じて、FM-1 を抜き差ししてください。",
+    midistuck: "MIDI の確認に応答がありません。Windows では FM-1 の MIDI を使えるのは 1 つのアプリだけです: DAW、MIDI-OX、M-VAVE のアプリ、他のタブのエディターやプレーヤーを閉じ、FM-1 を抜き差しし、このページを再読み込みしてもう一度インストールを押してください。それでも駄目なら Chrome を再起動してください。",
     notfound: "FM-1 が見つかりません。USB ケーブル（データ通信用か）を確かめ、MIDI を使う他のアプリを閉じてから、もう一度押してください。",
     model: "接続されている機器は FM-1 ではありません。",
     lost: "USB の接続が切れました。挿し直してもう一度押してください。",
@@ -780,6 +783,9 @@ const TEXT = {
     reboot: "Restarting", done: "Done", stopped: "Stopped. Replug the USB cable and press Install again.",
     error: "Error: ",
     denied: "MIDI (SysEx) access was not allowed. Allow MIDI in the site settings (address bar) and press Install again.",
+    asking: "Asking Chrome for MIDI access… if a prompt appears by the address bar, choose Allow.",
+    askslow: "Still waiting for MIDI access: look for the prompt by the address bar (Allow). On Windows only one app at a time can use the FM-1's MIDI: close your DAW, MIDI-OX, M-VAVE's app and the SynthSoup editor or player in other tabs, then unplug and replug the FM-1.",
+    midistuck: "MIDI access never answered. On Windows only one app at a time can use the FM-1's MIDI: close your DAW, MIDI-OX, M-VAVE's app and the editor or player in other tabs, unplug and replug the FM-1, reload this page and press Install again. Still stuck: restart Chrome.",
     notfound: "FM-1 not found. Check the USB cable (a data cable), close other apps that use MIDI, and press Install again.",
     model: "The connected device is not an FM-1.",
     lost: "The USB connection was lost. Replug it and press Install again.",
@@ -830,17 +836,27 @@ window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault
     const pkg = new Uint8Array(await r.arrayBuffer());
     if (productOf(pkg) !== meta.product) { sayK("badpkg"); return; }
     image = logicalImage(pkg);
-    say(`Felucca ${meta.version}`);
+    say(`SynthSoup ${meta.version}`);
     $("go").disabled = false;
   } catch (e) { sayK("loadfail", e.message); }
 })();
 
+/* MIDI access, said out loud: Chrome's request can wait on a prompt by the address bar, or never answer (Windows: the
+   FM-1's port held by another app): a hint after 4 s, and after 20 s a clear stop instead of a silent page */
+async function askMidi() {
+  sayK("asking");
+  const slow = setTimeout(() => sayK("askslow"), 4000);
+  try {
+    return await Promise.race([navigator.requestMIDIAccess({ sysex: true }),
+      new Promise((_, no) => setTimeout(() => no(Object.assign(new Error("MIDI access timed out"), { stuck: true })), 20000))]);
+  } finally { clearTimeout(slow); }
+}
 $("go").addEventListener("click", async () => {
   if (writing) return;
   lockInstaller(true);
   let midi;
-  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
-  catch (e) { sayK("denied"); lockInstaller(false); return; }
+  try { midi = await askMidi(); }
+  catch (e) { sayK(e.stuck ? "midistuck" : "denied"); lockInstaller(false); return; }
   try {
     const up = new Updater(midi, log);
     const total = 74 + 1167;
@@ -899,7 +915,7 @@ $("stock-go").addEventListener("click", async () => {
   let link = null;
   try {
     let midi;
-    try { midi = await navigator.requestMIDIAccess({sysex:true}); } catch (e) { sayK("denied"); return; }
+    try { midi = await askMidi(); } catch (e) { sayK(e.stuck ? "midistuck" : "denied"); return; }
     const up = new Updater(midi, log);
     const step = (k, n) => { log(`${k} ${n ?? ""}`); if (["start","verify","loader","write","reboot","done"].includes(k)) sayK(k); if (k === "done") $("bar").value = 100; };
     const loader = await up.find(id => id.model === "ota-FM-1");
