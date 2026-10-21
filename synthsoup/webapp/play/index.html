@@ -180,6 +180,7 @@ footer small { font-size: 11px; opacity: .8; }
     <div class="ctl"><span id="glm-l">Glide by</span><div class="seg" id="glm" role="group" aria-labelledby="glm-l"></div></div>
     <div class="ctl"><span>&nbsp;</span><button class="btn-s" type="button" id="hold-glide" aria-pressed="false">Hold to glide</button></div>
     <div class="ctl"><span>Vocoder</span><button class="btn-s" type="button" id="voc" aria-pressed="false">Vocode my mic</button></div>
+    <div class="ctl"><span>Stir</span><button class="btn-s" type="button" id="stir" title="A random sound from the track's engine (on the FM-1: hold EDIT, press OCT+; SAVE held puts it back)">Stir the sound</button></div>
     <p class="hint">Hold to glide: hold a key, then press another, and the pitch glides to it (on a phone, hold with one finger
       and tap with another; on a computer keyboard, hold one letter and press the next). Let go of the new key and it glides
       back to the one still held. It sets the track to LEG with a smooth 0.4 s glide (EXP: quick at first, easing into the note);
@@ -662,6 +663,7 @@ function setupGranular() {
   const g = $("gld");
   g.addEventListener("input", () => { if (cur) send({ type: "param", track: cur.track, id: extra.pid.glide, value: +g.value }); glideText(+g.value); });
   $("hold-glide").addEventListener("click", holdGlide);
+  $("stir").addEventListener("click", () => cur && send({ type: "stir", track: cur.track }));
   seg($("glm"), ["RATE", "TIME", "EXP"], ["The same speed for any interval", "The same time for any interval (up to 1.5 s)",
                                           "Smooth: quick at first, easing into the note, as an analogue synth's portamento"],
       (m) => cur && send({ type: "param", track: cur.track, id: extra.pid.glmode, value: m }));
@@ -985,8 +987,8 @@ async function switchOn() {
   try {
     if (!ac) audioStart();
     const [wasm] = await Promise.all([
-      fetch("felucca.wasm?v=b4474c59ac").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
-      ac.audioWorklet.addModule("worklet.js?v=dafe1af2b9")]);
+      fetch("felucca.wasm?v=124c09fc49").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
+      ac.audioWorklet.addModule("worklet.js?v=5f344cc676")]);
     node = new AudioWorkletNode(ac, "felucca", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
     node.connect(ac.destination);
     let warned = false;

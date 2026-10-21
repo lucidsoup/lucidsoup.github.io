@@ -121,6 +121,7 @@ if (typeof registerProcessor === "function") {
       else if (m.type === "select" && ex.web_select) ex.web_select(m.track | 0);
       else if (m.type === "sound" && ex.web_set_sound) ex.web_set_sound(m.track | 0, m.engine | 0, m.preset | 0);
       else if (m.type === "voice" && ex.web_set_voice) ex.web_set_voice(m.track | 0, m.voice | 0);
+      else if (m.type === "stir" && ex.web_stir) ex.web_stir(m.track | 0);
       else if (m.type === "palette" && ex.web_set_palette) ex.web_set_palette(m.index | 0);
       else if (m.type === "route" && ex.web_set_route) ex.web_set_route(m.route | 0);
       else if (m.type === "param" && ex.web_set_param) ex.web_set_param(m.track | 0, m.id | 0, m.value | 0);
