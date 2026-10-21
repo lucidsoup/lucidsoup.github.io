@@ -255,11 +255,112 @@ not exist is never drawn.
 Everything in the site is two rooms from the entrance this way, and three to six
 if you wander instead.
 
-## The gallery is the only index
+## The Stack
 
-`index.html` is no longer a page you scroll. It shows the entrance, or exactly
-one section, and only when the gallery has sent it there by name. The nav lists
-no sections — just the way in and the way back.
+`stack.css` + `stack.js`. Every page the site has, on one tower of lit panels
+hanging in a void, which you turn and descend through. Open it from the nav, from the
+`≡ index` chip in the gallery's HUD, from the `index` button beside the way
+back on every other page, or with `` ` `` or `/` anywhere.
+
+The reference is the flythrough in *Hackers* (1995): orbiting translucent
+plates, wireframe boxes where nothing has resolved, a ruled floor, and a frame
+of readouts around all of it. It exists because the gallery being the only
+index made some pages four rooms deep, and because a dropdown would have been
+a second, duller way in beside the architecture rather than part of it.
+
+Tiers, top to bottom:
+
+| tier | what is on it |
+|---|---|
+| Surface | the bowl, the gallery |
+| Works | portfolio, shader library |
+| Instruments | DrumSeek, SP-404 converter, SynthSoup, BlackboxFX, and the two live ones |
+| Trade | shop, about, contact |
+| Chambers | the rooms that hold something |
+| Flights | the stairs, the well, relativity |
+| Corridors | the long way round |
+| Descent | fractal addresses, which do not run out |
+
+The fixed half is a list in `stack.js`; **a new page has to be added to it** or
+it is not on the index. The architecture half is read from `rooms.json` at
+runtime and sorts itself, so a new room needs nothing. If `rooms.json` will not
+load the tower simply stops after Trade.
+
+Arrows turn the ring and change the tier, `↵` goes, `esc` closes; drag and
+the wheel do the same; every plate is also a real button, so tab and enter work
+and `prefers-reduced-motion` lays the whole thing out flat as a grid.
+
+Four things in it are load-bearing and easy to undo by accident:
+
+- **`#lucid-stack-cam` must stay `pointer-events: none`.** Hit testing inside a
+  `preserve-3d` context sorts by z, and that element's own box sits at z=0 —
+  nearer the eye than every plate. Left interactive it silently swallows every
+  click on the tower.
+- **Nothing between the perspective and the plates may carry a `filter`, a
+  `mask`, a `backdrop-filter` or an `opacity` below 1.** Any of them makes that
+  element a grouping element, which flattens the 3D into one plane. Dimming is
+  done on the leaves, and the grid's distance fade is painted into its own
+  background rather than masked.
+- **`--ls-ring` must stay below `--ls-dist`**, or a plate swings behind the eye
+  and renders degenerately. The same goes for the grid planes, which is why
+  they are pushed back past their own half-width.
+- **The page behind it stands down.** The overlay is opaque, so `stack.js`
+  fires `lucid:stack` and the gallery stops rendering its room, the entrance
+  stops its canvas. The keyboard is captured on the window for the same reason:
+  the gallery turns the room on the arrows and SynthSoup plays notes on them.
+
+## The bowl is the front door
+
+`soup.css` + `soup.js`. The front page is a bowl of soup with every page of the
+site floating in it, in plain sight, and clicking a piece goes under: the broth
+rushes up, the screen fills, and the page surfaces inside the same liquid.
+
+This replaced the box, and the box had replaced a scrolling page. The box asked
+you to open it before it would say what was inside, and what was inside was the
+labyrinth, which asked for patience again before it would hand over a drum
+machine. That is a great deal to ask of somebody who arrived to look at some
+visuals. A bowl asks for nothing.
+
+**Adding a page means adding a piece**, in the `BITS` list in `soup.js`:
+
+```js
+{ id: 'thing', label: 'Thing', sub: 'what it is',
+  hash: 'thing',            // a section on this page …
+  href: 'thing/',           // … or another page; one or the other
+  shape: 'coin', d: 70, x: .42, y: .55 }
+```
+
+`x` and `y` are in bowl coordinates, 0 to 1 across its box, and every piece has
+to sit inside the ellipse — `((x-.5)/.5)² + ((y-.5)/.5)² < 1`. The positions are
+placed by hand and not scattered by code, because eleven things in one ellipse
+is a composition and a random one is a mess. There is a test that checks the
+ellipse, the overlaps and that every piece resolves to something real. `d` is
+the piece's diameter at the bowl's full width; it is converted to `cqw` so the
+whole arrangement scales with the bowl instead of piling up on a small window.
+
+Three things worth knowing:
+
+- **A piece stops moving when you point at it.** Chasing a drifting target is
+  the fastest way to make a playful thing annoying, so hovering or focusing
+  pauses that piece's animation where it stands.
+- **The landing needs its own scrim.** The visual engine's sliders write
+  `opacity` and `mix-blend-mode` onto `#visual-canvas` as inline style, which no
+  stylesheet can outrank, and `screen` is bright enough to swallow body text.
+  So the canvas is left alone and `body.focused::before` sits over it, under the
+  content: canvas at z-index 0, scrim at 1, page at 2.
+- **Without scripting it is a list.** The eleven links are in the HTML already
+  and `soup.js` builds over them, so a visitor with no JS gets a plain index of
+  everywhere rather than an empty bowl.
+
+## One section at a time
+
+`index.html` is not a page you scroll. It shows the bowl, or exactly one
+section, routed by the hash. The nav carries two items and neither is a
+category: the way back up to the bowl, and the Stack.
+
+**A new section has to be added to `SECTION_IDS`** or the router never hides it
+and it shows permanently, under the bowl and beside every other section. That
+is exactly what happened when the BlackboxFX section landed.
 
 A room says what it holds with `opens`:
 
@@ -280,8 +381,10 @@ That draws a plinth in the room, and a `▣` button in the HUD beside the exits.
 Clicking either leaves the gallery for that section, which then shows alone with
 a way back.
 
-**Keep exactly one room per section.** Nothing else links to them, so a section
-with no room is unreachable. Current wiring:
+A room can still say what it holds, and still should — it is what makes the
+rooms feel occupied rather than decorative. It is no longer the only way in,
+so a section with no room is reachable from the bowl like everything else.
+Current wiring:
 
 | section | room |
 |---|---|
@@ -292,8 +395,8 @@ with no room is unreachable. Current wiring:
 | About, Contact | Studio |
 | Shop | Counting House |
 
-The box on the entrance dives into the gallery rather than scrolling — each flap
-arrives at the room that holds that part of the site.
+The gallery is one of the pieces in the bowl, labelled *the long way*. It is a
+place to go now, not a gate to pass.
 
 ## The shared layer
 
@@ -309,6 +412,9 @@ Every token is prefixed `--lucid-` because SynthSoup already defines
 value as a fallback (`var(--lucid-cyan, #00ffff)`), so a page still looks right
 if the stylesheet fails to load.
 
+`stack.js` loads next to it on every page and injects the `index` button beside
+that return link, wrapping both in `.lucid-chrome`.
+
 `lucid.js` injects the return link. It skips three cases: inside an iframe
 (DrumSeek is embedded in a section and would otherwise show the bar inside the
 frame), a page carrying `data-lucid-no-return` (the entrance and the gallery
@@ -320,5 +426,5 @@ works. Cohesion there means shared chrome, not a shared skin.
 
 ## Getting in
 
-The centre of the box on the home page, once the box is open. It does not
-exist before that — not in the nav, not in the tab order.
+The spiral in the bowl, labelled *the long way*. Also on the Stack, under
+Surface. It used to be the only door in the building; it is a door now.

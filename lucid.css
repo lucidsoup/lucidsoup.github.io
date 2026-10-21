@@ -57,9 +57,9 @@
 }
 
 /* ===== the way back =====
-   Every page that is not the gallery itself gets the same return. Before this,
-   the entrance was the only page that linked back, so each tool was a dead end:
-   you could enter the architecture and not leave it. */
+   Every page that does not already carry one gets the same return, to the bowl
+   on the front page. Before this, the entrance was the only page that linked
+   anywhere, so each tool was a dead end. */
 .lucid-return {
     position: fixed;
     top: 12px;
@@ -94,11 +94,11 @@
 }
 .lucid-return::before {
     content: '';
-    width: 9px; height: 9px;
+    width: 11px; height: 6px;
+    /* A bowl, seen from the side: the mark the front page is named by. */
     border: 1px solid currentColor;
-    /* A small plan of a room: the mark the gallery is named by. */
-    border-right-color: transparent;
-    transform: rotate(45deg);
+    border-top: 0;
+    border-radius: 0 0 50% 50% / 0 0 100% 100%;
 }
 @media (max-width: 640px) {
     .lucid-return { font-size: 9px; padding: 7px 10px; top: 8px; right: 8px; }

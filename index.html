@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <link rel="stylesheet" href="/lucid.css">
+    <link rel="stylesheet" href="/stack.css">
+    <link rel="stylesheet" href="/soup.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LucidSoup — Visual Art &amp; Projection Mapping (v3.0)</title>
@@ -123,158 +125,20 @@
         @keyframes glitch-green { 0%,100%{transform:translate(0);opacity:.7} 15%{transform:translate(3px,-2px);opacity:1} 35%{transform:translate(-3px,-1px);opacity:.9} 55%{transform:translate(-2px,-3px);opacity:.75} }
 
 
-        /* ===== THE BOX — the home page as a puzzle box that opens ===== */
-        #boxstage {
-            position: relative; z-index: 3;
-            margin: 2.2rem auto 0;
-            transition: margin-top .9s cubic-bezier(.22,1,.3,1);
-            perspective: 1400px;
-            --plate: clamp(96px, 22vw, 150px);
-            --gap: 8px;
-        }
-        /* Opening pushes the cluster down so the top flap clears the tagline
-           instead of landing on top of it. */
-        #boxstage.box-stage-open { margin-top: calc(1.4rem + var(--plate) + var(--gap)); }
-        .box-core {
-            position: relative; width: var(--plate); height: var(--plate);
-            margin: 0 auto; transform-style: preserve-3d;
-            transition: transform .9s cubic-bezier(.22,1,.3,1);
-        }
-        /* The lid. At rest this is all you see. */
-        .box-lid {
-            position: absolute; inset: 0; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            background: linear-gradient(135deg, rgba(139, 108, 245,.1), rgba(212, 79, 176,.08));
-            border: 1px solid rgba(139, 108, 245,.5);
-            border-radius: 10px;
-            box-shadow: 0 0 24px rgba(139, 108, 245,.18), inset 0 0 30px rgba(212, 79, 176,.08);
-            transition: opacity .5s ease, transform .9s cubic-bezier(.22,1,.3,1), box-shadow .4s ease;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .box-lid:hover, .box-lid:focus-visible {
-            box-shadow: 0 0 36px rgba(139, 108, 245,.38), inset 0 0 36px rgba(212, 79, 176,.14);
-            outline: none;
-        }
-        .box-lid svg { width: 54%; height: 54%; overflow: visible; }
-        .box-lid .lr { fill: none; stroke: rgba(139, 108, 245,.85); stroke-width: 1.4; }
-        .box-lid .ls { stroke: rgba(212, 79, 176,.8); stroke-width: 1.2; }
-        .box-lid-cap {
-            position: absolute; bottom: -1.7rem; left: 50%; transform: translateX(-50%);
-            font-family: 'Orbitron', monospace; font-size: .54rem; letter-spacing: .3em;
-            text-transform: uppercase; color: rgba(255,255,255,.5); white-space: nowrap;
-            animation: capPulse 2.8s ease-in-out infinite;
-        }
-        @keyframes capPulse { 0%,100% { opacity: .35; } 50% { opacity: .9; } }
-        .box-open .box-lid { opacity: 0; transform: scale(.7) rotateX(60deg); pointer-events: none; }
-
-        /* The gate sits at the centre of the open box. It is not a nav item and
-           has no presence until the box is opened — the specific spot, not a link. */
-        .box-gate {
-            position: absolute; left: 50%; top: 50%;
-            width: 52%; height: 52%;
-            transform: translate(-50%, -50%) scale(.55);
-            display: flex; align-items: center; justify-content: center;
-            flex-direction: column; gap: 6px;
-            border-radius: 50%; text-decoration: none;
-            opacity: 0; pointer-events: none;
-            transition: opacity .5s ease .45s, transform .5s ease .45s;
-            z-index: 3;
-        }
-        .box-open .box-gate { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
-        .box-gate-ring {
-            position: absolute; inset: 0; border-radius: 50%;
-            border: 1px solid rgba(139, 108, 245,.5);
-            box-shadow: 0 0 26px rgba(139, 108, 245,.3), inset 0 0 34px rgba(0,0,0,.95);
-            background: radial-gradient(circle at 50% 50%, rgba(0,0,0,.96) 48%, rgba(139, 108, 245,.1) 100%);
-            animation: gatePulse 3.4s ease-in-out infinite;
-        }
-        .box-gate-cap {
-            position: relative; font-size: 10px; letter-spacing: .34em;
-            text-transform: uppercase; color: var(--lucid-accent, #8b6cf5);
-            text-shadow: 0 0 14px rgba(139, 108, 245,.8);
-        }
-        .box-gate:hover .box-gate-ring, .box-gate:focus-visible .box-gate-ring {
-            border-color: rgba(139, 108, 245,.95);
-            box-shadow: 0 0 44px rgba(139, 108, 245,.55), inset 0 0 30px rgba(0,0,0,.9);
-        }
-        @keyframes gatePulse {
-            0%, 100% { transform: scale(1); opacity: .9; }
-            50%      { transform: scale(1.06); opacity: 1; }
-        }
-        .box-open .box-lid-cap { display: none; }
-
-        /* The four flaps, hinged on the edge that touches the core. */
-        .flap {
-            position: absolute; width: var(--plate); height: var(--plate);
-            background: #050505;
-            border: 1px solid rgba(255,255,255,.14);
-            border-radius: 9px; overflow: hidden; cursor: pointer;
-            transition: transform .85s cubic-bezier(.22,1,.3,1), opacity .5s ease, border-color .3s ease;
-            opacity: 0; backface-visibility: hidden;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .box-open .flap { opacity: 1; }
-        .flap:hover, .flap:focus-visible { border-color: rgba(139, 108, 245,.75); outline: none; }
-
-        .flap-n { left: 0; top: calc(-1 * (var(--plate) + var(--gap))); transform-origin: center bottom; transform: rotateX(-92deg); }
-        .flap-s { left: 0; top: calc(var(--plate) + var(--gap));        transform-origin: center top;    transform: rotateX(92deg); }
-        .flap-w { top: 0; left: calc(-1 * (var(--plate) + var(--gap))); transform-origin: right center;  transform: rotateY(92deg); }
-        .flap-e { top: 0; left: calc(var(--plate) + var(--gap));        transform-origin: left center;   transform: rotateY(-92deg); }
-        .box-open .flap-n, .box-open .flap-s { transform: rotateX(0deg); }
-        .box-open .flap-w, .box-open .flap-e { transform: rotateY(0deg); }
-        .box-open .flap-e { transition-delay: .08s; }
-        .box-open .flap-s { transition-delay: .16s; }
-        .box-open .flap-w { transition-delay: .24s; }
-
-        .flap canvas, .flap video, .flap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-        .flap-tint { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgba(0,0,0,.88) 100%); }
-        .flap-label {
-            position: absolute; left: 0; right: 0; bottom: 0; padding: .45rem .5rem;
-            font-family: 'Orbitron', monospace; font-size: .5rem; letter-spacing: .18em;
-            text-transform: uppercase; color: #fff; text-align: center; line-height: 1.5;
-        }
-        .flap-label small { display: block; font-family: inherit; font-size: .42rem;
-            letter-spacing: .12em; color: rgba(139, 108, 245,.8); margin-top: .12rem; }
-        .flap-empty {
-            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; color: rgba(255,255,255,.18);
-            background: linear-gradient(135deg, rgba(212, 79, 176,.07), rgba(139, 108, 245,.05));
-        }
-
-        /* Opening the box lifts the hero out of the way of the page below. */
-        /* The open box is taller than the closed one, so the hero cluster has to
-           move. The amount is computed in fitHero() rather than fixed here: a
-           constant lift pushes the wordmark under the fixed navbar on any short
-           viewport (measured at -54px on 1280x900, -140px on 1280x700). */
-        .hero.box-lifted .hero-content { transition: transform .9s cubic-bezier(.22,1,.3,1); }
-
-        /* Must clear the bottom flap, which hangs a full plate below the core. */
-        .box-reset {
-            display: none; margin: calc(1.7rem + var(--plate)) auto 0; background: none;
-            border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.55);
-            font-family: 'Orbitron', monospace; font-size: .5rem; letter-spacing: .22em;
-            text-transform: uppercase; border-radius: 20px; padding: .4rem 1rem; cursor: pointer;
-        }
-        .box-open ~ .box-reset, .box-stage-open .box-reset { display: block; }
-        .box-reset:hover { border-color: rgba(139, 108, 245,.6); color: #fff; }
-
-        @media (max-width: 600px) {
-            #boxstage { --plate: clamp(78px, 25vw, 110px); --gap: 6px; margin-top: 1.6rem; }
-            .flap-label { font-size: .44rem; letter-spacing: .12em; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .box-core, .box-lid, .flap, .hero.box-lifted .hero-content { transition: none !important; }
-            .box-lid-cap { animation: none; }
-            .box-gate { transition: none !important; }
-            .box-gate-ring { animation: none; }
-        }
-
         .scanlines { position: absolute; inset: 0; background: linear-gradient(transparent 50%, rgba(139, 108, 245,.03) 50%); background-size: 100% 4px; animation: scan .1s linear infinite; pointer-events: none; }
         @keyframes scan { 0%{transform:translateY(0)} 100%{transform:translateY(4px)} }
         .hero p { font-size: 1.2rem; font-weight: 300; letter-spacing: 2px; opacity: .8; z-index: 3; position: relative; }
 
         section { padding: 5rem 2rem; max-width: 1400px; margin: 0 auto; }
         h2 { font-size: 2.5rem; font-weight: 100; margin-bottom: 3rem; text-align: center; color: var(--lucid-accent, #8b6cf5); }
+
+        /* A work with no preview and no poster yet. This used to lean on the
+           box's placeholder style; it has its own now that the box is gone. */
+        .card-empty {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: rgba(255,255,255,.18);
+            background: linear-gradient(135deg, rgba(212, 79, 176,.07), rgba(139, 108, 245,.05));
+        }
 
         .portfolio-category { margin-bottom: 4rem; }
         .portfolio-category h3 { font-size: 1.1rem; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 1.5rem; padding-left: .5rem; border-left: 3px solid rgba(139, 108, 245,.06); }
@@ -974,11 +838,13 @@
                 <span class="bar"></span>
                 <span class="bar"></span>
             </button>
-            <!-- The gallery is the only index. Nothing here lists the sections;
-                 each one is reached from the room that holds it. -->
+            <!-- Two items, and neither is a category. Everything the site has
+                 is in the bowl on the front page; the Stack is the jump between
+                 pages once you are deep in one. The gallery is in the bowl like
+                 everything else — it is a place to go, not a gate to pass. -->
             <ul>
-                <li><a href="gallery.html" id="nav-gallery">The Gallery</a></li>
-                <li class="only-focused"><a href="#" id="nav-home">Entrance</a></li>
+                <li class="only-focused"><a href="#" id="nav-home">The Soup</a></li>
+                <li><a href="#" id="nav-stack">The Stack</a></li>
             </ul>
         </nav>
 
@@ -989,38 +855,25 @@
                 </div>
                 <p>VISUAL ART · PROJECTION MAPPING · LIVE VISUALS</p>
 
-                <!-- The box. Closed at rest; opening it unfolds four panels of
-                     live content, and each panel dives into that part of the site. -->
-                <div id="boxstage">
-                    <div class="box-core" id="boxCore">
-                        <div class="flap flap-n" data-dive="shader-library" tabindex="0" role="button"
-                             aria-label="Open: Shaders"></div>
-                        <div class="flap flap-e" data-dive="portfolio" tabindex="0" role="button"
-                             aria-label="Open: Visuals"></div>
-                        <div class="flap flap-s" data-dive="drumseek" tabindex="0" role="button"
-                             aria-label="Open: Tools — SynthSoup, DrumSeek, SP-404"></div>
-                        <div class="flap flap-w" data-dive="shop" tabindex="0" role="button"
-                             aria-label="Open: Studio"></div>
-                        <div class="box-lid" id="boxLid" tabindex="0" role="button"
-                             aria-label="Open the box">
-                            <svg viewBox="0 0 48 48" aria-hidden="true">
-                                <circle class="lr" cx="24" cy="24" r="17"/>
-                                <circle class="lr" cx="24" cy="24" r="8"/>
-                                <line class="ls" x1="24" y1="7" x2="24" y2="16"/>
-                                <line class="ls" x1="24" y1="32" x2="24" y2="41"/>
-                                <line class="ls" x1="7" y1="24" x2="16" y2="24"/>
-                                <line class="ls" x1="32" y1="24" x2="41" y2="24"/>
-                            </svg>
-                            <span class="box-lid-cap">Open</span>
-                        </div>
-                        <!-- Revealed only once the box is open: the way into the gallery. -->
-                        <a class="box-gate" id="boxGate" href="gallery.html"
-                           aria-label="Enter the gallery">
-                            <span class="box-gate-ring" aria-hidden="true"></span>
-                            <span class="box-gate-cap">enter</span>
-                        </a>
-                    </div>
-                    <button type="button" class="box-reset" id="boxReset">Close the box</button>
+                <!-- The bowl. Everything the site has floats in it, in plain
+                     sight, and clicking a piece goes under and surfaces on that
+                     page. soup.js builds it over the list below, which is what
+                     is left when scripting is off: no worse than most front
+                     pages, and a great deal better than an unopenable box. -->
+                <div id="soup">
+                    <ul class="soup-fallback">
+                        <li><a href="#portfolio">Visuals</a></li>
+                        <li><a href="#shader-library">Shaders</a></li>
+                        <li><a href="#synthsoup">SynthSoup</a></li>
+                        <li><a href="synthsoup/webapp/play/">Play SynthSoup</a></li>
+                        <li><a href="#drumseek">DrumSeek</a></li>
+                        <li><a href="sp404.html">SP-404 Converter</a></li>
+                        <li><a href="#blackboxfx">BlackboxFX</a></li>
+                        <li><a href="#shop">Shop</a></li>
+                        <li><a href="#about">About</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                        <li><a href="gallery.html">The Gallery</a></li>
+                    </ul>
                 </div>
             </div>
             <div class="scanlines"></div>
@@ -1363,7 +1216,7 @@
 
     <!-- Lightbox -->
     <!-- Shown only inside a section: the way back into the architecture. -->
-    <a class="back-to-gallery" id="back-to-gallery" href="gallery.html" hidden>&larr; back to the gallery</a>
+    <a class="back-to-gallery" id="back-to-gallery" href="#" hidden>&larr; back to the soup</a>
 
     <div class="lightbox" id="lightbox">
         <button class="lightbox-close" id="lightbox-close">&times;</button>
@@ -1495,7 +1348,7 @@
         // and only when the gallery has sent you to it by name; with no hash you
         // get the entrance and nothing else. This is what makes the gallery the
         // site's only index rather than a second way in beside the old one.
-        var SECTION_IDS = ['drumseek', 'sp404', 'synthsoup', 'portfolio',
+        var SECTION_IDS = ['drumseek', 'sp404', 'synthsoup', 'blackboxfx', 'portfolio',
                            'shader-library', 'shop', 'about', 'contact'];
 
         function routeSections() {
@@ -1526,14 +1379,29 @@
         window.addEventListener('hashchange', routeSections);
         routeSections();
 
-        var navHome = document.getElementById('nav-home');
-        if (navHome) {
-            navHome.addEventListener('click', function (e) {
+        // The Stack is the site's index: a tower of plates with every page on it.
+        // Two ways in from here, because the entrance is where someone who does
+        // not want to go hunting arrives.
+        var navStack = document.getElementById('nav-stack');
+        if (navStack) {
+            navStack.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (window.lucidStack) window.lucidStack.open(navStack);
+            });
+        }
+
+        // Both ways out of a section come back up to the bowl. Clearing the
+        // hash with location.hash = '' leaves a bare '#' behind and does not
+        // reliably fire hashchange, so the route is driven directly.
+        ['nav-home', 'back-to-gallery'].forEach(function (id) {
+            var t = document.getElementById(id);
+            if (!t) return;
+            t.addEventListener('click', function (e) {
                 e.preventDefault();
                 history.pushState(null, '', location.pathname);
                 routeSections();
             });
-        }
+        });
 
         // ===== PORTFOLIO VIDEO HOVER =====
         // Cards come from media.json and land after this script has run, so binding is
@@ -1723,11 +1591,10 @@
             const closeBtn = document.getElementById('panel-close');
             if (!panel || !fab) return;
 
-            // On desktop, panel is open by default; on mobile, collapsed
-            if (!isSmallScreen) {
-                panel.classList.remove('collapsed');
-                fab.classList.add('panel-open');
-            }
+            // Collapsed everywhere to start. It used to open itself on desktop,
+            // which was fine over a page of text and is not fine over the bowl:
+            // it covered a third of the front page, Play and Contact included.
+            // The gear is right there for anyone who wants the controls.
 
             function setOpen(open) {
                 if (open) {
@@ -2727,6 +2594,8 @@
             function render() {
                 requestAnimationFrame(render);
                 if (!controlState.enabled) return;
+                // The Stack covers the page; nothing behind it needs drawing.
+                if (document.body.classList.contains('lucid-stack-open')) return;
 
                 const time = (Date.now() - startTime) / 1000;
                 const dt = 1/60;
@@ -3317,259 +3186,6 @@
     </script>
 
 
-    <!-- ===== THE BOX — opening it unfolds the site ===== -->
-    <script>
-    (function theBox() {
-        'use strict';
-        var stage = document.getElementById('boxstage');
-        var core = document.getElementById('boxCore');
-        var lid = document.getElementById('boxLid');
-        var reset = document.getElementById('boxReset');
-        if (!stage || !core || !lid) return;
-
-        var hero = document.querySelector('.hero');
-        var flaps = Array.prototype.slice.call(core.querySelectorAll('.flap'));
-        var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-        // What each flap shows and where it dives to. Content is whatever the site
-        // genuinely has: the shader library is live, the one real video plays, the
-        // tools are real pages. Panels with no asset yet say so rather than
-        // pretending.
-        var PANELS = {
-            'shader-library': { label: 'Shaders',  sub: 'live',        kind: 'shader', room: 'reliquary' },
-            'portfolio':      { label: 'Visuals',  sub: 'reel',        kind: 'media',  room: 'antechamber' },
-            // Tools lands in the Concordance, the hall whose doors are named for
-            // each tool, so SynthSoup, DrumSeek and the SP-404 converter are one
-            // door away. The Workshop only reached SynthSoup up an unnamed stair.
-            'drumseek':       { label: 'Tools',    sub: 'synthsoup \u00b7 drumseek \u00b7 sp\u2011404', kind: 'glyph', glyph: '\u25a6', room: 'concordance' },
-            'shop':           { label: 'Studio',   sub: 'shop \u00b7 about', kind: 'glyph', glyph: '\u2726', room: 'studio' }
-        };
-
-        // Picks a featured work's preview loop for the Visuals flap. Nothing featured,
-        // or no manifest, leaves the flap on its placeholder glyph.
-        function fillFromMedia(flap) {
-            var ph = document.createElement('div');
-            ph.className = 'flap-empty'; ph.textContent = '✦';
-            flap.insertBefore(ph, flap.firstChild);
-
-            window.lucidMedia().then(function (data) {
-                var works = (data.works || []).filter(function (w) {
-                    return w && w.featured && (w.preview || w.poster);
-                });
-                if (!works.length) return;
-                var pick = works[Math.floor(Math.random() * works.length)];
-
-                if (pick.preview) {
-                    var v = document.createElement('video');
-                    v.src = pick.preview; v.muted = true; v.loop = true;
-                    v.playsInline = true; v.setAttribute('playsinline', '');
-                    v.setAttribute('aria-hidden', 'true');
-                    if (pick.poster) v.poster = pick.poster;
-                    v.addEventListener('error', function () { v.remove(); });
-                    v.addEventListener('loadeddata', function () { ph.remove(); });
-                    flap.insertBefore(v, flap.firstChild);
-                    var play = v.play();
-                    if (play && play.catch) play.catch(function () {});
-                } else {
-                    var img = document.createElement('img');
-                    img.src = pick.poster; img.alt = '';
-                    img.setAttribute('aria-hidden', 'true');
-                    img.addEventListener('error', function () { img.remove(); });
-                    img.addEventListener('load', function () { ph.remove(); });
-                    flap.insertBefore(img, flap.firstChild);
-                }
-            }).catch(function () {});
-        }
-
-        function fill(flap) {
-            var dest = flap.getAttribute('data-dive');
-            var cfg = PANELS[dest];
-            if (!cfg || flap.getAttribute('data-filled')) return;
-            flap.setAttribute('data-filled', '1');
-
-            if (cfg.kind === 'media') {
-                fillFromMedia(flap);
-            } else if (cfg.kind === 'shader') {
-                var c = document.createElement('canvas');
-                c.width = 220; c.height = 220; c.setAttribute('aria-hidden', 'true');
-                flap.appendChild(c);
-                startShader(c);
-            } else {
-                var g = document.createElement('div');
-                g.className = 'flap-empty'; g.textContent = cfg.glyph;
-                flap.appendChild(g);
-            }
-
-            var tint = document.createElement('div');
-            tint.className = 'flap-tint';
-            flap.appendChild(tint);
-            var lab = document.createElement('div');
-            lab.className = 'flap-label';
-            lab.innerHTML = cfg.label + '<small>' + cfg.sub + '</small>';
-            flap.appendChild(lab);
-        }
-
-        // A small live shader for the Shaders panel, taken from the library so the
-        // panel shows the real thing rather than a picture of it.
-        function startShader(canvas) {
-            var gl;
-            try {
-                gl = canvas.getContext('webgl', { alpha: false, antialias: false, depth: false });
-            } catch (e) { gl = null; }
-            if (!gl) { canvas.remove(); return; }
-
-            fetch('shaders/manifest.json?t=' + Date.now())
-                .then(function (r) { return r.ok ? r.json() : null; })
-                .then(function (data) {
-                    var list = data && data.shaders;
-                    if (!list || !list.length) throw new Error('no shaders');
-                    var pick = list[Math.floor(Math.random() * list.length)];
-                    run(pick.glsl);
-                })
-                .catch(function () { canvas.remove(); });
-
-            function run(src) {
-                var PRE = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\n' +
-                          'precision mediump float;\n#endif\nuniform vec3 iResolution;\n' +
-                          'uniform float iTime;\nuniform vec4 iMouse;\n';
-                var POST = '\nvoid main(){ vec4 o = vec4(0.0,0.0,0.0,1.0);' +
-                           ' mainImage(o, gl_FragCoord.xy); gl_FragColor = vec4(o.rgb,1.0); }\n';
-                var vs = gl.createShader(gl.VERTEX_SHADER);
-                gl.shaderSource(vs, 'attribute vec2 p; void main(){ gl_Position = vec4(p,0.0,1.0); }');
-                gl.compileShader(vs);
-                var fs = gl.createShader(gl.FRAGMENT_SHADER);
-                gl.shaderSource(fs, PRE + src + POST);
-                gl.compileShader(fs);
-                if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) { canvas.remove(); return; }
-                var pr = gl.createProgram();
-                gl.attachShader(pr, vs); gl.attachShader(pr, fs);
-                gl.bindAttribLocation(pr, 0, 'p');
-                gl.linkProgram(pr);
-                if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { canvas.remove(); return; }
-                gl.useProgram(pr);
-                var buf = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
-                gl.enableVertexAttribArray(0);
-                gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-                var uR = gl.getUniformLocation(pr, 'iResolution');
-                var uT = gl.getUniformLocation(pr, 'iTime');
-                var t0 = Date.now(), raf = 0, last = 0;
-                function frame() {
-                    raf = 0;
-                    if (!stage.classList.contains('box-stage-open') || document.hidden) return;
-                    var now = Date.now();
-                    if (now - last >= 40) {            // ~25fps is plenty for a thumbnail
-                        last = now;
-                        gl.viewport(0, 0, canvas.width, canvas.height);
-                        if (uR) gl.uniform3f(uR, canvas.width, canvas.height, 1);
-                        if (uT) gl.uniform1f(uT, (now - t0) / 1000);
-                        gl.drawArrays(gl.TRIANGLES, 0, 3);
-                    }
-                    raf = requestAnimationFrame(frame);
-                }
-                canvas.__start = function () { if (!raf) raf = requestAnimationFrame(frame); };
-                canvas.__start();
-            }
-        }
-
-        // Centres the hero cluster in the space actually available — below the
-        // fixed navbar and above the bottom of the screen — and shrinks it only
-        // if it genuinely cannot fit. Runs after the flaps have opened, so it
-        // measures the real height rather than the closed one.
-        var heroContent = hero && hero.querySelector('.hero-content');
-        function fitHero() {
-            if (!hero || !heroContent) return;
-            if (!hero.classList.contains('box-lifted')) {
-                heroContent.style.transform = '';
-                return;
-            }
-            var navEl = document.getElementById('navbar');
-            var navH = navEl ? navEl.getBoundingClientRect().height : 0;
-
-            // Measure untransformed, or we would be fitting our own last answer.
-            var prev = heroContent.style.transition;
-            heroContent.style.transition = 'none';
-            heroContent.style.transform = '';
-            var r = heroContent.getBoundingClientRect();
-            var heroRect = hero.getBoundingClientRect();
-
-            // Work in hero-local coordinates, not viewport ones. The viewport
-            // moves with the scroll position and the hero does not, so fitting
-            // against the viewport gives a different answer depending on where
-            // the page happens to be scrolled.
-            var pad = 14;
-            var bandTop = navH + pad;                       // the navbar overlays the hero's top
-            var bandH = heroRect.height - bandTop - pad;
-            var scale = 1;
-            if (r.height > bandH && r.height > 0) scale = Math.max(0.68, bandH / r.height);
-
-            var h = r.height * scale;
-            // scale() is about the centre, so the scaled top sits here.
-            var curTop = (r.top - heroRect.top) + (r.height - h) / 2;
-            var dy = (bandTop + Math.max(0, (bandH - h) / 2)) - curTop;
-
-            heroContent.style.transform =
-                'translateY(' + dy.toFixed(1) + 'px)' + (scale !== 1 ? ' scale(' + scale.toFixed(3) + ')' : '');
-            // Restore the transition on the next frame so this does not animate
-            // from the measuring position.
-            requestAnimationFrame(function () { heroContent.style.transition = prev; });
-        }
-
-        var fitTimer = null;
-        window.addEventListener('resize', function () {
-            clearTimeout(fitTimer);
-            fitTimer = setTimeout(fitHero, 120);
-        }, { passive: true });
-
-        function openBox() {
-            if (core.classList.contains('box-open')) return;
-            flaps.forEach(fill);
-            core.classList.add('box-open');
-            stage.classList.add('box-stage-open');
-            if (hero) hero.classList.add('box-lifted');
-            // Twice: once now so nothing is clipped while the flaps swing, and
-            // again once they have settled, because the cluster is not its final
-            // height until then. The flap transition is .85s with up to .24s of
-            // stagger, so the box is not done moving until about 1.09s.
-            fitHero();
-            if (!reduced) setTimeout(fitHero, 1150);
-            core.querySelectorAll('canvas').forEach(function (c) { if (c.__start) c.__start(); });
-            var first = flaps[0];
-            if (first && first.focus) setTimeout(function () { first.focus(); }, reduced ? 0 : 500);
-        }
-
-        function closeBox() {
-            core.classList.remove('box-open');
-            stage.classList.remove('box-stage-open');
-            if (hero) hero.classList.remove('box-lifted');
-            if (heroContent) heroContent.style.transform = '';
-            if (lid.focus) lid.focus();
-        }
-
-        // Diving: the chosen section opens and the page scrolls to it, so the box
-        // is navigation rather than decoration.
-        // Every flap dives into the gallery, at the room that holds that part of
-        // the site. Nothing on this page scrolls to a section any more.
-        function dive(dest) {
-            var cfg = PANELS[dest];
-            window.location.href = 'gallery.html' + (cfg && cfg.room ? '#r=' + cfg.room : '');
-        }
-
-        lid.addEventListener('click', openBox);
-        lid.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBox(); }
-        });
-        if (reset) reset.addEventListener('click', closeBox);
-
-        flaps.forEach(function (flap) {
-            flap.addEventListener('click', function () { dive(flap.getAttribute('data-dive')); });
-            flap.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dive(flap.getAttribute('data-dive')); }
-            });
-        });
-    })();
-    </script>
 
 
     <!-- ===== PORTFOLIO — rendered from media.json ===== -->
@@ -3604,7 +3220,7 @@
                   '</video>'
                 : (work.poster
                     ? '<img src="' + esc(work.poster) + '" alt="" loading="lazy">'
-                    : '<div class="flap-empty" style="position:absolute;inset:0">✦</div>');
+                    : '<div class="card-empty">✦</div>');
 
             return '<div class="portfolio-item' + (work.portrait ? ' portrait' : '') + '"' +
                        (dest && dest.kind === 'file' ? ' data-src="' + esc(dest.href) + '"' : '') +
@@ -3654,5 +3270,7 @@
     </script>
 
 <script src="/lucid.js" defer></script>
+<script src="/stack.js" defer></script>
+<script src="/soup.js" defer></script>
 </body>
 </html>

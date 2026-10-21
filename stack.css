@@ -1,0 +1,458 @@
+/* ===========================================================================
+   stack.css — The Stack: the site's index, as a column of floating panels you
+   descend through.
+
+   The reference is the flythrough in Hackers (1995): a black void with a lit
+   grid, translucent labelled plates hanging in it, wireframe boxes where the
+   data has not resolved yet, and a frame of readouts around the edge. Nothing
+   here is a dropdown. You turn a ring to choose and drop a level to go deeper,
+   and every page on the site is one of the plates.
+
+   Geometry, so the transforms below are readable:
+
+     #lucid-stack-vp     owns the perspective; the only element with overflow
+     #lucid-stack-cam    pitches the whole scene about the eye
+     #lucid-stack-amb    the ruled floor and ceiling, which ride with the eye
+     #lucid-stack-world  slides vertically (the descent) and drifts in yaw
+       .ls-level         one tier, at translateY(level * --ls-lvh)
+         .ls-ring        rotates to bring the chosen plate to the front
+           .ls-slot      rotateY(i * step) translateZ(--ls-ring)
+             .ls-ghost   the wireframe box: both faces, no content
+             .ls-plate   the panel itself: front face only
+
+   No element between the perspective and the plates may carry a filter, a
+   mask, a backdrop-filter or an opacity below 1. Any of those makes it a
+   grouping element, which flattens preserve-3d and collapses the tower into
+   one plane. Dimming is therefore done on the leaves, and the grid's distance
+   fade is a gradient painted into its own background rather than a mask.
+   =========================================================================== */
+
+.lucid-stack {
+    --ls-ring: 420px;        /* ring radius; must stay under --ls-dist or a
+                                plate swings behind the eye and renders badly */
+    --ls-dist: 790px;        /* eye to ring axis */
+    --ls-persp: 900px;       /* must match #lucid-stack-vp's perspective */
+    --ls-pitch: 6deg;        /* looking very slightly down the shaft */
+    --ls-lvh: 310px;         /* one tier */
+    --ls-pw: 258px;
+    --ls-ph: 122px;
+    --ls-line: rgba(155, 123, 255, .34);
+    --ls-lit: var(--lucid-accent, #9b7bff);
+    --ls-hot: var(--lucid-accent-2, #8ae04b);
+    --ls-far: rgba(155, 123, 255, .14);
+
+    position: fixed; inset: 0;
+    z-index: 2147483100;
+    display: none;
+    /* Flat, deliberately. The grid planes fade out by painting this exact
+       colour over their own far corners, so anything graded underneath them
+       shows up as a hard-edged band where a plane starts. The haze that gives
+       the void its depth is laid over the top instead, outside the 3D. */
+    background: #03030a;
+    font-family: var(--lucid-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    color: var(--lucid-ink, #e8e8f0);
+    -webkit-user-select: none; user-select: none;
+}
+.lucid-stack.on { display: block; }
+
+html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
+
+/* ===== the viewport ===== */
+#lucid-stack-vp {
+    position: absolute; inset: 0;
+    overflow: hidden;
+    perspective: 900px;
+    perspective-origin: 50% 46%;
+    touch-action: none;
+    cursor: grab;
+}
+#lucid-stack-vp.dragging { cursor: grabbing; }
+
+#lucid-stack-amb,
+#lucid-stack-world {
+    position: absolute; left: 50%; top: 46%;
+    width: 0; height: 0;
+    transform-style: preserve-3d;
+}
+/* Rotating about the eye rather than about the tower, so the pitch is a head
+   tilt and not a leaning stack. */
+#lucid-stack-cam {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    transform-style: preserve-3d;
+    transform: translateZ(var(--ls-persp)) rotateX(var(--ls-pitch)) translateZ(calc(-1 * var(--ls-persp)));
+    /* Hit testing inside a preserve-3d context sorts by z, and this element's
+       own box sits at z=0 — nearer the eye than every plate behind it. Left
+       interactive it swallows every click on the tower, which is a thing you
+       only find out by clicking. It paints nothing, so it needs no hits. */
+    pointer-events: none;
+}
+#lucid-stack-world { will-change: transform; transition: transform .62s cubic-bezier(.2,.86,.24,1); }
+
+/* ===== the lit floor and ceiling =====
+   Two huge planes of ruled light. They are what makes the void have a down,
+   and the drift on their background is the only thing that says you are
+   moving while you are standing still. */
+.ls-grid {
+    position: absolute; left: -1600px; top: -1600px;
+    width: 3200px; height: 3200px;
+    /* Top layer is the distance fade. A mask would do it more cleanly and would
+       also take the plane out of the 3D context, so it is painted instead. */
+    background-image:
+        radial-gradient(closest-side, rgba(3,3,10,0) 14%, #03030a 62%),
+        repeating-linear-gradient(0deg,  rgba(165,135,255,.70) 0 1px, transparent 1px 110px),
+        repeating-linear-gradient(90deg, rgba(165,135,255,.70) 0 1px, transparent 1px 110px);
+    background-size: 100% 100%, auto, auto;
+    pointer-events: none;
+}
+/* rotateX(90deg) maps the element's own +Y onto world +Z, so the second
+   translateY is what pushes the plane away from the eye. Both planes sit
+   entirely in front of it; one crossing the eye plane renders degenerately. */
+.ls-grid.floor   { transform: translateY(540px)  rotateX(90deg) translateY(-1790px); }
+.ls-grid.ceiling { transform: translateY(-540px) rotateX(90deg) translateY(-1790px); }
+.lucid-stack.live .ls-grid { animation: lsDrift 5.5s linear infinite; }
+@keyframes lsDrift {
+    from { background-position: 0 0, 0 0,     0 0; }
+    to   { background-position: 0 0, 0 110px, 110px 0; }
+}
+
+/* ===== the spine =====
+   One line down the axis of the tower with the tiers strung on it. It is the
+   descent made visible: you can see how far down this goes from any level. */
+.ls-spine {
+    position: absolute; left: -1px; width: 2px;
+    background: linear-gradient(180deg, transparent,
+        rgba(155,123,255,.62) 6%, rgba(155,123,255,.62) 94%, transparent);
+    box-shadow: 0 0 14px rgba(155,123,255,.35);
+    pointer-events: none;
+}
+
+/* One ruled circle under each ring. Without it the tiers float with nothing to
+   stand on and the tower reads as scattered panels rather than as floors. */
+.ls-floorring {
+    position: absolute;
+    left: calc(var(--ls-ring) * -1); top: calc(var(--ls-ring) * -1);
+    width: calc(var(--ls-ring) * 2); height: calc(var(--ls-ring) * 2);
+    border: 1px solid rgba(155,123,255,.22);
+    border-radius: 50%;
+    transform: rotateX(90deg) translateZ(calc(var(--ls-ph) / -2 - 34px));
+    pointer-events: none;
+}
+.ls-level.here .ls-floorring { border-color: rgba(138,224,75,.42); }
+
+/* ===== a tier ===== */
+.ls-level {
+    position: absolute; left: 0; top: 0; width: 0; height: 0;
+    transform-style: preserve-3d;
+}
+.ls-ring {
+    position: absolute; left: 0; top: 0; width: 0; height: 0;
+    transform-style: preserve-3d;
+}
+
+/* The tier's name, hung above its ring. Pushed out to the ring's own radius so
+   it is read at the same distance as the plate under it rather than at the
+   axis, where perspective had it half the size and unreadable. */
+.ls-tier {
+    position: absolute; left: -200px; width: 400px;
+    top: calc(-1 * (var(--ls-ph) / 2) - 92px);
+    transform: translate3d(0, 0, var(--ls-ring));
+    text-align: center; pointer-events: none;
+    font-size: 13px; letter-spacing: .34em; text-transform: uppercase;
+    color: var(--ls-far);
+    transition: color .4s ease, text-shadow .4s ease;
+    white-space: nowrap;
+}
+.ls-tier b { font-weight: normal; }
+.ls-tier i { font-style: normal; opacity: .55; margin-left: .7em; letter-spacing: .2em; }
+.ls-level.here .ls-tier {
+    color: var(--ls-hot);
+    text-shadow: 0 0 18px rgba(138, 224, 75, .45);
+}
+
+/* ===== a slot on the ring ===== */
+/* Each slot carries its own angle rather than the ring carrying one rotation.
+   A ring that only rotates puts the first node at the front and the rest off to
+   one side; placing every slot relative to the chosen one keeps the choice in
+   the middle with its neighbours either side of it, which is the whole reason
+   to show them in a circle at all. */
+.ls-slot {
+    position: absolute; left: 0; top: 0; width: 0; height: 0;
+    transform-style: preserve-3d;
+    transition: transform .52s cubic-bezier(.2,.86,.24,1);
+}
+/* From the plate back to the spine: the wire that says what is attached to what. */
+.ls-strut {
+    position: absolute; left: 0; top: 0;
+    width: var(--ls-ring); height: 1px;
+    transform-origin: 0 0; transform: rotateY(90deg);
+    background: linear-gradient(90deg, var(--ls-line), transparent 85%);
+    pointer-events: none;
+}
+/* The box the panel lives in. Both faces, so the far side of the ring reads as
+   empty wireframe rather than as nothing at all — you can see there is more
+   there, and that turning the ring will bring it round. */
+.ls-ghost {
+    position: absolute;
+    left: calc(var(--ls-pw) / -2 - 9px); top: calc(var(--ls-ph) / -2 - 9px);
+    width: calc(var(--ls-pw) + 18px); height: calc(var(--ls-ph) + 18px);
+    border: 1px solid var(--ls-far);
+    pointer-events: none;
+}
+.ls-ghost::before, .ls-ghost::after {
+    content: ''; position: absolute; width: 7px; height: 7px;
+    border: 1px solid var(--ls-line);
+}
+.ls-ghost::before { left: -4px; top: -4px; border-right: 0; border-bottom: 0; }
+.ls-ghost::after { right: -4px; bottom: -4px; border-left: 0; border-top: 0; }
+
+/* ===== the panel ===== */
+.ls-plate {
+    position: absolute;
+    left: calc(var(--ls-pw) / -2); top: calc(var(--ls-ph) / -2);
+    width: var(--ls-pw); height: var(--ls-ph);
+    margin: 0; padding: 11px 13px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    text-align: left;
+    font: inherit; color: var(--lucid-ink, #e8e8f0);
+    background:
+        linear-gradient(165deg, rgba(155,123,255,.16), rgba(10, 6, 26, .80) 62%),
+        repeating-linear-gradient(0deg, rgba(0,0,0,.34) 0 1px, transparent 1px 3px);
+    border: 1px solid var(--ls-line);
+    box-shadow: inset 0 0 26px rgba(155,123,255,.09);
+    backface-visibility: hidden;
+    pointer-events: auto;            /* #lucid-stack-cam is none; see above */
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color .25s, box-shadow .25s, background .25s, transform .3s, opacity .4s;
+}
+.ls-plate:focus { outline: none; }
+.ls-plate .ls-top { display: flex; align-items: baseline; gap: 9px; }
+.ls-plate .ls-id {
+    font-size: 9.5px; letter-spacing: .2em; color: var(--ls-lit); opacity: .8;
+}
+.ls-plate .ls-tag {
+    margin-left: auto; font-size: 8.5px; letter-spacing: .24em; text-transform: uppercase;
+    color: var(--lucid-dim, #7a7a8c);
+}
+.ls-plate .ls-name {
+    font-family: var(--lucid-display, 'Orbitron', 'Arial Black', sans-serif);
+    font-size: 14px; letter-spacing: .1em; text-transform: uppercase; line-height: 1.2;
+}
+.ls-plate .ls-foot {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 9px; letter-spacing: .18em; color: var(--lucid-dim, #7a7a8c);
+    text-transform: uppercase;
+}
+.ls-plate svg { width: 15px; height: 15px; flex: none; stroke: var(--ls-lit); fill: none; stroke-width: 1.1; opacity: .85; }
+
+/* Depth: a plate on the far side of the ring, or on another tier, is dimmed on
+   the leaf so the 3D above it stays unflattened. */
+.ls-plate.back { opacity: .20; pointer-events: none; }
+.ls-level:not(.here) .ls-plate { opacity: .34; }
+.ls-level:not(.here) .ls-plate .ls-name { color: var(--lucid-dim, #7a7a8c); }
+
+.ls-plate:hover, .ls-plate.sel {
+    border-color: rgba(138, 224, 75, .85);
+    box-shadow: inset 0 0 30px rgba(138,224,75,.12), 0 0 36px rgba(138,224,75,.20);
+    background:
+        linear-gradient(165deg, rgba(138,224,75,.20), rgba(8, 18, 6, .84) 62%),
+        repeating-linear-gradient(0deg, rgba(0,0,0,.34) 0 1px, transparent 1px 3px);
+}
+.ls-plate.sel .ls-id, .ls-plate:hover .ls-id { color: var(--ls-hot); opacity: 1; }
+.ls-plate.sel svg, .ls-plate:hover svg { stroke: var(--ls-hot); opacity: 1; }
+.ls-level.here .ls-plate.sel { opacity: 1; }
+.ls-slot.sel .ls-ghost { border-color: rgba(138, 224, 75, .5); }
+
+/* Chosen: the panel comes off the ring and goes past you. */
+.ls-plate.go {
+    transform: translateZ(360px) scale(1.07);
+    opacity: 0;
+    border-color: var(--ls-hot);
+}
+
+/* The atmosphere, over the scene rather than under it. */
+.ls-haze {
+    position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background: radial-gradient(118% 78% at 50% 46%, rgba(104, 62, 214, .34), transparent 68%);
+    mix-blend-mode: screen;
+}
+
+/* ===== the frame of readouts ===== */
+.ls-hud {
+    position: absolute; z-index: 4; pointer-events: none;
+    font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--lucid-dim, #7a7a8c);
+}
+#ls-top {
+    top: 0; left: 0; right: 0; padding: 14px 112px 14px 16px;
+    display: flex; align-items: flex-start; gap: 14px;
+    background: linear-gradient(rgba(3,3,10,.9), transparent);
+}
+#ls-title { color: var(--ls-lit); letter-spacing: .3em; }
+#ls-sector { margin-left: auto; text-align: right; line-height: 1.8; white-space: nowrap; }
+#ls-sector b { color: var(--lucid-ink, #e8e8f0); font-weight: normal; }
+
+/* The hex. It is not decoration for its own sake: it is the depth, the tier
+   and the node you are on, written the way the reference wrote everything. */
+#ls-hex {
+    right: 16px; top: 50%; transform: translateY(-50%);
+    text-align: right; line-height: 1.75; font-size: 9px; letter-spacing: .14em;
+    color: rgba(155,123,255,.30);
+}
+#ls-scale {
+    left: 16px; top: 50%; transform: translateY(-50%);
+    line-height: 2.1; font-size: 9px; letter-spacing: .14em;
+}
+#ls-scale div { color: rgba(155,123,255,.28); white-space: nowrap; }
+#ls-scale div.at { color: var(--ls-hot); }
+#ls-scale div.at::before { content: '─ '; }
+
+#ls-bottom {
+    bottom: 0; left: 0; right: 0;
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(transparent, rgba(3,3,10,.92));
+    display: flex; align-items: flex-end; gap: 14px;
+}
+#ls-sel { flex: 1 1 auto; min-width: 0; }
+#ls-sel .n {
+    display: block;
+    font-family: var(--lucid-display, 'Orbitron', 'Arial Black', sans-serif);
+    font-size: 15px; letter-spacing: .16em; color: var(--lucid-ink, #e8e8f0);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#ls-sel .w { display: block; margin-top: 5px; color: rgba(155,123,255,.5); letter-spacing: .14em; }
+#ls-keys { text-align: right; line-height: 1.9; white-space: nowrap; }
+#ls-keys kbd {
+    font: inherit; color: var(--ls-lit);
+    border: 1px solid rgba(155,123,255,.3); border-radius: 2px; padding: 1px 5px; margin-right: 3px;
+}
+
+/* Controls that are real buttons, so the thing is usable with a thumb. */
+.ls-btn {
+    position: absolute; z-index: 5; pointer-events: auto;
+    background: rgba(3,3,10,.7); border: 1px solid var(--ls-line);
+    color: var(--ls-lit); font: inherit; font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; border-radius: 2px; cursor: pointer;
+    min-width: 44px; min-height: 40px;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: border-color .2s, color .2s, background .2s;
+}
+.ls-btn:hover, .ls-btn:focus-visible {
+    color: var(--ls-hot); border-color: rgba(138,224,75,.7);
+    background: rgba(138,224,75,.12); outline: none;
+}
+#ls-close { top: 12px; right: 14px; }
+.ls-nav { bottom: 76px; }
+#ls-left  { left: 16px; }
+#ls-right { left: 70px; }
+#ls-up    { right: 70px; }
+#ls-down  { right: 16px; }
+
+/* A dot per node on this tier, so the ring's far side is accounted for. */
+#ls-dots {
+    position: absolute; z-index: 4; left: 50%; transform: translateX(-50%);
+    bottom: 88px; display: flex; gap: 7px; pointer-events: none;
+}
+#ls-dots span {
+    width: 5px; height: 5px; border: 1px solid rgba(155,123,255,.45); border-radius: 50%;
+}
+#ls-dots span.at { background: var(--ls-hot); border-color: var(--ls-hot); box-shadow: 0 0 9px rgba(138,224,75,.7); }
+
+/* ===== opening ===== */
+.ls-sweep {
+    position: absolute; left: 0; right: 0; height: 2px; top: 0; z-index: 6;
+    background: linear-gradient(90deg, transparent, var(--ls-hot), transparent);
+    opacity: 0; pointer-events: none;
+}
+.lucid-stack.on .ls-sweep { animation: lsSweep .62s cubic-bezier(.4,0,.5,1) 1; }
+@keyframes lsSweep {
+    0%   { opacity: 0; top: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { opacity: 0; top: 100%; }
+}
+.ls-flash {
+    position: absolute; inset: 0; z-index: 7; pointer-events: none;
+    background: rgba(138,224,75,.14); opacity: 0;
+}
+.ls-flash.on { animation: lsFlash .3s linear 1; }
+@keyframes lsFlash { from { opacity: 1; } to { opacity: 0; } }
+
+/* ===== the trigger, injected beside the way back ===== */
+.lucid-chrome {
+    position: fixed; top: 12px; right: 12px; z-index: 2147483000;
+    display: flex; align-items: center; gap: 8px;
+}
+.lucid-chrome .lucid-return { position: static; top: auto; right: auto; }
+.lucid-index {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 12px; line-height: 1;
+    border: 1px solid rgba(155, 123, 255, .40); border-radius: var(--lucid-radius, 3px);
+    background: rgba(5, 5, 10, .82);
+    color: var(--lucid-accent, #9b7bff);
+    font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+    font-size: 10px; letter-spacing: var(--lucid-track, .18em); text-transform: uppercase;
+    cursor: pointer; opacity: .78;
+    transition: opacity .2s, border-color .2s, background .2s, color .2s;
+}
+.lucid-index:hover, .lucid-index:focus-visible {
+    opacity: 1; color: var(--lucid-accent-2, #8ae04b);
+    border-color: rgba(138, 224, 75, .8); background: rgba(138, 224, 75, .14); outline: none;
+}
+/* Three stacked rules: the tower, small enough to be a glyph. */
+.lucid-index::before {
+    content: ''; width: 10px; height: 8px;
+    border-top: 1px solid currentColor; border-bottom: 1px solid currentColor;
+    box-shadow: 0 -3px 0 -2px currentColor;
+}
+
+/* ===== phones ===== */
+@media (max-width: 640px) {
+    .lucid-stack {
+        --ls-ring: 252px; --ls-dist: 560px; --ls-lvh: 238px;
+        --ls-pw: 188px; --ls-ph: 100px;
+        --ls-persp: 700px; --ls-pitch: 5deg;
+    }
+    #lucid-stack-vp { perspective: 700px; }
+    .ls-plate { padding: 9px 11px; }
+    .ls-plate .ls-name { font-size: 12px; }
+    .ls-tier { font-size: 11px; letter-spacing: .26em; }
+    #ls-hex { display: none; }
+    #ls-scale { font-size: 8px; line-height: 1.85; }
+    #ls-keys { display: none; }
+    /* Three words wrapping to three lines pushed the sector readout off the
+       top bar; the title is the one thing here nobody needs told. */
+    #ls-title { display: none; }
+    #ls-top { padding-right: 92px; }
+    .lucid-chrome { top: 8px; right: 8px; gap: 6px; }
+    .lucid-index { font-size: 9px; padding: 7px 10px; }
+}
+@media (max-width: 420px) {
+    #ls-scale { display: none; }
+}
+
+/* ===== laid flat =====
+   With motion turned down the tower is a list. Same plates, same labels, no
+   perspective and no flight — it still has to be possible to find everything. */
+@media (prefers-reduced-motion: reduce) {
+    #lucid-stack-vp { perspective: none; overflow: auto; cursor: default; touch-action: auto; }
+    #lucid-stack-cam, #lucid-stack-amb, #lucid-stack-world { position: static; left: auto; top: auto;
+        width: auto; height: auto; transform: none !important; transition: none; }
+    #lucid-stack-amb { display: none; }
+    .ls-grid, .ls-spine, .ls-strut, .ls-ghost, .ls-floorring,
+    #ls-hex, #ls-dots, #ls-scale, #ls-keys, .ls-nav { display: none; }
+    #lucid-stack-world { padding: 64px 16px 80px; max-width: 980px; margin: 0 auto; }
+    .ls-level { position: static; width: auto; height: auto; transform: none !important; }
+    .ls-ring { position: static; width: auto; height: auto; transform: none !important;
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .ls-slot { position: static; width: auto; height: auto; transform: none !important; }
+    .ls-tier { position: static; left: auto; top: auto; width: auto; text-align: left;
+        color: var(--ls-hot); margin: 22px 0 8px; transform: none !important; }
+    /* A button shrink-wraps; in the grid it has to fill its cell or the tiers
+       come out as a ragged staircase of different-width cards. */
+    .ls-plate { position: static; left: auto; top: auto; width: 100%; height: 96px;
+        transform: none !important; transition: none; }
+    .ls-plate.back, .ls-level:not(.here) .ls-plate { opacity: 1; pointer-events: auto; }
+    .lucid-stack.on .ls-sweep, .ls-flash.on, .lucid-stack.live .ls-grid { animation: none; }
+    .ls-haze { display: none; }
+}

@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <link rel="stylesheet" href="/lucid.css">
+    <link rel="stylesheet" href="/stack.css">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>LucidSoup — The Gallery</title>
@@ -304,8 +305,21 @@
         background: rgba(138, 224, 75,.16); border-color: rgba(138, 224, 75,.65); outline: none;
     }
     .exit-chip .asc { color: var(--mag); margin-left: 6px; }
+    /* Each exit is addressed, the way a plate on the Stack is. It costs nothing
+       and it makes the HUD and the index read as one system rather than two. */
+    .exit-chip[data-i] { position: relative; padding-left: 31px; }
+    .exit-chip[data-i]::before {
+        content: attr(data-i);
+        position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+        font-size: 8.5px; letter-spacing: .1em; color: rgba(155, 123, 255,.65);
+    }
+    #stack-open {
+        margin-left: auto;
+        border-color: rgba(155, 123, 255,.55);
+        background: rgba(155, 123, 255,.10);
+    }
     #leave {
-        pointer-events: auto; margin-left: auto;
+        pointer-events: auto;
         background: none; border: 1px solid rgba(255,255,255,.2);
         color: var(--dim); padding: 9px 14px; border-radius: 3px;
         font: inherit; font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
@@ -366,14 +380,14 @@
 </div>
 
 <div class="hud" id="hud-bottom"></div>
-<div id="hint">drag to look · tap a doorway to travel · tap a wall to change it</div>
+<div id="hint">drag to look · tap a doorway to travel · tap a wall to change it · <b>index</b> for everywhere at once</div>
 
 <div id="lb"><button id="lb-close" aria-label="Close">&times;</button><video controls playsinline></video></div>
 
 <div id="fail">
     <div>The gallery could not be loaded.</div>
     <div style="color:#7a7a8c;font-size:12px" id="fail-why"></div>
-    <a href="index.html">back to lucidsoup</a>
+    <a href="index.html">back to the soup</a>
 </div>
 
 <script>
@@ -1540,8 +1554,13 @@ function paintHUD(room, surfaces) {
         if (spec.exit) listed.push(spec);
         (spec.doors || []).forEach(function (d) { if (d && d.exit) listed.push(d); });
     });
+    var addr = 0;
+    function stamp(b) {
+        b.setAttribute('data-i', ('0' + (addr++).toString(16).toUpperCase()).slice(-2));
+        return b;
+    }
     listed.forEach(function (spec) {
-        var b = document.createElement('button');
+        var b = stamp(document.createElement('button'));
         b.className = 'exit-chip';
         var asc = spec.ascend || 0;
         b.innerHTML = esc(spec.label || spec.exit) +
@@ -1550,7 +1569,7 @@ function paintHUD(room, surfaces) {
         hudBottom.appendChild(b);
     });
     stairExits.forEach(function (spec) {
-        var b = document.createElement('button');
+        var b = stamp(document.createElement('button'));
         b.className = 'exit-chip';
         var asc = spec.ascend || 0;
         b.innerHTML = '\u2197 ' + esc(spec.label || spec.exit) +
@@ -1560,7 +1579,7 @@ function paintHUD(room, surfaces) {
     });
 
     roomOpens.forEach(function (o) {
-        var ob = document.createElement('button');
+        var ob = stamp(document.createElement('button'));
         ob.className = 'exit-chip';
         ob.style.borderColor = 'rgba(139, 108, 245,.6)';
         ob.innerHTML = '\u25a3 ' + esc(o.title || 'open');
@@ -1568,9 +1587,22 @@ function paintHUD(room, surfaces) {
         hudBottom.appendChild(ob);
     });
 
+    // The Stack: every room and every page on one tower, for anyone who would
+    // rather not walk the labyrinth to find a thing they already know the name
+    // of. It is the same index the rest of the site carries.
+    var idx = document.createElement('button');
+    idx.id = 'stack-open';
+    idx.className = 'exit-chip';
+    idx.innerHTML = '\u2261 index';
+    idx.title = 'The Stack \u2014 every room and every page';
+    idx.addEventListener('click', function () {
+        if (window.lucidStack) window.lucidStack.open(idx);
+    });
+    hudBottom.appendChild(idx);
+
     var leave = document.createElement('button');
     leave.id = 'leave';
-    leave.textContent = 'entrance';
+    leave.textContent = 'the soup';
     leave.addEventListener('click', function () { window.location.href = 'index.html'; });
     hudBottom.appendChild(leave);
 }
@@ -1896,6 +1928,12 @@ document.addEventListener('visibilitychange', function () {
     else if (state.room) buildRoom(state.room);
 });
 
+// Same again for the Stack, which covers the room completely while it is open.
+window.addEventListener('lucid:stack', function (e) {
+    if (e.detail && e.detail.open) stopLive();
+    else if (state.room) buildRoom(state.room);
+});
+
 /* ========================= boot ========================= */
 function fail(why) {
     document.getElementById('fail-why').textContent = why || '';
@@ -1954,5 +1992,6 @@ window.lucidGallery = {
 })();
 </script>
 <script src="/lucid.js" defer></script>
+<script src="/stack.js" defer></script>
 </body>
 </html>
