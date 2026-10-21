@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BlackboxFX Control</title>
+<meta name="description" content="Live modulation, morphing and scenes for the M-VAVE ANN BlackBox over USB or Bluetooth.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230f1115%22/%3E%3Cpath d=%22M5 20c4-10 7-10 11 0s7 10 11 0%22 stroke=%22%237ce0c3%22 stroke-width=%223%22 fill=%22none%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>BlackboxFX <span>Control</span></h1>
+    <p id="status" class="status" data-state="off">Not connected</p>
+  </div>
+  <div class="connect" id="connectBar">
+    <button id="btnUsb" class="primary">USB</button>
+    <button id="btnBle" class="primary">Bluetooth</button>
+    <button id="btnSim">Simulator</button>
+    <select id="portSelect" hidden aria-label="MIDI port"></select>
+    <button id="btnDisconnect" hidden>Disconnect</button>
+  </div>
+</header>
+
+<main id="main" class="disabled">
+  <section class="bar">
+    <div class="preset">
+      <button id="presetPrev" aria-label="Previous preset">‹</button>
+      <span id="presetLabel">P--</span>
+      <button id="presetNext" aria-label="Next preset">›</button>
+    </div>
+    <label class="vol">Volume <input id="volume" type="range" min="0" max="100"><output id="volumeOut"></output></label>
+    <div class="tempo">
+      <label>BPM <input id="bpm" type="number" min="30" max="300" value="120"></label>
+      <button id="tap">Tap</button>
+    </div>
+    <p class="note">Live changes only. Reloading the preset on the pedal undoes everything.</p>
+  </section>
+
+  <section>
+    <h2>Signal chain</h2>
+    <div id="chain" class="chain"></div>
+  </section>
+
+  <section>
+    <div class="head-row">
+      <h2>Movement</h2>
+      <button id="addLane">+ Add lane</button>
+      <label class="rate">Send rate
+        <select id="sendRate">
+          <option value="15">15 /s</option>
+          <option value="30" selected>30 /s</option>
+          <option value="60">60 /s</option>
+        </select>
+      </label>
+    </div>
+    <p class="hint">Each lane moves one knob automatically. Try Reverb Mix on "drift", or Delay Time on a slow sine for tape bends.</p>
+    <div id="lanes" class="lanes"></div>
+  </section>
+
+  <section class="split">
+    <div>
+      <h2>Morph</h2>
+      <p class="hint">Capture two sounds, then sweep between them. Knobs glide; model and on/off switches flip halfway.</p>
+      <div class="row">
+        <button id="captureA">Capture A</button>
+        <input id="morph" type="range" min="0" max="1000" value="0" aria-label="Morph A to B">
+        <button id="captureB">Capture B</button>
+      </div>
+      <p id="morphInfo" class="hint"></p>
+    </div>
+    <div>
+      <h2>Scenes</h2>
+      <p class="hint">Tap a slot to recall. Turn on Store, then tap a slot to save the current sound there.</p>
+      <div id="scenes" class="scenes"></div>
+      <div class="row">
+        <label class="switch"><input id="storeMode" type="checkbox"> Store</label>
+        <button id="exportBtn">Export</button>
+        <label class="file">Import<input id="importFile" type="file" accept="application/json"></label>
+      </div>
+    </div>
+  </section>
+
+  <details class="log">
+    <summary>Activity <span id="counts"></span></summary>
+    <pre id="log"></pre>
+  </details>
+</main>
+
+<footer>
+  Protocol facts from <a href="https://github.com/jvsobrinho/mvave-blackbox-ble">mvave-blackbox-ble</a>.
+  Not affiliated with M-VAVE.
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
