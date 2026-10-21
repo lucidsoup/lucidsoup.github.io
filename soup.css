@@ -146,16 +146,17 @@
 .bits { position: absolute; inset: 0; }
 
 .bit {
-    position: absolute;
+    position: absolute; left: 0; top: 0;
     margin: 0; padding: 0;
     background: none; border: 0;
     font: inherit; color: inherit;
     cursor: pointer;
     display: flex; flex-direction: column; align-items: center; gap: 5px;
-    transform: translate(-50%, -50%) scale(var(--s, 1));
-    /* The bob is one transform on the inner wrapper, so this one stays free
-       for placement and for the hover lift. */
-    transition: filter .25s ease;
+    /* Placement is written here every frame by soup.js as it carries the piece
+       round its orbit, so there is deliberately no transform and no transition
+       on this element: a transition would fight the frames. The bob and the
+       hover lift live on .bit-float, one level in, where they are free to. */
+    will-change: transform;
 }
 .bit:focus { outline: none; }
 
@@ -169,11 +170,14 @@
 .bit:hover .bit-float,
 .bit:focus-visible .bit-float { animation-play-state: paused; transform: translateY(-9px) scale(1.14); }
 
+/* A small wobble on top of the orbit. It used to be the only motion and was
+   twice this size; now that the piece is already travelling, that much bob
+   carried the outer ring over the rim at the top of its swing. */
 @keyframes bob {
     0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    25%      { transform: translate(calc(var(--dx, 7px) * 1), -6px) rotate(3deg); }
-    50%      { transform: translate(0, -11px) rotate(0deg); }
-    75%      { transform: translate(calc(var(--dx, 7px) * -1), -5px) rotate(-3deg); }
+    25%      { transform: translate(calc(var(--dx, 5px) * 1), -4px) rotate(2.5deg); }
+    50%      { transform: translate(0, -7px) rotate(0deg); }
+    75%      { transform: translate(calc(var(--dx, 5px) * -1), -3px) rotate(-2.5deg); }
 }
 
 .bit-shape {
@@ -186,6 +190,7 @@
     overflow: hidden;
     background: radial-gradient(70% 70% at 34% 28%, rgba(255,255,255,.3), transparent 62%);
 }
+.bit-disc { position: relative; line-height: 0; }
 .bit-shape svg { width: 100%; height: 100%; display: block; }
 .bit-shape video, .bit-shape canvas, .bit-shape img {
     position: absolute; inset: 0; width: 100%; height: 100%;
@@ -200,28 +205,43 @@
     pointer-events: none;
 }
 
+/* The label rides above its piece on a dark pill. Eleven names swirling in one
+   ellipse means a name will sometimes sit over something else's face, and the
+   pill is what makes that read as a label on a chip rather than a collision. */
 .bit-label {
     font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
     font-size: 10px; letter-spacing: .17em; text-transform: uppercase;
-    color: rgba(236,230,255,.86);
-    text-shadow: 0 1px 7px rgba(0,0,0,.95), 0 0 18px rgba(0,0,0,.8);
+    color: rgba(236,230,255,.9);
+    text-shadow: 0 1px 4px rgba(0,0,0,.9);
     white-space: nowrap;
-    transition: color .2s ease;
+    padding: 3px 9px 4px;
+    border-radius: 999px;
+    background: rgba(9, 4, 20, .62);
+    border: 1px solid rgba(155,123,255,.18);
+    transition: color .2s ease, background .2s ease, border-color .2s ease, opacity .35s ease;
 }
 .bit-label small {
-    display: block; margin-top: 2px;
+    display: block; margin-top: 1px;
     font-size: 8.5px; letter-spacing: .12em;
     color: rgba(155,123,255,.9);
     text-transform: none;
 }
-.bit:hover .bit-label, .bit:focus-visible .bit-label { color: #d9ffb8; }
+/* Near the top of its orbit the label would hang over the rim, so it swaps to
+   the underside of the piece instead. */
+.bit.under .bit-label { order: 2; }
+/* Behind something that would print over it even there: step aside. With the
+   label above the piece this almost never fires, but almost is not never. */
+.bit.behind .bit-label { opacity: 0; }
+.bit:hover .bit-label, .bit:focus-visible .bit-label {
+    color: #d9ffb8; opacity: 1;
+    background: rgba(12, 26, 6, .84); border-color: rgba(138,224,75,.6);
+}
 .bit:hover .bit-label small, .bit:focus-visible .bit-label small { color: var(--lucid-accent-2, #8ae04b); }
 
-/* The ring the piece makes in the broth when you touch it. */
+/* The ring the piece makes in the broth when you touch it. Inside .bit-disc,
+   so it is centred on the shape wherever the label happens to be. */
 .bit-ring {
-    position: absolute; left: 50%; top: calc(var(--d, 76px) / 2);
-    width: var(--d, 76px); height: var(--d, 76px);
-    margin-left: calc(var(--d, 76px) / -2); margin-top: calc(var(--d, 76px) / -2);
+    position: absolute; inset: 0;
     border: 1px solid rgba(138,224,75,.75); border-radius: 50%;
     opacity: 0; pointer-events: none;
 }
@@ -237,14 +257,10 @@
     filter: saturate(1.9) brightness(1.25) blur(2px);
 }
 #soup.diving .bits, #soup.diving .steam { opacity: 0; transition: opacity .2s linear; }
-#soup.diving .bit.chosen {
-    opacity: 1;
-    transition: transform .55s cubic-bezier(.6,0,.85,.3), opacity .5s ease .12s;
-    transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 3.4));
-    z-index: 999;
-}
+/* The chosen piece's own flight is written inline by soup.js, because where it
+   starts from is wherever its orbit had carried it. */
 #soup.diving .bits { opacity: 1; }
-#soup.diving .bit:not(.chosen) { opacity: 0; transition: opacity .22s linear; }
+#soup.diving .bit:not(.chosen) { opacity: 0 !important; transition: opacity .22s linear; }
 
 /* The broth closing over the top of the screen. */
 #soup-veil {

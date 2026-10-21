@@ -30,18 +30,31 @@
        `hash` stays on this page and lets the router show that section; `href`
        leaves for another page. Nothing here is a category — every piece is a
        real destination, which is the whole point. */
+    /* Three rings turning at three speeds, which is how liquid in a round
+       vessel actually moves and what the broth shader underneath is already
+       doing. `ring` picks the orbit, `a` is where on it the piece starts (in
+       turns, 0 to 1). The outer ring is the slowest; nothing sits at dead
+       centre, because the middle of a bowl wants to be broth. */
+    var RINGS = [
+        { r: .16, secs: 88 },
+        { r: .30, secs: 124 },
+        { r: .43, secs: 172 }
+    ];
+
     var BITS = [
-        { id: 'shader-library', label: 'Shaders',    sub: 'live',          hash: 'shader-library', kind: 'shader', d: 92, x: .24, y: .40 },
-        { id: 'drumseek',       label: 'DrumSeek',   sub: 'sequencer',     hash: 'drumseek',       shape: 'grid',   d: 74, x: .44, y: .16 },
-        { id: 'sp404',          label: 'SP-404',     sub: 'converter',     href: 'sp404.html',     shape: 'cube',   d: 74, x: .66, y: .16 },
-        { id: 'synthsoup',      label: 'SynthSoup',  sub: 'synth · firmware', hash: 'synthsoup', shape: 'eye', d: 92, x: .78, y: .34 },
-        { id: 'portfolio',      label: 'Visuals',    sub: 'reel',          hash: 'portfolio',      kind: 'media',  d: 96, x: .44, y: .52 },
-        { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'ring',   d: 70, x: .62, y: .74 },
-        { id: 'shop',           label: 'Shop',       sub: 'prints',        hash: 'shop',           shape: 'noodle', d: 70, x: .14, y: .66 },
-        { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'spiral', d: 74, x: .30, y: .80 },
-        { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'star', d: 58, x: .82, y: .74 },
-        { id: 'about',          label: 'About',      sub: '',              hash: 'about',          shape: 'pea',    d: 56, x: .09, y: .34 },
-        { id: 'contact',        label: 'Contact',    sub: '',              hash: 'contact',        shape: 'leaf',   d: 56, x: .93, y: .50 }
+        { id: 'portfolio',      label: 'Visuals',    sub: 'reel',          hash: 'portfolio',      kind: 'media',  d: 96, ring: 0, a: .00 },
+        { id: 'shader-library', label: 'Shaders',    sub: 'live',          hash: 'shader-library', kind: 'shader', d: 92, ring: 0, a: .34 },
+        { id: 'synthsoup',      label: 'SynthSoup',  sub: 'synth · firmware', hash: 'synthsoup', shape: 'eye', d: 92, ring: 0, a: .67 },
+
+        { id: 'drumseek',       label: 'DrumSeek',   sub: 'sequencer',     hash: 'drumseek',       shape: 'grid',   d: 74, ring: 1, a: .09 },
+        { id: 'sp404',          label: 'SP-404',     sub: 'converter',     href: 'sp404.html',     shape: 'cube',   d: 74, ring: 1, a: .34 },
+        { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'ring',   d: 70, ring: 1, a: .59 },
+        { id: 'shop',           label: 'Shop',       sub: 'prints',        hash: 'shop',           shape: 'noodle', d: 70, ring: 1, a: .84 },
+
+        { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'spiral', d: 74, ring: 2, a: .17 },
+        { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'star', d: 58, ring: 2, a: .42 },
+        { id: 'about',          label: 'About',      sub: '',              hash: 'about',          shape: 'pea',    d: 56, ring: 2, a: .67 },
+        { id: 'contact',        label: 'Contact',    sub: '',              hash: 'contact',        shape: 'leaf',   d: 56, ring: 2, a: .92 }
     ];
 
     /* ---------------- the pieces themselves ----------------
@@ -74,12 +87,15 @@
                 '<circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-width="2" opacity=".35"/>',
                 'linear-gradient(145deg,#8ae04b,#2f7a3a)');
         },
-        coin: function () {
-            return svg('<circle cx="50" cy="50" r="40" fill="#ff9a3c"/>' +
-                '<g stroke="#c75a1c" stroke-width="4" opacity=".8">' +
-                '<path d="M50 12v76M12 50h76M23 23l54 54M77 23 23 77"/></g>' +
-                '<circle cx="50" cy="50" r="13" fill="#ffd0a1"/>',
-                'linear-gradient(145deg,#ffc27a,#e07a2c)');
+        film: function () {
+            return svg('<circle cx="50" cy="50" r="40" fill="#1b1030"/>' +
+                '<g fill="#cdb6ff">' +
+                '<circle cx="50" cy="16" r="6"/><circle cx="50" cy="84" r="6"/>' +
+                '<circle cx="16" cy="50" r="6"/><circle cx="84" cy="50" r="6"/>' +
+                '<circle cx="26" cy="26" r="5"/><circle cx="74" cy="26" r="5"/>' +
+                '<circle cx="26" cy="74" r="5"/><circle cx="74" cy="74" r="5"/></g>' +
+                '<circle cx="50" cy="50" r="14" fill="none" stroke="#cdb6ff" stroke-width="4"/>',
+                'linear-gradient(145deg,#8f6bff,#3a1d6e)');
         },
         noodle: function () {
             return svg('<g fill="none" stroke="#fff3fb" stroke-width="9" stroke-linecap="round" opacity=".92">' +
@@ -308,7 +324,7 @@
     }
 
     function fillMedia(slot) {
-        slot.innerHTML = SHAPES.coin();
+        slot.innerHTML = SHAPES.film();
         if (!window.lucidMedia) return;
         window.lucidMedia().then(function (data) {
             var works = (data.works || []).filter(function (w) { return w && w.featured && (w.preview || w.poster); });
@@ -362,19 +378,17 @@
             var btn = el('button', 'bit');
             btn.type = 'button';
             btn.id = 'bit-' + b.id;
-            btn.style.left = (b.x * 100) + '%';
-            btn.style.top = (b.y * 100) + '%';
-            // Nearer the front of the bowl is nearer you: a little larger, and
-            // in front of whatever is behind it.
-            btn.style.setProperty('--s', (0.9 + b.y * 0.2).toFixed(3));
-            btn.style.zIndex = String(10 + Math.round(b.y * 80));
             btn.setAttribute('aria-label', b.label + (b.sub ? ' — ' + b.sub : ''));
 
             var float = el('div', 'bit-float');
             float.style.setProperty('--dur', (6.2 + (i % 5) * 1.3).toFixed(1) + 's');
             float.style.setProperty('--delay', (-i * 0.83).toFixed(2) + 's');
-            float.style.setProperty('--dx', (5 + (i % 4) * 3) + 'px');
+            float.style.setProperty('--dx', (3 + (i % 4) * 2) + 'px');
 
+            float.appendChild(el('div', 'bit-label',
+                esc(b.label) + (b.sub ? '<small>' + esc(b.sub) + '</small>' : '')));
+
+            var disc = el('div', 'bit-disc');
             var shape = el('div', 'bit-shape');
             // Sized against the bowl rather than the screen: `d` is the piece's
             // diameter when the bowl is at its full 880, and shrinks with it.
@@ -383,17 +397,16 @@
             if (b.kind === 'shader') fillShader(shape);
             else if (b.kind === 'media') fillMedia(shape);
             else shape.innerHTML = (SHAPES[b.shape] || SHAPES.pea)();
-            float.appendChild(shape);
-
-            var ring = el('div', 'bit-ring');
-            ring.style.setProperty('--d', 'max(30px, ' + (b.d / 880 * 100).toFixed(3) + 'cqw)');
-            float.appendChild(ring);
-
-            float.appendChild(el('div', 'bit-label',
-                esc(b.label) + (b.sub ? '<small>' + esc(b.sub) + '</small>' : '')));
+            disc.appendChild(shape);
+            disc.appendChild(el('div', 'bit-ring'));
+            float.appendChild(disc);
             btn.appendChild(float);
 
             btn.addEventListener('click', function () { dive(b, btn); });
+            btn.addEventListener('mouseenter', function () { stir(false); });
+            btn.addEventListener('mouseleave', function () { stir(true); });
+            btn.addEventListener('focus', function () { stir(false); });
+            btn.addEventListener('blur', function () { stir(true); });
             bits.appendChild(btn);
             bitEls.push(btn);
         });
@@ -402,12 +415,131 @@
         host.insertBefore(bowl, host.firstChild);
         host.classList.add('built');
 
+        measure();
+        lastT = 0;
+        place(performance.now());          // placed before the first frame
+        if (!reduced) swirlRaf = requestAnimationFrame(swirl);
+
         veil = el('div');
         veil.id = 'soup-veil';
         document.body.appendChild(veil);
 
         startBroth(canvas);
     }
+
+    /* ---------------- the swirl ----------------
+       The pieces go round the bowl. Each ring carries its own accumulated
+       phase rather than reading the clock, so that slowing the flow eases it
+       to a stop where it is instead of snapping back to the start.
+
+       And it does stop: pointing at any piece halts the whole bowl, like
+       putting a spoon in. Halting only the piece under the pointer would tear
+       it out of its orbit, and halting nothing would leave every target
+       moving, which is the fastest way to make a playful thing annoying. The
+       flow is shared, so what you reach for stays where you reached. */
+    var phase = RINGS.map(function () { return 0; });
+    var flow = 1, flowTo = 1, swirlRaf = 0, lastT = 0;
+    var box = { w: 0, h: 0 };
+
+    function measure() {
+        if (!bowl) return;
+        var r = bowl.getBoundingClientRect();
+        box.w = r.width; box.h = r.height;
+        // Sizes come from the stylesheet (the shapes are in cqw), so they are
+        // read back rather than assumed, and re-read whenever the bowl resizes.
+        bitEls.forEach(function (e) {
+            var sh = e.querySelector('.bit-shape').getBoundingClientRect();
+            var lb = e.querySelector('.bit-label').getBoundingClientRect();
+            e._r0 = sh.width / 2;
+            e._lw = lb.width; e._lh = lb.height;
+        });
+    }
+
+    function place(now) {
+        var dt = lastT ? Math.min((now - lastT) / 1000, 0.1) : 0;
+        lastT = now;
+        flow += (flowTo - flow) * Math.min(1, dt * 6);
+        if (Math.abs(flowTo - flow) < 0.002) flow = flowTo;
+
+        for (var k = 0; k < RINGS.length; k++) phase[k] += dt * flow / RINGS[k].secs;
+
+        for (var i = 0; i < BITS.length; i++) {
+            var e = bitEls[i];
+            if (!e || e.classList.contains('chosen')) continue;
+            var b = BITS[i], R = RINGS[b.ring];
+            var th = (b.a + phase[b.ring]) * Math.PI * 2;
+            var x = 0.5 + R.r * Math.cos(th);
+            var y = 0.5 + R.r * Math.sin(th);
+            // Depth. The bowl is squashed hard by the perspective, so two
+            // pieces passing are only tens of pixels apart vertically and a
+            // subtle size difference read as a collision rather than as one
+            // sliding under the other. Size and opacity both carry it now.
+            var sc = 0.74 + y * 0.50;
+            // The button's box is the label stacked on the disc, so centring
+            // the box puts the disc half a label below the orbit — which at the
+            // bottom of the ring was carrying pieces over the rim. Shift back
+            // by half the label's height so what rides the orbit is the disc.
+            var off = ((e._lh || 0) + 5) / 2 * (e.classList.contains('under') ? 1 : -1);
+            e.style.transform = 'translate3d(' + (x * box.w).toFixed(1) + 'px,' +
+                (y * box.h).toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + sc.toFixed(3) +
+                ') translateY(' + off.toFixed(1) + 'px)';
+            e.style.opacity = (0.72 + y * 0.28).toFixed(3);
+            e.style.zIndex = String(10 + Math.round(y * 80));
+            e._at = { x: x, y: y };
+            e._px = x * box.w; e._py = y * box.h; e._sc = sc;
+        }
+
+        // A label only steps aside when something actually in front of it
+        // would print over it. A rough proximity box hid far too many at once;
+        // this tests the label's real rectangle against the other piece's
+        // disc, so most passes cost no legibility at all.
+        for (i = 0; i < bitEls.length; i++) {
+            var a = bitEls[i];
+            if (!a || a.classList.contains('chosen') || a._px === undefined) continue;
+            var ar = (a._r0 || 0) * a._sc;
+            var x0 = a._px - (a._lw || 0) / 2, x1 = a._px + (a._lw || 0) / 2;
+            // The label rides above its piece. A label below sat exactly where
+            // the next piece round the bowl was coming up to cover it; above,
+            // the only things near it are further back, so its own piece's
+            // z-index draws it over them and it stays readable.
+            var y1 = a._py - ar - 5, y0 = y1 - (a._lh || 0);
+            // Over the rim: put it underneath this piece instead, and test it
+            // where it will actually sit.
+            var under = y0 < 2;
+            a.classList.toggle('under', under);
+            if (under) { y0 = a._py + ar + 5; y1 = y0 + (a._lh || 0); }
+            var hide = false;
+            for (var j = 0; j < bitEls.length && !hide; j++) {
+                if (j === i) continue;
+                var c = bitEls[j];
+                if (!c || c._px === undefined || c._py <= a._py) continue;   // not in front
+                var qx = Math.max(x0, Math.min(c._px, x1));
+                var qy = Math.max(y0, Math.min(c._py, y1));
+                if (Math.hypot(c._px - qx, c._py - qy) < (c._r0 || 0) * c._sc * 0.94) hide = true;
+            }
+            a.classList.toggle('behind', hide);
+        }
+    }
+
+    function swirl(now) {
+        swirlRaf = 0;
+        if (paused || !bowl) { lastT = 0; return; }
+        place(now);
+        // Come to rest and there is nothing left to compute until something
+        // asks it to move again.
+        if (flow === 0 && flowTo === 0) { lastT = 0; return; }
+        swirlRaf = requestAnimationFrame(swirl);
+    }
+    function stir(on) {
+        if (reduced) return;
+        flowTo = on ? 1 : 0;
+        if (!paused && !swirlRaf) swirlRaf = requestAnimationFrame(swirl);
+    }
+
+    window.addEventListener('resize', function () {
+        measure();
+        if (!swirlRaf) { lastT = 0; place(performance.now()); }
+    });
 
     /* ---------------- going under ---------------- */
     var diving = false;
@@ -416,14 +548,26 @@
         diving = true;
 
         // Plunge in at the piece rather than at the middle of the bowl, so the
-        // thing you picked is the thing you go through.
-        bowl.style.transformOrigin = (b.x * 100) + '% ' + (b.y * 100) + '%';
+        // thing you picked is the thing you go through. It is wherever its
+        // orbit had carried it, not where it started.
+        var at = btn._at || { x: .5, y: .5 };
+        bowl.style.transformOrigin = (at.x * 100) + '% ' + (at.y * 100) + '%';
+        btn.style.zIndex = '999';
         var r = btn.getBoundingClientRect();
         veil.style.setProperty('--vx', ((r.left + r.width / 2) / window.innerWidth * 100).toFixed(1) + '%');
         veil.style.setProperty('--vy', ((r.top + r.height / 2) / window.innerHeight * 100).toFixed(1) + '%');
 
+        stir(false);
         btn.classList.add('chosen');
         host.classList.add('diving');
+        // Off the ring and past you, from wherever it had drifted to.
+        if (!reduced) {
+            btn.style.transition = 'transform .55s cubic-bezier(.6,0,.85,.3), opacity .5s ease .12s';
+            btn.style.transform = 'translate3d(' + (at.x * box.w).toFixed(1) + 'px,' +
+                (at.y * box.h).toFixed(1) + 'px,0) translate(-50%,-50%) scale(' +
+                (0.74 + at.y * 0.50) * 3.4 + ')';
+            btn.style.opacity = '0';
+        }
         setTimeout(function () { veil.classList.add('on'); }, reduced ? 0 : 190);
 
         setTimeout(function () {
@@ -438,7 +582,14 @@
 
     function surfaced() {
         host.classList.remove('diving');
-        bitEls.forEach(function (x) { x.classList.remove('chosen'); });
+        bitEls.forEach(function (x) {
+            x.classList.remove('chosen');
+            x.style.transition = ''; x.style.opacity = ''; x.style.zIndex = '';
+        });
+        measure();
+        lastT = 0;
+        place(performance.now());
+        stir(true);
         veil.classList.remove('on');
         diving = false;
     }
@@ -467,6 +618,8 @@
     // Nothing in the bowl should be drawing while the bowl is not on screen.
     function pause(on) {
         paused = on;
+        if (on) { if (swirlRaf) { cancelAnimationFrame(swirlRaf); swirlRaf = 0; } lastT = 0; }
+        else if (!reduced && !swirlRaf) { measure(); swirlRaf = requestAnimationFrame(swirl); }
         if (brothStop) { if (on) brothStop.stop(); else brothStop.start(); }
         shaderBits.forEach(function (s) { if (on) s.halt(); else s.go(); });
         videoBits.forEach(function (v) {
@@ -492,6 +645,14 @@
 
     window.lucidSoup = {
         bits: function () { return BITS.slice(); },
+        rings: function () { return RINGS.slice(); },
+        flow: function () { return flow; },
+        running: function () { return !!swirlRaf; },
+        // Exposed for tests: jump the orbits on by N seconds of flow.
+        spin: function (secs) {
+            for (var k = 0; k < RINGS.length; k++) phase[k] += secs / RINGS[k].secs;
+            lastT = 0; place(performance.now());
+        },
         dive: function (id) {
             var i = BITS.map(function (b) { return b.id; }).indexOf(id);
             if (i >= 0) dive(BITS[i], bitEls[i]);
