@@ -321,28 +321,52 @@ labyrinth, which asked for patience again before it would hand over a drum
 machine. That is a great deal to ask of somebody who arrived to look at some
 visuals. A bowl asks for nothing.
 
+**The pieces go round.** Three rings turn at three speeds, inner fastest, which
+is how liquid in a round vessel moves and what the broth shader underneath is
+already doing. `RINGS` holds the radii and periods; a full turn of the outer
+ring takes nearly three minutes, so a piece drifts about 11px a second and is
+easy to catch.
+
 **Adding a page means adding a piece**, in the `BITS` list in `soup.js`:
 
 ```js
 { id: 'thing', label: 'Thing', sub: 'what it is',
   hash: 'thing',            // a section on this page …
   href: 'thing/',           // … or another page; one or the other
-  shape: 'coin', d: 70, x: .42, y: .55 }
+  shape: 'pea', d: 70, ring: 1, a: .25 }
 ```
 
-`x` and `y` are in bowl coordinates, 0 to 1 across its box, and every piece has
-to sit inside the ellipse — `((x-.5)/.5)² + ((y-.5)/.5)² < 1`. The positions are
-placed by hand and not scattered by code, because eleven things in one ellipse
-is a composition and a random one is a mess. There is a test that checks the
-ellipse, the overlaps and that every piece resolves to something real. `d` is
-the piece's diameter at the bowl's full width; it is converted to `cqw` so the
+`ring` picks the orbit and `a` is where on it the piece starts, in turns from 0
+to 1. Space the `a` values on a ring evenly or same-ring pieces will travel
+locked together. A ring radius has to stay under `.5` or the orbit leaves the
+bowl; `.46` is about the limit before a large piece starts clipping the rim.
+`d` is the piece's diameter at the bowl's full width, converted to `cqw` so the
 whole arrangement scales with the bowl instead of piling up on a small window.
 
-Three things worth knowing:
+There is a test that sweeps a whole cycle — 720 phases — and checks that no
+piece leaves the ellipse, that same-ring pieces never collide, how often
+different rings pass (about one pair at a time, which is what a bowl does), and
+that every piece resolves to something real.
 
-- **A piece stops moving when you point at it.** Chasing a drifting target is
-  the fastest way to make a playful thing annoying, so hovering or focusing
-  pauses that piece's animation where it stands.
+Four things worth knowing:
+
+- **Pointing at a piece stops the whole bowl**, like putting a spoon in, and
+  letting go starts it again. Stopping only the piece under the pointer would
+  tear it out of its orbit; stopping nothing would leave every target moving,
+  which is the fastest way to make a playful thing annoying.
+- **Depth does the work when two pieces pass.** The bowl is squashed hard by
+  the perspective, so pieces crossing are only tens of pixels apart vertically;
+  size and opacity both run with `y` so one visibly slides under the other
+  instead of colliding with it.
+- **Labels ride above their piece, on a pill.** Below, a label sat exactly
+  where the next piece round was coming up to cover it, and a third of them
+  were hidden at any moment; above, the only things near a label are further
+  back, so its own z-index draws it over them. The pill is what makes a name
+  crossing another piece's face read as a label rather than a collision. Near
+  the top of an orbit it flips underneath so it does not hang over the rim.
+- **What rides the orbit is the disc, not the button.** The button's box is the
+  label stacked on the piece, so centring the box put the piece half a label
+  below its orbit and carried the outer ring over the rim at the bottom.
 - **The landing needs its own scrim.** The visual engine's sliders write
   `opacity` and `mix-blend-mode` onto `#visual-canvas` as inline style, which no
   stylesheet can outrank, and `screen` is bright enough to swallow body text.
