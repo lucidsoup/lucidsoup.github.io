@@ -824,7 +824,7 @@ const said = (txt) => { if (txt !== lastSaid) { lastSaid = txt; log(`» ${txt}`)
 const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; said(`[${k}] ${TEXT.en[k] ?? k}${arg}`); };
 const say = (txt) => { lastKey = null; $("status").textContent = txt; said(txt); };
 let image = null;
-const meta = {"version": "0.1", "product": "FM-1_900", "pkg": "../../firmware/synthsoup-0.1.fwsc"};
+const meta = {"version": "0.2", "product": "FM-1_900", "pkg": "../../firmware/synthsoup-0.2.fwsc?v=c7e69ce7cf"};
 
 let writing = false, stock = null, stockFileEpoch = 0;
 const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on; $("revert").disabled = on; };

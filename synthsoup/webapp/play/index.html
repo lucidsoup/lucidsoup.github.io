@@ -252,7 +252,7 @@ footer small { font-size: 11px; opacity: .8; }
 
 <footer>
   <nav><a href="../../">SynthSoup home</a> · <a href="../installer/">Install</a> · <a href="../editor/">Editor</a></nav>
-  <small class="version">SynthSoup 0.1 on Felucca v1.5.1 (preview)</small><br>
+  <small class="version">SynthSoup 0.2 on Felucca v1.5.1 (preview)</small><br>
   Built on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments · SID engine from <a href="https://github.com/keremimo/melodee">Melodee</a> · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> · browser build after charlesvestal's <a href="https://github.com/charlesvestal/fm1-x0x">X0X</a> · DotGothic16 font, SIL OFL 1.1<br>
   <small>M-VAVE and FM-1 are trademarks of their respective owners. SynthSoup is not affiliated with or endorsed by them. Untested on hardware.</small>
 </footer>
@@ -987,7 +987,7 @@ async function switchOn() {
   try {
     if (!ac) audioStart();
     const [wasm] = await Promise.all([
-      fetch("felucca.wasm?v=124c09fc49").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
+      fetch("felucca.wasm?v=7cfc349581").then((r) => { if (!r.ok) throw new Error(`felucca.wasm: ${r.status}`); return r.arrayBuffer(); }),
       ac.audioWorklet.addModule("worklet.js?v=5f344cc676")]);
     node = new AudioWorkletNode(ac, "felucca", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
     node.connect(ac.destination);
