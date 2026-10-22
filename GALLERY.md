@@ -354,6 +354,14 @@ Four things worth knowing:
   letting go starts it again. Stopping only the piece under the pointer would
   tear it out of its orbit; stopping nothing would leave every target moving,
   which is the fastest way to make a playful thing annoying.
+  **A piece arriving at a parked pointer does not count**, and that distinction
+  is load-bearing: stopping on any `mouseenter` deadlocked every desktop. A
+  pointer left anywhere over the bowl eventually has a piece orbit into it, the
+  bowl stops, and that piece is now parked under the pointer forever, because
+  `mouseleave` can never fire. Phones have no hover, so the bowl kept turning
+  there and only there. An enter counts only if the pointer moved in the last
+  1.5 seconds; a `mousemove` on the piece counts too, which covers waking a
+  parked pointer without leaving the piece it is sitting on.
 - **Depth does the work when two pieces pass.** The bowl is squashed hard by
   the perspective, so pieces crossing are only tens of pixels apart vertically;
   size and opacity both run with `y` so one visibly slides under the other

@@ -403,7 +403,8 @@
             btn.appendChild(float);
 
             btn.addEventListener('click', function () { dive(b, btn); });
-            btn.addEventListener('mouseenter', function () { stir(false); });
+            btn.addEventListener('mouseenter', function () { if (deliberate()) stir(false); });
+            btn.addEventListener('mousemove', function () { stir(false); });
             btn.addEventListener('mouseleave', function () { stir(true); });
             btn.addEventListener('focus', function () { stir(false); });
             btn.addEventListener('blur', function () { stir(true); });
@@ -535,6 +536,23 @@
         flowTo = on ? 1 : 0;
         if (!paused && !swirlRaf) swirlRaf = requestAnimationFrame(swirl);
     }
+
+    /* Pointing at a piece has to mean pointing at it.
+
+       Stopping the bowl on any mouseenter looked right and deadlocked the
+       whole thing on every desktop: a pointer left anywhere over the bowl
+       eventually has a piece orbit into it, which stops the bowl, which parks
+       that piece under the pointer forever — mouseleave never fires, so it
+       never starts again. On a phone there is no hover, so the bowl kept
+       turning there and only there.
+
+       So an enter only counts if the pointer was moving just before it. A
+       piece arriving at a parked pointer passes under it; a pointer arriving
+       at a piece stops it. Moving within a piece counts too, which covers
+       waking a parked pointer up without leaving the piece it is sitting on. */
+    var lastMove = 0;
+    document.addEventListener('mousemove', function () { lastMove = Date.now(); }, { passive: true });
+    function deliberate() { return Date.now() - lastMove < 1500; }
 
     window.addEventListener('resize', function () {
         measure();
