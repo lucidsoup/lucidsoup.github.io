@@ -350,10 +350,28 @@ that every piece resolves to something real.
 
 Four things worth knowing:
 
+- **The system's motion preference is the default, not the verdict.** A machine
+  asking for reduced motion gets a bowl that holds still, which is right — and
+  a bowl that can never be made to turn is a worse answer than one that asks.
+  The spoon under the bowl flips it either way and the choice is remembered in
+  `localStorage` under `lucid.stir`. The stylesheet keys off `lucid-still` on
+  `<html>` rather than the media query directly, with `lucid-stirred` marking
+  "the viewer overruled their system", which is what lets the media query stand
+  down. Turning motion back on has to restart the broth, the live pieces and
+  the orbits by hand: they are all started lazily, so flipping the flag alone
+  leaves a bowl that is allowed to move and isn't.
 - **Pointing at a piece stops the whole bowl**, like putting a spoon in, and
   letting go starts it again. Stopping only the piece under the pointer would
   tear it out of its orbit; stopping nothing would leave every target moving,
   which is the fastest way to make a playful thing annoying.
+  **A piece arriving at a parked pointer does not count**, and that distinction
+  is load-bearing: stopping on any `mouseenter` deadlocked every desktop. A
+  pointer left anywhere over the bowl eventually has a piece orbit into it, the
+  bowl stops, and that piece is now parked under the pointer forever, because
+  `mouseleave` can never fire. Phones have no hover, so the bowl kept turning
+  there and only there. An enter counts only if the pointer moved in the last
+  1.5 seconds; a `mousemove` on the piece counts too, which covers waking a
+  parked pointer without leaving the piece it is sitting on.
 - **Depth does the work when two pieces pass.** The bowl is squashed hard by
   the perspective, so pieces crossing are only tens of pixels apart vertically;
   size and opacity both run with `y` so one visibly slides under the other
@@ -363,7 +381,24 @@ Four things worth knowing:
   were hidden at any moment; above, the only things near a label are further
   back, so its own z-index draws it over them. The pill is what makes a name
   crossing another piece's face read as a label rather than a collision. Near
-  the top of an orbit it flips underneath so it does not hang over the rim.
+  the top of an orbit it flips underneath so it does not hang over the rim. A
+  label steps aside for a piece in front of it, and for another label that
+  genuinely covers it — more than a third of its area, because two pills
+  clipping corners reads as stacked chips and hiding on any touch at all put a
+  third of the names out at once.
+- **Floating is four cheap cues, not one expensive one.** The disc is squashed
+  vertically, because a thing lying on a surface seen from this angle is
+  foreshortened — that single `scaleY` does more than any amount of shading.
+  Then: a waterline across each piece with everything below it tinted toward
+  the broth, a ring of surface tension around it at that line, and a soft dark
+  mass under it where it displaces the soup. The waterline layer is taller than
+  the piece it sits in so it can rock without dragging a hard edge into view.
+- **The soup answers the pointer.** The broth shader takes the pointer as a
+  uniform and stirs harder where it is, and pieces within about 170px give way,
+  smoothstepped so the whole reach is felt rather than only the last few
+  pixels. The piece actually under the pointer is exempt: it is held still so
+  it stays easy to click, which is the same bargain the flow makes. None of it
+  runs when the bowl is set still.
 - **What rides the orbit is the disc, not the button.** The button's box is the
   label stacked on the piece, so centring the box put the piece half a label
   below its orbit and carried the outer ring over the rim at the bottom.
