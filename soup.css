@@ -29,7 +29,7 @@
        off the bottom of a short window. aspect-ratio turns width into height,
        so the cap is written as a width. */
     --soup-squash: .68;
-    --soup-reserve: 330px;
+    --soup-reserve: 384px;
     width: min(92vw, 880px, calc((100vh - var(--soup-reserve)) / var(--soup-squash)));
     margin: 0 auto;
     /* The pieces are sized in cqw against this box, so a narrower bowl holds
@@ -190,7 +190,47 @@
     overflow: hidden;
     background: radial-gradient(70% 70% at 34% 28%, rgba(255,255,255,.3), transparent 62%);
 }
-.bit-disc { position: relative; line-height: 0; }
+/* A thing lying on a surface seen from this angle is foreshortened, so the
+   whole disc — piece, meniscus and shadow together — is squashed. This one
+   change does more than any amount of shading to put the pieces *on* the broth
+   rather than in front of it. */
+.bit-disc { position: relative; line-height: 0; transform: scaleY(.86); }
+
+/* What the piece is doing to the soup: a soft dark mass under it where it
+   displaces the broth, and the ring of surface tension pulled up around it at
+   the waterline. */
+.bit-disc::before {
+    content: ''; position: absolute; left: 2%; right: 2%; bottom: -16%;
+    height: 42%; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(5, 2, 14, .62), transparent 74%);
+    filter: blur(5px);
+    pointer-events: none;
+}
+.bit-disc::after {
+    content: ''; position: absolute; left: -15%; right: -15%; top: 40%;
+    height: 40%; border-radius: 50%;
+    border: 1px solid rgba(186, 160, 255, .22);
+    border-top-color: rgba(222, 206, 255, .46);
+    pointer-events: none;
+}
+
+/* And what the soup is doing to the piece: everything below the waterline is
+   under it. The layer is taller than the piece so the line can rock without
+   dragging a hard edge into view. */
+.bit-water {
+    position: absolute; left: 0; right: 0; top: -14%; height: 128%;
+    pointer-events: none;
+    background: linear-gradient(180deg,
+        transparent 0 57%,
+        rgba(214, 196, 255, .52) 57% 58.3%,
+        rgba(74, 38, 136, .34) 58.3%,
+        rgba(28, 12, 58, .52) 100%);
+    animation: waterline 6.5s ease-in-out infinite;
+}
+@keyframes waterline {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(2.6px); }
+}
 .bit-shape svg { width: 100%; height: 100%; display: block; }
 .bit-shape video, .bit-shape canvas, .bit-shape img {
     position: absolute; inset: 0; width: 100%; height: 100%;
@@ -311,7 +351,7 @@ body.focused.soup-arrive section:not([hidden]) { animation: surface .85s cubic-b
 @media (max-width: 640px) {
     /* Nearly square on a phone: you are looking further down into the bowl,
        which is the only way a portrait screen gives eleven things room. */
-    #soup { --soup-squash: .98; --soup-reserve: 210px; width: min(96vw, calc((100vh - 210px) / .98)); }
+    #soup { --soup-squash: .98; --soup-reserve: 256px; width: min(96vw, calc((100vh - 256px) / .98)); }
     .bowl { height: 82%; }
     .bit-label { font-size: 8.5px; letter-spacing: .12em; }
     .bit-label small { display: none; }
@@ -327,6 +367,7 @@ body.focused.soup-arrive section:not([hidden]) { animation: surface .85s cubic-b
 @media (prefers-reduced-motion: reduce) {
     :root:not(.lucid-stirred) .bit-float,
     :root:not(.lucid-stirred) .steam i,
+    :root:not(.lucid-stirred) .bit-water,
     :root:not(.lucid-stirred) .bit-ring { animation: none !important; }
     :root:not(.lucid-stirred) .bowl,
     :root:not(.lucid-stirred) .bit-float,
@@ -334,6 +375,7 @@ body.focused.soup-arrive section:not([hidden]) { animation: surface .85s cubic-b
 }
 :root.lucid-still .bit-float,
 :root.lucid-still .steam i,
+:root.lucid-still .bit-water,
 :root.lucid-still .bit-ring { animation: none !important; }
 :root.lucid-still .bowl,
 :root.lucid-still .bit-float,
@@ -349,7 +391,10 @@ body.focused.soup-arrive section:not([hidden]) { animation: surface .85s cubic-b
    so without changing a system-wide accessibility setting, and someone who
    wants it to hold still should be able to say that too. */
 #soup-stir {
-    display: block; margin: 1rem auto 0;
+    /* The bowl fills #soup's box, so this has to be hung off the bottom of it
+       rather than laid out after it, or it lands on the broth. */
+    position: absolute; left: 50%; bottom: -40px; transform: translateX(-50%);
+    white-space: nowrap;
     background: rgba(9, 4, 20, .55);
     border: 1px solid rgba(155,123,255,.22); border-radius: 999px;
     color: rgba(236,230,255,.5);
@@ -357,10 +402,10 @@ body.focused.soup-arrive section:not([hidden]) { animation: surface .85s cubic-b
     font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
     padding: 7px 15px; cursor: pointer; line-height: 1;
     transition: color .2s, border-color .2s, background .2s, opacity .2s;
-    position: relative; z-index: 4;
+    z-index: 4;
 }
 #soup-stir:hover, #soup-stir:focus-visible {
     color: #d9ffb8; border-color: rgba(138,224,75,.6);
     background: rgba(12, 26, 6, .8); outline: none;
 }
-@media (max-width: 640px) { #soup-stir { font-size: 9px; padding: 6px 13px; } }
+@media (max-width: 640px) { #soup-stir { font-size: 9px; padding: 6px 13px; bottom: -34px; } }

@@ -171,6 +171,7 @@
     var BROTH = [
         'precision mediump float;',
         'uniform vec2 iResolution; uniform float iTime;',
+        'uniform vec2 iPtr; uniform float iPtrOn;',
         'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
         'float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);',
         '  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),',
@@ -183,7 +184,10 @@
         // Stirring: the whole field turns, faster near the middle, so it reads
         // as liquid in a round vessel rather than as drifting clouds.
         '  float r = length(uv);',
-        '  float a = atan(uv.y, uv.x) + t * (1.6 - min(r, 1.0));',
+        // Where the pointer is, the soup is stirred harder and lit a little:
+        // a finger drawn through it, falling off fast.
+        '  float poke = iPtrOn * exp(-dot(uv - iPtr, uv - iPtr) * 30.0);',
+        '  float a = atan(uv.y, uv.x) + t * (1.6 - min(r, 1.0)) + poke * 1.1;',
         '  vec2 p = vec2(cos(a), sin(a)) * r * 2.6;',
         '  vec2 q = vec2(fbm(p + t), fbm(p + vec2(3.1, 1.7) - t));',
         '  vec2 s = vec2(fbm(p + 2.4 * q + vec2(1.7, 9.2) + t * 0.6),',
@@ -200,6 +204,7 @@
         '  float fil = smoothstep(0.015, 0.0, abs(length(s - 0.5) - 0.26));',
         '  col += acid * fil * 0.55;',
         '  col += vec3(0.44, 0.89, 0.91) * smoothstep(0.86, 1.0, f) * 0.35;',
+        '  col += vec3(0.52, 0.86, 0.95) * poke * 0.16;',
         // Darker at the edge: the broth is deeper where the bowl curves away.
         '  col *= 1.0 - 0.38 * smoothstep(0.55, 0.98, r);',
         '  gl_FragColor = vec4(col, 1.0);',
@@ -238,6 +243,8 @@
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
         var uR = gl.getUniformLocation(pr, 'iResolution');
         var uT = gl.getUniformLocation(pr, 'iTime');
+        var uP = gl.getUniformLocation(pr, 'iPtr');
+        var uPO = gl.getUniformLocation(pr, 'iPtrOn');
 
         var t0 = Date.now(), raf = 0, last = 0, running = false;
 
@@ -256,6 +263,13 @@
             size();
             gl.uniform2f(uR, canvas.width, canvas.height);
             gl.uniform1f(uT, (Date.now() - t0) / 1000);
+            // Into the shader's own space: centred, scaled by the short side,
+            // and flipped, because gl_FragCoord counts up from the bottom.
+            var cr = canvas.getBoundingClientRect();
+            var m = Math.min(cr.width, cr.height) || 1;
+            gl.uniform2f(uP, (ptr.px - (cr.left + cr.width / 2)) / m,
+                             -(ptr.py - (cr.top + cr.height / 2)) / m);
+            gl.uniform1f(uPO, ptr.glow);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
         }
         function frame(now) {
@@ -421,15 +435,24 @@
             if (b.kind === 'shader') fillShader(shape);
             else if (b.kind === 'media') fillMedia(shape);
             else shape.innerHTML = (SHAPES[b.shape] || SHAPES.pea)();
+            // The waterline goes in after the artwork and before the gloss,
+            // which .bit-shape::after paints last.
+            shape.appendChild(el('div', 'bit-water'));
             disc.appendChild(shape);
             disc.appendChild(el('div', 'bit-ring'));
             float.appendChild(disc);
             btn.appendChild(float);
 
             btn.addEventListener('click', function () { dive(b, btn); });
-            btn.addEventListener('mouseenter', function () { if (deliberate()) stir(false); });
-            btn.addEventListener('mousemove', function () { stir(false); });
-            btn.addEventListener('mouseleave', function () { stir(true); });
+            btn.addEventListener('mouseenter', function () {
+                hoverEl = btn;
+                if (deliberate()) stir(false);
+            });
+            btn.addEventListener('mousemove', function () { hoverEl = btn; stir(false); });
+            btn.addEventListener('mouseleave', function () {
+                if (hoverEl === btn) hoverEl = null;
+                stir(true);
+            });
             btn.addEventListener('focus', function () { stir(false); });
             btn.addEventListener('blur', function () { stir(true); });
             bits.appendChild(btn);
@@ -439,6 +462,9 @@
 
         host.insertBefore(bowl, host.firstChild);
         host.classList.add('built');
+
+        host.addEventListener('mousemove', trackPointer);
+        host.addEventListener('mouseleave', dropPointer);
 
         measure();
         lastT = 0;
@@ -469,6 +495,13 @@
        it out of its orbit, and halting nothing would leave every target
        moving, which is the fastest way to make a playful thing annoying. The
        flow is shared, so what you reach for stays where you reached. */
+    /* The pointer, in page coordinates, plus how strongly the soup is currently
+       answering it. `glow` eases so that arriving and leaving are a swell and a
+       fade rather than a switch. */
+    var ptr = { px: -9999, py: -9999, x: 0, y: 0, on: false, glow: 0 };
+    var hoverEl = null;
+    var WAKE_R = 170, WAKE_PUSH = 26;
+
     var phase = RINGS.map(function () { return 0; });
     var flow = 1, flowTo = 1, swirlRaf = 0, lastT = 0;
     var box = { w: 0, h: 0 };
@@ -495,6 +528,11 @@
 
         for (var k = 0; k < RINGS.length; k++) phase[k] += dt * flow / RINGS[k].secs;
 
+        var want = (ptr.on && !still) ? 1 : 0;
+        ptr.glow += (want - ptr.glow) * Math.min(1, dt * 4);
+        if (Math.abs(want - ptr.glow) < 0.004) ptr.glow = want;
+        wakeEnergy = ptr.glow;
+
         for (var i = 0; i < BITS.length; i++) {
             var e = bitEls[i];
             if (!e || e.classList.contains('chosen')) continue;
@@ -506,60 +544,97 @@
             // pieces passing are only tens of pixels apart vertically and a
             // subtle size difference read as a collision rather than as one
             // sliding under the other. Size and opacity both carry it now.
+            // The wake. Pieces near the pointer give way, as if something were
+            // being drawn through the soup — except the one actually under it,
+            // which is held still so it stays easy to click. Vertical push is
+            // damped, because the surface is seen almost edge on.
+            var wx = 0, wy = 0;
+            if (ptr.on && !still && e !== hoverEl) {
+                var dxp = (x * box.w) - ptr.x, dyp = (y * box.h) - ptr.y;
+                var dd = Math.sqrt(dxp * dxp + dyp * dyp);
+                if (dd < WAKE_R && dd > 0.001) {
+                    // Smoothstep rather than a square: squared falloff meant
+                    // only a piece almost under the pointer felt anything, so
+                    // the soup looked inert until you were already on top of
+                    // something. This gives way across the whole reach.
+                    var u = 1 - dd / WAKE_R;
+                    var kk = u * u * (3 - 2 * u) * WAKE_PUSH;
+                    wx = dxp / dd * kk; wy = dyp / dd * kk * 0.5;
+                }
+            }
+            var ease = Math.min(1, dt * 7);
+            e._wx = (e._wx || 0) + (wx - (e._wx || 0)) * ease;
+            e._wy = (e._wy || 0) + (wy - (e._wy || 0)) * ease;
+            if (Math.abs(e._wx) + Math.abs(e._wy) > 0.25) wakeEnergy = 1;
+
             var sc = 0.74 + y * 0.50;
             // The button's box is the label stacked on the disc, so centring
             // the box puts the disc half a label below the orbit — which at the
             // bottom of the ring was carrying pieces over the rim. Shift back
             // by half the label's height so what rides the orbit is the disc.
             var off = ((e._lh || 0) + 5) / 2 * (e.classList.contains('under') ? 1 : -1);
-            e.style.transform = 'translate3d(' + (x * box.w).toFixed(1) + 'px,' +
-                (y * box.h).toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + sc.toFixed(3) +
+            e.style.transform = 'translate3d(' + (x * box.w + e._wx).toFixed(1) + 'px,' +
+                (y * box.h + e._wy).toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + sc.toFixed(3) +
                 ') translateY(' + off.toFixed(1) + 'px)';
             e.style.opacity = (0.72 + y * 0.28).toFixed(3);
             e.style.zIndex = String(10 + Math.round(y * 80));
-            e._at = { x: x, y: y };
-            e._px = x * box.w; e._py = y * box.h; e._sc = sc;
+            e._at = { x: x + e._wx / box.w, y: y + e._wy / box.h };
+            e._px = x * box.w + e._wx; e._py = y * box.h + e._wy; e._sc = sc;
         }
 
         // A label only steps aside when something actually in front of it
-        // would print over it. A rough proximity box hid far too many at once;
-        // this tests the label's real rectangle against the other piece's
-        // disc, so most passes cost no legibility at all.
+        // would print over it: the other piece's disc, or the other piece's
+        // own label. A rough proximity box hid far too many at once; these are
+        // the real rectangles, so most passes cost no legibility at all.
         for (i = 0; i < bitEls.length; i++) {
-            var a = bitEls[i];
-            if (!a || a.classList.contains('chosen') || a._px === undefined) continue;
-            var ar = (a._r0 || 0) * a._sc;
-            var x0 = a._px - (a._lw || 0) / 2, x1 = a._px + (a._lw || 0) / 2;
-            // The label rides above its piece. A label below sat exactly where
-            // the next piece round the bowl was coming up to cover it; above,
-            // the only things near it are further back, so its own piece's
-            // z-index draws it over them and it stays readable.
-            var y1 = a._py - ar - 5, y0 = y1 - (a._lh || 0);
+            var la = bitEls[i];
+            if (!la || la._px === undefined) { if (la) la._lab = null; continue; }
+            var lr = (la._r0 || 0) * la._sc;
+            var ly1 = la._py - lr - 5, ly0 = ly1 - (la._lh || 0);
             // Over the rim: put it underneath this piece instead, and test it
             // where it will actually sit.
-            var under = y0 < 2;
-            a.classList.toggle('under', under);
-            if (under) { y0 = a._py + ar + 5; y1 = y0 + (a._lh || 0); }
-            var hide = false;
+            var isUnder = ly0 < 2;
+            la.classList.toggle('under', isUnder);
+            if (isUnder) { ly0 = la._py + lr + 5; ly1 = ly0 + (la._lh || 0); }
+            la._lab = { x0: la._px - (la._lw || 0) / 2, x1: la._px + (la._lw || 0) / 2, y0: ly0, y1: ly1 };
+        }
+        for (i = 0; i < bitEls.length; i++) {
+            var a = bitEls[i];
+            if (!a || a.classList.contains('chosen') || !a._lab) continue;
+            var r = a._lab, hide = false;
             for (var j = 0; j < bitEls.length && !hide; j++) {
                 if (j === i) continue;
                 var c = bitEls[j];
                 if (!c || c._px === undefined || c._py <= a._py) continue;   // not in front
-                var qx = Math.max(x0, Math.min(c._px, x1));
-                var qy = Math.max(y0, Math.min(c._py, y1));
+                var qx = Math.max(r.x0, Math.min(c._px, r.x1));
+                var qy = Math.max(r.y0, Math.min(c._py, r.y1));
                 if (Math.hypot(c._px - qx, c._py - qy) < (c._r0 || 0) * c._sc * 0.94) hide = true;
+                // and its label, which is just as opaque as the piece is —
+                // but only when they genuinely cover each other. Two pills
+                // clipping corners reads as stacked chips, and hiding on any
+                // touch at all put a third of the names out at once.
+                else if (c._lab) {
+                    var ox = Math.min(r.x1, c._lab.x1) - Math.max(r.x0, c._lab.x0);
+                    var oy = Math.min(r.y1, c._lab.y1) - Math.max(r.y0, c._lab.y0);
+                    if (ox > 0 && oy > 0) {
+                        var mine = (r.x1 - r.x0) * (r.y1 - r.y0) || 1;
+                        if (ox * oy > mine * 0.3) hide = true;
+                    }
+                }
             }
             a.classList.toggle('behind', hide);
         }
     }
 
+    var wakeEnergy = 0;
     function swirl(now) {
         swirlRaf = 0;
         if (paused || !bowl) { lastT = 0; return; }
         place(now);
         // Come to rest and there is nothing left to compute until something
-        // asks it to move again.
-        if (flow === 0 && flowTo === 0) { lastT = 0; return; }
+        // asks it to move again — but a bowl held still under the pointer is
+        // still answering it, so the wake keeps its own claim on the frames.
+        if (flow === 0 && flowTo === 0 && wakeEnergy < 0.01) { lastT = 0; return; }
         swirlRaf = requestAnimationFrame(swirl);
     }
     function stir(on) {
@@ -584,6 +659,18 @@
     var lastMove = 0;
     document.addEventListener('mousemove', function () { lastMove = Date.now(); }, { passive: true });
     function deliberate() { return Date.now() - lastMove < 1500; }
+
+    function trackPointer(e) {
+        var r = bowl.getBoundingClientRect();
+        ptr.px = e.clientX; ptr.py = e.clientY;
+        ptr.x = e.clientX - r.left; ptr.y = e.clientY - r.top;
+        ptr.on = true;
+        if (!still && !paused && !swirlRaf) { lastT = 0; swirlRaf = requestAnimationFrame(swirl); }
+    }
+    function dropPointer() {
+        ptr.on = false;
+        if (!still && !paused && !swirlRaf) { lastT = 0; swirlRaf = requestAnimationFrame(swirl); }
+    }
 
     window.addEventListener('resize', function () {
         measure();
@@ -730,6 +817,14 @@
     window.lucidSoup = {
         bits: function () { return BITS.slice(); },
         still: function () { return still; },
+        glow: function () { return ptr.glow; },
+        wake: function () {
+            var o = {};
+            bitEls.forEach(function (e, i) {
+                o[BITS[i].id] = Math.round(Math.sqrt((e._wx || 0) * (e._wx || 0) + (e._wy || 0) * (e._wy || 0)) * 10) / 10;
+            });
+            return o;
+        },
         setStill: setStill,
         rings: function () { return RINGS.slice(); },
         flow: function () { return flow; },

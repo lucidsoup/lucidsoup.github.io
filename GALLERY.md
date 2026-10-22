@@ -381,7 +381,24 @@ Four things worth knowing:
   were hidden at any moment; above, the only things near a label are further
   back, so its own z-index draws it over them. The pill is what makes a name
   crossing another piece's face read as a label rather than a collision. Near
-  the top of an orbit it flips underneath so it does not hang over the rim.
+  the top of an orbit it flips underneath so it does not hang over the rim. A
+  label steps aside for a piece in front of it, and for another label that
+  genuinely covers it — more than a third of its area, because two pills
+  clipping corners reads as stacked chips and hiding on any touch at all put a
+  third of the names out at once.
+- **Floating is four cheap cues, not one expensive one.** The disc is squashed
+  vertically, because a thing lying on a surface seen from this angle is
+  foreshortened — that single `scaleY` does more than any amount of shading.
+  Then: a waterline across each piece with everything below it tinted toward
+  the broth, a ring of surface tension around it at that line, and a soft dark
+  mass under it where it displaces the soup. The waterline layer is taller than
+  the piece it sits in so it can rock without dragging a hard edge into view.
+- **The soup answers the pointer.** The broth shader takes the pointer as a
+  uniform and stirs harder where it is, and pieces within about 170px give way,
+  smoothstepped so the whole reach is felt rather than only the last few
+  pixels. The piece actually under the pointer is exempt: it is held still so
+  it stays easy to click, which is the same bargain the flow makes. None of it
+  runs when the bowl is set still.
 - **What rides the orbit is the disc, not the button.** The button's box is the
   label stacked on the piece, so centring the box put the piece half a label
   below its orbit and carried the outer ring over the rim at the bottom.
