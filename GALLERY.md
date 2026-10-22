@@ -350,6 +350,16 @@ that every piece resolves to something real.
 
 Four things worth knowing:
 
+- **The system's motion preference is the default, not the verdict.** A machine
+  asking for reduced motion gets a bowl that holds still, which is right — and
+  a bowl that can never be made to turn is a worse answer than one that asks.
+  The spoon under the bowl flips it either way and the choice is remembered in
+  `localStorage` under `lucid.stir`. The stylesheet keys off `lucid-still` on
+  `<html>` rather than the media query directly, with `lucid-stirred` marking
+  "the viewer overruled their system", which is what lets the media query stand
+  down. Turning motion back on has to restart the broth, the live pieces and
+  the orbits by hand: they are all started lazily, so flipping the flag alone
+  leaves a bowl that is allowed to move and isn't.
 - **Pointing at a piece stops the whole bowl**, like putting a spoon in, and
   letting go starts it again. Stopping only the piece under the pointer would
   tear it out of its orbit; stopping nothing would leave every target moving,

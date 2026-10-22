@@ -317,9 +317,50 @@ body.focused.soup-arrive section:not([hidden]) { animation: surface .85s cubic-b
     .bit-label small { display: none; }
 }
 
+/* Still.
+
+   Driven by a class rather than the media query directly, because the viewer
+   is allowed to disagree with their own operating system about this one bowl.
+   soup.js puts `lucid-still` on <html> when the OS asks for reduced motion, and
+   takes it off again if the viewer stirs the soup themselves. The media query
+   is still here underneath so the page is right before the script runs. */
 @media (prefers-reduced-motion: reduce) {
-    .bit-float, .steam i, .bit-ring { animation: none !important; }
-    .bowl, .bit-float, #soup-veil { transition: none !important; }
-    body.focused.soup-arrive section:not([hidden]) { animation: none; }
-    .bit:hover .bit-float, .bit:focus-visible .bit-float { transform: scale(1.1); }
+    :root:not(.lucid-stirred) .bit-float,
+    :root:not(.lucid-stirred) .steam i,
+    :root:not(.lucid-stirred) .bit-ring { animation: none !important; }
+    :root:not(.lucid-stirred) .bowl,
+    :root:not(.lucid-stirred) .bit-float,
+    :root:not(.lucid-stirred) #soup-veil { transition: none !important; }
 }
+:root.lucid-still .bit-float,
+:root.lucid-still .steam i,
+:root.lucid-still .bit-ring { animation: none !important; }
+:root.lucid-still .bowl,
+:root.lucid-still .bit-float,
+:root.lucid-still #soup-veil { transition: none !important; }
+:root.lucid-still body.focused.soup-arrive section:not([hidden]) { animation: none; }
+:root.lucid-still .bit:hover .bit-float,
+:root.lucid-still .bit:focus-visible .bit-float { transform: scale(1.1); }
+
+/* ===== the spoon =====
+   One quiet control under the bowl. It exists because the site stops the soup
+   for anyone whose system asks for less motion, which is right as a default and
+   wrong as a verdict: someone who wants to watch it turn should be able to say
+   so without changing a system-wide accessibility setting, and someone who
+   wants it to hold still should be able to say that too. */
+#soup-stir {
+    display: block; margin: 1rem auto 0;
+    background: rgba(9, 4, 20, .55);
+    border: 1px solid rgba(155,123,255,.22); border-radius: 999px;
+    color: rgba(236,230,255,.5);
+    font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+    font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
+    padding: 7px 15px; cursor: pointer; line-height: 1;
+    transition: color .2s, border-color .2s, background .2s, opacity .2s;
+    position: relative; z-index: 4;
+}
+#soup-stir:hover, #soup-stir:focus-visible {
+    color: #d9ffb8; border-color: rgba(138,224,75,.6);
+    background: rgba(12, 26, 6, .8); outline: none;
+}
+@media (max-width: 640px) { #soup-stir { font-size: 9px; padding: 6px 13px; } }

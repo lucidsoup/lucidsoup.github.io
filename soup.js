@@ -24,7 +24,31 @@
     var host = document.getElementById('soup');
     if (!host) return;
 
-    var reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    /* Whether the soup moves.
+
+       The system preference is the default and not the verdict. Someone whose
+       machine asks for less motion gets a bowl that holds still, which is
+       right — but a bowl that can never be made to turn is a worse answer than
+       one that asks, and changing a system-wide accessibility setting to watch
+       one front page is not a reasonable thing to expect of anybody. So the
+       preference sets the starting state, the spoon under the bowl changes it,
+       and the choice is remembered. */
+    var prefersStill = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var still = prefersStill;
+    try {
+        var saved = localStorage.getItem('lucid.stir');
+        if (saved === '1') still = false;
+        else if (saved === '0') still = true;
+    } catch (e) {}
+
+    function markMotion() {
+        var r = document.documentElement;
+        r.classList.toggle('lucid-still', still);
+        // Says the viewer has overruled a system preference for less motion,
+        // which is what lets the stylesheet's media query stand down.
+        r.classList.toggle('lucid-stirred', !still && prefersStill);
+    }
+    markMotion();
 
     /* ---------------- what is in the soup ----------------
        `hash` stays on this page and lets the router show that section; `href`
@@ -242,7 +266,7 @@
         }
         brothStop = {
             start: function () {
-                if (running || reduced) return;
+                if (running || still) return;
                 running = true;
                 if (!raf) raf = requestAnimationFrame(frame);
             },
@@ -252,7 +276,7 @@
             }
         };
         draw();                       // one frame, so it is soup even stopped
-        if (!reduced) brothStop.start();
+        if (!still) brothStop.start();
     }
 
     /* ---------------- live pieces ----------------
@@ -318,7 +342,7 @@
             }
             shaderBits.push({ go: function () { if (!raf) raf = requestAnimationFrame(frame); },
                               halt: function () { if (raf) { cancelAnimationFrame(raf); raf = 0; } } });
-            if (!reduced) raf = requestAnimationFrame(frame);
+            if (!still) raf = requestAnimationFrame(frame);
             else { gl.uniform3f(uR, c.width, c.height, 1); gl.uniform1f(uT, 1.7); gl.drawArrays(gl.TRIANGLES, 0, 3); }
         }
     }
@@ -330,7 +354,7 @@
             var works = (data.works || []).filter(function (w) { return w && w.featured && (w.preview || w.poster); });
             if (!works.length) return;
             var pick = works[Math.floor(Math.random() * works.length)];
-            if (pick.preview && !reduced) {
+            if (pick.preview && !still) {
                 var v = document.createElement('video');
                 v.src = pick.preview; v.muted = true; v.loop = true;
                 v.playsInline = true; v.setAttribute('playsinline', '');
@@ -357,7 +381,7 @@
     }
 
     /* ---------------- build ---------------- */
-    var bowl, veil, bitEls = [];
+    var bowl, veil, stirBtn, bitEls = [];
 
     function build() {
         bowl = el('div', 'bowl');
@@ -419,11 +443,18 @@
         measure();
         lastT = 0;
         place(performance.now());          // placed before the first frame
-        if (!reduced) swirlRaf = requestAnimationFrame(swirl);
+        if (!still) swirlRaf = requestAnimationFrame(swirl);
 
         veil = el('div');
         veil.id = 'soup-veil';
         document.body.appendChild(veil);
+
+        stirBtn = el('button', null, '');
+        stirBtn.id = 'soup-stir';
+        stirBtn.type = 'button';
+        stirBtn.addEventListener('click', function () { setStill(!still); });
+        host.appendChild(stirBtn);
+        paintStir();
 
         startBroth(canvas);
     }
@@ -532,7 +563,7 @@
         swirlRaf = requestAnimationFrame(swirl);
     }
     function stir(on) {
-        if (reduced) return;
+        if (still) return;
         flowTo = on ? 1 : 0;
         if (!paused && !swirlRaf) swirlRaf = requestAnimationFrame(swirl);
     }
@@ -559,6 +590,41 @@
         if (!swirlRaf) { lastT = 0; place(performance.now()); }
     });
 
+    /* The spoon. Turning it on is also the one place that has to restart
+       everything the still bowl never started: the broth, the live pieces and
+       the orbits are all begun lazily, so flipping the flag alone would leave
+       a bowl that is allowed to move and isn't. */
+    function paintStir() {
+        if (!stirBtn) return;
+        stirBtn.textContent = still ? 'stir the soup' : 'let it settle';
+        stirBtn.setAttribute('aria-pressed', still ? 'false' : 'true');
+        stirBtn.setAttribute('aria-label', still
+            ? 'Stir the soup \u2014 start the pieces moving'
+            : 'Let it settle \u2014 stop the pieces moving');
+    }
+
+    function setStill(next) {
+        still = !!next;
+        try { localStorage.setItem('lucid.stir', still ? '0' : '1'); } catch (e) {}
+        markMotion();
+        paintStir();
+
+        if (still) {
+            if (swirlRaf) { cancelAnimationFrame(swirlRaf); swirlRaf = 0; }
+            lastT = 0; flow = 0; flowTo = 0;
+            if (brothStop) brothStop.stop();
+            shaderBits.forEach(function (x) { x.halt(); });
+            videoBits.forEach(function (v) { v.pause(); });
+        } else if (!paused) {
+            flow = 1; flowTo = 1; lastT = 0;
+            measure();
+            if (!swirlRaf) swirlRaf = requestAnimationFrame(swirl);
+            if (brothStop) brothStop.start();
+            shaderBits.forEach(function (x) { x.go(); });
+            videoBits.forEach(function (v) { var q = v.play(); if (q && q.catch) q.catch(function () {}); });
+        }
+    }
+
     /* ---------------- going under ---------------- */
     var diving = false;
     function dive(b, btn) {
@@ -579,14 +645,14 @@
         btn.classList.add('chosen');
         host.classList.add('diving');
         // Off the ring and past you, from wherever it had drifted to.
-        if (!reduced) {
+        if (!still) {
             btn.style.transition = 'transform .55s cubic-bezier(.6,0,.85,.3), opacity .5s ease .12s';
             btn.style.transform = 'translate3d(' + (at.x * box.w).toFixed(1) + 'px,' +
                 (at.y * box.h).toFixed(1) + 'px,0) translate(-50%,-50%) scale(' +
                 (0.74 + at.y * 0.50) * 3.4 + ')';
             btn.style.opacity = '0';
         }
-        setTimeout(function () { veil.classList.add('on'); }, reduced ? 0 : 190);
+        setTimeout(function () { veil.classList.add('on'); }, still ? 0 : 190);
 
         setTimeout(function () {
             if (b.href) { window.location.href = b.href; return; }
@@ -595,7 +661,7 @@
             diving = false;
             if (location.hash === '#' + b.hash) route(b.hash);
             else location.hash = b.hash;
-        }, reduced ? 10 : 620);
+        }, still ? 10 : 620);
     }
 
     function surfaced() {
@@ -619,14 +685,14 @@
         // there is one source of truth for "a section is showing".
         if (section) {
             pause(true);
-            if (!reduced) {
+            if (!still) {
                 document.body.classList.add('soup-arrive');
                 clearTimeout(arriveTimer);
                 arriveTimer = setTimeout(function () {
                     document.body.classList.remove('soup-arrive');
                 }, 900);
             }
-            setTimeout(surfaced, reduced ? 0 : 120);
+            setTimeout(surfaced, still ? 0 : 120);
         } else {
             surfaced();
             pause(false);
@@ -637,7 +703,7 @@
     function pause(on) {
         paused = on;
         if (on) { if (swirlRaf) { cancelAnimationFrame(swirlRaf); swirlRaf = 0; } lastT = 0; }
-        else if (!reduced && !swirlRaf) { measure(); swirlRaf = requestAnimationFrame(swirl); }
+        else if (!still && !swirlRaf) { measure(); swirlRaf = requestAnimationFrame(swirl); }
         if (brothStop) { if (on) brothStop.stop(); else brothStop.start(); }
         shaderBits.forEach(function (s) { if (on) s.halt(); else s.go(); });
         videoBits.forEach(function (v) {
@@ -663,6 +729,8 @@
 
     window.lucidSoup = {
         bits: function () { return BITS.slice(); },
+        still: function () { return still; },
+        setStill: setStill,
         rings: function () { return RINGS.slice(); },
         flow: function () { return flow; },
         running: function () { return !!swirlRaf; },
