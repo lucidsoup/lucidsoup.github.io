@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SP-404 Converter — LucidSoup</title>
-    <meta name="description" content="Convert audio to Roland SP-404SX, SP-404A and SP-404MKII sample format in your browser. Nothing is uploaded.">
+    <meta name="description" content="Convert audio, or the soundtrack of any video, to Roland SP-404SX, SP-404A and SP-404MKII sample format in your browser. Nothing is uploaded.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
     <style>
@@ -73,6 +73,12 @@
         #drop:hover, #drop.over { border-color: rgba(139, 108, 245,.7); background: rgba(139, 108, 245,.04); }
         #drop .big { font-size: 1.05rem; margin-bottom: .4rem; }
         #drop .small { font-size: .8rem; color: rgba(255,255,255,.45); }
+        .from-video {
+            display: inline-block; margin-left: .5rem; padding: .1rem .4rem;
+            border: 1px solid rgba(139, 108, 245,.35); border-radius: 999px;
+            font-size: .62rem; letter-spacing: .08em; text-transform: uppercase;
+            color: rgba(155, 123, 255,.9); vertical-align: middle; white-space: nowrap;
+        }
 
         /* ---- options ---- */
         .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem 1.5rem; }
@@ -199,8 +205,9 @@
     <header>
         <h1>SP-404 Converter</h1>
         <p class="tagline">
-            Audio in, card-ready ZIP out — or pull the samples back off your card as clean,
-            pad-named WAVs. Everything runs in your browser;
+            Audio or video in, card-ready ZIP out — or pull the samples back off your card as
+            clean, pad-named WAVs. Drop a clip and the soundtrack is lifted straight out of it.
+            Everything runs in your browser;
             <strong>nothing is uploaded anywhere</strong>.
         </p>
     </header>
@@ -234,11 +241,14 @@
     </div>
 
     <div class="panel">
-        <h2>2 · Audio</h2>
+        <h2>2 · Audio &amp; video</h2>
         <div id="drop">
-            <div class="big">Drop audio files here</div>
-            <div class="small">or click to choose &mdash; WAV, MP3, AIFF, M4A, FLAC, OGG, plus SP-404MKII <code>.SMP</code> from a project export</div>
-            <input type="file" id="picker" multiple accept="audio/*,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.smp,.SMP" class="hidden">
+            <div class="big">Drop audio or video here</div>
+            <div class="small">or click to choose &mdash; WAV, MP3, AIFF, M4A, FLAC, OGG; any video the browser can
+                play (MP4, MOV, WebM, MKV, AVI&hellip;) has its audio stripped out; plus SP-404MKII
+                <code>.SMP</code> from a project export</div>
+            <input type="file" id="picker" multiple class="hidden"
+                   accept="audio/*,video/*,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.opus,.smp,.SMP,.mp4,.m4v,.mov,.webm,.mkv,.avi,.wmv,.flv,.ogv,.3gp,.3g2,.mpg,.mpeg,.ts,.m2ts,.mts,.asf,.f4v,.vob">
         </div>
         <div id="fileWrap" class="hidden" style="margin-top:1.25rem; overflow-x:auto;">
             <table class="files">
@@ -723,6 +733,163 @@
         });
     }
 
+    /* ------------------------------------------------------------------
+       Video
+
+       decodeAudioData wants a whole file it can demux in one go, and it is
+       better at that than it looks: on Chrome and Safari it will pull the AAC
+       track straight out of an MP4, a MOV or an M4V, and Opus or Vorbis out of
+       a WebM. So most videos are already handled by the path above and arrive
+       as fast as a WAV would.
+
+       What it will not do is anything the browser can only *play*. Firefox
+       refuses to demux MP4 that way while playing it perfectly, and nothing
+       one-shots MKV, AVI or the rest. For those the audio comes off a hidden
+       media element in real time: the browser decodes the file as it plays,
+       and the exact float samples are taken out of the graph on the way past.
+       Nothing is re-encoded, so it costs quality nothing and costs the length
+       of the clip in waiting.
+       ------------------------------------------------------------------ */
+
+    var AV_EXT = /\.(mp4|m4v|mov|qt|webm|mkv|avi|wmv|flv|ogv|ogx|3gp|3g2|mpg|mpeg|mpe|m2v|ts|m2ts|mts|asf|f4v|vob|divx|rmvb|mxf)$/i;
+    var CAPTURE_MAX = 600;      // seconds; only the real-time path is capped
+
+    function looksLikeVideo(file) {
+        return /^video\//.test(file.type || '') || AV_EXT.test(file.name || '');
+    }
+
+    /** Worth handing to a media element at all? Permissive on purpose: the
+     *  element reports what it cannot play, and that is a better test than any
+     *  list of extensions this page could keep up to date. */
+    function mightPlay(file) {
+        return looksLikeVideo(file) || /^(audio|video)\//.test(file.type || '');
+    }
+
+    /** true, false, or null when the browser will not say yet. */
+    function hasAudioTrack(el) {
+        if (typeof el.mozHasAudio === 'boolean') return el.mozHasAudio;
+        if (el.audioTracks && typeof el.audioTracks.length === 'number') return el.audioTracks.length > 0;
+        return null;        // webkitAudioDecodedByteCount is 0 until it plays
+    }
+
+    /**
+     * Play the file silently and keep every sample that goes past.
+     *
+     * ScriptProcessorNode is deprecated and used anyway: this is the fallback
+     * path, so it has to work everywhere, and an AudioWorklet needs a module
+     * URL and an async load that can fail on its own. The node is wired to a
+     * silent gain because a processor that reaches no destination is not
+     * guaranteed to be pulled at all.
+     */
+    function captureFromMedia(item, onProgress) {
+        return new Promise(function (resolve, reject) {
+            var c = ctx();
+            if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+
+            var url = URL.createObjectURL(item.file);
+            var el = document.createElement('video');
+            el.preload = 'auto';
+            el.playsInline = true;
+            el.setAttribute('playsinline', '');
+            el.volume = 1;              // muting it would silence the graph too
+            el.src = url;
+
+            var src = null, proc = null, sink = null;
+            var left = [], right = [], frames = 0;
+            var done = false, started = false, watch = 0, seenAt = 0, seenWhen = 0;
+
+            function tidy() {
+                if (watch) { clearInterval(watch); watch = 0; }
+                try { el.pause(); } catch (e) {}
+                if (proc) { proc.onaudioprocess = null; try { proc.disconnect(); } catch (e) {} }
+                if (src) { try { src.disconnect(); } catch (e) {} }
+                if (sink) { try { sink.disconnect(); } catch (e) {} }
+                el.removeAttribute('src');
+                try { el.load(); } catch (e) {}
+                URL.revokeObjectURL(url);
+                item.abort = null;
+            }
+            function stop(msg) { if (done) return; done = true; tidy(); reject(new Error(msg)); }
+            function finish() {
+                if (done) return;
+                done = true;
+                tidy();
+                if (!frames) { reject(new Error('No audio track in that video.')); return; }
+                var buf = c.createBuffer(2, frames, c.sampleRate);
+                var L = buf.getChannelData(0), R = buf.getChannelData(1);
+                for (var i = 0, at = 0; i < left.length; i++) {
+                    L.set(left[i], at); R.set(right[i], at); at += left[i].length;
+                }
+                resolve(buf);
+            }
+
+            // Removing the row while this is running stops it.
+            item.abort = function () { stop('Cancelled.'); };
+
+            el.addEventListener('error', function () { stop('This browser cannot play that file.'); });
+            el.addEventListener('ended', finish);
+            el.addEventListener('loadedmetadata', function () {
+                if (hasAudioTrack(el) === false) { stop('No audio track in that video.'); return; }
+                // This path runs in real time and holds every sample in memory
+                // while it does. An hour of stereo float is well over a
+                // gigabyte and an hour of waiting, so say so now rather than
+                // after ten minutes of it.
+                if (isFinite(el.duration) && el.duration > CAPTURE_MAX) {
+                    stop('That clip is ' + Math.round(el.duration / 60) + ' minutes long. ' +
+                         'This browser has to read it in real time, so trim it under ' +
+                         (CAPTURE_MAX / 60) + ' minutes first.');
+                }
+            });
+
+            el.addEventListener('canplay', function () {
+                if (done || started) return;
+                started = true;
+                try {
+                    src = c.createMediaElementSource(el);
+                    proc = c.createScriptProcessor(4096, 2, 2);
+                    sink = c.createGain();
+                    sink.gain.value = 0;
+                    proc.onaudioprocess = function (ev) {
+                        if (done) return;
+                        var ib = ev.inputBuffer;
+                        left.push(new Float32Array(ib.getChannelData(0)));
+                        right.push(new Float32Array(ib.getChannelData(ib.numberOfChannels > 1 ? 1 : 0)));
+                        frames += ib.length;
+                        // Safety net for a stream whose duration never resolved.
+                        if (frames > c.sampleRate * CAPTURE_MAX) finish();
+                    };
+                    src.connect(proc);
+                    proc.connect(sink);
+                    sink.connect(c.destination);
+                } catch (e) {
+                    stop('This browser cannot take the audio off that file.');
+                    return;
+                }
+
+                var p = el.play();
+                if (p && p.catch) p.catch(function () {
+                    stop('This browser would not play that file to read it.');
+                });
+
+                seenAt = 0; seenWhen = Date.now();
+                watch = setInterval(function () {
+                    if (done) return;
+                    var t = el.currentTime, d = el.duration;
+                    if (onProgress && isFinite(d) && d > 0) {
+                        onProgress(Math.max(0, Math.min(0.99, t / d)));
+                    }
+                    if (t > seenAt + 0.05) { seenAt = t; seenWhen = Date.now(); }
+                    else if (Date.now() - seenWhen > 12000) {
+                        // Stalled rather than ended: keep whatever was read.
+                        if (frames) finish();
+                        else stop('That file stopped before any audio came out.');
+                    }
+                    if (el.ended) finish();
+                }, 400);
+            }, { once: true });
+        });
+    }
+
     /** Resample and channel-map in one offline pass. */
     function resample(buffer, rate, mono) {
         var channels = mono ? 1 : Math.min(buffer.numberOfChannels, 2);
@@ -919,6 +1086,12 @@
             var nameCell = document.createElement('td');
             nameCell.className = 'fname';
             nameCell.textContent = item.name;
+            if (item.video && item.buffer) {
+                var tag = document.createElement('span');
+                tag.className = 'from-video';
+                tag.textContent = 'audio from video';
+                nameCell.appendChild(tag);
+            }
             if (item.error) {
                 var e = document.createElement('div');
                 e.className = 'err';
@@ -958,7 +1131,12 @@
             down.addEventListener('click', function () { move(i, 1); });
             var del = document.createElement('button');
             del.className = 'row-btn'; del.type = 'button'; del.textContent = '✕'; del.title = 'Remove';
-            del.addEventListener('click', function () { touch(); items.splice(i, 1); render(); });
+            del.addEventListener('click', function () {
+                touch();
+                if (item.abort) item.abort();      // a capture in flight stops here
+                items.splice(i, 1);
+                render();
+            });
             box.appendChild(up); box.appendChild(down); box.appendChild(del);
             actions.appendChild(box);
 
@@ -1030,18 +1208,60 @@
 
         touch();
         incoming.forEach(function (file) {
-            var item = { file: file, name: file.name, status: 'reading…', error: null, buffer: null };
+            var item = {
+                file: file, name: file.name, status: 'reading…', error: null, buffer: null,
+                video: looksLikeVideo(file),     // for the badge on the row
+                abort: null
+            };
             items.push(item);
-            file.arrayBuffer()
-                .then(decode)
-                .then(function (buf) { item.buffer = buf; item.status = null; render(); })
-                .catch(function () {
-                    item.error = 'This browser could not decode that file.';
-                    item.status = null;
-                    render();
-                });
+            load(item);
         });
         render();
+    }
+
+    function settled(item, buffer) {
+        // Chromium will decode a video that has no audio track at all and hand
+        // back a silent buffer the length of the picture, which would go to the
+        // card as a silent pad without a word. Anything that came out with no
+        // signal in it is reported here rather than discovered later.
+        if (peakOf(channelsOf(buffer), buffer.length) < 1e-7) {
+            failed(item, item.video ? 'No audio track in that video.' : 'That file is silent.');
+            return;
+        }
+        item.buffer = buffer;
+        item.status = null;
+        render();
+    }
+    function failed(item, why) { item.error = why; item.status = null; item.buffer = null; render(); }
+
+    /**
+     * Get audio out of one file by whichever route works. The one-shot decode
+     * is tried first for everything, video included, because it is instant
+     * when it works and it works more often than you would guess. Only when it
+     * refuses does the slow path start, and only for something the browser has
+     * a chance of playing.
+     */
+    function load(item) {
+        item.file.arrayBuffer()
+            .then(decode)
+            .then(function (buf) { settled(item, buf); })
+            .catch(function () {
+                if (!mightPlay(item.file)) {
+                    failed(item, 'This browser could not decode that file.');
+                    return;
+                }
+                item.status = item.video ? 'stripping audio…' : 'reading in real time…';
+                render();
+                captureFromMedia(item, function (frac) {
+                    item.status = (item.video ? 'stripping audio… ' : 'reading… ') +
+                        Math.round(frac * 100) + '%';
+                    render();
+                }).then(function (buf) {
+                    settled(item, buf);
+                }).catch(function (err) {
+                    failed(item, (err && err.message) || 'Could not get any audio out of that.');
+                });
+            });
     }
 
     drop.addEventListener('click', function () { picker.click(); });
