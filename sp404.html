@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SP-404 Converter — LucidSoup</title>
-    <meta name="description" content="Convert audio, or the soundtrack of any video, to Roland SP-404SX, SP-404A and SP-404MKII sample format in your browser. Nothing is uploaded.">
+    <meta name="description" content="Convert audio to Roland SP-404SX, SP-404A and SP-404MKII sample format, strip the soundtrack off any video as a WAV, or read samples back off your card. All in your browser; nothing is uploaded.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
     <style>
@@ -65,14 +65,14 @@
         .model-spec code { color: rgba(138, 224, 75,.8); font-size: .95em; }
 
         /* ---- dropzone ---- */
-        #drop {
+        #drop, #stDrop {
             border: 2px dashed rgba(255,255,255,.16); border-radius: 12px;
             padding: 2.5rem 1.5rem; text-align: center; cursor: pointer;
             transition: border-color .2s ease, background .2s ease;
         }
-        #drop:hover, #drop.over { border-color: rgba(139, 108, 245,.7); background: rgba(139, 108, 245,.04); }
-        #drop .big { font-size: 1.05rem; margin-bottom: .4rem; }
-        #drop .small { font-size: .8rem; color: rgba(255,255,255,.45); }
+        #drop:hover, #drop.over, #stDrop:hover, #stDrop.over { border-color: rgba(139, 108, 245,.7); background: rgba(139, 108, 245,.04); }
+        #drop .big, #stDrop .big { font-size: 1.05rem; margin-bottom: .4rem; }
+        #drop .small, #stDrop .small { font-size: .8rem; color: rgba(255,255,255,.45); }
         .from-video {
             display: inline-block; margin-left: .5rem; padding: .1rem .4rem;
             border: 1px solid rgba(139, 108, 245,.35); border-radius: 999px;
@@ -126,6 +126,7 @@
         }
         .row-btn.wide:hover:not(:disabled) { background: rgba(139, 108, 245,.12); color: #fff; }
         .build-note { margin-top: .7rem; font-size: .76rem; color: rgba(255,255,255,.42); }
+
         .row-btns { display: flex; gap: .3rem; justify-content: flex-end; }
 
         /* ---- buttons / notices ---- */
@@ -158,15 +159,16 @@
 
         /* ---- mode switch ---- */
         .modes {
-            display: flex; gap: .5rem; justify-content: center; margin: 0 auto 2rem;
+            display: flex; gap: .4rem; justify-content: center; margin: 0 auto 2rem;
             background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
-            border-radius: 10px; padding: .4rem; max-width: 460px;
+            border-radius: 10px; padding: .4rem; max-width: 620px; flex-wrap: wrap;
         }
         .mode-btn {
             flex: 1; background: none; border: none; color: rgba(255,255,255,.55);
             font-family: inherit; font-size: .78rem; font-weight: bold; letter-spacing: .1em;
             text-transform: uppercase; padding: .65rem .5rem; border-radius: 7px;
-            cursor: pointer; transition: all .2s ease;
+            cursor: pointer; transition: all .2s ease; white-space: nowrap;
+            flex: 1 1 auto; min-width: 8.5rem;
         }
         .mode-btn:hover { color: #fff; }
         .mode-btn.active {
@@ -215,15 +217,16 @@
     <header>
         <h1>SP-404 Converter</h1>
         <p class="tagline">
-            Audio or video in, card-ready ZIP out — or pull the samples back off your card as
-            clean, pad-named WAVs. Drop a clip and the soundtrack is lifted straight out of it.
-            Everything runs in your browser;
+            Three things: audio or video in and a card-ready ZIP out, the soundtrack of any clip
+            straight out as a WAV, or the samples pulled back off your card as clean pad-named
+            WAVs. Everything runs in your browser;
             <strong>nothing is uploaded anywhere</strong>.
         </p>
     </header>
 
     <div class="modes">
         <button type="button" class="mode-btn active" data-mode="prepare">Audio &rarr; SP-404</button>
+        <button type="button" class="mode-btn" data-mode="strip">Video &rarr; WAV</button>
         <button type="button" class="mode-btn" data-mode="extract">SP-404 &rarr; WAV</button>
     </div>
 
@@ -347,6 +350,94 @@
     </div>
 
     </div><!-- /prepareUI -->
+
+    <!-- ===== Video -> WAV =====
+         The soundtrack on its own, with nothing about pads or cards in the way.
+         It shares every part of the machinery with the other two tabs — the
+         same decode, the same real-time fallback, the same WAV encoder — and
+         differs only in defaulting to leaving the audio exactly as it was. -->
+    <div id="stripUI" class="hidden">
+        <div class="panel">
+            <h2>1 &middot; Clips</h2>
+            <div id="stDrop">
+                <div class="big">Drop video here</div>
+                <div class="small">or click to choose &mdash; any video the browser can play
+                    (MP4, MOV, WebM, MKV, AVI&hellip;). Audio files are fine too; they come back out
+                    as WAV. Nothing is uploaded.</div>
+                <input type="file" id="stPicker" multiple class="hidden"
+                       accept="video/*,audio/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.wmv,.flv,.ogv,.3gp,.3g2,.mpg,.mpeg,.ts,.m2ts,.mts,.asf,.f4v,.vob,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.opus">
+            </div>
+            <div id="stWrap" class="hidden" style="margin-top:1.25rem; overflow-x:auto;">
+                <table class="files">
+                    <thead>
+                        <tr><th>Clip</th><th>Saves as</th><th>Audio</th><th></th></tr>
+                    </thead>
+                    <tbody id="stRows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>2 &middot; Output</h2>
+            <div class="field" style="margin-bottom:1.3rem;">
+                <label for="stRate">Sample rate</label>
+                <select id="stRate">
+                    <option value="0" selected>Leave as decoded</option>
+                    <option value="44100">44.1 kHz &mdash; SP-404SX / A</option>
+                    <option value="48000">48 kHz &mdash; SP-404MKII</option>
+                </select>
+            </div>
+            <div class="opts">
+                <div class="opt">
+                    <input type="checkbox" id="stMono">
+                    <label for="stMono">
+                        <div class="opt-label">Force mono</div>
+                        <div class="opt-help">Sums both sides; halves the file.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="stNormalize">
+                    <label for="stNormalize">
+                        <div class="opt-label">Normalise</div>
+                        <div class="opt-help">Lift the peak to &minus;1&nbsp;dBFS. Loudness only, no compression.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="stTrim">
+                    <label for="stTrim">
+                        <div class="opt-label">Trim silence</div>
+                        <div class="opt-help">Cut near-silence from both ends.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="stFade">
+                    <label for="stFade">
+                        <div class="opt-label">Declick edges</div>
+                        <div class="opt-help">2&nbsp;ms fade in and out, so a chopped edge does not pop.</div>
+                    </label>
+                </div>
+            </div>
+            <p class="build-note">
+                Everything is off to begin with on purpose: by default you get the audio that was in the
+                clip, untouched. <em>Leave as decoded</em> is not the rate it was recorded at &mdash; the
+                browser resamples everything to its own audio rate on the way in, and that rate is what
+                comes back out.
+            </p>
+        </div>
+
+        <div class="panel">
+            <h2>3 &middot; Save</h2>
+            <div class="actions">
+                <button class="btn" id="stSaveAll" disabled>Save all as WAV</button>
+                <span class="status" id="stStatus">Drop a clip to begin.</span>
+            </div>
+            <p class="build-note">
+                One file each, no zip. Saving several at once may make the browser ask whether to allow
+                multiple downloads &mdash; or you can take them one at a time with the
+                <strong>WAV</strong> button on each row.
+            </p>
+        </div>
+    </div><!-- /stripUI -->
 
     <div id="extractUI" class="hidden">
         <div class="panel">
@@ -1901,14 +1992,254 @@
         return out;
     }
 
+    /* ------------------------------------------------------------------
+       Video -> WAV
+
+       Its own tab because the other two are both about a card: one puts
+       samples on it, one takes them off. Pulling the soundtrack out of a clip
+       is neither, and making people pick a pad bank and a target model to do
+       it was asking them to answer questions that have nothing to do with
+       what they came for.
+
+       The machinery underneath is the same machinery: the same decode with
+       the same real-time fallback, the same resampler, the same options and
+       the same WAV encoder. What differs is the defaults — everything off,
+       rate left alone — because a stripper's job is to hand back what was in
+       the file, not an opinion about it.
+       ------------------------------------------------------------------ */
+    var stItems = [];
+    var stRows = $('stRows'), stWrap = $('stWrap'), stStatus = $('stStatus'), stSaveAll = $('stSaveAll');
+
+    function stOpts() {
+        return {
+            normalize: $('stNormalize').checked,
+            trim: $('stTrim').checked,
+            mono: $('stMono').checked,
+            fade: $('stFade').checked
+        };
+    }
+    /**
+     * 0 in the menu means "leave it alone" — which is the rate the buffer is
+     * already at, and that is the browser's audio rate, not the file's.
+     * decodeAudioData resamples everything to the AudioContext on the way in,
+     * and the real-time path captures at it, so the source's own rate is gone
+     * before this page ever sees a sample. The menu says so rather than
+     * implying otherwise.
+     */
+    function stRateFor(item) {
+        var chosen = parseInt($('stRate').value, 10) || 0;
+        return chosen || (item.buffer ? item.buffer.sampleRate : 48000);
+    }
+
+    /** Fill in the decoded rate once there is something decoded to ask. */
+    function stNameTheRate() {
+        var o = $('stRate').options[0];
+        var r = 0;
+        for (var i = 0; i < stItems.length && !r; i++) {
+            if (stItems[i].buffer) r = stItems[i].buffer.sampleRate;
+        }
+        o.textContent = r ? 'Leave as decoded \u2014 ' + (r / 1000) + ' kHz' : 'Leave as decoded';
+    }
+
+    function stAdd(fileList) {
+        var incoming = Array.prototype.slice.call(fileList).filter(function (f) { return f.size > 0; });
+        if (!incoming.length) return;
+        incoming.forEach(function (file) {
+            var item = {
+                file: file, name: file.name, status: 'reading…', error: null, buffer: null,
+                video: looksLikeVideo(file), abort: null, saving: false
+            };
+            stItems.push(item);
+            stLoad(item);
+        });
+        stRender();
+    }
+
+    function stLoad(item) {
+        item.file.arrayBuffer()
+            .then(decode)
+            .then(function (buf) { stSettled(item, buf); })
+            .catch(function () {
+                if (!mightPlay(item.file)) {
+                    item.error = 'This browser could not decode that file.';
+                    item.status = null; stRender(); return;
+                }
+                item.status = 'stripping audio…';
+                stRender();
+                captureFromMedia(item, function (frac) {
+                    item.status = 'stripping audio… ' + Math.round(frac * 100) + '%';
+                    stRender();
+                }).then(function (buf) { stSettled(item, buf); })
+                  .catch(function (err) {
+                      item.error = (err && err.message) || 'Could not get any audio out of that.';
+                      item.status = null; stRender();
+                  });
+            });
+    }
+
+    function stSettled(item, buffer) {
+        if (peakOf(channelsOf(buffer), buffer.length) < 1e-7) {
+            item.error = item.video ? 'No audio track in that video.' : 'That file is silent.';
+            item.status = null; stRender(); return;
+        }
+        item.buffer = buffer; item.status = null; stRender();
+    }
+
+    /** One clip's audio, as a plain WAV. */
+    function stSave(item) {
+        if (!item.buffer || item.saving) return Promise.resolve(false);
+        var opts = stOpts(), rate = stRateFor(item);
+        item.saving = true; stRender();
+        return resample(item.buffer, rate, opts.mono).then(function (rendered) {
+            var processed = applyOptions(rendered, opts);
+            if (!processed) throw new Error('silent');
+            var wav = encodeWavPlain(processed.channels, processed.length, rate);
+            saveBlob(new Blob([wav.bytes], { type: 'audio/wav' }), safeName(item.name));
+            item.saving = false; stRender();
+            return true;
+        }).catch(function (err) {
+            item.saving = false; stRender();
+            stStatus.textContent = (err && err.message === 'silent')
+                ? safeName(item.name) + ' came out silent, so nothing was saved.'
+                : 'Could not write a WAV for ' + item.name + '.';
+            return false;
+        });
+    }
+
+    function stSaveEvery() {
+        var ready = stItems.filter(function (it) { return it.buffer; });
+        if (!ready.length) return;
+        stSaveAll.disabled = true;
+        var n = 0;
+        // One at a time with a breath in between: browsers treat a burst of
+        // downloads as something to ask about, and some drop all but the first.
+        var chain = Promise.resolve();
+        ready.forEach(function (item, i) {
+            chain = chain.then(function () {
+                stStatus.textContent = 'Saving ' + (i + 1) + ' of ' + ready.length + '…';
+                return stSave(item);
+            }).then(function (ok) {
+                if (ok) n++;
+                return new Promise(function (r) { setTimeout(r, 400); });
+            });
+        });
+        chain.then(function () {
+            stStatus.textContent = 'Saved ' + n + ' WAV' + (n === 1 ? '' : 's') + '.';
+            stSaveAll.disabled = false;
+        });
+    }
+
+    function stRender() {
+        stWrap.classList.toggle('hidden', stItems.length === 0);
+        stRows.innerHTML = '';
+        stItems.forEach(function (item, i) {
+            var tr = document.createElement('tr');
+
+            var nameCell = document.createElement('td');
+            nameCell.className = 'fname';
+            nameCell.textContent = item.name;
+            if (item.video && item.buffer) {
+                var tag = document.createElement('span');
+                tag.className = 'from-video';
+                tag.textContent = 'audio from video';
+                nameCell.appendChild(tag);
+            }
+            if (item.error) {
+                var e = document.createElement('div');
+                e.className = 'err';
+                e.textContent = item.error;
+                nameCell.appendChild(e);
+            }
+
+            var outCell = document.createElement('td');
+            outCell.className = 'dest';
+            outCell.textContent = safeName(item.name);
+
+            var metaCell = document.createElement('td');
+            metaCell.className = 'meta';
+            metaCell.textContent = item.buffer
+                ? fmtTime(item.buffer.duration) + ' · ' +
+                  (item.buffer.numberOfChannels > 1 ? 'stereo' : 'mono') + ' · ' +
+                  (stRateFor(item) / 1000) + ' kHz out'
+                : (item.status || '…');
+
+            var actions = document.createElement('td');
+            var box = document.createElement('div');
+            box.className = 'row-btns';
+            if (item.buffer) {
+                var play = document.createElement('button');
+                play.className = 'row-btn'; play.type = 'button';
+                play.textContent = '▶'; play.title = 'Preview';
+                play.addEventListener('click', function () { preview(item); });
+                box.appendChild(play);
+
+                var wav = document.createElement('button');
+                wav.className = 'row-btn wide'; wav.type = 'button';
+                wav.textContent = 'WAV';
+                wav.disabled = !!item.saving;
+                wav.title = 'Save this clip\u2019s audio as a WAV';
+                wav.addEventListener('click', function () { stSave(item); });
+                box.appendChild(wav);
+            }
+            var del = document.createElement('button');
+            del.className = 'row-btn'; del.type = 'button';
+            del.textContent = '✕'; del.title = 'Remove';
+            del.addEventListener('click', function () {
+                if (item.abort) item.abort();
+                stItems.splice(i, 1);
+                stRender();
+            });
+            box.appendChild(del);
+            actions.appendChild(box);
+
+            tr.appendChild(nameCell); tr.appendChild(outCell);
+            tr.appendChild(metaCell); tr.appendChild(actions);
+            stRows.appendChild(tr);
+        });
+
+        stNameTheRate();
+        var ready = stItems.filter(function (it) { return it.buffer; }).length;
+        var bad = stItems.filter(function (it) { return it.error; }).length;
+        stSaveAll.disabled = ready === 0;
+        stSaveAll.textContent = ready > 1 ? 'Save all ' + ready + ' as WAV' : 'Save as WAV';
+        if (!stItems.length) stStatus.textContent = 'Drop a clip to begin.';
+        else {
+            var bits = [ready + ' ready'];
+            if (bad) bits.push(bad + ' could not be read');
+            stStatus.textContent = bits.join(' · ');
+        }
+    }
+
+    (function wireStrip() {
+        var sd = $('stDrop'), sp = $('stPicker');
+        sd.addEventListener('click', function (e) { if (e.target !== sp) sp.click(); });
+        sp.addEventListener('change', function () { stAdd(sp.files); sp.value = ''; });
+        ['dragenter', 'dragover'].forEach(function (ev) {
+            sd.addEventListener(ev, function (e) { e.preventDefault(); sd.classList.add('over'); });
+        });
+        ['dragleave', 'drop'].forEach(function (ev) {
+            sd.addEventListener(ev, function (e) { e.preventDefault(); sd.classList.remove('over'); });
+        });
+        sd.addEventListener('drop', function (e) {
+            if (e.dataTransfer && e.dataTransfer.files) stAdd(e.dataTransfer.files);
+        });
+        stSaveAll.addEventListener('click', stSaveEvery);
+        ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade'].forEach(function (id) {
+            $(id).addEventListener('change', stRender);
+        });
+    })();
+
     // ---- mode switch ----
+    var MODE_UI = { prepare: 'prepareUI', strip: 'stripUI', extract: 'extractUI' };
     document.querySelectorAll('.mode-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('active'); });
-            btn.classList.add('active');
-            var extract = btn.getAttribute('data-mode') === 'extract';
-            $('prepareUI').classList.toggle('hidden', extract);
-            $('extractUI').classList.toggle('hidden', !extract);
+            var mode = btn.getAttribute('data-mode');
+            document.querySelectorAll('.mode-btn').forEach(function (b) {
+                b.classList.toggle('active', b === btn);
+            });
+            Object.keys(MODE_UI).forEach(function (k) {
+                $(MODE_UI[k]).classList.toggle('hidden', k !== mode);
+            });
         });
     });
 
