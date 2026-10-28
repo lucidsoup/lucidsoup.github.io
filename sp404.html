@@ -382,13 +382,14 @@
 
             <div class="from-web">
                 <div class="fw-row">
-                    <input type="url" id="stUrl" placeholder="…or paste a link to a file"
+                    <input type="url" id="stUrl" placeholder="…or paste a link to a media file"
                            autocomplete="off" spellcheck="false">
                     <button type="button" class="pick-btn" id="stFetch">Fetch</button>
                 </div>
                 <p class="fw-help" id="stUrlHelp">
-                    A direct link to a media file, if the host lets other sites read it &mdash; Wikimedia and
-                    archive.org do, most do not.
+                    Paste it and press <strong>Fetch</strong>, or Enter. A direct link to a media file,
+                    and only if the host lets other sites read it &mdash; Wikimedia and archive.org do,
+                    most do not.
                 </p>
                 <div class="fw-row" id="stRecRow">
                     <button type="button" class="pick-btn" id="stRecord">Record what&rsquo;s playing</button>
@@ -2478,14 +2479,13 @@
         urlIn.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') { e.preventDefault(); stAddUrl(urlIn.value); urlIn.value = ''; }
         });
-        // Pasting a link is almost always meant as "do this one now".
-        urlIn.addEventListener('paste', function (e) {
-            var text = (e.clipboardData || window.clipboardData).getData('text');
-            if (!text || !/^\s*(https?:\/\/|www\.)/i.test(text)) return;
-            e.preventDefault();
-            stAddUrl(text);
-            urlIn.value = '';
-        });
+        // There was a handler here that took a pasted link, cancelled the
+        // paste and fetched it on the spot, on the theory that pasting means
+        // "do this one now". What it actually meant was that pasting a link
+        // left the box empty — and if the link was one of the walled sites, a
+        // message and an empty box is indistinguishable from paste being
+        // broken. A paste puts the text in the field. Fetch and Enter are the
+        // two things that start anything.
 
         if (stCanRecord()) $('stRecord').addEventListener('click', stStartRecording);
         else $('stRecRow').style.display = 'none';
