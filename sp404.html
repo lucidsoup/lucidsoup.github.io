@@ -126,6 +126,18 @@
         }
         .row-btn.wide:hover:not(:disabled) { background: rgba(139, 108, 245,.12); color: #fff; }
         .build-note { margin-top: .7rem; font-size: .76rem; color: rgba(255,255,255,.42); }
+        .from-web { margin-top: 1.1rem; }
+        .fw-row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin-bottom: .45rem; }
+        .fw-row input[type=url] {
+            flex: 1 1 18rem; min-width: 0;
+            background: rgba(0,0,0,.45); color: #fff;
+            border: 1px solid rgba(255,255,255,.18); border-radius: 7px;
+            font-family: inherit; font-size: .84rem; padding: .55rem .7rem;
+        }
+        .fw-row input[type=url]:focus { outline: none; border-color: rgba(139, 108, 245,.7); }
+        .fw-help { font-size: .74rem; color: rgba(255,255,255,.4); line-height: 1.5; margin: 0 0 .9rem; }
+        .fw-row .fw-help { margin: 0; flex: 1 1 14rem; }
+        #stRecord.recording { border-color: rgba(212, 79, 176,.8); color: #ffb9e8; }
 
         .row-btns { display: flex; gap: .3rem; justify-content: flex-end; }
 
@@ -366,6 +378,25 @@
                     as WAV. Nothing is uploaded.</div>
                 <input type="file" id="stPicker" multiple class="hidden"
                        accept="video/*,audio/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.wmv,.flv,.ogv,.3gp,.3g2,.mpg,.mpeg,.ts,.m2ts,.mts,.asf,.f4v,.vob,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.opus">
+            </div>
+
+            <div class="from-web">
+                <div class="fw-row">
+                    <input type="url" id="stUrl" placeholder="…or paste a link to a file"
+                           autocomplete="off" spellcheck="false">
+                    <button type="button" class="pick-btn" id="stFetch">Fetch</button>
+                </div>
+                <p class="fw-help" id="stUrlHelp">
+                    A direct link to a media file, if the host lets other sites read it &mdash; Wikimedia and
+                    archive.org do, most do not.
+                </p>
+                <div class="fw-row" id="stRecRow">
+                    <button type="button" class="pick-btn" id="stRecord">Record what&rsquo;s playing</button>
+                    <span class="fw-help" id="stRecHelp">
+                        For anything you can only watch &mdash; YouTube included. Plays in one tab, records
+                        from another.
+                    </span>
+                </div>
             </div>
             <div id="stWrap" class="hidden" style="margin-top:1.25rem; overflow-x:auto;">
                 <table class="files">
@@ -903,11 +934,17 @@
             var c = ctx();
             if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
 
-            var url = URL.createObjectURL(item.file);
+            // A local file gets a blob URL; a link is used as it stands, and
+            // has to be asked for with CORS — an element loaded cross-origin
+            // without it still plays, but what reaches the audio graph is
+            // silence, which would look like a video with no soundtrack.
+            var remote = !!item.url;
+            var url = remote ? item.url : URL.createObjectURL(item.file);
             var el = document.createElement('video');
             el.preload = 'auto';
             el.playsInline = true;
             el.setAttribute('playsinline', '');
+            if (remote) el.crossOrigin = 'anonymous';
             el.volume = 1;              // muting it would silence the graph too
             el.src = url;
 
@@ -923,7 +960,7 @@
                 if (sink) { try { sink.disconnect(); } catch (e) {} }
                 el.removeAttribute('src');
                 try { el.load(); } catch (e) {}
-                URL.revokeObjectURL(url);
+                if (!remote) URL.revokeObjectURL(url);
                 item.abort = null;
             }
             function stop(msg) { if (done) return; done = true; tidy(); reject(new Error(msg)); }
@@ -943,7 +980,11 @@
             // Removing the row while this is running stops it.
             item.abort = function () { stop('Cancelled.'); };
 
-            el.addEventListener('error', function () { stop('This browser cannot play that file.'); });
+            el.addEventListener('error', function () {
+                stop(remote
+                    ? 'That link could not be played. The server may not allow other sites to read it.'
+                    : 'This browser cannot play that file.');
+            });
             el.addEventListener('ended', finish);
             el.addEventListener('loadedmetadata', function () {
                 if (hasAudioTrack(el) === false) { stop('No audio track in that video.'); return; }
@@ -2041,6 +2082,213 @@
         o.textContent = r ? 'Leave as decoded \u2014 ' + (r / 1000) + ' kHz' : 'Leave as decoded';
     }
 
+    /* ------------------------------------------------------------------
+       Links, and the thing people actually mean by them
+
+       A direct link to a media file works when the host lets another site
+       read it. Plenty do — Wikimedia and archive.org send
+       access-control-allow-origin — and plenty do not, in which case neither
+       fetch nor a media element can get at the sound, and the honest answer
+       is to say so rather than to fail vaguely.
+
+       YouTube and the rest are a different matter, and no amount of effort
+       here would change it: the audio sits behind short-lived signed URLs on
+       a host that shares nothing with other sites, so a page served from
+       somewhere else cannot reach it. Rather than pretend, those links are
+       recognised and pointed at the thing that does work — recording the tab
+       while it plays, which the browser offers on purpose and asks the
+       viewer's permission for every time.
+       ------------------------------------------------------------------ */
+    var WALLED = [
+        [/(^|\.)youtube\.com$|(^|\.)youtu\.be$/, 'YouTube'],
+        [/(^|\.)vimeo\.com$/, 'Vimeo'],
+        [/(^|\.)soundcloud\.com$/, 'SoundCloud'],
+        [/(^|\.)spotify\.com$/, 'Spotify'],
+        [/(^|\.)bandcamp\.com$/, 'Bandcamp'],
+        [/(^|\.)mixcloud\.com$/, 'Mixcloud'],
+        [/(^|\.)tiktok\.com$/, 'TikTok'],
+        [/(^|\.)instagram\.com$/, 'Instagram'],
+        [/(^|\.)facebook\.com$|(^|\.)fb\.watch$/, 'Facebook'],
+        [/(^|\.)twitter\.com$|(^|\.)x\.com$/, 'X'],
+        [/(^|\.)twitch\.tv$/, 'Twitch'],
+        [/(^|\.)dailymotion\.com$/, 'Dailymotion'],
+        [/(^|\.)reddit\.com$/, 'Reddit']
+    ];
+    function walledSite(host) {
+        host = String(host || '').toLowerCase().replace(/^www\./, '');
+        for (var i = 0; i < WALLED.length; i++) if (WALLED[i][0].test(host)) return WALLED[i][1];
+        return null;
+    }
+
+    /** A usable name out of a URL's last path segment. */
+    function nameFromUrl(u) {
+        var last = '';
+        try { last = decodeURIComponent((u.pathname || '').split('/').filter(Boolean).pop() || ''); }
+        catch (e) { last = (u.pathname || '').split('/').filter(Boolean).pop() || ''; }
+        if (!last || last.indexOf('.') < 0) last = (u.hostname || 'link').replace(/^www\./, '');
+        return last;
+    }
+
+    function stAddUrl(raw) {
+        var text = String(raw || '').trim();
+        if (!text) return;
+        if (!/^https?:\/\//i.test(text)) text = 'https://' + text;
+        var u;
+        try { u = new URL(text); } catch (e) { u = null; }
+        // new URL() is forgiving enough to accept "https://not a link at all",
+        // which would otherwise sit in the list as a row that fetches nothing.
+        if (!u || !u.hostname || u.hostname.indexOf('.') < 0 || /\s/.test(u.hostname)) {
+            stStatus.textContent = 'That does not look like a link.';
+            return;
+        }
+
+        var site = walledSite(u.hostname);
+        if (site) {
+            // textContent, not innerHTML: this page has no escaper, and a
+            // status line is not worth introducing one for.
+            stStatus.textContent = site + ' keeps its audio behind signed links that are not shared ' +
+                'with other sites, so no page can read one. Play it in a tab and use ' +
+                '\u201cRecord what\u2019s playing\u201d below.';
+            return;
+        }
+
+        var item = {
+            file: null, url: text, name: nameFromUrl(u), status: 'fetching\u2026', error: null,
+            buffer: null, video: AV_EXT.test(u.pathname || ''), abort: null, saving: false
+        };
+        stItems.push(item);
+        stRender();
+
+        fetch(text, { mode: 'cors' })
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.arrayBuffer();
+            })
+            .then(decode)
+            .then(function (buf) { stSettled(item, buf); })
+            .catch(function (err) {
+                var httpish = err && /^HTTP \d+$/.test(err.message || '');
+                if (httpish) {
+                    item.error = 'The link answered ' + err.message + '.';
+                    item.status = null; stRender(); return;
+                }
+                // Either the host would not let us read it, or we read it and
+                // could not decode it in one go. The element tells the two
+                // apart by succeeding or failing.
+                item.status = 'reading in real time\u2026';
+                stRender();
+                captureFromMedia(item, function (frac) {
+                    item.status = 'reading\u2026 ' + Math.round(frac * 100) + '%';
+                    stRender();
+                }).then(function (buf) { stSettled(item, buf); })
+                  .catch(function (e2) {
+                      item.error = (e2 && e2.message) ||
+                          'That link could not be read from here.';
+                      item.status = null; stRender();
+                  });
+            });
+    }
+
+    /* ---- recording whatever is playing ----
+       getDisplayMedia is the browser's own answer to "capture what I am
+       watching": it will not hand over a tab's sound without the viewer
+       picking that tab and ticking the box, every time. Chrome and Edge share
+       tab audio; Firefox and Safari do not, so the button only appears where
+       it can work. Video has to be asked for — there is no audio-only form of
+       the picker — and the video track is dropped the moment it arrives. */
+    var recording = null;
+    function stCanRecord() {
+        return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    }
+
+    function stStopRecording() {
+        if (!recording) return;
+        var r = recording;
+        recording = null;
+        clearInterval(r.tick);
+        if (r.proc) { r.proc.onaudioprocess = null; try { r.proc.disconnect(); } catch (e) {} }
+        if (r.src) { try { r.src.disconnect(); } catch (e) {} }
+        if (r.sink) { try { r.sink.disconnect(); } catch (e) {} }
+        r.stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+        $('stRecord').classList.remove('recording');
+        $('stRecord').textContent = 'Record what\u2019s playing';
+
+        if (!r.frames) {
+            stStatus.textContent = 'Nothing came through. In the picker, choose a tab and tick ' +
+                'the box that shares its audio.';
+            return;
+        }
+        var c = ctx();
+        var buf = c.createBuffer(2, r.frames, c.sampleRate);
+        var L = buf.getChannelData(0), R = buf.getChannelData(1);
+        for (var i = 0, at = 0; i < r.left.length; i++) {
+            L.set(r.left[i], at); R.set(r.right[i], at); at += r.left[i].length;
+        }
+        var item = {
+            file: null, url: null, name: 'recording-' + (++recCount) + '.wav', status: null,
+            error: null, buffer: null, video: false, abort: null, saving: false
+        };
+        stItems.push(item);
+        stSettled(item, buf);
+        stStatus.textContent = 'Recorded ' + fmtTime(buf.duration) + '.';
+    }
+    var recCount = 0;
+
+    function stStartRecording() {
+        if (recording) { stStopRecording(); return; }
+        var c = ctx();
+        if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+
+        navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }).then(function (stream) {
+            var audio = stream.getAudioTracks();
+            if (!audio.length) {
+                stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+                stStatus.textContent = 'That share had no audio in it. Pick a tab rather than a ' +
+                    'window or a screen, and tick the box that shares its sound.';
+                return;
+            }
+            stream.getVideoTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+
+            var r = { stream: stream, left: [], right: [], frames: 0, started: Date.now(), tick: 0 };
+            r.src = c.createMediaStreamSource(stream);
+            r.proc = c.createScriptProcessor(4096, 2, 2);
+            r.sink = c.createGain();
+            r.sink.gain.value = 0;        // no feedback loop out of the speakers
+            r.proc.onaudioprocess = function (ev) {
+                if (!recording) return;
+                var ib = ev.inputBuffer;
+                r.left.push(new Float32Array(ib.getChannelData(0)));
+                r.right.push(new Float32Array(ib.getChannelData(ib.numberOfChannels > 1 ? 1 : 0)));
+                r.frames += ib.length;
+                if (r.frames > c.sampleRate * CAPTURE_MAX) stStopRecording();
+            };
+            r.src.connect(r.proc);
+            r.proc.connect(r.sink);
+            r.sink.connect(c.destination);
+
+            // Stopping the share from the browser's own bar ends it too.
+            audio[0].addEventListener('ended', stStopRecording);
+            audio[0].addEventListener('mute', function () {});
+
+            recording = r;
+            $('stRecord').classList.add('recording');
+            r.tick = setInterval(function () {
+                if (!recording) return;
+                var secs = Math.floor((Date.now() - r.started) / 1000);
+                $('stRecord').textContent = 'Stop \u00b7 ' + Math.floor(secs / 60) + ':' +
+                    (secs % 60 < 10 ? '0' : '') + (secs % 60);
+            }, 250);
+            stStatus.textContent = 'Recording. Press play in the other tab; stop here when it is done.';
+        }).catch(function (err) {
+            if (err && err.name === 'NotAllowedError') {
+                stStatus.textContent = 'Nothing was shared.';
+            } else {
+                stStatus.textContent = 'This browser would not share a tab\u2019s audio. ' +
+                    'Chrome and Edge can; Firefox and Safari cannot.';
+            }
+        });
+    }
+
     function stAdd(fileList) {
         var incoming = Array.prototype.slice.call(fileList).filter(function (f) { return f.size > 0; });
         if (!incoming.length) return;
@@ -2224,6 +2472,23 @@
             if (e.dataTransfer && e.dataTransfer.files) stAdd(e.dataTransfer.files);
         });
         stSaveAll.addEventListener('click', stSaveEvery);
+
+        var urlIn = $('stUrl');
+        $('stFetch').addEventListener('click', function () { stAddUrl(urlIn.value); urlIn.value = ''; });
+        urlIn.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); stAddUrl(urlIn.value); urlIn.value = ''; }
+        });
+        // Pasting a link is almost always meant as "do this one now".
+        urlIn.addEventListener('paste', function (e) {
+            var text = (e.clipboardData || window.clipboardData).getData('text');
+            if (!text || !/^\s*(https?:\/\/|www\.)/i.test(text)) return;
+            e.preventDefault();
+            stAddUrl(text);
+            urlIn.value = '';
+        });
+
+        if (stCanRecord()) $('stRecord').addEventListener('click', stStartRecording);
+        else $('stRecRow').style.display = 'none';
         ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade'].forEach(function (id) {
             $(id).addEventListener('change', stRender);
         });
