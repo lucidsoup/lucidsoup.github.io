@@ -115,7 +115,17 @@
             border-radius: 5px; cursor: pointer; font-size: .7rem; padding: .2rem .45rem;
             font-family: inherit; line-height: 1.4;
         }
-        .row-btn:hover { border-color: rgba(139, 108, 245,.7); color: #fff; }
+        .row-btn:hover:not(:disabled) { border-color: rgba(139, 108, 245,.7); color: #fff; }
+        .row-btn:disabled { opacity: .45; cursor: default; }
+        /* The WAV button carries a word rather than a glyph, because what it
+           does is not guessable from an arrow. */
+        .row-btn.wide {
+            padding: .2rem .5rem; letter-spacing: .06em;
+            font-size: .62rem; color: rgba(155, 123, 255,.95);
+            border-color: rgba(139, 108, 245,.38);
+        }
+        .row-btn.wide:hover:not(:disabled) { background: rgba(139, 108, 245,.12); color: #fff; }
+        .build-note { margin-top: .7rem; font-size: .76rem; color: rgba(255,255,255,.42); }
         .row-btns { display: flex; gap: .3rem; justify-content: flex-end; }
 
         /* ---- buttons / notices ---- */
@@ -326,6 +336,10 @@
             <button class="btn" id="go" disabled>Build ZIP</button>
             <span class="status" id="status">Add some audio to begin.</span>
         </div>
+        <p class="build-note">
+            The ZIP is the whole card. If you only came for the sound &mdash; a clip's audio, say &mdash;
+            every row has a <strong>WAV</strong> button that saves that one on its own.
+        </p>
         <div id="steps" class="hidden" style="margin-top:1.3rem;">
             <h2 style="margin-bottom:.7rem;">Onto the card</h2>
             <ol class="steps" id="stepList"></ol>
@@ -615,6 +629,18 @@
     }
 
     /** Plain 44-byte-header WAV for the MKII, which imports ordinary files. */
+    /** Hand a blob to the browser as a download. */
+    function saveBlob(blob, filename) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+    }
+
     function encodeWavPlain(channels, length, rate) {
         var nch = channels.length;
         var pcm = toPCM16(channels, length);
@@ -1120,6 +1146,16 @@
                 play.title = 'Preview';
                 play.addEventListener('click', function () { preview(item); });
                 box.appendChild(play);
+
+                var wav = document.createElement('button');
+                wav.className = 'row-btn wide';
+                wav.type = 'button';
+                wav.textContent = 'WAV';
+                wav.disabled = !!item.saving;
+                wav.title = 'Save this as a plain WAV (' + (targetRate() / 1000) +
+                            ' kHz, with the options below) — no zip';
+                wav.addEventListener('click', function () { saveWav(item); });
+                box.appendChild(wav);
             }
             var up = document.createElement('button');
             up.className = 'row-btn'; up.type = 'button'; up.textContent = '↑'; up.title = 'Move up';
@@ -1185,6 +1221,53 @@
             parts.push(free + ' pad' + (free === 1 ? '' : 's') + ' from ' + padLabel(firstPadIndex()));
         }
         statusEl.textContent = parts.join(' · ');
+    }
+
+    function currentOpts() {
+        return {
+            normalize: $('optNormalize').checked,
+            trim: $('optTrim').checked,
+            mono: $('optMono').checked,
+            fade: $('optFade').checked
+        };
+    }
+    function targetRate() { return isSX() ? SX.rate : MK2.rate; }
+
+    /**
+     * One sample straight out as a plain WAV, no card folders and no zip.
+     *
+     * Stripping the audio off a video usually ends with wanting that audio,
+     * not a card image with one pad on it — and an SP-404SX bundle names it
+     * A0000001.WAV and buries it three folders down, so getting it back out
+     * was a chore. This is the same audio the card would get: target rate,
+     * same options, just loose and under its own name.
+     */
+    function saveWav(item) {
+        if (!item.buffer || item.saving) return;
+        var opts = currentOpts();
+        var rate = targetRate();
+        item.saving = true;
+        item.status = 'saving…';
+        render();
+        resample(item.buffer, rate, opts.mono).then(function (rendered) {
+            var processed = applyOptions(rendered, opts);
+            if (!processed) throw new Error('silent');
+            // encodeWavPlain hands back { bytes, dataBytes, channels }; the
+            // blob wants the bytes, and handing it the object writes a
+            // fifteen-byte file that says [object Object].
+            var wav = encodeWavPlain(processed.channels, processed.length, rate);
+            saveBlob(new Blob([wav.bytes], { type: 'audio/wav' }), safeName(item.name));
+            item.saving = false;
+            item.status = null;
+            render();
+        }).catch(function (err) {
+            item.saving = false;
+            item.status = null;
+            statusEl.textContent = (err && err.message === 'silent')
+                ? safeName(item.name) + ' came out silent, so nothing was saved.'
+                : 'Could not write a WAV for ' + item.name + '.';
+            render();
+        });
     }
 
     var playing = null;
@@ -1347,13 +1430,8 @@
         goBtn.disabled = true;
         stepsBox.classList.add('hidden');
 
-        var opts = {
-            normalize: $('optNormalize').checked,
-            trim: $('optTrim').checked,
-            mono: $('optMono').checked,
-            fade: $('optFade').checked
-        };
-        var rate = sx ? SX.rate : MK2.rate;
+        var opts = currentOpts();
+        var rate = targetRate();
         var entries = [];
         var assignments = [];
         var skipped = [];
@@ -1399,14 +1477,7 @@
             }
 
             var blob = buildZip(entries);
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = sx ? 'sp404sx-samples.zip' : 'sp404mk2-import.zip';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+            saveBlob(blob, sx ? 'sp404sx-samples.zip' : 'sp404mk2-import.zip');
 
             var made = sx ? entries.length - 1 : entries.length;
             var msg = 'Built ' + made + ' sample' + (made === 1 ? '' : 's') + ' · ' + fmtBytes(blob.size);
@@ -1798,14 +1869,7 @@
         chain.then(function () {
             if (!entries.length) throw new Error('Nothing to export.');
             var blob = buildZip(entries);
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'sp404-samples.zip';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+            saveBlob(blob, 'sp404-samples.zip');
             exStatus.textContent = 'Exported ' + entries.length + ' WAV' +
                 (entries.length === 1 ? '' : 's') + ' · ' + fmtBytes(blob.size);
         }).catch(function (err) {
