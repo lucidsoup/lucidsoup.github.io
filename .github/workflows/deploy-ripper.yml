@@ -52,7 +52,16 @@ jobs:
         working-directory: ripper
         run: |
           app=$(awk -F'"' '/^app *=/{print $2}' fly.toml)
-          flyctl apps list | grep -qx -e "$app.*" || flyctl apps create "$app" --org personal || true
+          # Asking about this app directly, rather than grepping a list: the
+          # pattern that did it would also have matched lucidsoup-ripper-2, and
+          # the || true after it would have swallowed a real failure to create
+          # and left the deploy to fail further on with a stranger message.
+          if flyctl status -a "$app" >/dev/null 2>&1; then
+            echo "$app already exists."
+          else
+            echo "Creating $app…"
+            flyctl apps create "$app" --org personal
+          fi
 
       - name: Set the service's own settings
         if: steps.gate.outputs.go == 'yes'

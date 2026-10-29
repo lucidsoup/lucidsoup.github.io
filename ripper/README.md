@@ -92,8 +92,21 @@ into **Audio service**.
 
 ### On Fly.io, by hand
 
-`fly.toml` is here and already set to scale to zero, so it costs nothing while
-nobody is sampling.
+`fly.toml` is here and set up for something used in bursts and idle the rest of
+the time:
+
+- `auto_stop_machines = "suspend"` with `min_machines_running = 0`. Suspend
+  keeps the machine's memory, so it comes back in about a second rather than
+  booting the container again, and costs nothing while it is down. That is the
+  reason to pick Fly for this over anything that cold-starts.
+- `kill_timeout = "120s"`, because a rip is one long request and the default
+  five seconds would cut one in half whenever a deploy landed mid-download.
+- Concurrency limits that match `RIPPER_MAX_CONCURRENT`, so the edge does not
+  accept fifty rips the service will only turn away.
+
+**Change `primary_region`** to the city nearest you. After the cold start it is
+the biggest thing between pressing Fetch and hearing the clip, and the `lhr` in
+there is a guess. `fly platform regions` lists them.
 
 ```sh
 fly launch --no-deploy          # accept the existing fly.toml
