@@ -138,6 +138,34 @@
         }
         .fw-row input[type=url]:focus { outline: none; border-color: rgba(139, 108, 245,.7); }
         .fw-help { font-size: .74rem; color: rgba(255,255,255,.4); line-height: 1.5; margin: 0 0 .9rem; }
+        /* Answers about a link belong beside the link box. They used to go to
+           the status line in panel 3, which on a phone is several screens
+           further down, so pressing Fetch looked like it did nothing at all. */
+        .fw-note {
+            font-size: .8rem; line-height: 1.5; margin: 0 0 .9rem;
+            padding: .55rem .7rem; border-radius: 7px;
+            border: 1px solid rgba(139, 108, 245,.35); background: rgba(139, 108, 245,.08);
+            color: rgba(255,255,255,.82);
+        }
+        .fw-note.bad { border-color: rgba(255, 59, 107,.45); background: rgba(255, 59, 107,.08); }
+        .svc { margin: 0 0 .9rem; }
+        .svc > summary {
+            cursor: pointer; font-size: .74rem; color: rgba(255,255,255,.45);
+            list-style: none; padding: .2rem 0;
+        }
+        .svc > summary::-webkit-details-marker { display: none; }
+        .svc > summary::before { content: '\25b8  '; color: rgba(139, 108, 245,.8); }
+        .svc[open] > summary::before { content: '\25be  '; }
+        .svc > summary:hover { color: rgba(255,255,255,.75); }
+        .svc .fw-row { margin-top: .6rem; }
+        .svc input { flex: 1 1 14rem; }
+        .svc input.key { flex: 0 1 11rem; }
+        .svc-on { color: rgba(138, 224, 75,.9); }
+        .files tr.fresh { animation: rowIn 1.4s ease; }
+        @keyframes rowIn {
+            from { background: rgba(139, 108, 245,.22); }
+            to { background: transparent; }
+        }
         .fw-row .fw-help { margin: 0; flex: 1 1 14rem; }
         #stRecord.recording { border-color: rgba(212, 79, 176,.8); color: #ffb9e8; }
 
@@ -410,13 +438,39 @@
                            autocomplete="off" spellcheck="false">
                     <button type="button" class="pick-btn" id="stFetch">Fetch</button>
                 </div>
+                <p class="fw-note hidden" id="stUrlNote"></p>
+                <details class="svc" id="stSvc">
+                    <summary id="stSvcSummary">Audio service &mdash; for the links a browser cannot read</summary>
+                    <div class="fw-row">
+                        <input type="url" id="stSvcUrl" placeholder="https://your-ripper.fly.dev"
+                               autocomplete="off" spellcheck="false">
+                        <input type="password" id="stSvcKey" class="key" placeholder="key, if you set one"
+                               autocomplete="off">
+                        <button type="button" class="pick-btn" id="stSvcCheck">Check</button>
+                    </div>
+                    <p class="fw-help" style="margin:.6rem 0 0;">
+                        No page served from here can read YouTube, SoundCloud or Bandcamp audio, on any
+                        browser: it sits behind short-lived signed links their hosts share with nobody.
+                        A small service you run yourself can, and then every link works everywhere
+                        &mdash; phone included, in seconds rather than in real time.
+                        <strong>ripper/</strong> in this site&rsquo;s repository is that service: one file,
+                        a Dockerfile, and a README. Point this at it and it gets used for anything this
+                        browser cannot fetch on its own. Kept in this browser only; never sent anywhere
+                        but to the address you put here.
+                    </p>
+                </details>
                 <p class="fw-help" id="stUrlHelp">
-                    Paste it and press <strong>Fetch</strong>, or Enter. If the host shares its files
+                    Paste it and press <strong>Fetch</strong>, or Enter. Direct files, and the
+                    <code>.pls</code> and <code>.m3u</code> a station gives you &mdash; those are
+                    followed to the stream, which is then taken from until you press
+                    <strong>Stop</strong>. If the host shares its files
                     &mdash; Wikimedia and archive.org do &mdash; the audio comes straight off the link.
                     If it does not, or the link is a page rather than a file (YouTube, SoundCloud,
                     Bandcamp&hellip;), the row offers <strong>Rip</strong>: it opens the link in a tab
                     and records it playing. That one runs in real time, so a four-minute track takes
-                    four minutes, and it stops itself when the sound ends.
+                    four minutes, and it stops itself when the sound ends &mdash; and it only exists on
+                    desktop Chrome and Edge. For everything else, and for every phone, there is the
+                    audio service below.
                 </p>
                 <div class="fw-row" id="stRecRow">
                     <button type="button" class="pick-btn" id="stRecord">Record what&rsquo;s playing</button>
@@ -2197,6 +2251,286 @@
         return (id ? base + '-' + id : base) + '.wav';
     }
 
+    /**
+     * Say something about a link, next to the link box. The status line down
+     * in Save is kept in step for anything watching it, but it is not where
+     * someone who just pressed Fetch is looking.
+     */
+    function stSay(msg, bad) {
+        var note = $('stUrlNote');
+        note.textContent = msg;
+        note.classList.remove('hidden');
+        note.classList.toggle('bad', !!bad);
+        stStatus.textContent = msg;
+    }
+
+    /* ------------------------------------------------------------------
+       The audio service
+
+       Everything else on this page runs in the browser, and that is the
+       point of it. This one thing cannot: the sites people actually want
+       to sample from hand their audio out on signed links that no other
+       origin may read, and no amount of work here changes that. A server
+       can do it, so the page will use one if you have one — yours, at an
+       address you type in, holding your key, seeing only the links you
+       hand it. It stays optional and it stays last: anything the browser
+       can do for itself, it still does for itself.
+       ------------------------------------------------------------------ */
+    function svcCfg() {
+        try {
+            return {
+                url: (localStorage.getItem('lucid.svc.url') || '').trim().replace(/\/+$/, ''),
+                key: localStorage.getItem('lucid.svc.key') || ''
+            };
+        } catch (e) { return { url: '', key: '' }; }
+    }
+    function haveService() { return !!svcCfg().url; }
+
+    /** Pull one link's audio through the service and decode it here. */
+    function stFromService(item) {
+        var cfg = svcCfg();
+        var url = cfg.url + '/rip?format=m4a&url=' + encodeURIComponent(item.url);
+        var opts = { headers: {} };
+        if (cfg.key) opts.headers.authorization = 'Bearer ' + cfg.key;
+        item.status = 'asking your service\u2026';
+        stRender();
+
+        return fetch(url, opts).then(function (r) {
+            if (!r.ok) {
+                return r.json().catch(function () { return {}; }).then(function (j) {
+                    throw new Error(j.error || 'Your service answered HTTP ' + r.status + '.');
+                });
+            }
+            var title = '';
+            try { title = decodeURIComponent(r.headers.get('x-rip-title') || ''); } catch (e) {}
+            if (title) item.name = title + '.wav';
+            var total = Number(r.headers.get('content-length') || 0);
+            if (!r.body || !total || !r.body.getReader) return r.arrayBuffer();
+
+            // A rip off a long set is worth watching arrive.
+            var reader = r.body.getReader(), chunks = [], got = 0, shown = -1;
+            return (function pump() {
+                return reader.read().then(function (res) {
+                    if (res.done) {
+                        var all = new Uint8Array(got), at = 0;
+                        for (var i = 0; i < chunks.length; i++) { all.set(chunks[i], at); at += chunks[i].length; }
+                        return all.buffer;
+                    }
+                    chunks.push(res.value); got += res.value.length;
+                    var pct = Math.round(got / total * 100);
+                    if (pct !== shown) { shown = pct; item.status = 'downloading\u2026 ' + pct + '%'; stRender(); }
+                    return pump();
+                });
+            })();
+        }).then(decode);
+    }
+
+    /** The service's answer, settled into the row either way. */
+    function stServiceInto(item, why) {
+        return stFromService(item).then(function (buf) {
+            item.error = null; item.rip = false; item.armed = false;
+            stSettled(item, buf);
+            if (item.buffer) stSay('Got ' + item.name + ' \u2014 ' + fmtTime(item.buffer.duration) +
+                ' \u2014 from your service.');
+            return true;
+        }).catch(function (err) {
+            item.error = (err && err.message) || 'Your service could not get that.';
+            item.rip = stCanRecord();
+            item.status = item.rip ? 'needs the tab' : null;
+            stRender();
+            stSay((why ? why + ' ' : '') + item.error +
+                (item.rip ? ' You can still press Rip and record it playing.' : ''), true);
+            return false;
+        });
+    }
+
+    /** The settings box: remembered here, checked on demand, never sent on. */
+    function svcWire() {
+        var urlIn = $('stSvcUrl'), keyIn = $('stSvcKey'), cfg = svcCfg();
+        urlIn.value = cfg.url; keyIn.value = cfg.key;
+        svcSummary();
+        function save() {
+            try {
+                localStorage.setItem('lucid.svc.url', urlIn.value.trim().replace(/\/+$/, ''));
+                localStorage.setItem('lucid.svc.key', keyIn.value);
+            } catch (e) {}
+            svcSummary();
+        }
+        urlIn.addEventListener('change', save);
+        keyIn.addEventListener('change', save);
+        urlIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { save(); svcCheck(); } });
+        $('stSvcCheck').addEventListener('click', function () { save(); svcCheck(); });
+        // Open it where it is the only way through. On desktop Chrome a tab
+        // can be recorded, so the service is a nicety and stays folded away;
+        // on a phone it is the whole answer, and folded away is as good as
+        // absent.
+        $('stSvc').open = !cfg.url && !stCanRecord();
+    }
+    function svcSummary() {
+        var cfg = svcCfg(), el = $('stSvcSummary');
+        el.innerHTML = cfg.url
+            ? 'Audio service \u2014 <span class="svc-on">on</span>, at ' +
+              cfg.url.replace(/^https?:\/\//, '')
+            : 'Audio service \u2014 for the links a browser cannot read';
+    }
+    function svcCheck() {
+        var cfg = svcCfg();
+        if (!cfg.url) { stSay('Put your service\u2019s address in first.', true); return; }
+        stSay('Checking ' + cfg.url + '\u2026');
+        var opts = { headers: {} };
+        if (cfg.key) opts.headers.authorization = 'Bearer ' + cfg.key;
+        fetch(cfg.url + '/health', opts).then(function (r) {
+            if (!r.ok) throw new Error('It answered HTTP ' + r.status + '.');
+            return r.json();
+        }).then(function (h) {
+            if (!h || !h.ok) throw new Error('It answered, but yt-dlp or ffmpeg is missing there.');
+            if (h.needsToken && h.keyOk === false) {
+                stSay('Your service is running, but that key is not the one it wants.', true);
+                return;
+            }
+            stSay('Your service is up \u2014 yt-dlp ' + (h.ytdlp || '?') + ', up to ' +
+                Math.round((h.maxSeconds || 0) / 60) + ' minutes a clip. Links this browser cannot ' +
+                'read will go to it from now on.');
+        }).catch(function (err) {
+            stSay('Could not reach your service. ' + ((err && err.message) || '') +
+                ' Check the address, that it is running, and that it allows this site as an origin.', true);
+        });
+    }
+
+    /* ------------------------------------------------------------------
+       Playlists, and the streams they point at
+
+       Winamp's Ctrl+L took a URL and played it, and most of what people
+       pasted into it was a .pls or an .m3u from a station's web page,
+       pointing at a Shoutcast stream. Winamp was a program: it opened a
+       socket and read bytes, with no origin and no rules about whose
+       bytes they were. A page cannot do that part. It can do the rest.
+
+       Two things were wrong here. A playlist is text, not audio, so it
+       failed to decode and was reported as the host refusing to share it
+       — which it had not. And a stream never ends, so asking for the
+       whole body never came back: the row said "fetching…" until the tab
+       was closed. A stream is not downloaded, it is taken from, for as
+       long as you want it.
+       ------------------------------------------------------------------ */
+    var STREAM_MAX = 300;        // seconds; bounded, because it never stops on its own
+
+    /**
+     * An error about what the link *is*, rather than about reaching it. These
+     * are already the whole answer, so they are not retried by playing the
+     * link in an element and recording it: that only replaces a true message
+     * with a vaguer one.
+     */
+    function plainly(msg) { var e = new Error(msg); e.plain = true; return e; }
+
+    function looksLikePlaylist(url, ct) {
+        return /\.(pls|m3u|m3u8|asx|xspf)(\?|#|$)/i.test(url) ||
+               /scpls|mpegurl|x-mpegurl|xspf|ms-asf|video\/x-ms-asf/.test(ct);
+    }
+    function isHls(text) { return /#EXT-X-(TARGETDURATION|STREAM-INF|MEDIA-SEQUENCE)/i.test(text); }
+    function firstUrlIn(text) {
+        var m = text.match(/^[ \t]*File\d*[ \t]*=[ \t]*(\S+)/im);          // .pls
+        if (m) return m[1];
+        m = text.match(/<ref\b[^>]*\bhref\s*=\s*["']([^"']+)/i);            // .asx
+        if (m) return m[1];
+        m = text.match(/<location>\s*([^<\s]+)/i);                          // .xspf
+        if (m) return m[1];
+        var lines = text.split(/\r?\n/);                                    // .m3u
+        for (var i = 0; i < lines.length; i++) {
+            var l = lines[i].trim();
+            // Not every line that is not a comment is an entry: a .pls whose
+            // entries are gone still has "[playlist]" and "NumberOfEntries=0"
+            // in it, and taking the first of those as a URL asks the host for
+            // /[playlist] and then blames the host for the answer.
+            if (!l || l.charAt(0) === '#' || l.charAt(0) === '[') continue;
+            if (/^[A-Za-z]\w*\s*=/.test(l)) continue;
+            return l;
+        }
+        return null;
+    }
+    function playlistTitle(text) {
+        var m = text.match(/^[ \t]*Title\d*[ \t]*=[ \t]*(.+)$/im) ||
+                text.match(/#EXTINF\s*:\s*-?\d+\s*,\s*(.+)$/im) ||
+                text.match(/<title>\s*([^<]+)/i);
+        return m ? m[1].trim() : '';
+    }
+
+    /**
+     * Take from a stream until it stops, you stop it, or the cap. The same
+     * path handles a finite body sent without a length: that one simply ends
+     * by itself, which is the first of those three.
+     */
+    function stTakeStream(item, res) {
+        var reader = res.body.getReader();
+        var chunks = [], got = 0, started = Date.now(), stopped = false, tick = 0;
+        item.streaming = true;
+        item.stopStream = function () { stopped = true; };
+        item.abort = function () { stopped = true; try { reader.cancel(); } catch (e) {} };
+        stRender();
+
+        return new Promise(function (resolve, reject) {
+            function done(err) {
+                clearInterval(tick);
+                item.streaming = false; item.stopStream = null; item.abort = null;
+                try { reader.cancel(); } catch (e) {}
+                if (err && !got) return reject(err);
+                if (!got) return reject(plainly('Nothing came off that stream.'));
+                var all = new Uint8Array(got), at = 0;
+                for (var i = 0; i < chunks.length; i++) { all.set(chunks[i], at); at += chunks[i].length; }
+                resolve(all.buffer);
+            }
+            tick = setInterval(function () {
+                if (!item.streaming) return;
+                var secs = Math.floor((Date.now() - started) / 1000);
+                item.status = 'taking it\u2026 ' + Math.floor(secs / 60) + ':' +
+                    (secs % 60 < 10 ? '0' : '') + (secs % 60) + ' \u00b7 ' +
+                    Math.round(got / 1024) + ' KB';
+                stRender();
+            }, 500);
+            (function pump() {
+                if (stopped) return done(null);
+                reader.read().then(function (r) {
+                    if (stopped) return done(null);
+                    if (r.done) return done(null);
+                    chunks.push(r.value); got += r.value.length;
+                    if ((Date.now() - started) / 1000 >= STREAM_MAX) return done(null);
+                    pump();
+                }).catch(function (e) { done(e); });
+            })();
+        });
+    }
+
+    /** One link's bytes, following a playlist to the thing it points at. */
+    function stReadLink(item, url, hop) {
+        return fetch(url, { mode: 'cors' }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var ct = (r.headers.get('content-type') || '').toLowerCase();
+
+            if (looksLikePlaylist(url, ct)) {
+                if (hop >= 2) throw plainly('That playlist points at another playlist, and that at another.');
+                return r.text().then(function (text) {
+                    if (isHls(text)) throw new Error('HLS');
+                    var next = firstUrlIn(text);
+                    if (!next) throw plainly('That playlist has nothing playable in it.');
+                    var title = playlistTitle(text);
+                    if (title) item.name = title + '.wav';
+                    stSay('Following ' + (title || 'that playlist') + '\u2026');
+                    return stReadLink(item, new URL(next, url).href, hop + 1);
+                });
+            }
+
+            // icy-* is how a Shoutcast or Icecast server introduces itself.
+            // It only reaches us if the station exposes it, so it is a bonus
+            // rather than the test for whether this is a stream.
+            var icy = r.headers.get('icy-name');
+            if (icy && hop === 0) item.name = icy + '.wav';
+            if (!r.headers.get('content-length') && r.body && r.body.getReader) {
+                return stTakeStream(item, r);
+            }
+            return r.arrayBuffer();
+        });
+    }
+
     function stAddUrl(raw) {
         var text = String(raw || '').trim();
         if (!text) return;
@@ -2206,17 +2540,30 @@
         // new URL() is forgiving enough to accept "https://not a link at all",
         // which would otherwise sit in the list as a row that fetches nothing.
         if (!u || !u.hostname || u.hostname.indexOf('.') < 0 || /\s/.test(u.hostname)) {
-            stStatus.textContent = 'That does not look like a link.';
+            stSay('That does not look like a link.', true);
             return;
         }
 
         var site = walledSite(u.hostname);
+        if (site && haveService()) {
+            var svcItem = {
+                file: null, url: text, name: ripName(u, site), status: 'asking your service\u2026',
+                error: null, buffer: null, video: false, abort: null, saving: false, fresh: true
+            };
+            stItems.push(svcItem);
+            stRender();
+            stSay('Asking your service for ' + site + '\u2026');
+            stServiceInto(svcItem, site + ' will not hand it to a browser, and');
+            return;
+        }
         if (site && !stCanRecord()) {
             // textContent, not innerHTML: this page has no escaper, and a
             // status line is not worth introducing one for.
-            stStatus.textContent = site + ' will not hand its audio to another site, so the only way ' +
-                'to it is to record the tab while it plays \u2014 and this browser cannot do that. ' +
-                'Chrome and Edge can.';
+            stSay(site + ' will not hand its audio to a browser, and this one cannot record a tab ' +
+                'either \u2014 that needs Chrome or Edge on a computer. Two ways round it: set up ' +
+                'the audio service below, which makes every link work here; or save the file ' +
+                'elsewhere and choose it above.', true);
+            $('stSvc').open = true;
             return;
         }
         if (site) {
@@ -2226,36 +2573,68 @@
             // it is offered as the normal way rather than as a consolation.
             stItems.push({
                 file: null, url: text, name: ripName(u, site), status: 'needs the tab', error: null,
-                buffer: null, video: false, abort: null, saving: false, rip: true, armed: false
+                buffer: null, video: false, abort: null, saving: false, rip: true, armed: false,
+                fresh: true
             });
             stRender();
-            stStatus.textContent = site + ' keeps its audio behind signed links no other site can ' +
-                'read, so this one gets ripped instead \u2014 press Rip. It plays in a tab and is ' +
-                'recorded in real time: a four-minute track takes four minutes.';
+            stSay(site + ' keeps its audio behind signed links no other site can read, so this one ' +
+                'gets ripped instead \u2014 press Rip on the row below. It plays in a tab and is ' +
+                'recorded in real time: a four-minute track takes four minutes.');
             return;
         }
 
         var item = {
             file: null, url: text, name: nameFromUrl(u), status: 'fetching\u2026', error: null,
-            buffer: null, video: AV_EXT.test(u.pathname || ''), abort: null, saving: false
+            buffer: null, video: AV_EXT.test(u.pathname || ''), abort: null, saving: false,
+            fresh: true
         };
         stItems.push(item);
         stRender();
+        stSay('Fetching ' + item.name + '\u2026');
 
-        fetch(text, { mode: 'cors' })
-            .then(function (r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.arrayBuffer();
-            })
+        stReadLink(item, text, 0)
             .then(decode)
-            .then(function (buf) { stSettled(item, buf); })
+            .then(function (buf) {
+                stSettled(item, buf);
+                if (item.buffer) stSay('Read ' + item.name + ' \u2014 ' + fmtTime(item.buffer.duration) + '.');
+            })
             .catch(function (err) {
+                if (err && err.message === 'HLS') {
+                    if (haveService()) { stServiceInto(item, 'That is an HLS stream, which a browser cannot piece together, so'); return; }
+                    item.error = 'That is an HLS stream \u2014 a list of segments rather than audio.';
+                    item.status = null; item.rip = stCanRecord();
+                    if (item.rip) item.status = 'needs the tab';
+                    stRender();
+                    stSay('That is an HLS stream: a list of segments rather than one piece of audio. ' +
+                        'The audio service handles these; a browser on its own cannot.', true);
+                    return;
+                }
+                if (err && err.plain) {
+                    item.error = err.message;
+                    item.status = null;
+                    stRender();
+                    stSay(err.message, true);
+                    return;
+                }
                 var httpish = err && /^HTTP \d+$/.test(err.message || '');
                 if (httpish) {
+                    if (haveService()) {
+                        stServiceInto(item, 'The link answered ' + err.message + ' here, and');
+                        return;
+                    }
                     item.error = 'The link answered ' + err.message + '.';
                     item.rip = stCanRecord();
                     item.status = item.rip ? 'needs the tab' : null;
-                    stRender(); return;
+                    stRender();
+                    stSay('The link answered ' + err.message + '.' +
+                        (item.rip ? ' You can still press Rip and record it playing.' : ''), true);
+                    return;
+                }
+                if (haveService()) {
+                    // The host would not let this browser read it. A service
+                    // is not another origin to them; it is just a client.
+                    stServiceInto(item, 'This browser could not read it, and');
+                    return;
                 }
                 // Either the host would not let us read it, or we read it and
                 // could not decode it in one go. The element tells the two
@@ -2274,6 +2653,9 @@
                       item.rip = stCanRecord();
                       item.status = item.rip ? 'needs the tab' : null;
                       stRender();
+                      stSay(item.error + (item.rip
+                          ? ' Press Rip on the row below to play it in a tab and record it.'
+                          : ' Save the file first, then drop it in the box above.'), true);
                   });
             });
     }
@@ -2297,6 +2679,13 @@
        video is. */
     var LIVE_FLOOR = 0.0025;      // about -52 dBFS
     var SILENCE_STOP = 6;         // seconds of quiet, once audio has been heard
+    var NEVER_HEARD_STOP = 25;    // seconds of nothing at all, before giving up
+
+    /** Twelve blocks of level, so a rip that is hearing nothing looks like it. */
+    function meterBar(level) {
+        var n = Math.max(0, Math.min(12, Math.round(Math.sqrt(level) * 12)));
+        return new Array(n + 1).join('\u2588') + new Array(12 - n + 1).join('\u00b7');
+    }
 
     /**
      * The recording with the dead air at both ends taken off — the gap between
@@ -2330,11 +2719,12 @@
         $('stRecord').classList.remove('recording');
         $('stRecord').textContent = 'Record what\u2019s playing';
 
-        if (!r.frames) {
+        if (!r.frames || !r.heard) {
             if (r.bound) { r.bound.status = 'needs the tab'; r.bound.armed = false; }
             stRender();
-            stStatus.textContent = 'Nothing came through. In the picker, choose a tab and tick ' +
-                'the box that shares its audio.';
+            stStatus.textContent = 'No sound came through. In the picker choose a tab \u2014 not a ' +
+                'window, not a screen \u2014 and tick the box that shares that tab\u2019s audio. ' +
+                'Then press play in it.';
             return;
         }
         var c = ctx();
@@ -2377,11 +2767,11 @@
         item.armed = true;
         item.status = 'waiting for the tab';
         stRender();
-        stStatus.textContent = opened
+        stSay(opened
             ? 'Opened in a new tab. Start it playing there, come back here, then press ' +
               '\u201cPick the tab\u201d and choose that tab \u2014 with its audio shared.'
             : 'Your browser blocked the new tab. Open the link yourself, start it playing, ' +
-              'then press \u201cPick the tab\u201d.';
+              'then press \u201cPick the tab\u201d.', !opened);
     }
 
     function stStartRecording(bound) {
@@ -2389,7 +2779,11 @@
         var c = ctx();
         if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
 
-        navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }).then(function (stream) {
+        navigator.mediaDevices.getDisplayMedia({
+            video: true, audio: true,
+            // there is no audio-only picker; these only narrow what it offers
+            selfBrowserSurface: 'exclude', systemAudio: 'include'
+        }).then(function (stream) {
             var audio = stream.getAudioTracks();
             if (!audio.length) {
                 stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
@@ -2397,11 +2791,18 @@
                     'window or a screen, and tick the box that shares its sound.';
                 return;
             }
-            stream.getVideoTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+            // The video track used to be stopped here, on the reasoning that a
+            // rip wants no pictures. A tab share is one capture session, not
+            // two streams: stopping its video ends the share, and the audio
+            // goes with it. The recording then sat at "recording…" for ever,
+            // because nothing was arriving to stop it either. The track stays
+            // open and simply goes unread; it is stopped with the rest at the
+            // end. The browser's own "Stop sharing" bar is the other way out,
+            // so both tracks are watched for it.
 
             var r = {
                 stream: stream, left: [], right: [], frames: 0, started: Date.now(), tick: 0,
-                bound: bound || null, heard: false, quiet: 0, auto: false
+                bound: bound || null, heard: false, quiet: 0, auto: false, tickPeak: 0
             };
             r.src = c.createMediaStreamSource(stream);
             r.proc = c.createScriptProcessor(4096, 2, 2);
@@ -2421,12 +2822,18 @@
                     a = left[i] < 0 ? -left[i] : left[i];   if (a > peak) peak = a;
                     a = right[i] < 0 ? -right[i] : right[i]; if (a > peak) peak = a;
                 }
+                if (peak > r.tickPeak) r.tickPeak = peak;
                 if (peak > LIVE_FLOOR) { r.heard = true; r.quiet = 0; }
-                else if (r.heard) {
+                else {
                     r.quiet += ib.length;
-                    if (r.quiet > c.sampleRate * SILENCE_STOP) {
-                        r.auto = true; stStopRecording(); return;
-                    }
+                    // Once it has played, a long quiet means it has finished.
+                    // Before it has played at all, a long quiet means nothing
+                    // is coming — the wrong surface was picked, or the box
+                    // that shares the tab's sound was left unticked — and
+                    // sitting on "recording…" for ever is the worst answer to
+                    // that. Either way it stops and says which happened.
+                    var limit = c.sampleRate * (r.heard ? SILENCE_STOP : NEVER_HEARD_STOP);
+                    if (r.quiet > limit) { r.auto = true; stStopRecording(); return; }
                 }
                 if (r.frames > c.sampleRate * CAPTURE_MAX) stStopRecording();
             };
@@ -2435,8 +2842,9 @@
             r.sink.connect(c.destination);
 
             // Stopping the share from the browser's own bar ends it too.
-            audio[0].addEventListener('ended', stStopRecording);
-            audio[0].addEventListener('mute', function () {});
+            stream.getTracks().forEach(function (t) {
+                t.addEventListener('ended', function () { stStopRecording(); });
+            });
 
             recording = r;
             if (r.bound) r.bound.status = 'recording\u2026';
@@ -2444,8 +2852,13 @@
             r.tick = setInterval(function () {
                 if (!recording) return;
                 var secs = Math.floor((Date.now() - r.started) / 1000);
-                $('stRecord').textContent = 'Stop \u00b7 ' + Math.floor(secs / 60) + ':' +
-                    (secs % 60 < 10 ? '0' : '') + (secs % 60);
+                var mmss = Math.floor(secs / 60) + ':' + (secs % 60 < 10 ? '0' : '') + (secs % 60);
+                $('stRecord').textContent = 'Stop \u00b7 ' + mmss;
+                var lvl = r.tickPeak; r.tickPeak = 0;
+                stStatus.textContent = 'Recording ' + mmss + '  ' + meterBar(lvl) + '  ' + (r.heard
+                    ? 'hearing it \u2014 this stops itself once the sound ends.'
+                    : 'no sound yet. Is it playing, and did you tick the box that shares that ' +
+                      'tab\u2019s audio?');
             }, 250);
             stRender();
             stStatus.textContent = r.bound
@@ -2907,6 +3320,14 @@
                 wav.addEventListener('click', function () { stSave(item); });
                 box.appendChild(wav);
             }
+            if (item.streaming) {
+                var stopIt = document.createElement('button');
+                stopIt.className = 'row-btn wide on'; stopIt.type = 'button';
+                stopIt.textContent = 'Stop';
+                stopIt.title = 'Keep what has come through so far';
+                stopIt.addEventListener('click', function () { if (item.stopStream) item.stopStream(); });
+                box.appendChild(stopIt);
+            }
             if (!item.buffer && item.rip && stCanRecord()) {
                 var rip = document.createElement('button');
                 rip.className = 'row-btn wide'; rip.type = 'button';
@@ -2940,6 +3361,7 @@
 
             tr.appendChild(nameCell); tr.appendChild(outCell);
             tr.appendChild(metaCell); tr.appendChild(actions);
+            if (item.fresh) { tr.className = 'fresh'; item.fresh = false; }
             stRows.appendChild(tr);
         });
 
@@ -2973,6 +3395,7 @@
         });
         stSaveAll.addEventListener('click', stSaveEvery);
         edWire();
+        svcWire();
 
         var urlIn = $('stUrl');
         $('stFetch').addEventListener('click', function () { stAddUrl(urlIn.value); urlIn.value = ''; });
@@ -2990,7 +3413,17 @@
         // Not stStartRecording itself: it takes the row a rip belongs to, and
         // addEventListener would hand it the click event instead.
         if (stCanRecord()) $('stRecord').addEventListener('click', function () { stStartRecording(null); });
-        else $('stRecRow').style.display = 'none';
+        else {
+            // Saying this after someone has already tried is too late, and the
+            // Record button is not there to hint at it either.
+            $('stRecRow').style.display = 'none';
+            var note = document.createElement('span');
+            note.innerHTML = ' <strong>This browser cannot record a tab</strong>, so links to a page ' +
+                '— YouTube, SoundCloud, Bandcamp — cannot be ripped here; that needs ' +
+                'Chrome or Edge on a computer. Direct links to a file still work, and so does ' +
+                'choosing a file above.';
+            $('stUrlHelp').appendChild(note);
+        }
         ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade'].forEach(function (id) {
             $(id).addEventListener('change', stRender);
         });
