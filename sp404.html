@@ -148,6 +148,19 @@
             color: rgba(255,255,255,.82);
         }
         .fw-note.bad { border-color: rgba(255, 59, 107,.45); background: rgba(255, 59, 107,.08); }
+        .svc { margin: 0 0 .9rem; }
+        .svc > summary {
+            cursor: pointer; font-size: .74rem; color: rgba(255,255,255,.45);
+            list-style: none; padding: .2rem 0;
+        }
+        .svc > summary::-webkit-details-marker { display: none; }
+        .svc > summary::before { content: '\25b8  '; color: rgba(139, 108, 245,.8); }
+        .svc[open] > summary::before { content: '\25be  '; }
+        .svc > summary:hover { color: rgba(255,255,255,.75); }
+        .svc .fw-row { margin-top: .6rem; }
+        .svc input { flex: 1 1 14rem; }
+        .svc input.key { flex: 0 1 11rem; }
+        .svc-on { color: rgba(138, 224, 75,.9); }
         .files tr.fresh { animation: rowIn 1.4s ease; }
         @keyframes rowIn {
             from { background: rgba(139, 108, 245,.22); }
@@ -426,13 +439,35 @@
                     <button type="button" class="pick-btn" id="stFetch">Fetch</button>
                 </div>
                 <p class="fw-note hidden" id="stUrlNote"></p>
+                <details class="svc" id="stSvc">
+                    <summary id="stSvcSummary">Audio service &mdash; for the links a browser cannot read</summary>
+                    <div class="fw-row">
+                        <input type="url" id="stSvcUrl" placeholder="https://your-ripper.fly.dev"
+                               autocomplete="off" spellcheck="false">
+                        <input type="password" id="stSvcKey" class="key" placeholder="key, if you set one"
+                               autocomplete="off">
+                        <button type="button" class="pick-btn" id="stSvcCheck">Check</button>
+                    </div>
+                    <p class="fw-help" style="margin:.6rem 0 0;">
+                        No page served from here can read YouTube, SoundCloud or Bandcamp audio, on any
+                        browser: it sits behind short-lived signed links their hosts share with nobody.
+                        A small service you run yourself can, and then every link works everywhere
+                        &mdash; phone included, in seconds rather than in real time.
+                        <strong>ripper/</strong> in this site&rsquo;s repository is that service: one file,
+                        a Dockerfile, and a README. Point this at it and it gets used for anything this
+                        browser cannot fetch on its own. Kept in this browser only; never sent anywhere
+                        but to the address you put here.
+                    </p>
+                </details>
                 <p class="fw-help" id="stUrlHelp">
                     Paste it and press <strong>Fetch</strong>, or Enter. If the host shares its files
                     &mdash; Wikimedia and archive.org do &mdash; the audio comes straight off the link.
                     If it does not, or the link is a page rather than a file (YouTube, SoundCloud,
                     Bandcamp&hellip;), the row offers <strong>Rip</strong>: it opens the link in a tab
                     and records it playing. That one runs in real time, so a four-minute track takes
-                    four minutes, and it stops itself when the sound ends.
+                    four minutes, and it stops itself when the sound ends &mdash; and it only exists on
+                    desktop Chrome and Edge. For everything else, and for every phone, there is the
+                    audio service below.
                 </p>
                 <div class="fw-row" id="stRecRow">
                     <button type="button" class="pick-btn" id="stRecord">Record what&rsquo;s playing</button>
@@ -2226,6 +2261,139 @@
         stStatus.textContent = msg;
     }
 
+    /* ------------------------------------------------------------------
+       The audio service
+
+       Everything else on this page runs in the browser, and that is the
+       point of it. This one thing cannot: the sites people actually want
+       to sample from hand their audio out on signed links that no other
+       origin may read, and no amount of work here changes that. A server
+       can do it, so the page will use one if you have one — yours, at an
+       address you type in, holding your key, seeing only the links you
+       hand it. It stays optional and it stays last: anything the browser
+       can do for itself, it still does for itself.
+       ------------------------------------------------------------------ */
+    function svcCfg() {
+        try {
+            return {
+                url: (localStorage.getItem('lucid.svc.url') || '').trim().replace(/\/+$/, ''),
+                key: localStorage.getItem('lucid.svc.key') || ''
+            };
+        } catch (e) { return { url: '', key: '' }; }
+    }
+    function haveService() { return !!svcCfg().url; }
+
+    /** Pull one link's audio through the service and decode it here. */
+    function stFromService(item) {
+        var cfg = svcCfg();
+        var url = cfg.url + '/rip?format=m4a&url=' + encodeURIComponent(item.url);
+        var opts = { headers: {} };
+        if (cfg.key) opts.headers.authorization = 'Bearer ' + cfg.key;
+        item.status = 'asking your service\u2026';
+        stRender();
+
+        return fetch(url, opts).then(function (r) {
+            if (!r.ok) {
+                return r.json().catch(function () { return {}; }).then(function (j) {
+                    throw new Error(j.error || 'Your service answered HTTP ' + r.status + '.');
+                });
+            }
+            var title = '';
+            try { title = decodeURIComponent(r.headers.get('x-rip-title') || ''); } catch (e) {}
+            if (title) item.name = title + '.wav';
+            var total = Number(r.headers.get('content-length') || 0);
+            if (!r.body || !total || !r.body.getReader) return r.arrayBuffer();
+
+            // A rip off a long set is worth watching arrive.
+            var reader = r.body.getReader(), chunks = [], got = 0, shown = -1;
+            return (function pump() {
+                return reader.read().then(function (res) {
+                    if (res.done) {
+                        var all = new Uint8Array(got), at = 0;
+                        for (var i = 0; i < chunks.length; i++) { all.set(chunks[i], at); at += chunks[i].length; }
+                        return all.buffer;
+                    }
+                    chunks.push(res.value); got += res.value.length;
+                    var pct = Math.round(got / total * 100);
+                    if (pct !== shown) { shown = pct; item.status = 'downloading\u2026 ' + pct + '%'; stRender(); }
+                    return pump();
+                });
+            })();
+        }).then(decode);
+    }
+
+    /** The service's answer, settled into the row either way. */
+    function stServiceInto(item, why) {
+        return stFromService(item).then(function (buf) {
+            item.error = null; item.rip = false; item.armed = false;
+            stSettled(item, buf);
+            if (item.buffer) stSay('Got ' + item.name + ' \u2014 ' + fmtTime(item.buffer.duration) +
+                ' \u2014 from your service.');
+            return true;
+        }).catch(function (err) {
+            item.error = (err && err.message) || 'Your service could not get that.';
+            item.rip = stCanRecord();
+            item.status = item.rip ? 'needs the tab' : null;
+            stRender();
+            stSay((why ? why + ' ' : '') + item.error +
+                (item.rip ? ' You can still press Rip and record it playing.' : ''), true);
+            return false;
+        });
+    }
+
+    /** The settings box: remembered here, checked on demand, never sent on. */
+    function svcWire() {
+        var urlIn = $('stSvcUrl'), keyIn = $('stSvcKey'), cfg = svcCfg();
+        urlIn.value = cfg.url; keyIn.value = cfg.key;
+        svcSummary();
+        function save() {
+            try {
+                localStorage.setItem('lucid.svc.url', urlIn.value.trim().replace(/\/+$/, ''));
+                localStorage.setItem('lucid.svc.key', keyIn.value);
+            } catch (e) {}
+            svcSummary();
+        }
+        urlIn.addEventListener('change', save);
+        keyIn.addEventListener('change', save);
+        urlIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { save(); svcCheck(); } });
+        $('stSvcCheck').addEventListener('click', function () { save(); svcCheck(); });
+        // Open it where it is the only way through. On desktop Chrome a tab
+        // can be recorded, so the service is a nicety and stays folded away;
+        // on a phone it is the whole answer, and folded away is as good as
+        // absent.
+        $('stSvc').open = !cfg.url && !stCanRecord();
+    }
+    function svcSummary() {
+        var cfg = svcCfg(), el = $('stSvcSummary');
+        el.innerHTML = cfg.url
+            ? 'Audio service \u2014 <span class="svc-on">on</span>, at ' +
+              cfg.url.replace(/^https?:\/\//, '')
+            : 'Audio service \u2014 for the links a browser cannot read';
+    }
+    function svcCheck() {
+        var cfg = svcCfg();
+        if (!cfg.url) { stSay('Put your service\u2019s address in first.', true); return; }
+        stSay('Checking ' + cfg.url + '\u2026');
+        var opts = { headers: {} };
+        if (cfg.key) opts.headers.authorization = 'Bearer ' + cfg.key;
+        fetch(cfg.url + '/health', opts).then(function (r) {
+            if (!r.ok) throw new Error('It answered HTTP ' + r.status + '.');
+            return r.json();
+        }).then(function (h) {
+            if (!h || !h.ok) throw new Error('It answered, but yt-dlp or ffmpeg is missing there.');
+            if (h.needsToken && h.keyOk === false) {
+                stSay('Your service is running, but that key is not the one it wants.', true);
+                return;
+            }
+            stSay('Your service is up \u2014 yt-dlp ' + (h.ytdlp || '?') + ', up to ' +
+                Math.round((h.maxSeconds || 0) / 60) + ' minutes a clip. Links this browser cannot ' +
+                'read will go to it from now on.');
+        }).catch(function (err) {
+            stSay('Could not reach your service. ' + ((err && err.message) || '') +
+                ' Check the address, that it is running, and that it allows this site as an origin.', true);
+        });
+    }
+
     function stAddUrl(raw) {
         var text = String(raw || '').trim();
         if (!text) return;
@@ -2240,13 +2408,25 @@
         }
 
         var site = walledSite(u.hostname);
+        if (site && haveService()) {
+            var svcItem = {
+                file: null, url: text, name: ripName(u, site), status: 'asking your service\u2026',
+                error: null, buffer: null, video: false, abort: null, saving: false, fresh: true
+            };
+            stItems.push(svcItem);
+            stRender();
+            stSay('Asking your service for ' + site + '\u2026');
+            stServiceInto(svcItem, site + ' will not hand it to a browser, and');
+            return;
+        }
         if (site && !stCanRecord()) {
             // textContent, not innerHTML: this page has no escaper, and a
             // status line is not worth introducing one for.
-            stSay(site + ' will not hand its audio to another site. The only way to it is to record ' +
-                'the tab while it plays, and this browser cannot share a tab\u2019s audio \u2014 ' +
-                'Chrome or Edge on a computer can. On this one: save the file first, then drop it ' +
-                'in the box above.', true);
+            stSay(site + ' will not hand its audio to a browser, and this one cannot record a tab ' +
+                'either \u2014 that needs Chrome or Edge on a computer. Two ways round it: set up ' +
+                'the audio service below, which makes every link work here; or save the file ' +
+                'elsewhere and choose it above.', true);
+            $('stSvc').open = true;
             return;
         }
         if (site) {
@@ -2288,12 +2468,22 @@
             .catch(function (err) {
                 var httpish = err && /^HTTP \d+$/.test(err.message || '');
                 if (httpish) {
+                    if (haveService()) {
+                        stServiceInto(item, 'The link answered ' + err.message + ' here, and');
+                        return;
+                    }
                     item.error = 'The link answered ' + err.message + '.';
                     item.rip = stCanRecord();
                     item.status = item.rip ? 'needs the tab' : null;
                     stRender();
                     stSay('The link answered ' + err.message + '.' +
                         (item.rip ? ' You can still press Rip and record it playing.' : ''), true);
+                    return;
+                }
+                if (haveService()) {
+                    // The host would not let this browser read it. A service
+                    // is not another origin to them; it is just a client.
+                    stServiceInto(item, 'This browser could not read it, and');
                     return;
                 }
                 // Either the host would not let us read it, or we read it and
@@ -3047,6 +3237,7 @@
         });
         stSaveAll.addEventListener('click', stSaveEvery);
         edWire();
+        svcWire();
 
         var urlIn = $('stUrl');
         $('stFetch').addEventListener('click', function () { stAddUrl(urlIn.value); urlIn.value = ''; });

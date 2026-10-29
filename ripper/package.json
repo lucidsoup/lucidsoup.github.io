@@ -1,0 +1,8 @@
+{
+  "name": "lucidsoup-ripper",
+  "private": true,
+  "type": "module",
+  "description": "Takes a URL, hands back its audio with CORS headers, so the SP-404 converter can read it from any browser.",
+  "scripts": { "start": "node server.mjs" },
+  "engines": { "node": ">=20" }
+}
