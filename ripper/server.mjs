@@ -35,6 +35,13 @@ const MAX_CONCURRENT = Number(process.env.RIPPER_MAX_CONCURRENT || 2);
 // plenty do not, and a plain endless MP3 looks like an ordinary file until you
 // try to reach the end of it.
 const TIMEOUT = Number(process.env.RIPPER_TIMEOUT || 600);
+// With no key, these two are what stand between the service and a stranger's
+// bandwidth bill. The origin check turns the CORS header from advice a browser
+// follows into a rule this service enforces; the rate limit bounds what any
+// one address can cost. Neither is cryptography. Together they are enough for
+// a service that exists so nobody has to sign in to anything.
+const REQUIRE_ORIGIN = process.env.RIPPER_REQUIRE_ORIGIN !== '0';
+const RATE_PER_HOUR = Number(process.env.RIPPER_RATE_PER_HOUR || 30);
 const MAX_BYTES = process.env.RIPPER_MAX_SIZE || '500M';
 // Development only. With it set, the service will fetch from the network it
 // is running in — which is the whole thing the check below exists to stop.
@@ -81,6 +88,42 @@ const cors = () => ({
   'access-control-expose-headers': 'x-rip-title, x-rip-duration, content-disposition, content-length',
   'vary': 'origin'
 });
+
+/**
+ * Where the request says it came from. Browsers send Origin on a cross-origin
+ * GET and cannot be talked out of it, so a page on another site cannot pretend
+ * to be this one. curl sends nothing at all, which is its own answer.
+ */
+function originOf(req) {
+  const o = req.headers.origin;
+  if (o) return o.toLowerCase().replace(/\/+$/, '');
+  const r = req.headers.referer || req.headers.referrer;
+  if (!r) return '';
+  try { return new URL(r).origin.toLowerCase(); } catch { return ''; }
+}
+function originAllowed(req) {
+  if (!REQUIRE_ORIGIN || ORIGIN === '*') return true;
+  return originOf(req) === ORIGIN.toLowerCase().replace(/\/+$/, '');
+}
+
+// One hour of counts, per address, in memory. The machine suspends when idle
+// and forgets, which is the correct amount of memory for this.
+const seen = new Map();
+function withinRate(req) {
+  if (!RATE_PER_HOUR) return true;
+  const ip = (req.headers['fly-client-ip'] ||
+              (req.headers['x-forwarded-for'] || '').split(',')[0] ||
+              req.socket.remoteAddress || '').trim();
+  const now = Date.now(), hour = 3600000;
+  const hits = (seen.get(ip) || []).filter(t => now - t < hour);
+  if (hits.length >= RATE_PER_HOUR) { seen.set(ip, hits); return false; }
+  hits.push(now);
+  seen.set(ip, hits);
+  if (seen.size > 5000) {                       // never grows without bound
+    for (const [k, v] of seen) if (!v.some(t => now - t < hour)) seen.delete(k);
+  }
+  return true;
+}
 
 function run(cmd, args, opts = {}) {
   // Always with a deadline. A live stream has no end, and a yt-dlp left
@@ -183,7 +226,9 @@ async function health(keyOk) {
     ffmpeg: f.code === 0 ? (f.out.split('\n')[0] || '').trim() : null,
     formats: Object.keys(FORMATS),
     maxSeconds: MAX_SECONDS,
-    needsToken: !!TOKEN
+    needsToken: !!TOKEN,
+    origin: ORIGIN,
+    ratePerHour: RATE_PER_HOUR
   };
 }
 
@@ -306,6 +351,14 @@ http.createServer(async (req, res) => {
   if (u.pathname !== '/rip') return json(res, 404, { error: 'Try /health or /rip?url=…' });
   if (req.method !== 'GET') return json(res, 405, { error: 'GET only.' });
   if (!keyOk) return json(res, 401, { error: 'Wrong key.' });
+  if (!originAllowed(req)) {
+    return json(res, 403, { error: 'This service only answers ' + ORIGIN + '.' });
+  }
+  if (!withinRate(req)) {
+    return json(res, 429, { error: 'That is ' + RATE_PER_HOUR + ' clips in an hour from here, ' +
+      'which is the limit. Try again later, or run your own copy — it is one file in the ' +
+      'site\u2019s repository.' });
+  }
   return rip(req, res, u);
 }).listen(PORT, () => console.log(`ripper on :${PORT}  token ${TOKEN ? 'required' : 'NOT set'}` +
     (ALLOW_PRIVATE ? '  PRIVATE ADDRESSES ALLOWED — development only' : '')));

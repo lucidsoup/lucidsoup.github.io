@@ -132,8 +132,10 @@ your service and nowhere else.
 | variable | default | |
 |---|---|---|
 | `PORT` | `8080` | |
-| `RIPPER_TOKEN` | *(empty)* | Required key. **Set one** if the service is reachable from the internet; without it anyone who finds the URL can use your bandwidth. |
+| `RIPPER_TOKEN` | *(empty)* | Required key. Leave it empty for a service the site uses on everyone's behalf — a key everybody has is not a key. Set one for a private instance. |
 | `RIPPER_ORIGIN` | `*` | The site allowed to call it. Set it to yours. |
+| `RIPPER_REQUIRE_ORIGIN` | `1` | Enforce that origin server-side, not just in a CORS header. `0` turns the check off. |
+| `RIPPER_RATE_PER_HOUR` | `30` | Clips per hour per address, counted in memory. `0` for no limit. |
 | `RIPPER_MAX_SECONDS` | `3600` | Longest clip it will fetch. |
 | `RIPPER_MAX_CONCURRENT` | `2` | Rips at once; the rest get a 503 and can retry. |
 | `RIPPER_TIMEOUT` | `600` | Seconds a single rip may take before it is killed. A download runs far faster than real time, so only something endless reaches this. |
@@ -151,6 +153,26 @@ which costs a few hundred milliseconds and tells it two things:
 
 HEAD would be tidier and is not dependable: a server that streams forever may
 never finish answering one, which is the exact case being tested for.
+
+## Running it without a key
+
+A service that exists so nobody has to sign in cannot ask them for a key: one
+that is in the page is public, and one that is not makes everybody set it up.
+So the instance this site ships with has no `RIPPER_TOKEN`, and two other
+things hold it together instead:
+
+- **The origin is enforced here, not just announced.** A CORS header is advice
+  a browser chooses to follow. `RIPPER_REQUIRE_ORIGIN` makes the service check
+  the `Origin` — which a browser sends on a cross-origin GET and a page cannot
+  forge — and answer 403 to anything else. `curl` sends none at all, and gets
+  the same 403.
+- **Each address gets 30 clips an hour.** Counted in memory, forgotten when the
+  machine suspends, which is the right amount of memory for this. Past that it
+  is 429 with a pointer at this folder, because anyone who wants more than that
+  wants their own copy.
+
+Neither is cryptography and neither pretends to be. Together they are enough
+that a public endpoint costs its owner roughly what its own users cost.
 
 ## What it will not do
 
