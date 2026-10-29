@@ -2297,6 +2297,13 @@
        video is. */
     var LIVE_FLOOR = 0.0025;      // about -52 dBFS
     var SILENCE_STOP = 6;         // seconds of quiet, once audio has been heard
+    var NEVER_HEARD_STOP = 25;    // seconds of nothing at all, before giving up
+
+    /** Twelve blocks of level, so a rip that is hearing nothing looks like it. */
+    function meterBar(level) {
+        var n = Math.max(0, Math.min(12, Math.round(Math.sqrt(level) * 12)));
+        return new Array(n + 1).join('\u2588') + new Array(12 - n + 1).join('\u00b7');
+    }
 
     /**
      * The recording with the dead air at both ends taken off — the gap between
@@ -2330,11 +2337,12 @@
         $('stRecord').classList.remove('recording');
         $('stRecord').textContent = 'Record what\u2019s playing';
 
-        if (!r.frames) {
+        if (!r.frames || !r.heard) {
             if (r.bound) { r.bound.status = 'needs the tab'; r.bound.armed = false; }
             stRender();
-            stStatus.textContent = 'Nothing came through. In the picker, choose a tab and tick ' +
-                'the box that shares its audio.';
+            stStatus.textContent = 'No sound came through. In the picker choose a tab \u2014 not a ' +
+                'window, not a screen \u2014 and tick the box that shares that tab\u2019s audio. ' +
+                'Then press play in it.';
             return;
         }
         var c = ctx();
@@ -2389,7 +2397,11 @@
         var c = ctx();
         if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
 
-        navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }).then(function (stream) {
+        navigator.mediaDevices.getDisplayMedia({
+            video: true, audio: true,
+            // there is no audio-only picker; these only narrow what it offers
+            selfBrowserSurface: 'exclude', systemAudio: 'include'
+        }).then(function (stream) {
             var audio = stream.getAudioTracks();
             if (!audio.length) {
                 stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
@@ -2397,11 +2409,18 @@
                     'window or a screen, and tick the box that shares its sound.';
                 return;
             }
-            stream.getVideoTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+            // The video track used to be stopped here, on the reasoning that a
+            // rip wants no pictures. A tab share is one capture session, not
+            // two streams: stopping its video ends the share, and the audio
+            // goes with it. The recording then sat at "recording…" for ever,
+            // because nothing was arriving to stop it either. The track stays
+            // open and simply goes unread; it is stopped with the rest at the
+            // end. The browser's own "Stop sharing" bar is the other way out,
+            // so both tracks are watched for it.
 
             var r = {
                 stream: stream, left: [], right: [], frames: 0, started: Date.now(), tick: 0,
-                bound: bound || null, heard: false, quiet: 0, auto: false
+                bound: bound || null, heard: false, quiet: 0, auto: false, tickPeak: 0
             };
             r.src = c.createMediaStreamSource(stream);
             r.proc = c.createScriptProcessor(4096, 2, 2);
@@ -2421,12 +2440,18 @@
                     a = left[i] < 0 ? -left[i] : left[i];   if (a > peak) peak = a;
                     a = right[i] < 0 ? -right[i] : right[i]; if (a > peak) peak = a;
                 }
+                if (peak > r.tickPeak) r.tickPeak = peak;
                 if (peak > LIVE_FLOOR) { r.heard = true; r.quiet = 0; }
-                else if (r.heard) {
+                else {
                     r.quiet += ib.length;
-                    if (r.quiet > c.sampleRate * SILENCE_STOP) {
-                        r.auto = true; stStopRecording(); return;
-                    }
+                    // Once it has played, a long quiet means it has finished.
+                    // Before it has played at all, a long quiet means nothing
+                    // is coming — the wrong surface was picked, or the box
+                    // that shares the tab's sound was left unticked — and
+                    // sitting on "recording…" for ever is the worst answer to
+                    // that. Either way it stops and says which happened.
+                    var limit = c.sampleRate * (r.heard ? SILENCE_STOP : NEVER_HEARD_STOP);
+                    if (r.quiet > limit) { r.auto = true; stStopRecording(); return; }
                 }
                 if (r.frames > c.sampleRate * CAPTURE_MAX) stStopRecording();
             };
@@ -2435,8 +2460,9 @@
             r.sink.connect(c.destination);
 
             // Stopping the share from the browser's own bar ends it too.
-            audio[0].addEventListener('ended', stStopRecording);
-            audio[0].addEventListener('mute', function () {});
+            stream.getTracks().forEach(function (t) {
+                t.addEventListener('ended', function () { stStopRecording(); });
+            });
 
             recording = r;
             if (r.bound) r.bound.status = 'recording\u2026';
@@ -2444,8 +2470,13 @@
             r.tick = setInterval(function () {
                 if (!recording) return;
                 var secs = Math.floor((Date.now() - r.started) / 1000);
-                $('stRecord').textContent = 'Stop \u00b7 ' + Math.floor(secs / 60) + ':' +
-                    (secs % 60 < 10 ? '0' : '') + (secs % 60);
+                var mmss = Math.floor(secs / 60) + ':' + (secs % 60 < 10 ? '0' : '') + (secs % 60);
+                $('stRecord').textContent = 'Stop \u00b7 ' + mmss;
+                var lvl = r.tickPeak; r.tickPeak = 0;
+                stStatus.textContent = 'Recording ' + mmss + '  ' + meterBar(lvl) + '  ' + (r.heard
+                    ? 'hearing it \u2014 this stops itself once the sound ends.'
+                    : 'no sound yet. Is it playing, and did you tick the box that shares that ' +
+                      'tab\u2019s audio?');
             }, 250);
             stRender();
             stStatus.textContent = r.bound
