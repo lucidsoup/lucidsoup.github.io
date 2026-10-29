@@ -460,7 +460,10 @@
                     </p>
                 </details>
                 <p class="fw-help" id="stUrlHelp">
-                    Paste it and press <strong>Fetch</strong>, or Enter. If the host shares its files
+                    Paste it and press <strong>Fetch</strong>, or Enter. Direct files, and the
+                    <code>.pls</code> and <code>.m3u</code> a station gives you &mdash; those are
+                    followed to the stream, which is then taken from until you press
+                    <strong>Stop</strong>. If the host shares its files
                     &mdash; Wikimedia and archive.org do &mdash; the audio comes straight off the link.
                     If it does not, or the link is a page rather than a file (YouTube, SoundCloud,
                     Bandcamp&hellip;), the row offers <strong>Rip</strong>: it opens the link in a tab
@@ -2394,6 +2397,140 @@
         });
     }
 
+    /* ------------------------------------------------------------------
+       Playlists, and the streams they point at
+
+       Winamp's Ctrl+L took a URL and played it, and most of what people
+       pasted into it was a .pls or an .m3u from a station's web page,
+       pointing at a Shoutcast stream. Winamp was a program: it opened a
+       socket and read bytes, with no origin and no rules about whose
+       bytes they were. A page cannot do that part. It can do the rest.
+
+       Two things were wrong here. A playlist is text, not audio, so it
+       failed to decode and was reported as the host refusing to share it
+       — which it had not. And a stream never ends, so asking for the
+       whole body never came back: the row said "fetching…" until the tab
+       was closed. A stream is not downloaded, it is taken from, for as
+       long as you want it.
+       ------------------------------------------------------------------ */
+    var STREAM_MAX = 300;        // seconds; bounded, because it never stops on its own
+
+    /**
+     * An error about what the link *is*, rather than about reaching it. These
+     * are already the whole answer, so they are not retried by playing the
+     * link in an element and recording it: that only replaces a true message
+     * with a vaguer one.
+     */
+    function plainly(msg) { var e = new Error(msg); e.plain = true; return e; }
+
+    function looksLikePlaylist(url, ct) {
+        return /\.(pls|m3u|m3u8|asx|xspf)(\?|#|$)/i.test(url) ||
+               /scpls|mpegurl|x-mpegurl|xspf|ms-asf|video\/x-ms-asf/.test(ct);
+    }
+    function isHls(text) { return /#EXT-X-(TARGETDURATION|STREAM-INF|MEDIA-SEQUENCE)/i.test(text); }
+    function firstUrlIn(text) {
+        var m = text.match(/^[ \t]*File\d*[ \t]*=[ \t]*(\S+)/im);          // .pls
+        if (m) return m[1];
+        m = text.match(/<ref\b[^>]*\bhref\s*=\s*["']([^"']+)/i);            // .asx
+        if (m) return m[1];
+        m = text.match(/<location>\s*([^<\s]+)/i);                          // .xspf
+        if (m) return m[1];
+        var lines = text.split(/\r?\n/);                                    // .m3u
+        for (var i = 0; i < lines.length; i++) {
+            var l = lines[i].trim();
+            // Not every line that is not a comment is an entry: a .pls whose
+            // entries are gone still has "[playlist]" and "NumberOfEntries=0"
+            // in it, and taking the first of those as a URL asks the host for
+            // /[playlist] and then blames the host for the answer.
+            if (!l || l.charAt(0) === '#' || l.charAt(0) === '[') continue;
+            if (/^[A-Za-z]\w*\s*=/.test(l)) continue;
+            return l;
+        }
+        return null;
+    }
+    function playlistTitle(text) {
+        var m = text.match(/^[ \t]*Title\d*[ \t]*=[ \t]*(.+)$/im) ||
+                text.match(/#EXTINF\s*:\s*-?\d+\s*,\s*(.+)$/im) ||
+                text.match(/<title>\s*([^<]+)/i);
+        return m ? m[1].trim() : '';
+    }
+
+    /**
+     * Take from a stream until it stops, you stop it, or the cap. The same
+     * path handles a finite body sent without a length: that one simply ends
+     * by itself, which is the first of those three.
+     */
+    function stTakeStream(item, res) {
+        var reader = res.body.getReader();
+        var chunks = [], got = 0, started = Date.now(), stopped = false, tick = 0;
+        item.streaming = true;
+        item.stopStream = function () { stopped = true; };
+        item.abort = function () { stopped = true; try { reader.cancel(); } catch (e) {} };
+        stRender();
+
+        return new Promise(function (resolve, reject) {
+            function done(err) {
+                clearInterval(tick);
+                item.streaming = false; item.stopStream = null; item.abort = null;
+                try { reader.cancel(); } catch (e) {}
+                if (err && !got) return reject(err);
+                if (!got) return reject(plainly('Nothing came off that stream.'));
+                var all = new Uint8Array(got), at = 0;
+                for (var i = 0; i < chunks.length; i++) { all.set(chunks[i], at); at += chunks[i].length; }
+                resolve(all.buffer);
+            }
+            tick = setInterval(function () {
+                if (!item.streaming) return;
+                var secs = Math.floor((Date.now() - started) / 1000);
+                item.status = 'taking it\u2026 ' + Math.floor(secs / 60) + ':' +
+                    (secs % 60 < 10 ? '0' : '') + (secs % 60) + ' \u00b7 ' +
+                    Math.round(got / 1024) + ' KB';
+                stRender();
+            }, 500);
+            (function pump() {
+                if (stopped) return done(null);
+                reader.read().then(function (r) {
+                    if (stopped) return done(null);
+                    if (r.done) return done(null);
+                    chunks.push(r.value); got += r.value.length;
+                    if ((Date.now() - started) / 1000 >= STREAM_MAX) return done(null);
+                    pump();
+                }).catch(function (e) { done(e); });
+            })();
+        });
+    }
+
+    /** One link's bytes, following a playlist to the thing it points at. */
+    function stReadLink(item, url, hop) {
+        return fetch(url, { mode: 'cors' }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var ct = (r.headers.get('content-type') || '').toLowerCase();
+
+            if (looksLikePlaylist(url, ct)) {
+                if (hop >= 2) throw plainly('That playlist points at another playlist, and that at another.');
+                return r.text().then(function (text) {
+                    if (isHls(text)) throw new Error('HLS');
+                    var next = firstUrlIn(text);
+                    if (!next) throw plainly('That playlist has nothing playable in it.');
+                    var title = playlistTitle(text);
+                    if (title) item.name = title + '.wav';
+                    stSay('Following ' + (title || 'that playlist') + '\u2026');
+                    return stReadLink(item, new URL(next, url).href, hop + 1);
+                });
+            }
+
+            // icy-* is how a Shoutcast or Icecast server introduces itself.
+            // It only reaches us if the station exposes it, so it is a bonus
+            // rather than the test for whether this is a stream.
+            var icy = r.headers.get('icy-name');
+            if (icy && hop === 0) item.name = icy + '.wav';
+            if (!r.headers.get('content-length') && r.body && r.body.getReader) {
+                return stTakeStream(item, r);
+            }
+            return r.arrayBuffer();
+        });
+    }
+
     function stAddUrl(raw) {
         var text = String(raw || '').trim();
         if (!text) return;
@@ -2455,17 +2592,30 @@
         stRender();
         stSay('Fetching ' + item.name + '\u2026');
 
-        fetch(text, { mode: 'cors' })
-            .then(function (r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.arrayBuffer();
-            })
+        stReadLink(item, text, 0)
             .then(decode)
             .then(function (buf) {
                 stSettled(item, buf);
                 if (item.buffer) stSay('Read ' + item.name + ' \u2014 ' + fmtTime(item.buffer.duration) + '.');
             })
             .catch(function (err) {
+                if (err && err.message === 'HLS') {
+                    if (haveService()) { stServiceInto(item, 'That is an HLS stream, which a browser cannot piece together, so'); return; }
+                    item.error = 'That is an HLS stream \u2014 a list of segments rather than audio.';
+                    item.status = null; item.rip = stCanRecord();
+                    if (item.rip) item.status = 'needs the tab';
+                    stRender();
+                    stSay('That is an HLS stream: a list of segments rather than one piece of audio. ' +
+                        'The audio service handles these; a browser on its own cannot.', true);
+                    return;
+                }
+                if (err && err.plain) {
+                    item.error = err.message;
+                    item.status = null;
+                    stRender();
+                    stSay(err.message, true);
+                    return;
+                }
                 var httpish = err && /^HTTP \d+$/.test(err.message || '');
                 if (httpish) {
                     if (haveService()) {
@@ -3169,6 +3319,14 @@
                 wav.title = 'Save this clip\u2019s audio as a WAV';
                 wav.addEventListener('click', function () { stSave(item); });
                 box.appendChild(wav);
+            }
+            if (item.streaming) {
+                var stopIt = document.createElement('button');
+                stopIt.className = 'row-btn wide on'; stopIt.type = 'button';
+                stopIt.textContent = 'Stop';
+                stopIt.title = 'Keep what has come through so far';
+                stopIt.addEventListener('click', function () { if (item.stopStream) item.stopStream(); });
+                box.appendChild(stopIt);
             }
             if (!item.buffer && item.rip && stCanRecord()) {
                 var rip = document.createElement('button');

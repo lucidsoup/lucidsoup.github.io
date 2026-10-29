@@ -30,6 +30,12 @@ const TOKEN = process.env.RIPPER_TOKEN || '';          // empty = open; set one 
 const ORIGIN = process.env.RIPPER_ORIGIN || '*';
 const MAX_SECONDS = Number(process.env.RIPPER_MAX_SECONDS || 3600);
 const MAX_CONCURRENT = Number(process.env.RIPPER_MAX_CONCURRENT || 2);
+// A download runs far faster than real time, so this is only ever hit by
+// something that is not going to end. is_live catches the streams that say so;
+// plenty do not, and a plain endless MP3 looks like an ordinary file until you
+// try to reach the end of it.
+const TIMEOUT = Number(process.env.RIPPER_TIMEOUT || 600);
+const MAX_BYTES = process.env.RIPPER_MAX_SIZE || '500M';
 // Development only. With it set, the service will fetch from the network it
 // is running in — which is the whole thing the check below exists to stop.
 // Never set it on anything reachable from outside.
@@ -62,13 +68,20 @@ const cors = () => ({
 });
 
 function run(cmd, args, opts = {}) {
+  // Always with a deadline. A live stream has no end, and a yt-dlp left
+  // pointed at one holds a slot for ever.
+  const { timeoutMs = 0, ...rest } = opts;
   return new Promise((resolve) => {
-    const p = spawn(cmd, args, { ...opts });
-    let out = '', err = '';
+    const p = spawn(cmd, args, rest);
+    let out = '', err = '', timer = 0;
+    if (timeoutMs) timer = setTimeout(() => {
+      err += `\ntimed out after ${Math.round(timeoutMs / 1000)}s`;
+      try { p.kill('SIGKILL'); } catch {}
+    }, timeoutMs);
     p.stdout.on('data', d => { out += d; });
     p.stderr.on('data', d => { err += d; });
-    p.on('error', e => resolve({ code: -1, out, err: String(e) }));
-    p.on('close', code => resolve({ code, out, err }));
+    p.on('error', e => { clearTimeout(timer); resolve({ code: -1, out, err: String(e) }); });
+    p.on('close', code => { clearTimeout(timer); resolve({ code, out, err }); });
   });
 }
 
@@ -131,23 +144,37 @@ async function rip(req, res, u) {
   running++;
   const dir = await mkdtemp(path.join(tmpdir(), 'rip-'));
   try {
-    const meta = await run(YTDLP, ['--no-playlist', '--no-warnings', '--dump-single-json', target]);
+    const meta = await run(YTDLP, ['--no-playlist', '--no-warnings', '--socket-timeout', '20',
+                                   '--dump-single-json', target], { timeoutMs: 60000 });
     if (meta.code !== 0) {
       return json(res, 502, { error: firstLine(meta.err) || 'Could not read that link.' });
     }
     let info = {};
     try { info = JSON.parse(meta.out); } catch {}
+    if (info.is_live) {
+      return json(res, 400, { error: 'That is a live stream, which has no end to download. ' +
+        'Paste it into the page instead \u2014 it takes streams directly, for as long as you let it.' });
+    }
     const duration = Number(info.duration || 0);
     if (duration && duration > MAX_SECONDS) {
       return json(res, 413, { error: `That is ${Math.round(duration / 60)} minutes; this service is set to ${Math.round(MAX_SECONDS / 60)}.` });
     }
 
-    const args = ['--no-playlist', '--no-warnings', '-f', 'bestaudio/best',
+    const args = ['--no-playlist', '--no-warnings', '--socket-timeout', '20',
+                  '--max-filesize', MAX_BYTES, '-f', 'bestaudio/best',
                   '-x', '--audio-format', want, '-o', path.join(dir, 'a.%(ext)s')];
     if (want === 'mp3') args.push('--audio-quality', '0');
     args.push(target);                       // left off once, and every rip 400'd
-    const got = await run(YTDLP, args);
-    if (got.code !== 0) return json(res, 502, { error: firstLine(got.err) || 'Could not get the audio.' });
+    const got = await run(YTDLP, args, { timeoutMs: TIMEOUT * 1000 });
+    if (got.code !== 0) {
+      const timedOut = /timed out after/.test(got.err);
+      return json(res, timedOut ? 504 : 502, {
+        error: timedOut
+          ? 'That did not finish in ' + TIMEOUT + ' seconds. If it is a live stream, paste it ' +
+            'into the page instead \u2014 that takes streams directly, for as long as you let it.'
+          : (firstLine(got.err) || 'Could not get the audio.')
+      });
+    }
 
     const files = (await readdir(dir)).filter(f => f.startsWith('a.'));
     if (!files.length) return json(res, 502, { error: 'Nothing came out of that link.' });

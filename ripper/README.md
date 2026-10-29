@@ -91,7 +91,13 @@ your service and nowhere else.
 | `RIPPER_ORIGIN` | `*` | The site allowed to call it. Set it to yours. |
 | `RIPPER_MAX_SECONDS` | `3600` | Longest clip it will fetch. |
 | `RIPPER_MAX_CONCURRENT` | `2` | Rips at once; the rest get a 503 and can retry. |
+| `RIPPER_TIMEOUT` | `600` | Seconds a single rip may take before it is killed. A download runs far faster than real time, so only something endless reaches this. |
+| `RIPPER_MAX_SIZE` | `500M` | Passed to yt-dlp as `--max-filesize`. |
 | `RIPPER_ALLOW_PRIVATE` | *(off)* | **Development only.** Lets it fetch private and loopback addresses — which is exactly what the guard below exists to prevent. |
+
+Live streams are refused: there is no end to download. The converter takes
+those itself — paste the station's `.pls`, `.m3u` or stream URL straight into
+the page and press **Stop** when you have enough.
 
 ## What it will not do
 
