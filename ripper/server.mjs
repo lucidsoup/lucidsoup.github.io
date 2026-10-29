@@ -42,6 +42,10 @@ const TIMEOUT = Number(process.env.RIPPER_TIMEOUT || 600);
 // a service that exists so nobody has to sign in to anything.
 const REQUIRE_ORIGIN = process.env.RIPPER_REQUIRE_ORIGIN !== '0';
 const RATE_PER_HOUR = Number(process.env.RIPPER_RATE_PER_HOUR || 30);
+// Per-address is what any one abuser costs. This is what everyone together
+// costs, which is the number on the bill. Without it the first limit bounds a
+// share of an unbounded total.
+const RATE_TOTAL_PER_HOUR = Number(process.env.RIPPER_RATE_TOTAL_PER_HOUR || 200);
 const MAX_BYTES = process.env.RIPPER_MAX_SIZE || '500M';
 // Development only. With it set, the service will fetch from the network it
 // is running in — which is the whole thing the check below exists to stop.
@@ -109,6 +113,15 @@ function originAllowed(req) {
 // One hour of counts, per address, in memory. The machine suspends when idle
 // and forgets, which is the correct amount of memory for this.
 const seen = new Map();
+let all = [];
+function withinTotal() {
+  if (!RATE_TOTAL_PER_HOUR) return true;
+  const now = Date.now();
+  all = all.filter(t => now - t < 3600000);
+  if (all.length >= RATE_TOTAL_PER_HOUR) return false;
+  all.push(now);
+  return true;
+}
 function withinRate(req) {
   if (!RATE_PER_HOUR) return true;
   const ip = (req.headers['fly-client-ip'] ||
@@ -228,7 +241,8 @@ async function health(keyOk) {
     maxSeconds: MAX_SECONDS,
     needsToken: !!TOKEN,
     origin: ORIGIN,
-    ratePerHour: RATE_PER_HOUR
+    ratePerHour: RATE_PER_HOUR,
+    rateTotalPerHour: RATE_TOTAL_PER_HOUR
   };
 }
 
@@ -356,8 +370,13 @@ http.createServer(async (req, res) => {
   }
   if (!withinRate(req)) {
     return json(res, 429, { error: 'That is ' + RATE_PER_HOUR + ' clips in an hour from here, ' +
-      'which is the limit. Try again later, or run your own copy — it is one file in the ' +
+      'which is the limit. Try again later, or run your own copy \u2014 it is one file in the ' +
       'site\u2019s repository.' });
+  }
+  if (!withinTotal()) {
+    return json(res, 429, { error: 'This service is at its limit for the hour across everyone ' +
+      'using it. Try again later, or run your own copy \u2014 it is one file in the site\u2019s ' +
+      'repository.' });
   }
   return rip(req, res, u);
 }).listen(PORT, () => console.log(`ripper on :${PORT}  token ${TOKEN ? 'required' : 'NOT set'}` +

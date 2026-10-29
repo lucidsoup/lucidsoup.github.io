@@ -135,7 +135,8 @@ your service and nowhere else.
 | `RIPPER_TOKEN` | *(empty)* | Required key. Leave it empty for a service the site uses on everyone's behalf — a key everybody has is not a key. Set one for a private instance. |
 | `RIPPER_ORIGIN` | `*` | The site allowed to call it. Set it to yours. |
 | `RIPPER_REQUIRE_ORIGIN` | `1` | Enforce that origin server-side, not just in a CORS header. `0` turns the check off. |
-| `RIPPER_RATE_PER_HOUR` | `30` | Clips per hour per address, counted in memory. `0` for no limit. |
+| `RIPPER_RATE_PER_HOUR` | `30` | Clips per hour **per address**. `0` for no limit. |
+| `RIPPER_RATE_TOTAL_PER_HOUR` | `200` | Clips per hour **across everyone**. This is the one that bounds the bill. `0` for no limit. |
 | `RIPPER_MAX_SECONDS` | `3600` | Longest clip it will fetch. |
 | `RIPPER_MAX_CONCURRENT` | `2` | Rips at once; the rest get a 503 and can retry. |
 | `RIPPER_TIMEOUT` | `600` | Seconds a single rip may take before it is killed. A download runs far faster than real time, so only something endless reaches this. |
@@ -166,10 +167,21 @@ things hold it together instead:
   the `Origin` — which a browser sends on a cross-origin GET and a page cannot
   forge — and answer 403 to anything else. `curl` sends none at all, and gets
   the same 403.
-- **Each address gets 30 clips an hour.** Counted in memory, forgotten when the
-  machine suspends, which is the right amount of memory for this. Past that it
-  is 429 with a pointer at this folder, because anyone who wants more than that
-  wants their own copy.
+- **Each address gets 30 clips an hour, and the service gives out 200.** The
+  first number is what any one abuser costs; the second is what everyone
+  together costs, which is the number that reaches the bill. Without the second
+  the first bounds a share of an unbounded total. Both are counted in memory and
+  forgotten when the machine suspends, which is the right amount of memory for
+  this. Past either it is 429 with a pointer at this folder, because anyone who
+  wants more than that wants their own copy.
+
+Be honest with yourself about what the origin check buys: it stops other
+websites, whose browsers will not let them forge an `Origin`, and it stops
+anyone who has not thought about it. It does not stop
+`curl -H 'origin: https://www.lucidsoup.com'`. The rate limits are what actually
+bound the cost, so set them to numbers you would not mind paying for, and set a
+spending limit on the Fly organisation as well — that is the only cap that
+cannot be reasoned around.
 
 Neither is cryptography and neither pretends to be. Together they are enough
 that a public endpoint costs its owner roughly what its own users cost.
