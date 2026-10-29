@@ -5,7 +5,7 @@
 # secret before, and one red cross a day teaches you to stop looking.
 #
 #   1. flyctl auth signup        (or log in)
-#   2. flyctl tokens create deploy -a lucidsoup-ripper
+#   2. flyctl tokens create deploy -a vst-library
 #   3. paste it into Settings → Secrets and variables → Actions as FLY_API_TOKEN
 #   4. optionally add RIPPER_TOKEN (a key for the service) and RIPPER_ORIGIN
 #
@@ -28,14 +28,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Reports which of the three secrets this job can see, and nothing about
+      # what is in them. The first run of this workflow went green and skipped
+      # every step, and "skipped" on its own does not say which secret was
+      # missing or where it should have been.
       - name: Is there anywhere to deploy to?
         id: gate
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          RIPPER_TOKEN: ${{ secrets.RIPPER_TOKEN }}
+          RIPPER_ORIGIN: ${{ secrets.RIPPER_ORIGIN }}
         run: |
+          have() { if [ -n "$1" ]; then echo "set"; else echo "**not set**"; fi; }
+          {
+            echo "### What this job can see"
+            echo ""
+            echo "| secret | |"
+            echo "|---|---|"
+            echo "| \`FLY_API_TOKEN\` | $(have "$FLY_API_TOKEN") |"
+            echo "| \`RIPPER_TOKEN\` | $(have "$RIPPER_TOKEN") |"
+            echo "| \`RIPPER_ORIGIN\` | $(have "$RIPPER_ORIGIN") |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
           if [ -z "$FLY_API_TOKEN" ]; then
+            {
+              echo "No \`FLY_API_TOKEN\`, so there is nowhere to deploy to and every"
+              echo "step below was skipped. Nothing failed."
+              echo ""
+              echo "It has to be a **repository secret**, under"
+              echo "Settings → Secrets and variables → **Actions** → Repository secrets."
+              echo "A repository *variable*, a *Dependabot* secret, or an *environment*"
+              echo "secret will not be visible here. Connecting Fly to the repository"
+              echo "through Fly's own GitHub integration is a different thing again and"
+              echo "does not give this workflow a token."
+              echo ""
+              echo '```sh'
+              echo "flyctl tokens create deploy -a vst-library"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "No FLY_API_TOKEN secret, so there is nowhere to deploy to yet."
-            echo "ripper/README.md says how to make one. Nothing failed here."
+            echo "See this run's summary. Nothing failed here."
             echo "go=no" >> "$GITHUB_OUTPUT"
           else
             echo "go=yes" >> "$GITHUB_OUTPUT"
@@ -53,7 +86,7 @@ jobs:
         run: |
           app=$(awk -F'"' '/^app *=/{print $2}' fly.toml)
           # Asking about this app directly, rather than grepping a list: the
-          # pattern that did it would also have matched lucidsoup-ripper-2, and
+          # pattern that did it would also have matched vst-library-2, and
           # the || true after it would have swallowed a real failure to create
           # and left the deploy to fail further on with a stranger message.
           if flyctl status -a "$app" >/dev/null 2>&1; then
@@ -77,9 +110,19 @@ jobs:
           [ -n "$RIPPER_ORIGIN" ] && args="$args RIPPER_ORIGIN=$RIPPER_ORIGIN"
           if [ -n "$args" ]; then
             flyctl secrets set $args -a "$app" --stage
-          else
-            echo "No RIPPER_TOKEN or RIPPER_ORIGIN secrets set."
-            echo "The service will run open to anyone who finds its URL. See ripper/README.md."
+          fi
+          if [ -z "$RIPPER_TOKEN" ]; then
+            # RIPPER_ORIGIN is pinned in fly.toml, so the service is already
+            # closed to other browsers. Nothing is closed to curl without a key.
+            echo "::warning::No RIPPER_TOKEN secret. The service will answer anyone who finds its URL."
+            {
+              echo "> **No \`RIPPER_TOKEN\`.** The service answers anyone who finds its URL."
+              echo "> The origin pinned in \`fly.toml\` stops other browsers; it does not stop curl."
+              echo ">"
+              echo '> ```sh'
+              echo "> fly secrets set RIPPER_TOKEN=\$(openssl rand -hex 24) -a $app"
+              echo '> ```'
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Deploy

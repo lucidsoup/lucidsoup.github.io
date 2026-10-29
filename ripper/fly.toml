@@ -1,6 +1,6 @@
 # Deployed by .github/workflows/deploy-ripper.yml once a FLY_API_TOKEN secret
 # exists, or by hand: fly launch --no-deploy, then fly deploy.
-app = "lucidsoup-ripper"
+app = "vst-library"
 
 # Change this to the city nearest you. After the cold start it is the single
 # biggest thing between pressing Fetch and hearing the clip, and lhr is only a
@@ -17,10 +17,13 @@ kill_timeout = "120s"
   PORT = "8080"
   RIPPER_MAX_SECONDS = "3600"
   RIPPER_MAX_CONCURRENT = "2"
-  # RIPPER_ORIGIN and RIPPER_TOKEN are secrets, not env: the workflow sets them
-  # from the repository's own secrets, or by hand with
-  #   fly secrets set RIPPER_TOKEN=$(openssl rand -hex 24)
-  #   fly secrets set RIPPER_ORIGIN=https://www.lucidsoup.com
+  # Which site may call this from a browser. Not a secret — it is the public
+  # address of a public site — so it lives here, visible and reviewable.
+  RIPPER_ORIGIN = "https://www.lucidsoup.com"
+  # RIPPER_TOKEN is a secret and never belongs in this file. Set it once:
+  #   fly secrets set RIPPER_TOKEN=$(openssl rand -hex 24) -a vst-library
+  # Until that exists the service answers anyone who finds the URL: the origin
+  # above stops other browsers, it does not stop curl.
 
 [http_service]
   internal_port = 8080

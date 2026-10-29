@@ -81,7 +81,7 @@ go:
 
 ```sh
 flyctl auth signup                                   # or log in
-flyctl tokens create deploy -a lucidsoup-ripper
+flyctl tokens create deploy -a vst-library
 ```
 
 Paste that token into **Settings → Secrets and variables → Actions** as
