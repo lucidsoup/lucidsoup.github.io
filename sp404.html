@@ -387,15 +387,18 @@
                     <button type="button" class="pick-btn" id="stFetch">Fetch</button>
                 </div>
                 <p class="fw-help" id="stUrlHelp">
-                    Paste it and press <strong>Fetch</strong>, or Enter. A direct link to a media file,
-                    and only if the host lets other sites read it &mdash; Wikimedia and archive.org do,
-                    most do not.
+                    Paste it and press <strong>Fetch</strong>, or Enter. If the host shares its files
+                    &mdash; Wikimedia and archive.org do &mdash; the audio comes straight off the link.
+                    If it does not, or the link is a page rather than a file (YouTube, SoundCloud,
+                    Bandcamp&hellip;), the row offers <strong>Rip</strong>: it opens the link in a tab
+                    and records it playing. That one runs in real time, so a four-minute track takes
+                    four minutes, and it stops itself when the sound ends.
                 </p>
                 <div class="fw-row" id="stRecRow">
                     <button type="button" class="pick-btn" id="stRecord">Record what&rsquo;s playing</button>
                     <span class="fw-help" id="stRecHelp">
-                        For anything you can only watch &mdash; YouTube included. Plays in one tab, records
-                        from another.
+                        For something already playing somewhere. Pick a tab in the picker and share its
+                        audio; it stops itself once the sound ends. Chrome and Edge only.
                     </span>
                 </div>
             </div>
@@ -2130,6 +2133,22 @@
         return last;
     }
 
+    /**
+     * A name for a rip. nameFromUrl() wants a filename at the end of a path
+     * and a page link has none, so YouTube and the rest all came out called
+     * after their hostname. The id is the part that tells two of them apart.
+     */
+    function ripName(u, site) {
+        var id = '';
+        try { id = u.searchParams.get('v') || ''; } catch (e) { id = ''; }
+        if (!id) id = (u.pathname || '').split('/').filter(Boolean).pop() || '';
+        id = id.replace(/\.[A-Za-z0-9]{1,5}$/, '')
+               .replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+        var base = String(site || (u.hostname || 'link').replace(/^www\./, ''))
+            .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        return (id ? base + '-' + id : base) + '.wav';
+    }
+
     function stAddUrl(raw) {
         var text = String(raw || '').trim();
         if (!text) return;
@@ -2144,12 +2163,27 @@
         }
 
         var site = walledSite(u.hostname);
-        if (site) {
+        if (site && !stCanRecord()) {
             // textContent, not innerHTML: this page has no escaper, and a
             // status line is not worth introducing one for.
-            stStatus.textContent = site + ' keeps its audio behind signed links that are not shared ' +
-                'with other sites, so no page can read one. Play it in a tab and use ' +
-                '\u201cRecord what\u2019s playing\u201d below.';
+            stStatus.textContent = site + ' will not hand its audio to another site, so the only way ' +
+                'to it is to record the tab while it plays \u2014 and this browser cannot do that. ' +
+                'Chrome and Edge can.';
+            return;
+        }
+        if (site) {
+            // Not an error and not a dead end: the row offers Rip, which opens
+            // the link in its own tab and records it playing. That is slower
+            // than reading a file and it is the only thing that works here, so
+            // it is offered as the normal way rather than as a consolation.
+            stItems.push({
+                file: null, url: text, name: ripName(u, site), status: 'needs the tab', error: null,
+                buffer: null, video: false, abort: null, saving: false, rip: true, armed: false
+            });
+            stRender();
+            stStatus.textContent = site + ' keeps its audio behind signed links no other site can ' +
+                'read, so this one gets ripped instead \u2014 press Rip. It plays in a tab and is ' +
+                'recorded in real time: a four-minute track takes four minutes.';
             return;
         }
 
@@ -2171,7 +2205,9 @@
                 var httpish = err && /^HTTP \d+$/.test(err.message || '');
                 if (httpish) {
                     item.error = 'The link answered ' + err.message + '.';
-                    item.status = null; stRender(); return;
+                    item.rip = stCanRecord();
+                    item.status = item.rip ? 'needs the tab' : null;
+                    stRender(); return;
                 }
                 // Either the host would not let us read it, or we read it and
                 // could not decode it in one go. The element tells the two
@@ -2183,9 +2219,13 @@
                     stRender();
                 }).then(function (buf) { stSettled(item, buf); })
                   .catch(function (e2) {
+                      // Whatever went wrong reading it, a browser can still
+                      // play it in a tab, and a tab can be recorded.
                       item.error = (e2 && e2.message) ||
                           'That link could not be read from here.';
-                      item.status = null; stRender();
+                      item.rip = stCanRecord();
+                      item.status = item.rip ? 'needs the tab' : null;
+                      stRender();
                   });
             });
     }
@@ -2202,6 +2242,34 @@
         return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
     }
 
+    /* A rip stops itself. Dead air once the sound has played means the thing
+       being recorded has finished, and leaving someone to notice that and come
+       back to press Stop was most of what made this a chore. It takes a long
+       run of quiet to count: a breakdown in a track is not silent, a finished
+       video is. */
+    var LIVE_FLOOR = 0.0025;      // about -52 dBFS
+    var SILENCE_STOP = 6;         // seconds of quiet, once audio has been heard
+
+    /**
+     * The recording with the dead air at both ends taken off — the gap between
+     * pressing record and pressing play, and whatever ran on after the end.
+     * That is an artifact of the method, not content, so it goes without being
+     * asked; the Trim option in the panel stays a separate, deliberate choice.
+     */
+    function stTrimRip(buf) {
+        var chans = channelsOf(buf);
+        var b = contentBounds(chans, buf.length, buf.sampleRate);
+        if (!b) return null;                                   // silence throughout
+        var len = b.end - b.start;
+        if (len < 1) return null;
+        if (b.start === 0 && b.end === buf.length) return buf;
+        var out = ctx().createBuffer(buf.numberOfChannels, len, buf.sampleRate);
+        for (var ch = 0; ch < buf.numberOfChannels; ch++) {
+            out.getChannelData(ch).set(chans[ch].subarray(b.start, b.end));
+        }
+        return out;
+    }
+
     function stStopRecording() {
         if (!recording) return;
         var r = recording;
@@ -2215,27 +2283,60 @@
         $('stRecord').textContent = 'Record what\u2019s playing';
 
         if (!r.frames) {
+            if (r.bound) { r.bound.status = 'needs the tab'; r.bound.armed = false; }
+            stRender();
             stStatus.textContent = 'Nothing came through. In the picker, choose a tab and tick ' +
                 'the box that shares its audio.';
             return;
         }
         var c = ctx();
-        var buf = c.createBuffer(2, r.frames, c.sampleRate);
-        var L = buf.getChannelData(0), R = buf.getChannelData(1);
+        var raw = c.createBuffer(2, r.frames, c.sampleRate);
+        var L = raw.getChannelData(0), R = raw.getChannelData(1);
         for (var i = 0, at = 0; i < r.left.length; i++) {
             L.set(r.left[i], at); R.set(r.right[i], at); at += r.left[i].length;
         }
-        var item = {
-            file: null, url: null, name: 'recording-' + (++recCount) + '.wav', status: null,
-            error: null, buffer: null, video: false, abort: null, saving: false
-        };
-        stItems.push(item);
+        var buf = stTrimRip(raw);
+
+        // A rip lands back in the row the link made, so it keeps the link's
+        // name. A bare recording has no row yet and gets one.
+        var item = r.bound;
+        if (item) { item.rip = false; item.armed = false; item.status = null; item.error = null; }
+        else {
+            item = {
+                file: null, url: null, name: 'recording-' + (++recCount) + '.wav', status: null,
+                error: null, buffer: null, video: false, abort: null, saving: false
+            };
+            stItems.push(item);
+        }
+        if (!buf) {
+            item.error = 'Only silence came through. Pick the tab that is playing, and tick the ' +
+                'box that shares its audio.';
+            if (r.bound) item.rip = stCanRecord();
+            item.status = item.rip ? 'needs the tab' : null;
+            stRender();
+            return;
+        }
         stSettled(item, buf);
-        stStatus.textContent = 'Recorded ' + fmtTime(buf.duration) + '.';
+        stStatus.textContent = (r.auto ? 'Stopped itself when the sound ended. ' : '') +
+            (r.bound ? 'Ripped ' : 'Recorded ') + fmtTime(buf.duration) + '.';
     }
     var recCount = 0;
 
-    function stStartRecording() {
+    /** Open the link in its own tab, then wait to be pointed at that tab. */
+    function stArmRip(item) {
+        var opened = null;
+        try { opened = window.open(item.url, '_blank'); } catch (e) { opened = null; }
+        item.armed = true;
+        item.status = 'waiting for the tab';
+        stRender();
+        stStatus.textContent = opened
+            ? 'Opened in a new tab. Start it playing there, come back here, then press ' +
+              '\u201cPick the tab\u201d and choose that tab \u2014 with its audio shared.'
+            : 'Your browser blocked the new tab. Open the link yourself, start it playing, ' +
+              'then press \u201cPick the tab\u201d.';
+    }
+
+    function stStartRecording(bound) {
         if (recording) { stStopRecording(); return; }
         var c = ctx();
         if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
@@ -2250,7 +2351,10 @@
             }
             stream.getVideoTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
 
-            var r = { stream: stream, left: [], right: [], frames: 0, started: Date.now(), tick: 0 };
+            var r = {
+                stream: stream, left: [], right: [], frames: 0, started: Date.now(), tick: 0,
+                bound: bound || null, heard: false, quiet: 0, auto: false
+            };
             r.src = c.createMediaStreamSource(stream);
             r.proc = c.createScriptProcessor(4096, 2, 2);
             r.sink = c.createGain();
@@ -2258,9 +2362,24 @@
             r.proc.onaudioprocess = function (ev) {
                 if (!recording) return;
                 var ib = ev.inputBuffer;
-                r.left.push(new Float32Array(ib.getChannelData(0)));
-                r.right.push(new Float32Array(ib.getChannelData(ib.numberOfChannels > 1 ? 1 : 0)));
+                var left = ib.getChannelData(0);
+                var right = ib.getChannelData(ib.numberOfChannels > 1 ? 1 : 0);
+                r.left.push(new Float32Array(left));
+                r.right.push(new Float32Array(right));
                 r.frames += ib.length;
+
+                var peak = 0, a;
+                for (var i = 0; i < ib.length; i++) {
+                    a = left[i] < 0 ? -left[i] : left[i];   if (a > peak) peak = a;
+                    a = right[i] < 0 ? -right[i] : right[i]; if (a > peak) peak = a;
+                }
+                if (peak > LIVE_FLOOR) { r.heard = true; r.quiet = 0; }
+                else if (r.heard) {
+                    r.quiet += ib.length;
+                    if (r.quiet > c.sampleRate * SILENCE_STOP) {
+                        r.auto = true; stStopRecording(); return;
+                    }
+                }
                 if (r.frames > c.sampleRate * CAPTURE_MAX) stStopRecording();
             };
             r.src.connect(r.proc);
@@ -2272,6 +2391,7 @@
             audio[0].addEventListener('mute', function () {});
 
             recording = r;
+            if (r.bound) r.bound.status = 'recording\u2026';
             $('stRecord').classList.add('recording');
             r.tick = setInterval(function () {
                 if (!recording) return;
@@ -2279,7 +2399,11 @@
                 $('stRecord').textContent = 'Stop \u00b7 ' + Math.floor(secs / 60) + ':' +
                     (secs % 60 < 10 ? '0' : '') + (secs % 60);
             }, 250);
-            stStatus.textContent = 'Recording. Press play in the other tab; stop here when it is done.';
+            stRender();
+            stStatus.textContent = r.bound
+                ? 'Recording. Press play in the other tab if you have not already \u2014 this stops ' +
+                  'itself once the sound ends, and trims the quiet off both ends.'
+                : 'Recording. Press play in the other tab; this stops itself once the sound ends.';
         }).catch(function (err) {
             if (err && err.name === 'NotAllowedError') {
                 stStatus.textContent = 'Nothing was shared.';
@@ -2410,7 +2534,7 @@
                 ? fmtTime(item.buffer.duration) + ' · ' +
                   (item.buffer.numberOfChannels > 1 ? 'stereo' : 'mono') + ' · ' +
                   (stRateFor(item) / 1000) + ' kHz out'
-                : (item.status || '…');
+                : (item.status || (item.error ? '—' : '…'));
 
             var actions = document.createElement('td');
             var box = document.createElement('div');
@@ -2429,6 +2553,25 @@
                 wav.title = 'Save this clip\u2019s audio as a WAV';
                 wav.addEventListener('click', function () { stSave(item); });
                 box.appendChild(wav);
+            }
+            if (!item.buffer && item.rip && stCanRecord()) {
+                var rip = document.createElement('button');
+                rip.className = 'row-btn wide'; rip.type = 'button';
+                if (recording && recording.bound === item) {
+                    rip.textContent = 'Stop';
+                    rip.title = 'Stop recording now';
+                    rip.addEventListener('click', stStopRecording);
+                } else if (item.armed) {
+                    rip.textContent = 'Pick the tab';
+                    rip.title = 'Choose the tab it is playing in, with its audio shared';
+                    rip.addEventListener('click', function () { stStartRecording(item); });
+                } else {
+                    rip.textContent = 'Rip';
+                    rip.title = 'Open it in a tab and record it playing';
+                    rip.addEventListener('click', function () { stArmRip(item); });
+                }
+                rip.disabled = !!(recording && recording.bound !== item);
+                box.appendChild(rip);
             }
             var del = document.createElement('button');
             del.className = 'row-btn'; del.type = 'button';
@@ -2454,6 +2597,8 @@
         if (!stItems.length) stStatus.textContent = 'Drop a clip to begin.';
         else {
             var bits = [ready + ' ready'];
+            var waiting = stItems.filter(function (it) { return it.rip && !it.buffer; }).length;
+            if (waiting) bits.push(waiting + ' to rip');
             if (bad) bits.push(bad + ' could not be read');
             stStatus.textContent = bits.join(' · ');
         }
@@ -2487,7 +2632,9 @@
         // broken. A paste puts the text in the field. Fetch and Enter are the
         // two things that start anything.
 
-        if (stCanRecord()) $('stRecord').addEventListener('click', stStartRecording);
+        // Not stStartRecording itself: it takes the row a rip belongs to, and
+        // addEventListener would hand it the click event instead.
+        if (stCanRecord()) $('stRecord').addEventListener('click', function () { stStartRecording(null); });
         else $('stRecRow').style.display = 'none';
         ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade'].forEach(function (id) {
             $(id).addEventListener('change', stRender);
