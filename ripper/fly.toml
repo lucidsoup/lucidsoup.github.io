@@ -25,7 +25,8 @@ kill_timeout = "120s"
   RIPPER_RATE_TOTAL_PER_DAY = "200"
   # Which site may call this from a browser. Not a secret — it is the public
   # address of a public site — so it lives here, visible and reviewable.
-  RIPPER_ORIGIN = "https://www.lucidsoup.com"
+  # Both spellings: a link shared without the www is the same site.
+  RIPPER_ORIGIN = "https://www.lucidsoup.com,https://lucidsoup.com"
   # There is deliberately no RIPPER_TOKEN. A service the site uses on
   # everyone's behalf cannot ask them for a key: one printed in the page is
   # public, and one that is not makes every visitor set it up. The origin above
