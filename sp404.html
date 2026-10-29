@@ -460,17 +460,14 @@
                     </p>
                 </details>
                 <p class="fw-help" id="stUrlHelp">
-                    Paste it and press <strong>Fetch</strong>, or Enter. Direct files, and the
-                    <code>.pls</code> and <code>.m3u</code> a station gives you &mdash; those are
-                    followed to the stream, which is then taken from until you press
-                    <strong>Stop</strong>. If the host shares its files
-                    &mdash; Wikimedia and archive.org do &mdash; the audio comes straight off the link.
-                    If it does not, or the link is a page rather than a file (YouTube, SoundCloud,
-                    Bandcamp&hellip;), the row offers <strong>Rip</strong>: it opens the link in a tab
-                    and records it playing. That one runs in real time, so a four-minute track takes
-                    four minutes, and it stops itself when the sound ends &mdash; and it only exists on
-                    desktop Chrome and Edge. For everything else, and for every phone, there is the
-                    audio service below.
+                    Paste it and press <strong>Fetch</strong>, or Enter, and a WAV is saved as soon as
+                    the audio lands &mdash; the clip stays in the list if you want to chop it first.
+                    A direct file comes straight off the link where the host shares its files;
+                    a <code>.pls</code> or <code>.m3u</code> is followed to the stream behind it and
+                    taken from until you press <strong>Stop</strong>; and anything a browser may not
+                    read for itself &mdash; YouTube, SoundCloud, Bandcamp &mdash; goes to the
+                    <strong>audio service</strong> below, which is the only thing that works on a
+                    phone and takes seconds rather than real time.
                 </p>
                 <div class="fw-row" id="stRecRow">
                     <button type="button" class="pick-btn" id="stRecord">Record what&rsquo;s playing</button>
@@ -550,6 +547,14 @@
                     <label for="stFade">
                         <div class="opt-label">Declick edges</div>
                         <div class="opt-help">2&nbsp;ms fade in and out, so a chopped edge does not pop.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="stAutoWav" checked>
+                    <label for="stAutoWav">
+                        <div class="opt-label">Links straight to WAV</div>
+                        <div class="opt-help">A link saves its WAV the moment it lands, without
+                            waiting to be asked. The clip stays in the list to chop.</div>
                     </label>
                 </div>
             </div>
@@ -2377,7 +2382,10 @@
             return true;
         }).catch(function (err) {
             item.error = (err && err.message) || 'Your service could not get that.';
-            item.rip = stCanRecord();
+            // Not stCanRecord(): once there is a service, a failure from it is
+            // the answer, and the tab-recording ceremony is not a consolation
+            // prize to fall back on.
+            item.rip = stOfferRecord();
             item.status = item.rip ? 'needs the tab' : null;
             stRender();
             stSay((why ? why + ' ' : '') + item.error +
@@ -2407,6 +2415,7 @@
         // on a phone it is the whole answer, and folded away is as good as
         // absent.
         $('stSvc').open = !cfg.url && !stCanRecord();
+        stShowRecordRow();
     }
     function svcSummary() {
         var cfg = svcCfg(), el = $('stSvcSummary');
@@ -2598,7 +2607,7 @@
             stServiceInto(svcItem, site + ' will not hand it to a browser, and');
             return;
         }
-        if (site && !stCanRecord()) {
+        if (site && !stOfferRecord()) {
             // textContent, not innerHTML: this page has no escaper, and a
             // status line is not worth introducing one for.
             stSay(site + ' will not hand its audio to a browser, and this one cannot record a tab ' +
@@ -2644,7 +2653,7 @@
                 if (err && err.message === 'HLS') {
                     if (haveService()) { stServiceInto(item, 'That is an HLS stream, which a browser cannot piece together, so'); return; }
                     item.error = 'That is an HLS stream \u2014 a list of segments rather than audio.';
-                    item.status = null; item.rip = stCanRecord();
+                    item.status = null; item.rip = stOfferRecord();
                     if (item.rip) item.status = 'needs the tab';
                     stRender();
                     stSay('That is an HLS stream: a list of segments rather than one piece of audio. ' +
@@ -2665,7 +2674,7 @@
                         return;
                     }
                     item.error = 'The link answered ' + err.message + '.';
-                    item.rip = stCanRecord();
+                    item.rip = stOfferRecord();
                     item.status = item.rip ? 'needs the tab' : null;
                     stRender();
                     stSay('The link answered ' + err.message + '.' +
@@ -2692,7 +2701,7 @@
                       // play it in a tab, and a tab can be recorded.
                       item.error = (e2 && e2.message) ||
                           'That link could not be read from here.';
-                      item.rip = stCanRecord();
+                      item.rip = stOfferRecord();
                       item.status = item.rip ? 'needs the tab' : null;
                       stRender();
                       stSay(item.error + (item.rip
@@ -2710,8 +2719,26 @@
        it can work. Video has to be asked for — there is no audio-only form of
        the picker — and the video track is dropped the moment it arrives. */
     var recording = null;
+
+    /** Whether this browser is able to record a tab at all. */
     function stCanRecord() {
         return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    }
+
+    /**
+     * Whether to offer it. Recording a tab means opening the link somewhere
+     * else, pressing play, coming back, picking the tab, sharing its audio and
+     * waiting out the whole track in real time. It exists because without a
+     * service there is no other way. With one, a link is bytes in a few
+     * seconds, and leaving the ceremony on screen next to that is offering a
+     * worse answer to a question already answered.
+     */
+    function stOfferRecord() { return stCanRecord() && !haveService(); }
+
+    /** The Record row follows the setting, not just the page load. */
+    function stShowRecordRow() {
+        var row = $('stRecRow');
+        if (row) row.style.display = stOfferRecord() ? '' : 'none';
     }
 
     /* A rip stops itself. Dead air once the sound has played means the thing
@@ -2791,7 +2818,7 @@
         if (!buf) {
             item.error = 'Only silence came through. Pick the tab that is playing, and tick the ' +
                 'box that shares its audio.';
-            if (r.bound) item.rip = stCanRecord();
+            if (r.bound) item.rip = stOfferRecord();
             item.status = item.rip ? 'needs the tab' : null;
             stRender();
             return;
@@ -2964,6 +2991,37 @@
             item.status = null; stRender(); return;
         }
         item.buffer = buffer; item.status = null; stRender();
+
+        // A link is a request for a file, not for a row with a button on it.
+        // Files chosen by hand are left alone: picking six of them and having
+        // six downloads start by themselves is a different thing entirely.
+        // It says so when it has done it. Without that the save's own redraw
+        // replaces whatever the status line was saying — "Got it from your
+        // service", "Stopped itself when the sound ended" — with the row
+        // count, and the file appears with nothing accounting for it.
+        if (item.url && !item.file && autoWav()) {
+            stSave(item).then(function (saved) {
+                if (saved) stSay('Saved ' + safeName(item.name) + '.');
+            });
+        }
+    }
+
+    /** Remembered, because it is a habit rather than a per-clip decision. */
+    function autoWav() {
+        var box = $('stAutoWav');
+        return !!(box && box.checked);
+    }
+    function wireAutoWav() {
+        var box = $('stAutoWav');
+        if (!box) return;
+        try {
+            var saved = localStorage.getItem('lucid.autowav');
+            if (saved === '0') box.checked = false;
+            else if (saved === '1') box.checked = true;
+        } catch (e) {}
+        box.addEventListener('change', function () {
+            try { localStorage.setItem('lucid.autowav', box.checked ? '1' : '0'); } catch (e) {}
+        });
     }
 
     /** One clip's audio, as a plain WAV. */
@@ -3375,7 +3433,7 @@
                 stopIt.addEventListener('click', function () { if (item.stopStream) item.stopStream(); });
                 box.appendChild(stopIt);
             }
-            if (!item.buffer && item.rip && stCanRecord()) {
+            if (!item.buffer && item.rip && stOfferRecord()) {
                 var rip = document.createElement('button');
                 rip.className = 'row-btn wide'; rip.type = 'button';
                 if (recording && recording.bound === item) {
@@ -3443,6 +3501,7 @@
         stSaveAll.addEventListener('click', stSaveEvery);
         edWire();
         svcWire();
+        wireAutoWav();
 
         var urlIn = $('stUrl');
         $('stFetch').addEventListener('click', function () { stAddUrl(urlIn.value); urlIn.value = ''; });
@@ -3471,7 +3530,7 @@
                 'choosing a file above.';
             $('stUrlHelp').appendChild(note);
         }
-        ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade'].forEach(function (id) {
+        ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade', 'stAutoWav'].forEach(function (id) {
             $(id).addEventListener('change', stRender);
         });
     })();
