@@ -1,6 +1,15 @@
-# fly launch --no-deploy  then  fly deploy
+# Deployed by .github/workflows/deploy-ripper.yml once a FLY_API_TOKEN secret
+# exists, or by hand: fly launch --no-deploy, then fly deploy.
 app = "lucidsoup-ripper"
+
+# Change this to the city nearest you. After the cold start it is the single
+# biggest thing between pressing Fetch and hearing the clip, and lhr is only a
+# guess. fly platform regions lists them all.
 primary_region = "lhr"
+
+# A rip is one long request. The default of five seconds would cut one in half
+# whenever a deploy or a scale-down landed mid-download.
+kill_timeout = "120s"
 
 [build]
 
@@ -8,15 +17,28 @@ primary_region = "lhr"
   PORT = "8080"
   RIPPER_MAX_SECONDS = "3600"
   RIPPER_MAX_CONCURRENT = "2"
-  # RIPPER_ORIGIN is set to your site with: fly secrets set RIPPER_ORIGIN=https://www.lucidsoup.com
-  # RIPPER_TOKEN likewise: fly secrets set RIPPER_TOKEN=$(openssl rand -hex 24)
+  # RIPPER_ORIGIN and RIPPER_TOKEN are secrets, not env: the workflow sets them
+  # from the repository's own secrets, or by hand with
+  #   fly secrets set RIPPER_TOKEN=$(openssl rand -hex 24)
+  #   fly secrets set RIPPER_ORIGIN=https://www.lucidsoup.com
 
 [http_service]
   internal_port = 8080
   force_https = true
+  # suspend rather than stop: the machine's memory is kept, so it comes back in
+  # about a second instead of booting the container again. This is the whole
+  # reason to pick Fly for something used in bursts and idle the rest of the
+  # time — it costs nothing while suspended and still feels immediate.
   auto_stop_machines = "suspend"
   auto_start_machines = true
   min_machines_running = 0
+
+  # Match what the service itself allows, so the edge does not accept fifty
+  # rips the application will only turn away with a 503.
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 2
+    hard_limit = 4
 
 [[vm]]
   memory = "512mb"
