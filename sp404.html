@@ -138,6 +138,21 @@
         }
         .fw-row input[type=url]:focus { outline: none; border-color: rgba(139, 108, 245,.7); }
         .fw-help { font-size: .74rem; color: rgba(255,255,255,.4); line-height: 1.5; margin: 0 0 .9rem; }
+        /* Answers about a link belong beside the link box. They used to go to
+           the status line in panel 3, which on a phone is several screens
+           further down, so pressing Fetch looked like it did nothing at all. */
+        .fw-note {
+            font-size: .8rem; line-height: 1.5; margin: 0 0 .9rem;
+            padding: .55rem .7rem; border-radius: 7px;
+            border: 1px solid rgba(139, 108, 245,.35); background: rgba(139, 108, 245,.08);
+            color: rgba(255,255,255,.82);
+        }
+        .fw-note.bad { border-color: rgba(255, 59, 107,.45); background: rgba(255, 59, 107,.08); }
+        .files tr.fresh { animation: rowIn 1.4s ease; }
+        @keyframes rowIn {
+            from { background: rgba(139, 108, 245,.22); }
+            to { background: transparent; }
+        }
         .fw-row .fw-help { margin: 0; flex: 1 1 14rem; }
         #stRecord.recording { border-color: rgba(212, 79, 176,.8); color: #ffb9e8; }
 
@@ -410,6 +425,7 @@
                            autocomplete="off" spellcheck="false">
                     <button type="button" class="pick-btn" id="stFetch">Fetch</button>
                 </div>
+                <p class="fw-note hidden" id="stUrlNote"></p>
                 <p class="fw-help" id="stUrlHelp">
                     Paste it and press <strong>Fetch</strong>, or Enter. If the host shares its files
                     &mdash; Wikimedia and archive.org do &mdash; the audio comes straight off the link.
@@ -2197,6 +2213,19 @@
         return (id ? base + '-' + id : base) + '.wav';
     }
 
+    /**
+     * Say something about a link, next to the link box. The status line down
+     * in Save is kept in step for anything watching it, but it is not where
+     * someone who just pressed Fetch is looking.
+     */
+    function stSay(msg, bad) {
+        var note = $('stUrlNote');
+        note.textContent = msg;
+        note.classList.remove('hidden');
+        note.classList.toggle('bad', !!bad);
+        stStatus.textContent = msg;
+    }
+
     function stAddUrl(raw) {
         var text = String(raw || '').trim();
         if (!text) return;
@@ -2206,7 +2235,7 @@
         // new URL() is forgiving enough to accept "https://not a link at all",
         // which would otherwise sit in the list as a row that fetches nothing.
         if (!u || !u.hostname || u.hostname.indexOf('.') < 0 || /\s/.test(u.hostname)) {
-            stStatus.textContent = 'That does not look like a link.';
+            stSay('That does not look like a link.', true);
             return;
         }
 
@@ -2214,9 +2243,10 @@
         if (site && !stCanRecord()) {
             // textContent, not innerHTML: this page has no escaper, and a
             // status line is not worth introducing one for.
-            stStatus.textContent = site + ' will not hand its audio to another site, so the only way ' +
-                'to it is to record the tab while it plays \u2014 and this browser cannot do that. ' +
-                'Chrome and Edge can.';
+            stSay(site + ' will not hand its audio to another site. The only way to it is to record ' +
+                'the tab while it plays, and this browser cannot share a tab\u2019s audio \u2014 ' +
+                'Chrome or Edge on a computer can. On this one: save the file first, then drop it ' +
+                'in the box above.', true);
             return;
         }
         if (site) {
@@ -2226,21 +2256,24 @@
             // it is offered as the normal way rather than as a consolation.
             stItems.push({
                 file: null, url: text, name: ripName(u, site), status: 'needs the tab', error: null,
-                buffer: null, video: false, abort: null, saving: false, rip: true, armed: false
+                buffer: null, video: false, abort: null, saving: false, rip: true, armed: false,
+                fresh: true
             });
             stRender();
-            stStatus.textContent = site + ' keeps its audio behind signed links no other site can ' +
-                'read, so this one gets ripped instead \u2014 press Rip. It plays in a tab and is ' +
-                'recorded in real time: a four-minute track takes four minutes.';
+            stSay(site + ' keeps its audio behind signed links no other site can read, so this one ' +
+                'gets ripped instead \u2014 press Rip on the row below. It plays in a tab and is ' +
+                'recorded in real time: a four-minute track takes four minutes.');
             return;
         }
 
         var item = {
             file: null, url: text, name: nameFromUrl(u), status: 'fetching\u2026', error: null,
-            buffer: null, video: AV_EXT.test(u.pathname || ''), abort: null, saving: false
+            buffer: null, video: AV_EXT.test(u.pathname || ''), abort: null, saving: false,
+            fresh: true
         };
         stItems.push(item);
         stRender();
+        stSay('Fetching ' + item.name + '\u2026');
 
         fetch(text, { mode: 'cors' })
             .then(function (r) {
@@ -2248,14 +2281,20 @@
                 return r.arrayBuffer();
             })
             .then(decode)
-            .then(function (buf) { stSettled(item, buf); })
+            .then(function (buf) {
+                stSettled(item, buf);
+                if (item.buffer) stSay('Read ' + item.name + ' \u2014 ' + fmtTime(item.buffer.duration) + '.');
+            })
             .catch(function (err) {
                 var httpish = err && /^HTTP \d+$/.test(err.message || '');
                 if (httpish) {
                     item.error = 'The link answered ' + err.message + '.';
                     item.rip = stCanRecord();
                     item.status = item.rip ? 'needs the tab' : null;
-                    stRender(); return;
+                    stRender();
+                    stSay('The link answered ' + err.message + '.' +
+                        (item.rip ? ' You can still press Rip and record it playing.' : ''), true);
+                    return;
                 }
                 // Either the host would not let us read it, or we read it and
                 // could not decode it in one go. The element tells the two
@@ -2274,6 +2313,9 @@
                       item.rip = stCanRecord();
                       item.status = item.rip ? 'needs the tab' : null;
                       stRender();
+                      stSay(item.error + (item.rip
+                          ? ' Press Rip on the row below to play it in a tab and record it.'
+                          : ' Save the file first, then drop it in the box above.'), true);
                   });
             });
     }
@@ -2385,11 +2427,11 @@
         item.armed = true;
         item.status = 'waiting for the tab';
         stRender();
-        stStatus.textContent = opened
+        stSay(opened
             ? 'Opened in a new tab. Start it playing there, come back here, then press ' +
               '\u201cPick the tab\u201d and choose that tab \u2014 with its audio shared.'
             : 'Your browser blocked the new tab. Open the link yourself, start it playing, ' +
-              'then press \u201cPick the tab\u201d.';
+              'then press \u201cPick the tab\u201d.', !opened);
     }
 
     function stStartRecording(bound) {
@@ -2971,6 +3013,7 @@
 
             tr.appendChild(nameCell); tr.appendChild(outCell);
             tr.appendChild(metaCell); tr.appendChild(actions);
+            if (item.fresh) { tr.className = 'fresh'; item.fresh = false; }
             stRows.appendChild(tr);
         });
 
@@ -3021,7 +3064,17 @@
         // Not stStartRecording itself: it takes the row a rip belongs to, and
         // addEventListener would hand it the click event instead.
         if (stCanRecord()) $('stRecord').addEventListener('click', function () { stStartRecording(null); });
-        else $('stRecRow').style.display = 'none';
+        else {
+            // Saying this after someone has already tried is too late, and the
+            // Record button is not there to hint at it either.
+            $('stRecRow').style.display = 'none';
+            var note = document.createElement('span');
+            note.innerHTML = ' <strong>This browser cannot record a tab</strong>, so links to a page ' +
+                '— YouTube, SoundCloud, Bandcamp — cannot be ripped here; that needs ' +
+                'Chrome or Edge on a computer. Direct links to a file still work, and so does ' +
+                'choosing a file above.';
+            $('stUrlHelp').appendChild(note);
+        }
         ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade'].forEach(function (id) {
             $(id).addEventListener('change', stRender);
         });
