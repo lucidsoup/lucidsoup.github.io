@@ -17,13 +17,21 @@ kill_timeout = "120s"
   PORT = "8080"
   RIPPER_MAX_SECONDS = "3600"
   RIPPER_MAX_CONCURRENT = "2"
+  # What the worst month can cost, in clips. A clip off YouTube is about
+  # 3.4 MB, so 200 a day is roughly 20 GB a month, which is roughly 40p of
+  # Fly bandwidth. The hourly number stops one afternoon eating the day.
+  RIPPER_RATE_PER_HOUR = "20"
+  RIPPER_RATE_TOTAL_PER_HOUR = "60"
+  RIPPER_RATE_TOTAL_PER_DAY = "200"
   # Which site may call this from a browser. Not a secret — it is the public
   # address of a public site — so it lives here, visible and reviewable.
   RIPPER_ORIGIN = "https://www.lucidsoup.com"
-  # RIPPER_TOKEN is a secret and never belongs in this file. Set it once:
-  #   fly secrets set RIPPER_TOKEN=$(openssl rand -hex 24) -a vst-library
-  # Until that exists the service answers anyone who finds the URL: the origin
-  # above stops other browsers, it does not stop curl.
+  # There is deliberately no RIPPER_TOKEN. A service the site uses on
+  # everyone's behalf cannot ask them for a key: one printed in the page is
+  # public, and one that is not makes every visitor set it up. The origin above
+  # and the three caps are what hold it together, and the origin stops other
+  # browsers rather than curl. For a private instance, set one as a secret —
+  # never here:  fly secrets set RIPPER_TOKEN=$(openssl rand -hex 24) -a vst-library
 
 [http_service]
   internal_port = 8080

@@ -1,0 +1,32 @@
+# Render blueprint: a free instance, built from the Dockerfile in this folder.
+#
+# Free instances sleep after about fifteen minutes and take the better part of
+# a minute to wake. The converter expects that and waits, with a counter, so
+# the first clip after a quiet spell is slow rather than broken.
+#
+#   render.com -> New -> Blueprint -> point it at this repository
+#
+# RIPPER_TOKEN is deliberately absent: a service the site uses on everyone's
+# behalf cannot ask them for a key. The origin and the two rate limits are what
+# hold it together instead — see README.md.
+services:
+  - type: web
+    name: lucidsoup-ripper
+    runtime: image
+    plan: free
+    rootDir: ripper
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: RIPPER_ORIGIN
+        value: https://www.lucidsoup.com
+      - key: RIPPER_MAX_SECONDS
+        value: 3600
+      - key: RIPPER_MAX_CONCURRENT
+        value: 1
+      - key: RIPPER_RATE_PER_HOUR
+        value: 20
+      - key: RIPPER_RATE_TOTAL_PER_HOUR
+        value: 120

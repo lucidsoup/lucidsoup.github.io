@@ -161,6 +161,9 @@
         .svc input { flex: 1 1 14rem; }
         .svc input.key { flex: 0 1 11rem; }
         .svc-on { color: rgba(138, 224, 75,.9); }
+        .svc-off { display: flex; align-items: center; gap: .45rem; font-size: .78rem;
+                   color: rgba(255,255,255,.6); cursor: pointer; }
+        .svc-off input { flex: 0 0 auto; }
         .files tr.fresh { animation: rowIn 1.4s ease; }
         @keyframes rowIn {
             from { background: rgba(139, 108, 245,.22); }
@@ -449,28 +452,36 @@
                         <button type="button" class="pick-btn" id="stSvcCheck">Check</button>
                     </div>
                     <p class="fw-help" style="margin:.6rem 0 0;">
-                        No page served from here can read YouTube, SoundCloud or Bandcamp audio, on any
-                        browser: it sits behind short-lived signed links their hosts share with nobody.
-                        A small service you run yourself can, and then every link works everywhere
-                        &mdash; phone included, in seconds rather than in real time.
-                        <strong>ripper/</strong> in this site&rsquo;s repository is that service: one file,
-                        a Dockerfile, and a README. Point this at it and it gets used for anything this
-                        browser cannot fetch on its own. Kept in this browser only; never sent anywhere
-                        but to the address you put here.
+                        <strong>There is nothing to set up here.</strong> No page served from here can
+                        read YouTube, SoundCloud or Bandcamp audio, on any browser &mdash; it sits
+                        behind short-lived signed links their hosts share with nobody &mdash; so this
+                        site runs a small service that can, and uses it for you. No account, no key,
+                        nothing to sign into. It only answers this site and it limits how much any one
+                        connection may ask of it, so it stays up for everybody.
+                        <br><br>
+                        It is <strong>ripper/</strong> in this site&rsquo;s repository: one file of
+                        Node around yt-dlp, a Dockerfile and a README. Run your own and put its address
+                        here &mdash; that wins over the built-in one, is kept in this browser only, and
+                        is never sent anywhere but to the address you typed.
+                    </p>
+                    <div class="fw-row">
+                        <label class="svc-off"><input type="checkbox" id="stSvcOff">
+                            Don&rsquo;t send links to this site&rsquo;s service</label>
+                    </div>
+                    <p class="fw-help" style="margin:.4rem 0 0;">
+                        Ticking that sends nothing anywhere. Links a browser can read for itself still
+                        work; the rest fall back to recording a tab, where the browser allows it.
                     </p>
                 </details>
                 <p class="fw-help" id="stUrlHelp">
-                    Paste it and press <strong>Fetch</strong>, or Enter. Direct files, and the
-                    <code>.pls</code> and <code>.m3u</code> a station gives you &mdash; those are
-                    followed to the stream, which is then taken from until you press
-                    <strong>Stop</strong>. If the host shares its files
-                    &mdash; Wikimedia and archive.org do &mdash; the audio comes straight off the link.
-                    If it does not, or the link is a page rather than a file (YouTube, SoundCloud,
-                    Bandcamp&hellip;), the row offers <strong>Rip</strong>: it opens the link in a tab
-                    and records it playing. That one runs in real time, so a four-minute track takes
-                    four minutes, and it stops itself when the sound ends &mdash; and it only exists on
-                    desktop Chrome and Edge. For everything else, and for every phone, there is the
-                    audio service below.
+                    Paste it and press <strong>Fetch</strong>, or Enter, and a WAV is saved as soon as
+                    the audio lands &mdash; the clip stays in the list if you want to chop it first.
+                    A direct file comes straight off the link where the host shares its files;
+                    a <code>.pls</code> or <code>.m3u</code> is followed to the stream behind it and
+                    taken from until you press <strong>Stop</strong>; and anything a browser may not
+                    read for itself &mdash; YouTube, SoundCloud, Bandcamp &mdash; goes to the
+                    <strong>audio service</strong> below, which is the only thing that works on a
+                    phone and takes seconds rather than real time.
                 </p>
                 <div class="fw-row" id="stRecRow">
                     <button type="button" class="pick-btn" id="stRecord">Record what&rsquo;s playing</button>
@@ -550,6 +561,14 @@
                     <label for="stFade">
                         <div class="opt-label">Declick edges</div>
                         <div class="opt-help">2&nbsp;ms fade in and out, so a chopped edge does not pop.</div>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="checkbox" id="stAutoWav" checked>
+                    <label for="stAutoWav">
+                        <div class="opt-label">Links straight to WAV</div>
+                        <div class="opt-help">A link saves its WAV the moment it lands, without
+                            waiting to be asked. The clip stays in the list to chop.</div>
                     </label>
                 </div>
             </div>
@@ -2318,13 +2337,30 @@
        hand it. It stays optional and it stays last: anything the browser
        can do for itself, it still does for itself.
        ------------------------------------------------------------------ */
+    /**
+     * The service this site ships with. Nobody should have to find an address,
+     * paste it in and keep a key to take the audio off a link — that is a sign
+     * in by another name, and the whole point of the page is that it is not one
+     * of those. It is named here, in the open, because it is not a secret: it
+     * only answers this site, and it limits how much any one address may ask of
+     * it. Someone running their own writes it into the box below and that wins.
+     */
+    var SERVICE_BUILT_IN = 'https://vst-library.fly.dev';
+
     function svcCfg() {
+        var own = { url: '', key: '' };
         try {
-            return {
-                url: (localStorage.getItem('lucid.svc.url') || '').trim().replace(/\/+$/, ''),
-                key: localStorage.getItem('lucid.svc.key') || ''
-            };
-        } catch (e) { return { url: '', key: '' }; }
+            own.url = (localStorage.getItem('lucid.svc.url') || '').trim().replace(/\/+$/, '');
+            own.key = localStorage.getItem('lucid.svc.key') || '';
+        } catch (e) {}
+        if (own.url) return { url: own.url, key: own.key, mine: true };
+        // Opting out of the built-in one sends nothing anywhere, and puts the
+        // older ways back: links the browser can read still work, and a tab
+        // can still be recorded where the browser allows it.
+        var off = false;
+        try { off = localStorage.getItem('lucid.svc.off') === '1'; } catch (e) {}
+        if (off) return { url: '', key: '', mine: false, off: true };
+        return { url: SERVICE_BUILT_IN, key: '', mine: false };
     }
     function haveService() { return !!svcCfg().url; }
 
@@ -2334,10 +2370,46 @@
         var url = cfg.url + '/rip?format=m4a&url=' + encodeURIComponent(item.url);
         var opts = { headers: {} };
         if (cfg.key) opts.headers.authorization = 'Bearer ' + cfg.key;
-        item.status = 'asking your service\u2026';
+        item.status = cfg.mine ? 'asking your service\u2026' : 'fetching the audio\u2026';
         stRender();
 
-        return fetch(url, opts).then(function (r) {
+        // The service sleeps when nobody is sampling and wakes on the first
+        // request, so the first one after a quiet spell can be refused before
+        // it is up. One retry, once, a second and a half later. A browser
+        // reports every one of these \u2014 asleep, offline, blocked, no such host
+        // \u2014 as the same bare "Failed to fetch", so the message says what can
+        // actually be done about it rather than repeating that.
+        // Free hosting sleeps, and wakes slowly \u2014 some of it takes the better
+        // part of a minute to answer the first request after a quiet spell.
+        // Giving up after one try would make a working service look broken to
+        // whoever happened to arrive first. So it keeps asking for a while,
+        // and says what it is doing: a counter that is climbing is the
+        // difference between "waiting" and "nothing is happening".
+        var WAKE_FOR = 90;                 // seconds
+        var began = Date.now();
+        function ask() {
+            return fetch(url, opts).catch(function () {
+                var waited = (Date.now() - began) / 1000;
+                if (waited > WAKE_FOR) {
+                    throw new Error(cfg.mine
+                        ? 'Your service did not answer in ' + WAKE_FOR + ' seconds. Check it is ' +
+                          'running and that it allows this site as an origin.'
+                        : 'The audio service did not answer. It may be down rather than asleep ' +
+                          '\u2014 try again in a few minutes.');
+                }
+                var secs = Math.round(waited);
+                item.status = 'waking the service\u2026 ' + Math.floor(secs / 60) + ':' +
+                    (secs % 60 < 10 ? '0' : '') + (secs % 60);
+                stRender();
+                if (secs > 4) {
+                    stSay('Waking the audio service \u2014 it sleeps when nobody is sampling, and ' +
+                        'the first clip after that can take a minute. It stays awake afterwards.');
+                }
+                return new Promise(function (go) { setTimeout(go, 3000); }).then(ask);
+            });
+        }
+
+        return ask().then(function (r) {
             if (!r.ok) {
                 return r.json().catch(function () { return {}; }).then(function (j) {
                     throw new Error(j.error || 'Your service answered HTTP ' + r.status + '.');
@@ -2372,12 +2444,16 @@
         return stFromService(item).then(function (buf) {
             item.error = null; item.rip = false; item.armed = false;
             stSettled(item, buf);
-            if (item.buffer) stSay('Got ' + item.name + ' \u2014 ' + fmtTime(item.buffer.duration) +
-                ' \u2014 from your service.');
+            if (item.buffer) stSay('Got ' + item.name + ' \u2014 ' + fmtTime(item.buffer.duration) + '.');
             return true;
         }).catch(function (err) {
-            item.error = (err && err.message) || 'Your service could not get that.';
-            item.rip = stCanRecord();
+            item.error = (err && err.message) ||
+                (svcCfg().mine ? 'Your service could not get that.'
+                               : 'The audio service could not get that.');
+            // Not stCanRecord(): once there is a service, a failure from it is
+            // the answer, and the tab-recording ceremony is not a consolation
+            // prize to fall back on.
+            item.rip = stOfferRecord();
             item.status = item.rip ? 'needs the tab' : null;
             stRender();
             stSay((why ? why + ' ' : '') + item.error +
@@ -2389,7 +2465,11 @@
     /** The settings box: remembered here, checked on demand, never sent on. */
     function svcWire() {
         var urlIn = $('stSvcUrl'), keyIn = $('stSvcKey'), cfg = svcCfg();
-        urlIn.value = cfg.url; keyIn.value = cfg.key;
+        // The built-in one is shown as a placeholder rather than filled in, so
+        // the box reads as "nothing to do here unless you want to" instead of
+        // as a setting someone has to approve.
+        urlIn.placeholder = SERVICE_BUILT_IN + '  (built in — leave empty to use it)';
+        if (cfg.mine) { urlIn.value = cfg.url; keyIn.value = cfg.key; }
         svcSummary();
         function save() {
             try {
@@ -2397,6 +2477,15 @@
                 localStorage.setItem('lucid.svc.key', keyIn.value);
             } catch (e) {}
             svcSummary();
+        }
+        var offBox = $('stSvcOff');
+        if (offBox) {
+            try { offBox.checked = localStorage.getItem('lucid.svc.off') === '1'; } catch (e) {}
+            offBox.addEventListener('change', function () {
+                try { localStorage.setItem('lucid.svc.off', offBox.checked ? '1' : '0'); } catch (e) {}
+                svcSummary();
+                stShowRecordRow();
+            });
         }
         urlIn.addEventListener('change', save);
         keyIn.addEventListener('change', save);
@@ -2406,14 +2495,18 @@
         // can be recorded, so the service is a nicety and stays folded away;
         // on a phone it is the whole answer, and folded away is as good as
         // absent.
-        $('stSvc').open = !cfg.url && !stCanRecord();
+        // It no longer opens itself: there is nothing in it anyone has to do.
+        $('stSvc').open = false;
+        stShowRecordRow();
     }
     function svcSummary() {
         var cfg = svcCfg(), el = $('stSvcSummary');
-        el.innerHTML = cfg.url
-            ? 'Audio service \u2014 <span class="svc-on">on</span>, at ' +
+        el.innerHTML = cfg.mine
+            ? 'Audio service \u2014 <span class="svc-on">yours</span>, at ' +
               cfg.url.replace(/^https?:\/\//, '')
-            : 'Audio service \u2014 for the links a browser cannot read';
+            : cfg.off
+                ? 'Audio service \u2014 off'
+                : 'Audio service \u2014 <span class="svc-on">built in</span>, nothing to set up';
     }
     function svcCheck() {
         var cfg = svcCfg();
@@ -2594,17 +2687,22 @@
             };
             stItems.push(svcItem);
             stRender();
-            stSay('Asking your service for ' + site + '\u2026');
+            stSay((svcCfg().mine ? 'Asking your service for ' : 'Fetching from ') + site + '\u2026');
             stServiceInto(svcItem, site + ' will not hand it to a browser, and');
             return;
         }
-        if (site && !stCanRecord()) {
+        if (site && !stOfferRecord()) {
             // textContent, not innerHTML: this page has no escaper, and a
             // status line is not worth introducing one for.
-            stSay(site + ' will not hand its audio to a browser, and this one cannot record a tab ' +
-                'either \u2014 that needs Chrome or Edge on a computer. Two ways round it: set up ' +
-                'the audio service below, which makes every link work here; or save the file ' +
-                'elsewhere and choose it above.', true);
+            // Reached only with no service to ask — either turned off here, or
+            // emptied out of the build. Saying it "is not answering" when
+            // someone switched it off themselves sends them looking for a
+            // fault that does not exist.
+            stSay(site + ' will not hand its audio to a browser, and ' + (svcCfg().off
+                ? 'the site’s service is switched off below, so there is nothing to ask. ' +
+                  'Untick that, or save the file elsewhere and choose it above.'
+                : 'there is no audio service to ask. Save the file elsewhere and choose it ' +
+                  'above, or run the service in this site’s repository.'), true);
             $('stSvc').open = true;
             return;
         }
@@ -2644,7 +2742,7 @@
                 if (err && err.message === 'HLS') {
                     if (haveService()) { stServiceInto(item, 'That is an HLS stream, which a browser cannot piece together, so'); return; }
                     item.error = 'That is an HLS stream \u2014 a list of segments rather than audio.';
-                    item.status = null; item.rip = stCanRecord();
+                    item.status = null; item.rip = stOfferRecord();
                     if (item.rip) item.status = 'needs the tab';
                     stRender();
                     stSay('That is an HLS stream: a list of segments rather than one piece of audio. ' +
@@ -2665,7 +2763,7 @@
                         return;
                     }
                     item.error = 'The link answered ' + err.message + '.';
-                    item.rip = stCanRecord();
+                    item.rip = stOfferRecord();
                     item.status = item.rip ? 'needs the tab' : null;
                     stRender();
                     stSay('The link answered ' + err.message + '.' +
@@ -2692,7 +2790,7 @@
                       // play it in a tab, and a tab can be recorded.
                       item.error = (e2 && e2.message) ||
                           'That link could not be read from here.';
-                      item.rip = stCanRecord();
+                      item.rip = stOfferRecord();
                       item.status = item.rip ? 'needs the tab' : null;
                       stRender();
                       stSay(item.error + (item.rip
@@ -2710,8 +2808,26 @@
        it can work. Video has to be asked for — there is no audio-only form of
        the picker — and the video track is dropped the moment it arrives. */
     var recording = null;
+
+    /** Whether this browser is able to record a tab at all. */
     function stCanRecord() {
         return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    }
+
+    /**
+     * Whether to offer it. Recording a tab means opening the link somewhere
+     * else, pressing play, coming back, picking the tab, sharing its audio and
+     * waiting out the whole track in real time. It exists because without a
+     * service there is no other way. With one, a link is bytes in a few
+     * seconds, and leaving the ceremony on screen next to that is offering a
+     * worse answer to a question already answered.
+     */
+    function stOfferRecord() { return stCanRecord() && !haveService(); }
+
+    /** The Record row follows the setting, not just the page load. */
+    function stShowRecordRow() {
+        var row = $('stRecRow');
+        if (row) row.style.display = stOfferRecord() ? '' : 'none';
     }
 
     /* A rip stops itself. Dead air once the sound has played means the thing
@@ -2791,7 +2907,7 @@
         if (!buf) {
             item.error = 'Only silence came through. Pick the tab that is playing, and tick the ' +
                 'box that shares its audio.';
-            if (r.bound) item.rip = stCanRecord();
+            if (r.bound) item.rip = stOfferRecord();
             item.status = item.rip ? 'needs the tab' : null;
             stRender();
             return;
@@ -2964,6 +3080,37 @@
             item.status = null; stRender(); return;
         }
         item.buffer = buffer; item.status = null; stRender();
+
+        // A link is a request for a file, not for a row with a button on it.
+        // Files chosen by hand are left alone: picking six of them and having
+        // six downloads start by themselves is a different thing entirely.
+        // It says so when it has done it. Without that the save's own redraw
+        // replaces whatever the status line was saying — "Got it from your
+        // service", "Stopped itself when the sound ended" — with the row
+        // count, and the file appears with nothing accounting for it.
+        if (item.url && !item.file && autoWav()) {
+            stSave(item).then(function (saved) {
+                if (saved) stSay('Saved ' + safeName(item.name) + '.');
+            });
+        }
+    }
+
+    /** Remembered, because it is a habit rather than a per-clip decision. */
+    function autoWav() {
+        var box = $('stAutoWav');
+        return !!(box && box.checked);
+    }
+    function wireAutoWav() {
+        var box = $('stAutoWav');
+        if (!box) return;
+        try {
+            var saved = localStorage.getItem('lucid.autowav');
+            if (saved === '0') box.checked = false;
+            else if (saved === '1') box.checked = true;
+        } catch (e) {}
+        box.addEventListener('change', function () {
+            try { localStorage.setItem('lucid.autowav', box.checked ? '1' : '0'); } catch (e) {}
+        });
     }
 
     /** One clip's audio, as a plain WAV. */
@@ -3375,7 +3522,7 @@
                 stopIt.addEventListener('click', function () { if (item.stopStream) item.stopStream(); });
                 box.appendChild(stopIt);
             }
-            if (!item.buffer && item.rip && stCanRecord()) {
+            if (!item.buffer && item.rip && stOfferRecord()) {
                 var rip = document.createElement('button');
                 rip.className = 'row-btn wide'; rip.type = 'button';
                 if (recording && recording.bound === item) {
@@ -3443,6 +3590,7 @@
         stSaveAll.addEventListener('click', stSaveEvery);
         edWire();
         svcWire();
+        wireAutoWav();
 
         var urlIn = $('stUrl');
         $('stFetch').addEventListener('click', function () { stAddUrl(urlIn.value); urlIn.value = ''; });
@@ -3471,7 +3619,7 @@
                 'choosing a file above.';
             $('stUrlHelp').appendChild(note);
         }
-        ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade'].forEach(function (id) {
+        ['stRate', 'stMono', 'stNormalize', 'stTrim', 'stFade', 'stAutoWav'].forEach(function (id) {
             $(id).addEventListener('change', stRender);
         });
     })();
