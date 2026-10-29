@@ -136,7 +136,8 @@ your service and nowhere else.
 | `RIPPER_ORIGIN` | `*` | The site allowed to call it. Set it to yours. |
 | `RIPPER_REQUIRE_ORIGIN` | `1` | Enforce that origin server-side, not just in a CORS header. `0` turns the check off. |
 | `RIPPER_RATE_PER_HOUR` | `30` | Clips per hour **per address**. `0` for no limit. |
-| `RIPPER_RATE_TOTAL_PER_HOUR` | `200` | Clips per hour **across everyone**. This is the one that bounds the bill. `0` for no limit. |
+| `RIPPER_RATE_TOTAL_PER_HOUR` | `200` | Clips per hour **across everyone**, so one afternoon cannot eat the day. `0` for no limit. |
+| `RIPPER_RATE_TOTAL_PER_DAY` | `300` | Clips per day across everyone. **This is the one that decides the bill.** `0` for no limit. |
 | `RIPPER_MAX_SECONDS` | `3600` | Longest clip it will fetch. |
 | `RIPPER_MAX_CONCURRENT` | `2` | Rips at once; the rest get a 503 and can retry. |
 | `RIPPER_TIMEOUT` | `600` | Seconds a single rip may take before it is killed. A download runs far faster than real time, so only something endless reaches this. |
@@ -174,6 +175,28 @@ things hold it together instead:
   forgotten when the machine suspends, which is the right amount of memory for
   this. Past either it is 429 with a pointer at this folder, because anyone who
   wants more than that wants their own copy.
+
+### What a cap is worth, in money
+
+A clip off YouTube is about 3.4 MB, and bandwidth is the cost that matters —
+the machine itself is only awake for the few seconds a rip takes. So the daily
+cap converts straight into a worst case:
+
+| clips/day | GB/month | at $0.02/GB |
+|---|---|---|
+| 100 | 10 | ~$0.20 |
+| 200 | 20 | ~$0.40 |
+| 300 | 30 | ~$0.61 |
+| 500 | 50 | ~$1.01 |
+
+Those are worst cases, not forecasts: they assume someone pins the cap every
+day of the month. Real use rounds to nothing. There is also a small fixed cost
+for the stored image whether anyone uses it or not, so "scales to zero" means
+pennies rather than nothing at all.
+
+**Set a spending limit on the organisation as well.** Rate limits live in a
+process that restarts and forgets; a spending limit does not, and it is the
+only cap that cannot be reasoned around.
 
 Be honest with yourself about what the origin check buys: it stops other
 websites, whose browsers will not let them forge an `Origin`, and it stops

@@ -46,6 +46,9 @@ const RATE_PER_HOUR = Number(process.env.RIPPER_RATE_PER_HOUR || 30);
 // costs, which is the number on the bill. Without it the first limit bounds a
 // share of an unbounded total.
 const RATE_TOTAL_PER_HOUR = Number(process.env.RIPPER_RATE_TOTAL_PER_HOUR || 200);
+// And a day, because an hourly cap times 730 hours is still the monthly bill.
+// This is the one that decides what the worst month can cost.
+const RATE_TOTAL_PER_DAY = Number(process.env.RIPPER_RATE_TOTAL_PER_DAY || 300);
 const MAX_BYTES = process.env.RIPPER_MAX_SIZE || '500M';
 // Development only. With it set, the service will fetch from the network it
 // is running in — which is the whole thing the check below exists to stop.
@@ -114,13 +117,14 @@ function originAllowed(req) {
 // and forgets, which is the correct amount of memory for this.
 const seen = new Map();
 let all = [];
-function withinTotal() {
-  if (!RATE_TOTAL_PER_HOUR) return true;
+function totalsFull() {
   const now = Date.now();
-  all = all.filter(t => now - t < 3600000);
-  if (all.length >= RATE_TOTAL_PER_HOUR) return false;
+  all = all.filter(t => now - t < 86400000);               // a day's worth, once
+  if (RATE_TOTAL_PER_HOUR &&
+      all.filter(t => now - t < 3600000).length >= RATE_TOTAL_PER_HOUR) return 'hour';
+  if (RATE_TOTAL_PER_DAY && all.length >= RATE_TOTAL_PER_DAY) return 'day';
   all.push(now);
-  return true;
+  return null;
 }
 function withinRate(req) {
   if (!RATE_PER_HOUR) return true;
@@ -242,7 +246,8 @@ async function health(keyOk) {
     needsToken: !!TOKEN,
     origin: ORIGIN,
     ratePerHour: RATE_PER_HOUR,
-    rateTotalPerHour: RATE_TOTAL_PER_HOUR
+    rateTotalPerHour: RATE_TOTAL_PER_HOUR,
+    rateTotalPerDay: RATE_TOTAL_PER_DAY
   };
 }
 
@@ -373,10 +378,11 @@ http.createServer(async (req, res) => {
       'which is the limit. Try again later, or run your own copy \u2014 it is one file in the ' +
       'site\u2019s repository.' });
   }
-  if (!withinTotal()) {
-    return json(res, 429, { error: 'This service is at its limit for the hour across everyone ' +
-      'using it. Try again later, or run your own copy \u2014 it is one file in the site\u2019s ' +
-      'repository.' });
+  const full = totalsFull();
+  if (full) {
+    return json(res, 429, { error: 'This service is at its limit for the ' + full +
+      ' across everyone using it. Try again ' + (full === 'hour' ? 'later' : 'tomorrow') +
+      ', or run your own copy \u2014 it is one file in the site\u2019s repository.' });
   }
   return rip(req, res, u);
 }).listen(PORT, () => console.log(`ripper on :${PORT}  token ${TOKEN ? 'required' : 'NOT set'}` +
