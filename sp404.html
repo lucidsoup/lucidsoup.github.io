@@ -2379,24 +2379,37 @@
         // reports every one of these \u2014 asleep, offline, blocked, no such host
         // \u2014 as the same bare "Failed to fetch", so the message says what can
         // actually be done about it rather than repeating that.
-        function ask(retry) {
+        // Free hosting sleeps, and wakes slowly \u2014 some of it takes the better
+        // part of a minute to answer the first request after a quiet spell.
+        // Giving up after one try would make a working service look broken to
+        // whoever happened to arrive first. So it keeps asking for a while,
+        // and says what it is doing: a counter that is climbing is the
+        // difference between "waiting" and "nothing is happening".
+        var WAKE_FOR = 90;                 // seconds
+        var began = Date.now();
+        function ask() {
             return fetch(url, opts).catch(function () {
-                if (!retry) {
+                var waited = (Date.now() - began) / 1000;
+                if (waited > WAKE_FOR) {
                     throw new Error(cfg.mine
-                        ? 'Your service did not answer. Check it is running and that it allows ' +
-                          'this site as an origin.'
-                        : 'The audio service did not answer. It sleeps when it is not in use and ' +
-                          'takes a moment to wake \u2014 press Fetch again.');
+                        ? 'Your service did not answer in ' + WAKE_FOR + ' seconds. Check it is ' +
+                          'running and that it allows this site as an origin.'
+                        : 'The audio service did not answer. It may be down rather than asleep ' +
+                          '\u2014 try again in a few minutes.');
                 }
-                item.status = 'waking it up\u2026';
+                var secs = Math.round(waited);
+                item.status = 'waking the service\u2026 ' + Math.floor(secs / 60) + ':' +
+                    (secs % 60 < 10 ? '0' : '') + (secs % 60);
                 stRender();
-                return new Promise(function (go) { setTimeout(go, 1500); }).then(function () {
-                    return ask(false);
-                });
+                if (secs > 4) {
+                    stSay('Waking the audio service \u2014 it sleeps when nobody is sampling, and ' +
+                        'the first clip after that can take a minute. It stays awake afterwards.');
+                }
+                return new Promise(function (go) { setTimeout(go, 3000); }).then(ask);
             });
         }
 
-        return ask(true).then(function (r) {
+        return ask().then(function (r) {
             if (!r.ok) {
                 return r.json().catch(function () { return {}; }).then(function (j) {
                     throw new Error(j.error || 'Your service answered HTTP ' + r.status + '.');
