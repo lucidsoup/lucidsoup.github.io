@@ -89,10 +89,33 @@ jobs:
           # pattern that did it would also have matched vst-library-2, and
           # the || true after it would have swallowed a real failure to create
           # and left the deploy to fail further on with a stranger message.
-          if flyctl status -a "$app" >/dev/null 2>&1; then
+          #
+          # "status failed" is not the same as "app is missing", though, and
+          # treating it as such printed "Creating vst-library…" at a token that
+          # had been revoked, then failed on the create with a 401 about
+          # listing organizations. The failure is read before it is acted on.
+          if out=$(flyctl status -a "$app" 2>&1); then
             echo "$app already exists."
           else
-            echo "Creating $app…"
+            case "$out" in
+              # Four different sentences for the same thing, all seen from
+              # flyctl today against one revoked token.
+              *[Uu]nauthorized*|*"must be authenticated"*|*"not authenticated"*|\
+              *banned*|*"invalid token"*|*"no verified tokens"*|*401*)
+                echo "$out" | head -3
+                echo "::error::Fly rejected FLY_API_TOKEN. A revoked or expired token looks exactly like this."
+                {
+                  echo "> **Fly rejected \`FLY_API_TOKEN\`.** The secret is set — the token in it is not accepted."
+                  echo "> A revoked or expired token looks exactly like this. Mint a new deploy token"
+                  echo "> and replace the secret's value; nothing else needs to change."
+                  echo ">"
+                  echo '> ```sh'
+                  echo "> fly tokens create deploy -a $app"
+                  echo '> ```'
+                } >> "$GITHUB_STEP_SUMMARY"
+                exit 1;;
+            esac
+            echo "$app does not exist yet. Creating it…"
             flyctl apps create "$app" --org personal
           fi
 
