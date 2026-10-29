@@ -41,6 +41,10 @@ const TIMEOUT = Number(process.env.RIPPER_TIMEOUT || 600);
 // one address can cost. Neither is cryptography. Together they are enough for
 // a service that exists so nobody has to sign in to anything.
 const REQUIRE_ORIGIN = process.env.RIPPER_REQUIRE_ORIGIN !== '0';
+// A comma-separated list, because a site is rarely one spelling of itself:
+// www and the apex are the same place to everyone except an origin check, and
+// refusing half your own visitors over a prefix helps nobody.
+const ORIGINS = ORIGIN.split(',').map(o => o.trim().toLowerCase().replace(/\/+$/, '')).filter(Boolean);
 const RATE_PER_HOUR = Number(process.env.RIPPER_RATE_PER_HOUR || 30);
 // Per-address is what any one abuser costs. This is what everyone together
 // costs, which is the number on the bill. Without it the first limit bounds a
@@ -85,11 +89,14 @@ const MIME_BY_EXT = {
 let running = 0;
 
 const json = (res, code, body, extra = {}) => {
-  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', ...cors(), ...extra });
+  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', ...cors(res), ...extra });
   res.end(JSON.stringify(body));
 };
-const cors = () => ({
-  'access-control-allow-origin': ORIGIN,
+// access-control-allow-origin takes one value, never a list, so the allowed
+// origin that actually asked is echoed back — which is why Vary: Origin below
+// matters. The handler works it out once and leaves it on the response.
+const cors = (res) => ({
+  'access-control-allow-origin': (res && res.__origin) || ORIGINS[0] || '*',
   'access-control-allow-headers': 'authorization, content-type',
   'access-control-allow-methods': 'GET, OPTIONS',
   'access-control-expose-headers': 'x-rip-title, x-rip-duration, content-disposition, content-length',
@@ -108,9 +115,15 @@ function originOf(req) {
   if (!r) return '';
   try { return new URL(r).origin.toLowerCase(); } catch { return ''; }
 }
+/** The allowed origin that asked, or null. '*' allows and echoes anything. */
+function matchOrigin(req) {
+  const o = originOf(req);
+  if (ORIGINS.includes('*')) return o || '*';
+  return ORIGINS.includes(o) ? o : null;
+}
 function originAllowed(req) {
-  if (!REQUIRE_ORIGIN || ORIGIN === '*') return true;
-  return originOf(req) === ORIGIN.toLowerCase().replace(/\/+$/, '');
+  if (!REQUIRE_ORIGIN || ORIGINS.includes('*')) return true;
+  return !!matchOrigin(req);
 }
 
 // One hour of counts, per address, in memory. The machine suspends when idle
@@ -244,7 +257,7 @@ async function health(keyOk) {
     formats: Object.keys(FORMATS),
     maxSeconds: MAX_SECONDS,
     needsToken: !!TOKEN,
-    origin: ORIGIN,
+    origin: ORIGINS.join(', '),
     ratePerHour: RATE_PER_HOUR,
     rateTotalPerHour: RATE_TOTAL_PER_HOUR,
     rateTotalPerDay: RATE_TOTAL_PER_DAY
@@ -339,7 +352,7 @@ async function rip(req, res, u) {
       'x-rip-title': encodeURIComponent(info.title || ''),
       'x-rip-duration': String(duration || ''),
       'cache-control': 'no-store',
-      ...cors()
+      ...cors(res)
     });
     await new Promise((done) => {
       const s = createReadStream(file);
@@ -362,7 +375,8 @@ const safeName = s => String(s).replace(/[^\w \-.]+/g, '_').slice(0, 60).trim() 
 
 http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
-  if (req.method === 'OPTIONS') { res.writeHead(204, cors()); return res.end(); }
+  res.__origin = matchOrigin(req);
+  if (req.method === 'OPTIONS') { res.writeHead(204, cors(res)); return res.end(); }
   const given = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') ||
                 u.searchParams.get('key') || '';
   const keyOk = !TOKEN || given === TOKEN;
@@ -371,7 +385,7 @@ http.createServer(async (req, res) => {
   if (req.method !== 'GET') return json(res, 405, { error: 'GET only.' });
   if (!keyOk) return json(res, 401, { error: 'Wrong key.' });
   if (!originAllowed(req)) {
-    return json(res, 403, { error: 'This service only answers ' + ORIGIN + '.' });
+    return json(res, 403, { error: 'This service only answers ' + ORIGINS.join(' and ') + '.' });
   }
   if (!withinRate(req)) {
     return json(res, 429, { error: 'That is ' + RATE_PER_HOUR + ' clips in an hour from here, ' +

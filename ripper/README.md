@@ -63,7 +63,7 @@ track rather than after the URL.
 docker build -t ripper .
 docker run -p 8080:8080 \
   -e RIPPER_TOKEN=$(openssl rand -hex 24) \
-  -e RIPPER_ORIGIN=https://www.lucidsoup.com \
+  -e RIPPER_ORIGIN=https://www.lucidsoup.com,https://lucidsoup.com \
   ripper
 ```
 
@@ -133,7 +133,7 @@ your service and nowhere else.
 |---|---|---|
 | `PORT` | `8080` | |
 | `RIPPER_TOKEN` | *(empty)* | Required key. Leave it empty for a service the site uses on everyone's behalf — a key everybody has is not a key. Set one for a private instance. |
-| `RIPPER_ORIGIN` | `*` | The site allowed to call it. Set it to yours. |
+| `RIPPER_ORIGIN` | `*` | The site allowed to call it. Set it to yours. More than one, comma-separated, for a site that answers to several spellings — `https://www.example.com,https://example.com`. The one that asked is the one echoed back, because `access-control-allow-origin` takes a single value and never a list. |
 | `RIPPER_REQUIRE_ORIGIN` | `1` | Enforce that origin server-side, not just in a CORS header. `0` turns the check off. |
 | `RIPPER_RATE_PER_HOUR` | `30` | Clips per hour **per address**. `0` for no limit. |
 | `RIPPER_RATE_TOTAL_PER_HOUR` | `200` | Clips per hour **across everyone**, so one afternoon cannot eat the day. `0` for no limit. |
@@ -167,7 +167,9 @@ things hold it together instead:
   a browser chooses to follow. `RIPPER_REQUIRE_ORIGIN` makes the service check
   the `Origin` — which a browser sends on a cross-origin GET and a page cannot
   forge — and answer 403 to anything else. `curl` sends none at all, and gets
-  the same 403.
+  the same 403. A site with more than one spelling needs all of them listed:
+  `https://lucidsoup.com` and `https://www.lucidsoup.com` are different origins
+  to a browser, and whichever one a visitor arrived at is the one it sends.
 - **Each address gets 30 clips an hour, and the service gives out 200.** The
   first number is what any one abuser costs; the second is what everyone
   together costs, which is the number that reaches the bill. Without the second
