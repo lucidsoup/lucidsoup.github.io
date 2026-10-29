@@ -19,7 +19,7 @@
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { createReadStream } from 'node:fs';
-import { mkdtemp, rm, readdir, stat } from 'node:fs/promises';
+import { mkdtemp, rm, readdir, stat, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import dns from 'node:dns/promises';
@@ -43,14 +43,29 @@ const ALLOW_PRIVATE = process.env.RIPPER_ALLOW_PRIVATE === '1';
 const YTDLP = process.env.YTDLP || 'yt-dlp';
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 
-// m4a first and without re-encoding: YouTube's audio is already lossy, and
-// every browser's decodeAudioData reads AAC. Re-encoding it to be decoded and
-// re-encoded again is a generation of loss for nothing.
+// m4a is the default, and it is *selected* rather than converted. YouTube
+// serves the same track as both AAC (itag 140) and Opus (251); asking for
+// "bestaudio" picks one on bitrate and then --audio-format m4a re-encodes it
+// if it picked the Opus. Measured on a 3:33 track: selecting the AAC takes
+// 3.6s and 3.4MB; taking bestaudio and converting takes 14.5s and 9.0MB, and
+// what comes out is a 338kbps re-encode of a 129kbps Opus — slower, fatter,
+// and a generation of loss worse than the 128kbps AAC that was there all
+// along. The other formats are real requests for a conversion and still get
+// one.
 const FORMATS = {
-  m4a:  { mime: 'audio/mp4',  ext: 'm4a'  },
-  mp3:  { mime: 'audio/mpeg', ext: 'mp3'  },
-  flac: { mime: 'audio/flac', ext: 'flac' },
-  wav:  { mime: 'audio/wav',  ext: 'wav'  }
+  m4a:  { mime: 'audio/mp4',  ext: 'm4a',  convert: false },
+  mp3:  { mime: 'audio/mpeg', ext: 'mp3',  convert: true  },
+  flac: { mime: 'audio/flac', ext: 'flac', convert: true  },
+  wav:  { mime: 'audio/wav',  ext: 'wav',  convert: true  }
+};
+
+// What came out, rather than what was asked for: with no AAC on offer the
+// selector falls back to whatever the site does have, and labelling an Opus
+// webm as audio/mp4 would be a lie the browser then has to see through.
+const MIME_BY_EXT = {
+  m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/aac',
+  webm: 'audio/webm', opus: 'audio/ogg', ogg: 'audio/ogg', oga: 'audio/ogg',
+  mp3: 'audio/mpeg', flac: 'audio/flac', wav: 'audio/wav', m4b: 'audio/mp4'
 };
 
 let running = 0;
@@ -116,6 +131,47 @@ function isPrivate(ip) {
          s.startsWith('fd') || s.startsWith('::ffff:');
 }
 
+const PLAYLIST_TYPES = /scpls|mpegurl|xspf|ms-asf|ms-wax|pls\+xml/;
+
+/**
+ * A glance at what is on the other end, before committing to a download:
+ * { endless } for media with no length, { playlist } for a .pls or .m3u,
+ * {} for everything else, including anything that would not answer.
+ */
+async function probeTarget(url) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    // A ranged GET rather than HEAD. The headers are all this needs and they
+    // arrive immediately; the body is dropped. HEAD looks tidier and is not
+    // dependable — a server that streams forever may simply never finish
+    // answering one, which is the exact case being tested for.
+    const r = await fetch(url, {
+      method: 'GET', redirect: 'follow', signal: ac.signal,
+      headers: { range: 'bytes=0-1' }
+    });
+    try { await r.body?.cancel(); } catch {}
+    const type = (r.headers.get('content-type') || '').toLowerCase().split(';')[0].trim();
+    const len = r.headers.get('content-length');
+    const icy = r.headers.get('icy-name') || r.headers.get('icy-br');
+    if (!r.ok) return {};                           // let yt-dlp give the real error
+    if (PLAYLIST_TYPES.test(type)) return { playlist: true };
+    if (len) return {};                             // it ends somewhere
+    if (icy) return { endless: type || 'a stream' };
+    // A playlist is audio/x-scpls or audio/x-mpegurl: an audio type by name,
+    // a few lines of text in fact, and the thing it points at is what gets
+    // judged on its own terms a moment later.
+    if (PLAYLIST_TYPES.test(type)) return { playlist: true };
+    if (/^(audio|video)\//.test(type)) return { endless: type };
+    return {};                                      // html, json, anything else: not ours to judge
+  } catch {
+    return {};                                      // refused or timed out: carry on regardless
+  } finally {
+    clearTimeout(timer);
+    ac.abort();                                     // never leave the body running
+  }
+}
+
 async function health(keyOk) {
   const [y, f] = await Promise.all([run(YTDLP, ['--version']), run(FFMPEG, ['-version'])]);
   return {
@@ -140,29 +196,42 @@ async function rip(req, res, u) {
   const bad = await publicUrl(target);
   if (bad) return json(res, 400, { error: bad });
 
+  // An endless stream has no duration for the filter below to catch and no
+  // end for the download to reach, so it would sit here burning a slot until
+  // the timeout. One HEAD tells it apart in a few hundred milliseconds: media
+  // served with no length is a stream. A YouTube watch page answers text/html
+  // and is not caught by this; a plain .mp3 answers with a length and is not
+  // either.
+  const seen = await probeTarget(target);
+  if (seen.endless) {
+    return json(res, 400, { error: 'That looks like a live stream: it is ' + seen.endless +
+      ' with no length, so there is no end to download. Paste it into the page instead ' +
+      '\u2014 that takes streams directly, for as long as you let it.' });
+  }
+  if (seen.playlist) {
+    return json(res, 400, { error: 'That is a playlist rather than audio. Paste it into the ' +
+      'page instead \u2014 it follows a .pls or .m3u to the stream behind it and takes that.' });
+  }
+
   if (running >= MAX_CONCURRENT) return json(res, 503, { error: 'Busy. Try again in a moment.' });
   running++;
   const dir = await mkdtemp(path.join(tmpdir(), 'rip-'));
   try {
-    const meta = await run(YTDLP, ['--no-playlist', '--no-warnings', '--socket-timeout', '20',
-                                   '--dump-single-json', target], { timeoutMs: 60000 });
-    if (meta.code !== 0) {
-      return json(res, 502, { error: firstLine(meta.err) || 'Could not read that link.' });
-    }
-    let info = {};
-    try { info = JSON.parse(meta.out); } catch {}
-    if (info.is_live) {
-      return json(res, 400, { error: 'That is a live stream, which has no end to download. ' +
-        'Paste it into the page instead \u2014 it takes streams directly, for as long as you let it.' });
-    }
-    const duration = Number(info.duration || 0);
-    if (duration && duration > MAX_SECONDS) {
-      return json(res, 413, { error: `That is ${Math.round(duration / 60)} minutes; this service is set to ${Math.round(MAX_SECONDS / 60)}.` });
-    }
-
+    // One pass, not two. The separate --dump-single-json cost 3.4s of a 7s
+    // request just to learn a title and a duration it was about to fetch
+    // again. --match-filter applies the same two guards after yt-dlp has the
+    // metadata and before it downloads a byte, and --write-info-json leaves
+    // the title behind on the way past.
+    // The ? matters: a direct link to a media file has no duration in its
+    // metadata, and without it the comparison fails rather than passes, so
+    // every plain .wav and .mp3 was turned away as "too long".
+    const filter = `!is_live & duration<?${MAX_SECONDS}`;
     const args = ['--no-playlist', '--no-warnings', '--socket-timeout', '20',
-                  '--max-filesize', MAX_BYTES, '-f', 'bestaudio/best',
-                  '-x', '--audio-format', want, '-o', path.join(dir, 'a.%(ext)s')];
+                  '--max-filesize', MAX_BYTES, '--match-filter', filter,
+                  '--write-info-json', '--no-write-playlist-metafiles',
+                  '-f', fmt.convert ? 'bestaudio/best' : 'bestaudio[ext=m4a]/bestaudio/best',
+                  '-o', path.join(dir, 'a.%(ext)s')];
+    if (fmt.convert) args.push('-x', '--audio-format', want);
     if (want === 'mp3') args.push('--audio-quality', '0');
     args.push(target);                       // left off once, and every rip 400'd
     const got = await run(YTDLP, args, { timeoutMs: TIMEOUT * 1000 });
@@ -176,15 +245,33 @@ async function rip(req, res, u) {
       });
     }
 
-    const files = (await readdir(dir)).filter(f => f.startsWith('a.'));
-    if (!files.length) return json(res, 502, { error: 'Nothing came out of that link.' });
+    const all = await readdir(dir);
+    let info = {};
+    const infoFile = all.find(f => f.endsWith('.info.json'));
+    if (infoFile) {
+      try { info = JSON.parse(await readFile(path.join(dir, infoFile), 'utf8')); } catch {}
+    }
+    const files = all.filter(f => f.startsWith('a.') && !f.endsWith('.info.json'));
+    if (!files.length) {
+      // yt-dlp exits 0 when a filter turns something away, so no file and no
+      // error is the one place those two guards now report from.
+      if (/has not passed filter|does not pass filter/i.test(got.out + got.err)) {
+        return json(res, 413, { error: 'That is either a live stream or longer than ' +
+          Math.round(MAX_SECONDS / 60) + ' minutes, and this service takes neither. ' +
+          'A live stream can be taken in the page itself.' });
+      }
+      return json(res, 502, { error: 'Nothing came out of that link.' });
+    }
     const file = path.join(dir, files[0]);
     const size = (await stat(file)).size;
+    const ext = (files[0].split('.').pop() || '').toLowerCase();
+    const mime = MIME_BY_EXT[ext] || fmt.mime;
+    const duration = Number(info.duration || 0);
 
     res.writeHead(200, {
-      'content-type': fmt.mime,
+      'content-type': mime,
       'content-length': String(size),
-      'content-disposition': `inline; filename="${safeName(info.title || 'audio')}.${fmt.ext}"`,
+      'content-disposition': `inline; filename="${safeName(info.title || 'audio')}.${ext || fmt.ext}"`,
       'x-rip-title': encodeURIComponent(info.title || ''),
       'x-rip-duration': String(duration || ''),
       'cache-control': 'no-store',

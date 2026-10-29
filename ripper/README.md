@@ -33,11 +33,26 @@ GET /health                      what is installed, and whether your key is righ
 GET /rip?url=<encoded>&format=   the audio
 ```
 
-`format` is `m4a` (default), `mp3`, `flac` or `wav`. **m4a is the default on
-purpose**: it is what the site already stored, so nothing is re-encoded, every
-browser's `decodeAudioData` reads AAC, and it is a tenth the size of WAV over a
-phone connection. The converter turns it into a WAV locally anyway. Ask for
-`wav` or `flac` if you want the bytes lossless over the wire.
+`format` is `m4a` (default), `mp3`, `flac` or `wav`.
+
+**m4a is the default, and it is *selected* rather than converted.** YouTube
+serves the same track twice — AAC as itag 140, Opus as 251. Asking for
+`bestaudio` picks one on bitrate and then converting to m4a re-encodes it if it
+picked the Opus. Measured on a 3:33 track:
+
+| | time | size | what comes out |
+|---|---|---|---|
+| `bestaudio` + convert to m4a | 14.5s | 9.0 MB | 338 kbps AAC, re-encoded from 129 kbps Opus |
+| `bestaudio[ext=m4a]`, untouched | **3.6s** | **3.4 MB** | 128 kbps AAC, exactly as served |
+
+Slower, fatter, and a generation of loss worse, for nothing. So the AAC is
+asked for by name and passed through. `mp3`, `flac` and `wav` are real requests
+for a conversion and still get one.
+
+The reply's `content-type` describes what actually came out, not what was asked
+for: with no AAC on offer the selector falls back to whatever the site does
+have, and labelling an Opus webm as `audio/mp4` would be a lie the browser then
+has to see through.
 
 The reply carries `x-rip-title`, so the converter names the file after the
 track rather than after the URL.
@@ -112,9 +127,17 @@ your service and nowhere else.
 | `RIPPER_MAX_SIZE` | `500M` | Passed to yt-dlp as `--max-filesize`. |
 | `RIPPER_ALLOW_PRIVATE` | *(off)* | **Development only.** Lets it fetch private and loopback addresses — which is exactly what the guard below exists to prevent. |
 
-Live streams are refused: there is no end to download. The converter takes
-those itself — paste the station's `.pls`, `.m3u` or stream URL straight into
-the page and press **Stop** when you have enough.
+Before committing to a download it takes one ranged GET and reads the headers,
+which costs a few hundred milliseconds and tells it two things:
+
+- **a live stream** — media with no `content-length` — is refused, because
+  there is no end to download. The converter takes those itself: paste the
+  station's URL straight into the page and press **Stop** when you have enough.
+- **a playlist** — `.pls`, `.m3u` — is refused for the same reason, with a
+  pointer back to the page, which follows one to the stream behind it.
+
+HEAD would be tidier and is not dependable: a server that streams forever may
+never finish answering one, which is the exact case being tested for.
 
 ## What it will not do
 
