@@ -1019,10 +1019,31 @@
     }
 
     /** true, false, or null when the browser will not say yet. */
+    /**
+     * Whether this element has a soundtrack: true, false, or "cannot say".
+     *
+     * audioTracks is implemented by Safari and nothing else, and it is not
+     * reliably filled in by the time loadedmetadata fires — a .mov off an
+     * iPhone commonly reports zero tracks there and then plays its sound
+     * perfectly well. Acting on that zero meant every phone video on Safari
+     * was turned away with "No audio track in that video", which was both
+     * wrong and the one thing no amount of testing in Chrome would ever show:
+     * Chrome does not implement audioTracks at all, so this returned null
+     * there and the file went through.
+     *
+     * So a count above zero is worth something and a zero is worth nothing.
+     * Firefox's mozHasAudio is a real boolean and is still believed.
+     */
     function hasAudioTrack(el) {
         if (typeof el.mozHasAudio === 'boolean') return el.mozHasAudio;
-        if (el.audioTracks && typeof el.audioTracks.length === 'number') return el.audioTracks.length > 0;
-        return null;        // webkitAudioDecodedByteCount is 0 until it plays
+        if (el.audioTracks && el.audioTracks.length > 0) return true;
+        return null;
+    }
+
+    /** Bytes of audio the element has actually decoded, where it will say. */
+    function audioBytesOf(el) {
+        var n = el.webkitAudioDecodedByteCount;
+        return typeof n === 'number' ? n : -1;
     }
 
     /**
@@ -1072,12 +1093,33 @@
             function finish() {
                 if (done) return;
                 done = true;
+                // Ask before tidying: clearing the source resets the counter.
+                var bytes = audioBytesOf(el);
+                var tracks = hasAudioTrack(el);
                 tidy();
-                if (!frames) { reject(new Error('No audio track in that video.')); return; }
+                if (!frames) {
+                    // Three different things, which all used to say the first.
+                    reject(new Error(
+                        tracks === false ? 'No audio track in that video.'
+                      : bytes > 0 ? 'That video has a soundtrack, but none of it reached this ' +
+                                    'page. Try it in Chrome on a computer, or through the audio service.'
+                      : 'Nothing came off that video\u2019s soundtrack. It may not have one.'));
+                    return;
+                }
                 var buf = c.createBuffer(2, frames, c.sampleRate);
                 var L = buf.getChannelData(0), R = buf.getChannelData(1);
                 for (var i = 0, at = 0; i < left.length; i++) {
                     L.set(left[i], at); R.set(right[i], at); at += left[i].length;
+                }
+                // A video with no soundtrack still pulls the graph: the
+                // processor fires, the frames are real, and every sample in
+                // them is zero. Decided here rather than later because this is
+                // where the element can still be asked what it saw.
+                if (peakOf(channelsOf(buf), buf.length) < 1e-7) {
+                    reject(new Error(tracks === false || bytes === 0
+                        ? 'No audio track in that video.'
+                        : 'That video\u2019s soundtrack came through as silence.'));
+                    return;
                 }
                 resolve(buf);
             }
@@ -2913,7 +2955,12 @@
 
     function stSettled(item, buffer) {
         if (peakOf(channelsOf(buffer), buffer.length) < 1e-7) {
-            item.error = item.video ? 'No audio track in that video.' : 'That file is silent.';
+            // Silence that was read is not a soundtrack that was missing, and
+            // saying the second when it is the first sends people looking for
+            // a problem in the wrong file.
+            item.error = item.video
+                ? 'That video\u2019s soundtrack came through as silence.'
+                : 'That file is silent.';
             item.status = null; stRender(); return;
         }
         item.buffer = buffer; item.status = null; stRender();
