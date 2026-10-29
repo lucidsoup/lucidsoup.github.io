@@ -58,7 +58,24 @@ Or without Docker, if `yt-dlp` and `ffmpeg` are already on the box:
 RIPPER_TOKEN=... RIPPER_ORIGIN=https://www.lucidsoup.com node server.mjs
 ```
 
-### On Fly.io
+### From this repository, with one secret
+
+`.github/workflows/deploy-ripper.yml` deploys this folder to Fly on every push
+that touches it. It does nothing and stays green until you give it somewhere to
+go:
+
+```sh
+flyctl auth signup                                   # or log in
+flyctl tokens create deploy -a lucidsoup-ripper
+```
+
+Paste that token into **Settings → Secrets and variables → Actions** as
+`FLY_API_TOKEN`. Add `RIPPER_TOKEN` (a key for the service) and `RIPPER_ORIGIN`
+(`https://www.lucidsoup.com`) there too, or the service runs open to anyone who
+finds its URL. Then run the workflow — the summary prints the address to paste
+into **Audio service**.
+
+### On Fly.io, by hand
 
 `fly.toml` is here and already set to scale to zero, so it costs nothing while
 nobody is sampling.

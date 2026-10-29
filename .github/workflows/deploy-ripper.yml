@@ -1,0 +1,99 @@
+# Deploys ripper/ to Fly.io.
+#
+# Dormant until a FLY_API_TOKEN secret exists, and green while it is dormant:
+# this repository has had a scheduled workflow fail every day for want of a
+# secret before, and one red cross a day teaches you to stop looking.
+#
+#   1. flyctl auth signup        (or log in)
+#   2. flyctl tokens create deploy -a lucidsoup-ripper
+#   3. paste it into Settings → Secrets and variables → Actions as FLY_API_TOKEN
+#   4. optionally add RIPPER_TOKEN (a key for the service) and RIPPER_ORIGIN
+#
+# Then push anything under ripper/, or run this workflow by hand.
+name: Deploy ripper
+
+on:
+  push:
+    branches: [main]
+    paths: ['ripper/**', '.github/workflows/deploy-ripper.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ripper
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Is there anywhere to deploy to?
+        id: gate
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "No FLY_API_TOKEN secret, so there is nowhere to deploy to yet."
+            echo "ripper/README.md says how to make one. Nothing failed here."
+            echo "go=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install flyctl
+        if: steps.gate.outputs.go == 'yes'
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Create the app if it is not there yet
+        if: steps.gate.outputs.go == 'yes'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        working-directory: ripper
+        run: |
+          app=$(awk -F'"' '/^app *=/{print $2}' fly.toml)
+          flyctl apps list | grep -qx -e "$app.*" || flyctl apps create "$app" --org personal || true
+
+      - name: Set the service's own settings
+        if: steps.gate.outputs.go == 'yes'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          RIPPER_TOKEN: ${{ secrets.RIPPER_TOKEN }}
+          RIPPER_ORIGIN: ${{ secrets.RIPPER_ORIGIN }}
+        working-directory: ripper
+        run: |
+          app=$(awk -F'"' '/^app *=/{print $2}' fly.toml)
+          args=""
+          [ -n "$RIPPER_TOKEN" ]  && args="$args RIPPER_TOKEN=$RIPPER_TOKEN"
+          [ -n "$RIPPER_ORIGIN" ] && args="$args RIPPER_ORIGIN=$RIPPER_ORIGIN"
+          if [ -n "$args" ]; then
+            flyctl secrets set $args -a "$app" --stage
+          else
+            echo "No RIPPER_TOKEN or RIPPER_ORIGIN secrets set."
+            echo "The service will run open to anyone who finds its URL. See ripper/README.md."
+          fi
+
+      - name: Deploy
+        if: steps.gate.outputs.go == 'yes'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        working-directory: ripper
+        # remote-only: the build happens on Fly's builder, so this runner
+        # needs no Docker of its own.
+        run: flyctl deploy --remote-only
+
+      - name: Say where it is
+        if: steps.gate.outputs.go == 'yes'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        working-directory: ripper
+        run: |
+          app=$(awk -F'"' '/^app *=/{print $2}' fly.toml)
+          echo "### Ripper deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Put this in the converter, under **Audio service**:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "https://$app.fly.dev" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          curl -fsS --max-time 30 "https://$app.fly.dev/health" >> "$GITHUB_STEP_SUMMARY" || \
+            echo "(health check did not answer yet; it scales to zero and wakes on first call)" >> "$GITHUB_STEP_SUMMARY"
