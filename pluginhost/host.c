@@ -1,6 +1,6 @@
-// pluginhost — your own CLAP plugins, played in a browser.
+// pluginhost — your own CLAP and VST3 plugins, played in a browser.
 //
-// A browser cannot load a .clap, a .vst3 or an .component. Those are native
+// A browser cannot load a .clap, a .vst3 or a .component. Those are native
 // shared libraries, and nothing in any browser will dlopen one; it is not a gap
 // to code around. So this does the dlopen, and the browser does the listening.
 //
@@ -16,12 +16,16 @@
 // problems are simply absent: one origin, no mixed content, no prompt, no CORS.
 // The page you get at http://127.0.0.1:7777 is the same file in this folder.
 //
-// Build: make        (fetches the MIT CLAP headers, then one cc invocation)
+// This file owns the parts that are the same whatever format a plugin is in:
+// the HTTP, the preroll, the latency compensation, the block splitting and the
+// channel mapping. clap_backend.c and vst3_backend.c own the rest.
+//
+// Build: make        (fetches the MIT CLAP and BSD VST3 headers, then builds)
 // Run:   ./pluginhost
 
 #define _GNU_SOURCE
+#include <ctype.h>
 #include <dirent.h>
-#include <dlfcn.h>
 #include <errno.h>
 #include <math.h>
 #include <stdarg.h>
@@ -30,7 +34,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <strings.h>
 #include <unistd.h>
 
@@ -40,21 +43,14 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
-#include <clap/clap.h>
+#include "host.h"
 
-// Rendering happens in blocks like any host, so a plugin sees the buffer sizes
-// it expects rather than one enormous one it may refuse to allocate for.
-#define BLOCK 512
-// Silence fed in before the real audio, so a plugin's parameter smoothing and
-// its filters settle on the values we just set instead of gliding to them
-// audibly over the first few milliseconds. Discarded afterwards.
-#define PREROLL 4096
 #define MAX_BODY (384u * 1024u * 1024u)
 #define MAX_FRAMES (48000u * 60u * 12u)
 
-static int verbose = 0;
+int verbose = 0;
 
-static void say(const char *fmt, ...) {
+void say(const char *fmt, ...) {
    va_list ap;
    va_start(ap, fmt);
    vfprintf(stderr, fmt, ap);
@@ -62,7 +58,7 @@ static void say(const char *fmt, ...) {
    fputc('\n', stderr);
 }
 
-static void *xmalloc(size_t n) {
+void *xmalloc(size_t n) {
    void *p = malloc(n ? n : 1);
    if (!p) {
       say("out of memory");
@@ -70,20 +66,27 @@ static void *xmalloc(size_t n) {
    }
    return p;
 }
-static char *xstrdup(const char *s) {
+char *xstrdup(const char *s) {
    if (!s) s = "";
    size_t n = strlen(s) + 1;
-   char *p = xmalloc(n);
+   char  *p = xmalloc(n);
    memcpy(p, s, n);
    return p;
 }
+bool is_dir(const char *p) {
+   struct stat st;
+   return stat(p, &st) == 0 && S_ISDIR(st.st_mode);
+}
+bool is_file(const char *p) {
+   struct stat st;
+   return stat(p, &st) == 0 && S_ISREG(st.st_mode);
+}
+bool ends_with(const char *s, const char *suf) {
+   size_t a = strlen(s), b = strlen(suf);
+   return a >= b && !strcmp(s + a - b, suf);
+}
 
 // ---------------------------------------------------------------- growable text
-
-typedef struct {
-   char  *s;
-   size_t len, cap;
-} Buf;
 
 static void buf_need(Buf *b, size_t extra) {
    if (b->len + extra + 1 <= b->cap) return;
@@ -96,14 +99,14 @@ static void buf_need(Buf *b, size_t extra) {
    }
    b->cap = cap;
 }
-static void buf_add(Buf *b, const char *s, size_t n) {
+void buf_add(Buf *b, const char *s, size_t n) {
    buf_need(b, n);
    memcpy(b->s + b->len, s, n);
    b->len += n;
    b->s[b->len] = 0;
 }
-static void buf_str(Buf *b, const char *s) { buf_add(b, s, strlen(s)); }
-static void buf_fmt(Buf *b, const char *fmt, ...) {
+void buf_str(Buf *b, const char *s) { buf_add(b, s, strlen(s)); }
+void buf_fmt(Buf *b, const char *fmt, ...) {
    char    tmp[1024];
    va_list ap;
    va_start(ap, fmt);
@@ -113,7 +116,7 @@ static void buf_fmt(Buf *b, const char *fmt, ...) {
 }
 // A JSON string. Control characters have to go somewhere, and \u00xx is the only
 // escape that is always legal, so everything below a space takes that route.
-static void buf_json(Buf *b, const char *s) {
+void buf_json(Buf *b, const char *s) {
    buf_str(b, "\"");
    for (const unsigned char *p = (const unsigned char *)(s ? s : ""); *p; p++) {
       switch (*p) {
@@ -132,192 +135,21 @@ static void buf_json(Buf *b, const char *s) {
    buf_str(b, "\"");
 }
 
-// ------------------------------------------------------------------ the host
+// ------------------------------------------------------------------- the scan
 
-static bool  host_is_audio = false;
-static Buf   plugin_log = {0};
-
-static void CLAP_ABI h_log(const clap_host_t *h, clap_log_severity sev, const char *msg) {
-   (void)h;
-   static const char *names[] = {"debug", "info", "warning", "error", "fatal",
-                                 "host-misbehaving", "plugin-misbehaving"};
-   const char *n = (sev >= 0 && sev <= 6) ? names[sev] : "?";
-   if (verbose || sev >= CLAP_LOG_WARNING) say("  plugin [%s] %s", n, msg ? msg : "");
-   // Kept for the page, so a plugin that explains its own refusal is not silent.
-   if (sev >= CLAP_LOG_WARNING && plugin_log.len < 4000) {
-      if (plugin_log.len) buf_str(&plugin_log, "\n");
-      buf_fmt(&plugin_log, "[%s] %s", n, msg ? msg : "");
-   }
-}
-static bool CLAP_ABI h_is_main(const clap_host_t *h) {
-   (void)h;
-   return !host_is_audio;
-}
-static bool CLAP_ABI h_is_audio(const clap_host_t *h) {
-   (void)h;
-   return host_is_audio;
-}
-static void CLAP_ABI h_params_rescan(const clap_host_t *h, clap_param_rescan_flags f) {
-   (void)h;
-   (void)f;
-}
-static void CLAP_ABI h_params_clear(const clap_host_t *h, clap_id id, clap_param_clear_flags f) {
-   (void)h;
-   (void)id;
-   (void)f;
-}
-static void CLAP_ABI h_params_flush(const clap_host_t *h) { (void)h; }
-static void CLAP_ABI h_latency_changed(const clap_host_t *h) { (void)h; }
-static void CLAP_ABI h_state_dirty(const clap_host_t *h) { (void)h; }
-static void CLAP_ABI h_request_restart(const clap_host_t *h) { (void)h; }
-static void CLAP_ABI h_request_process(const clap_host_t *h) { (void)h; }
-static void CLAP_ABI h_request_callback(const clap_host_t *h) { (void)h; }
-
-static const clap_host_log_t          ext_log = {h_log};
-static const clap_host_thread_check_t ext_thread = {h_is_main, h_is_audio};
-static const clap_host_params_t       ext_params = {h_params_rescan, h_params_clear,
-                                                    h_params_flush};
-static const clap_host_latency_t      ext_latency = {h_latency_changed};
-static const clap_host_state_t        ext_state = {h_state_dirty};
-
-// Anything we do not implement must come back NULL rather than a stub that lies,
-// because a plugin is entitled to behave differently when an extension is absent.
-static const void *CLAP_ABI h_get_ext(const clap_host_t *h, const char *id) {
-   (void)h;
-   if (!strcmp(id, CLAP_EXT_LOG)) return &ext_log;
-   if (!strcmp(id, CLAP_EXT_THREAD_CHECK)) return &ext_thread;
-   if (!strcmp(id, CLAP_EXT_PARAMS)) return &ext_params;
-   if (!strcmp(id, CLAP_EXT_LATENCY)) return &ext_latency;
-   if (!strcmp(id, CLAP_EXT_STATE)) return &ext_state;
-   return NULL;
-}
-
-static const clap_host_t the_host = {
-   .clap_version = CLAP_VERSION_INIT,
-   .host_data = NULL,
-   .name = "pluginhost",
-   .vendor = "lucidsoup",
-   .url = "https://www.lucidsoup.com",
-   .version = "1",
-   .get_extension = h_get_ext,
-   .request_restart = h_request_restart,
-   .request_process = h_request_process,
-   .request_callback = h_request_callback,
-};
-
-// ------------------------------------------------------------------- scanning
-
-typedef struct {
-   char *bundle;  // what the user calls it: /…/Thing.clap
-   char *dso;     // what dlopen wants, which on macOS is inside the bundle
-   char *id, *name, *vendor, *version, *descr, *features;
-} Found;
+static const Backend *backends[] = {&clap_backend, &vst3_backend};
+#define NBACKENDS ((int)(sizeof backends / sizeof *backends))
 
 static Found *found = NULL;
 static int    nfound = 0, cfound = 0;
 
-static void found_push(Found f) {
+void found_push(Found f) {
    if (nfound == cfound) {
       cfound = cfound ? cfound * 2 : 16;
       found = realloc(found, (size_t)cfound * sizeof *found);
       if (!found) exit(1);
    }
    found[nfound++] = f;
-}
-
-static bool is_dir(const char *p) {
-   struct stat st;
-   return stat(p, &st) == 0 && S_ISDIR(st.st_mode);
-}
-static bool is_file(const char *p) {
-   struct stat st;
-   return stat(p, &st) == 0 && S_ISREG(st.st_mode);
-}
-static bool ends_with(const char *s, const char *suf) {
-   size_t a = strlen(s), b = strlen(suf);
-   return a >= b && !strcmp(s + a - b, suf);
-}
-
-// On Linux and Windows a .clap is the shared library. On macOS it is a bundle
-// directory, and the library lives at Contents/MacOS/<something>; the name in
-// there is not required to match the bundle, so take whatever file is present.
-static char *resolve_dso(const char *bundle) {
-   if (is_file(bundle)) return xstrdup(bundle);
-   if (!is_dir(bundle)) return NULL;
-   char macos[3072];
-   if (snprintf(macos, sizeof macos, "%s/Contents/MacOS", bundle) >= (int)sizeof macos)
-      return NULL;
-   DIR *d = opendir(macos);
-   if (!d) return NULL;
-   char          *out = NULL;
-   struct dirent *e;
-   while ((e = readdir(d))) {
-      if (e->d_name[0] == '.') continue;
-      char p[4096];
-      if (snprintf(p, sizeof p, "%s/%s", macos, e->d_name) >= (int)sizeof p) continue;
-      if (is_file(p)) {
-         out = xstrdup(p);
-         break;
-      }
-   }
-   closedir(d);
-   return out;
-}
-
-// Open a .clap, copy out what its factory says, and close it again. The
-// descriptors belong to the plugin and die with deinit(), so every string that
-// outlives this call is duplicated here.
-static void scan_one(const char *bundle) {
-   char *dso = resolve_dso(bundle);
-   if (!dso) return;
-   if (verbose) say("  opening %s", dso);
-
-   void *lib = dlopen(dso, RTLD_LOCAL | RTLD_NOW);
-   if (!lib) {
-      say("  skipped %s: %s", bundle, dlerror());
-      free(dso);
-      return;
-   }
-   const clap_plugin_entry_t *entry = dlsym(lib, "clap_entry");
-   if (!entry || !entry->init || !entry->get_factory) {
-      say("  skipped %s: no clap_entry", bundle);
-      dlclose(lib);
-      free(dso);
-      return;
-   }
-   if (!entry->init(bundle)) {
-      say("  skipped %s: entry init() refused", bundle);
-      dlclose(lib);
-      free(dso);
-      return;
-   }
-   const clap_plugin_factory_t *fac = entry->get_factory(CLAP_PLUGIN_FACTORY_ID);
-   if (fac && fac->get_plugin_count) {
-      uint32_t n = fac->get_plugin_count(fac);
-      for (uint32_t i = 0; i < n; i++) {
-         const clap_plugin_descriptor_t *d = fac->get_plugin_descriptor(fac, i);
-         if (!d || !d->id) continue;
-         Buf feat = {0};
-         if (d->features)
-            for (const char *const *f = d->features; *f; f++) {
-               if (feat.len) buf_str(&feat, ",");
-               buf_str(&feat, *f);
-            }
-         Found got = {.bundle = xstrdup(bundle),
-                      .dso = xstrdup(dso),
-                      .id = xstrdup(d->id),
-                      .name = xstrdup(d->name ? d->name : d->id),
-                      .vendor = xstrdup(d->vendor ? d->vendor : ""),
-                      .version = xstrdup(d->version ? d->version : ""),
-                      .descr = xstrdup(d->description ? d->description : ""),
-                      .features = xstrdup(feat.s ? feat.s : "")};
-         free(feat.s);
-         found_push(got);
-      }
-   }
-   if (entry->deinit) entry->deinit();
-   dlclose(lib);
-   free(dso);
 }
 
 static void scan_dir(const char *dir, int depth) {
@@ -330,89 +162,45 @@ static void scan_dir(const char *dir, int depth) {
       char p[4096];
       // A path too long to hold is a path we decline to guess at.
       if (snprintf(p, sizeof p, "%s/%s", dir, e->d_name) >= (int)sizeof p) continue;
-      if (ends_with(e->d_name, ".clap"))
-         scan_one(p);
+      const Backend *owner = NULL;
+      for (int i = 0; i < NBACKENDS; i++)
+         if (backends[i]->claims(e->d_name)) owner = backends[i];
+      if (owner)
+         owner->scan(p, owner);
       else if (is_dir(p))
          scan_dir(p, depth + 1);
    }
    closedir(d);
 }
 
-// The directories the CLAP specification tells hosts to look in, plus anything
-// named in CLAP_PATH, which is how a plugin kept somewhere else gets found.
+static void scan_one(const char *path) {
+   for (int i = 0; i < NBACKENDS; i++)
+      if (backends[i]->claims(path)) {
+         backends[i]->scan(path, backends[i]);
+         return;
+      }
+   if (is_dir(path))
+      scan_dir(path, 0);
+   else
+      say("  not a directory, a .clap or a .vst3: %s", path);
+}
+
 static void scan_all(char **extra, int nextra) {
-   const char *home = getenv("HOME");
-   char        buf[4096];
-   const char *fixed[] = {
-#if defined(__APPLE__)
-      "/Library/Audio/Plug-Ins/CLAP",
-#else
-      "/usr/lib/clap", "/usr/local/lib/clap",
-#endif
-      NULL};
-   for (int i = 0; fixed[i]; i++)
-      if (is_dir(fixed[i])) scan_dir(fixed[i], 0);
-   if (home) {
-#if defined(__APPLE__)
-      snprintf(buf, sizeof buf, "%s/Library/Audio/Plug-Ins/CLAP", home);
-#else
-      snprintf(buf, sizeof buf, "%s/.clap", home);
-#endif
-      if (is_dir(buf)) scan_dir(buf, 0);
+   for (int i = 0; i < NBACKENDS; i++) {
+      char *dirs[8];
+      int   n = backends[i]->dirs(dirs, 8);
+      for (int k = 0; k < n; k++) {
+         if (is_dir(dirs[k])) scan_dir(dirs[k], 0);
+         free(dirs[k]);
+      }
    }
-   const char *cp = getenv("CLAP_PATH");
-   if (cp && *cp) {
-      char *copy = xstrdup(cp), *save = NULL;
-      for (char *t = strtok_r(copy, ":", &save); t; t = strtok_r(NULL, ":", &save))
-         if (is_dir(t)) scan_dir(t, 0);
-      free(copy);
-   }
-   for (int i = 0; i < nextra; i++) {
-      if (ends_with(extra[i], ".clap"))
-         scan_one(extra[i]);
-      else if (is_dir(extra[i]))
-         scan_dir(extra[i], 0);
-      else
-         say("  not a directory or .clap: %s", extra[i]);
-   }
+   for (int i = 0; i < nextra; i++) scan_one(extra[i]);
 }
 
-// ------------------------------------------------------- one plugin, kept open
+// ----------------------------------------------------------- the loaded plugin
 
-// Loading a plugin can cost hundreds of milliseconds when it has samples to
-// read, and turning a knob re-renders. So the last one stays open and activated,
-// and is only torn down when the page asks for a different plugin or a different
-// sample rate. reset() between renders is what stops one render's reverb tail
-// from appearing at the start of the next.
-typedef struct {
-   char                      *dso, *id;
-   void                      *lib;
-   const clap_plugin_entry_t *entry;
-   const clap_plugin_t       *plug;
-   const clap_plugin_params_t      *params;
-   const clap_plugin_audio_ports_t *ports;
-   const clap_plugin_latency_t     *latency;
-   double   rate;
-   uint32_t in_ch, out_ch;
-   bool     active, processing;
-} Open;
-
-static Open open_plug = {0};
-
-static void unload(void) {
-   if (open_plug.plug) {
-      if (open_plug.processing && open_plug.plug->stop_processing)
-         open_plug.plug->stop_processing(open_plug.plug);
-      if (open_plug.active && open_plug.plug->deactivate)
-         open_plug.plug->deactivate(open_plug.plug);
-      if (open_plug.plug->destroy) open_plug.plug->destroy(open_plug.plug);
-   }
-   if (open_plug.entry && open_plug.entry->deinit) open_plug.entry->deinit();
-   if (open_plug.lib) dlclose(open_plug.lib);
-   free(open_plug.dso);
-   free(open_plug.id);
-   memset(&open_plug, 0, sizeof open_plug);
-}
+static const Backend *cur_be = NULL;
+static char          *cur_id = NULL;
 
 static Found *find_by_id(const char *id) {
    for (int i = 0; i < nfound; i++)
@@ -420,158 +208,61 @@ static Found *find_by_id(const char *id) {
    return NULL;
 }
 
-static uint32_t port_channels(const clap_plugin_t *p, const clap_plugin_audio_ports_t *ap,
-                              bool input, uint32_t fallback) {
-   if (!ap || !ap->count) return fallback;
-   if (ap->count(p, input) == 0) return 0;
-   clap_audio_port_info_t info;
-   memset(&info, 0, sizeof info);
-   if (!ap->get(p, 0, input, &info)) return fallback;
-   return info.channel_count;
-}
-
 // Returns NULL on success, or a sentence for the page to show.
 static const char *load(const char *id, double rate) {
-   if (open_plug.plug && !strcmp(open_plug.id, id) && open_plug.rate == rate) return NULL;
-   unload();
-
    Found *f = find_by_id(id);
    if (!f) return "No plugin with that id was found in the scan.";
-
-   void *lib = dlopen(f->dso, RTLD_LOCAL | RTLD_NOW);
-   if (!lib) return "The plugin file would not open.";
-   const clap_plugin_entry_t *entry = dlsym(lib, "clap_entry");
-   if (!entry || !entry->init(f->bundle)) {
-      dlclose(lib);
-      return "The plugin refused to initialise.";
+   // Two formats, one slot: whatever else was open has to go first, or two
+   // plugins would be holding audio buffers that only one render will drive.
+   if (cur_be && cur_be != f->be) {
+      cur_be->unload();
+      free(cur_id);
+      cur_id = NULL;
+      cur_be = NULL;
    }
-   const clap_plugin_factory_t *fac = entry->get_factory(CLAP_PLUGIN_FACTORY_ID);
-   if (!fac || !fac->create_plugin) {
-      if (entry->deinit) entry->deinit();
-      dlclose(lib);
-      return "The plugin has no CLAP factory.";
+   const char *err = f->be->load(f, rate);
+   if (err) {
+      cur_be = NULL;
+      free(cur_id);
+      cur_id = NULL;
+      return err;
    }
-   const clap_plugin_t *p = fac->create_plugin(fac, &the_host, id);
-   if (!p) {
-      if (entry->deinit) entry->deinit();
-      dlclose(lib);
-      return "The plugin would not instantiate.";
-   }
-   open_plug.lib = lib;
-   open_plug.entry = entry;
-   open_plug.plug = p;
-   open_plug.dso = xstrdup(f->dso);
-   open_plug.id = xstrdup(id);
-
-   if (p->init && !p->init(p)) {
-      unload();
-      return "The plugin's init() failed.";
-   }
-   open_plug.params = p->get_extension ? p->get_extension(p, CLAP_EXT_PARAMS) : NULL;
-   open_plug.ports = p->get_extension ? p->get_extension(p, CLAP_EXT_AUDIO_PORTS) : NULL;
-   open_plug.latency = p->get_extension ? p->get_extension(p, CLAP_EXT_LATENCY) : NULL;
-   open_plug.in_ch = port_channels(p, open_plug.ports, true, 2);
-   open_plug.out_ch = port_channels(p, open_plug.ports, false, 2);
-   if (open_plug.out_ch == 0) {
-      unload();
-      return "The plugin has no audio output port, so there is nothing to hear.";
-   }
-   if (!p->activate || !p->activate(p, rate, 1, BLOCK)) {
-      unload();
-      return "The plugin would not activate at this sample rate.";
-   }
-   open_plug.active = true;
-   open_plug.rate = rate;
-   if (p->start_processing && !p->start_processing(p)) {
-      unload();
-      return "The plugin would not start processing.";
-   }
-   open_plug.processing = true;
+   cur_be = f->be;
+   free(cur_id);
+   cur_id = xstrdup(id);
    return NULL;
 }
 
-// ------------------------------------------------------------- the event list
-
-typedef union {
-   clap_event_header_t      hdr;
-   clap_event_param_value_t pv;
-   clap_event_note_t        note;
-} AnyEvent;
-
-typedef struct {
-   AnyEvent             *all;    // absolute times, sorted
-   uint32_t              count;
-   AnyEvent             *scratch;  // this block's copy, times rebased
-   clap_event_header_t **ptrs;
-   uint32_t              nblk;
-} Events;
-
-static uint32_t CLAP_ABI ev_size(const clap_input_events_t *list) {
-   return ((Events *)list->ctx)->nblk;
-}
-static const clap_event_header_t *CLAP_ABI ev_get(const clap_input_events_t *list, uint32_t i) {
-   Events *e = (Events *)list->ctx;
-   return i < e->nblk ? e->ptrs[i] : NULL;
-}
-static bool CLAP_ABI ev_push(const clap_output_events_t *list, const clap_event_header_t *ev) {
-   (void)list;
-   (void)ev;
-   return true;  // a plugin's own output events are not used here
+static void unload_current(void) {
+   if (cur_be) cur_be->unload();
+   cur_be = NULL;
+   free(cur_id);
+   cur_id = NULL;
 }
 
 // ------------------------------------------------------------------ rendering
 
-typedef struct {
-   uint32_t id;
-   double   value;
-} ParamSet;
-
-typedef struct {
-   uint32_t start, length;
-   int16_t  key, channel;
-   double   velocity;
-} NoteHit;
-
-typedef struct {
-   const char *id;
-   uint32_t    rate, channels, frames;
-   ParamSet   *params;
-   uint32_t    nparams;
-   NoteHit    *notes;
-   uint32_t    nnotes;
-   const float *in;  // planar: channels * frames, may be NULL for an instrument
-} Req;
-
-typedef struct {
-   float   *data;  // planar: channels * frames
-   uint32_t channels, frames;
-   int      status;
-} Res;
+static int evt_cmp(const void *a, const void *b) {
+   uint32_t x = ((const Evt *)a)->time, y = ((const Evt *)b)->time;
+   return x < y ? -1 : x > y ? 1 : 0;
+}
 
 static const char *render(const Req *rq, Res *out) {
-   plugin_log.len = 0;
-   if (plugin_log.s) plugin_log.s[0] = 0;
-
    const char *err = load(rq->id, (double)rq->rate);
    if (err) return err;
-   const clap_plugin_t *p = open_plug.plug;
+   const Backend *be = cur_be;
 
-   if (p->reset) p->reset(p);
-
-   uint32_t in_ch = open_plug.in_ch, out_ch = open_plug.out_ch;
-   // A plugin with lookahead reports it, and the output arrives that many frames
-   // late. Render the extra frames and drop them, so what comes back lines up
-   // with what went in instead of being quietly shifted.
-   uint32_t lat = open_plug.latency && open_plug.latency->get ? open_plug.latency->get(p) : 0;
+   uint32_t in_ch = be->in_channels(), out_ch = be->out_channels();
+   // A plugin with lookahead reports its latency, and its output arrives that
+   // many frames late. Two different offsets, and conflating them shifts the
+   // whole render by exactly that latency: the caller's audio goes IN after the
+   // preroll, but comes OUT the plugin's latency later than that.
+   uint32_t lat = be->latency();
    if (lat > rq->rate * 10u) lat = 0;  // a nonsense figure is worse than none
-   // Two different offsets, and conflating them shifts the whole render by the
-   // plugin's latency: the caller's audio goes IN after the preroll, but comes
-   // OUT the plugin's latency later than that.
    uint32_t in_off = PREROLL;
    uint32_t out_off = PREROLL + lat;
    uint32_t total = out_off + rq->frames;
 
-   // --- buffers the plugin sees, always in its own channel layout
    float **inbuf = NULL;
    if (in_ch) {
       inbuf = xmalloc(in_ch * sizeof *inbuf);
@@ -583,84 +274,49 @@ static const char *render(const Req *rq, Res *out) {
    out->channels = out_ch;
    out->frames = rq->frames;
    out->data = xmalloc((size_t)out_ch * rq->frames * sizeof(float) + 4);
+   memset(out->data, 0, (size_t)out_ch * rq->frames * sizeof(float));
 
-   // --- events, with the preroll offset applied so note 0 is real-audio frame 0
-   Events ev = {0};
-   ev.count = rq->nparams + rq->nnotes * 2;
-   ev.all = xmalloc((ev.count ? ev.count : 1) * sizeof *ev.all);
-   ev.scratch = xmalloc((ev.count ? ev.count : 1) * sizeof *ev.scratch);
-   ev.ptrs = xmalloc((ev.count ? ev.count : 1) * sizeof *ev.ptrs);
+   // --- the whole event list, in absolute frames, sorted
+   uint32_t nev = rq->nparams + rq->nnotes * 2;
+   Evt     *evs = xmalloc((nev ? nev : 1) * sizeof *evs);
+   Evt     *blk = xmalloc((nev ? nev : 1) * sizeof *blk);
    uint32_t n = 0;
    for (uint32_t i = 0; i < rq->nparams; i++) {
-      clap_event_param_value_t *e = &ev.all[n++].pv;
+      Evt *e = &evs[n++];
       memset(e, 0, sizeof *e);
-      e->header.size = sizeof *e;
-      e->header.time = 0;  // before any audio, so smoothing settles in the preroll
-      e->header.space_id = CLAP_CORE_EVENT_SPACE_ID;
-      e->header.type = CLAP_EVENT_PARAM_VALUE;
+      e->kind = EVT_PARAM;
+      e->time = 0;  // before any audio, so smoothing settles in the preroll
       e->param_id = rq->params[i].id;
-      e->note_id = -1;
-      e->port_index = -1;
-      e->channel = -1;
-      e->key = -1;
       e->value = rq->params[i].value;
    }
    for (uint32_t i = 0; i < rq->nnotes; i++) {
       const NoteHit *h = &rq->notes[i];
-      clap_event_note_t *on = &ev.all[n++].note;
+      Evt           *on = &evs[n++];
       memset(on, 0, sizeof *on);
-      on->header.size = sizeof *on;
-      on->header.time = in_off + h->start;
-      on->header.space_id = CLAP_CORE_EVENT_SPACE_ID;
-      on->header.type = CLAP_EVENT_NOTE_ON;
-      on->note_id = (int32_t)i;
-      on->port_index = 0;
-      on->channel = h->channel;
+      on->kind = EVT_NOTE_ON;
+      on->time = in_off + h->start;
       on->key = h->key;
-      on->velocity = h->velocity;
-      clap_event_note_t *off = &ev.all[n++].note;
+      on->channel = h->channel;
+      on->value = h->velocity;
+      on->note_id = (int32_t)i;
+      Evt *off = &evs[n++];
       *off = *on;
-      off->header.time = in_off + h->start + h->length;
-      off->header.type = CLAP_EVENT_NOTE_OFF;
-      off->velocity = 0;
+      off->kind = EVT_NOTE_OFF;
+      off->time = in_off + h->start + h->length;
+      off->value = 0;
    }
-   ev.count = n;
-   // Insertion sort by time: CLAP requires the list in order, and n is tiny.
-   for (uint32_t i = 1; i < n; i++) {
-      AnyEvent k = ev.all[i];
-      uint32_t j = i;
-      while (j > 0 && ev.all[j - 1].hdr.time > k.hdr.time) {
-         ev.all[j] = ev.all[j - 1];
-         j--;
-      }
-      ev.all[j] = k;
-   }
+   nev = n;
+   qsort(evs, nev, sizeof *evs, evt_cmp);
 
-   clap_input_events_t  in_events = {.ctx = &ev, .size = ev_size, .get = ev_get};
-   clap_output_events_t out_events = {.ctx = NULL, .try_push = ev_push};
+   be->begin();
 
-   clap_audio_buffer_t ab_in = {0}, ab_out = {0};
-   ab_in.data32 = inbuf;
-   ab_in.channel_count = in_ch;
-   ab_out.data32 = outbuf;
-   ab_out.channel_count = out_ch;
-
-   clap_process_t pr = {0};
-   pr.audio_inputs = in_ch ? &ab_in : NULL;
-   pr.audio_inputs_count = in_ch ? 1 : 0;
-   pr.audio_outputs = &ab_out;
-   pr.audio_outputs_count = 1;
-   pr.in_events = &in_events;
-   pr.out_events = &out_events;
-
-   int      status = CLAP_PROCESS_CONTINUE;
-   uint32_t cursor = 0;  // event cursor into the sorted list
-   host_is_audio = true;
-   for (uint32_t pos = 0; pos < total; pos += BLOCK) {
+   bool     okay = true;
+   uint32_t cursor = 0;
+   for (uint32_t pos = 0; pos < total && okay; pos += BLOCK) {
       uint32_t len = total - pos < BLOCK ? total - pos : BLOCK;
 
-      // Input: silence through the preroll, then the page's audio, duplicated or
-      // dropped as needed to match however many channels the plugin asked for.
+      // Input: silence through the preroll, then the caller's audio, duplicated
+      // or dropped as needed to match however many channels the plugin asked for.
       for (uint32_t c = 0; c < in_ch; c++) {
          float *dst = inbuf[c];
          for (uint32_t i = 0; i < len; i++) {
@@ -675,29 +331,16 @@ static const char *render(const Req *rq, Res *out) {
       }
       for (uint32_t c = 0; c < out_ch; c++) memset(outbuf[c], 0, len * sizeof(float));
 
-      // This block's events, times made relative to the block as CLAP requires.
-      ev.nblk = 0;
-      while (cursor < ev.count && ev.all[cursor].hdr.time < pos + len) {
-         AnyEvent *s = &ev.all[cursor];
-         AnyEvent *d = &ev.scratch[ev.nblk];
-         *d = *s;
-         d->hdr.time = s->hdr.time > pos ? s->hdr.time - pos : 0;
-         ev.ptrs[ev.nblk] = &d->hdr;
-         ev.nblk++;
+      uint32_t nblk = 0;
+      while (cursor < nev && evs[cursor].time < pos + len) {
+         blk[nblk] = evs[cursor];
+         blk[nblk].time = evs[cursor].time > pos ? evs[cursor].time - pos : 0;
+         nblk++;
          cursor++;
       }
 
-      pr.frames_count = len;
-      pr.steady_time = (int64_t)pos;
-      ab_in.constant_mask = 0;
-      ab_out.constant_mask = 0;
-
-      int st = p->process ? p->process(p, &pr) : CLAP_PROCESS_ERROR;
-      if (st == CLAP_PROCESS_ERROR) {
-         status = CLAP_PROCESS_ERROR;
-         break;
-      }
-      status = st;
+      okay = be->process(blk, nblk, in_ch ? inbuf : NULL, outbuf, len);
+      if (!okay) break;
 
       // Keep only what lines up with the caller's audio.
       for (uint32_t i = 0; i < len; i++) {
@@ -707,30 +350,30 @@ static const char *render(const Req *rq, Res *out) {
             out->data[(size_t)c * rq->frames + (size_t)dst] = outbuf[c][i];
       }
    }
-   host_is_audio = false;
-   out->status = status;
+   be->end();
+   out->status = okay ? 1 : 0;
 
    for (uint32_t c = 0; c < in_ch; c++) free(inbuf[c]);
    free(inbuf);
    for (uint32_t c = 0; c < out_ch; c++) free(outbuf[c]);
    free(outbuf);
-   free(ev.all);
-   free(ev.scratch);
-   free(ev.ptrs);
+   free(evs);
+   free(blk);
 
-   if (status == CLAP_PROCESS_ERROR) {
+   if (!okay) {
       free(out->data);
       out->data = NULL;
-      return plugin_log.len ? plugin_log.s : "The plugin reported an error while processing.";
+      const char *why = be->complaint();
+      return (why && *why) ? why : "The plugin reported an error while processing.";
    }
    return NULL;
 }
 
 // ----------------------------------------------------------------- HTTP plumbing
 
-// 24 random bytes as hex is 48 characters; the room above that is for a token
-// passed in by hand, which is checked rather than quietly cut short.
 static char token[129];
+static int  port = 7777;
+static char *page_path = NULL;
 
 static void gen_token(void) {
    unsigned char raw[24];
@@ -802,17 +445,15 @@ static const char *hdr_get(const char *head, const char *name, char *out, size_t
 
 // ------------------------------------------------------------------- the routes
 
-static char *page_path = NULL;
-static int   port = 7777;
-
 static void route_plugins(int fd) {
    Buf b = {0};
-   buf_fmt(&b, "{\"ok\":true,\"clap\":\"%d.%d.%d\",\"count\":%d,\"plugins\":[",
-           CLAP_VERSION_MAJOR, CLAP_VERSION_MINOR, CLAP_VERSION_REVISION, nfound);
+   buf_fmt(&b, "{\"ok\":true,\"count\":%d,\"plugins\":[", nfound);
    for (int i = 0; i < nfound; i++) {
       if (i) buf_str(&b, ",");
       buf_str(&b, "{\"id\":");
       buf_json(&b, found[i].id);
+      buf_str(&b, ",\"format\":");
+      buf_json(&b, found[i].be->name);
       buf_str(&b, ",\"name\":");
       buf_json(&b, found[i].name);
       buf_str(&b, ",\"vendor\":");
@@ -838,44 +479,33 @@ static void route_params(int fd, const char *id, int rate) {
       respond_text(fd, 400, "Bad Request", err);
       return;
    }
-   const clap_plugin_t       *p = open_plug.plug;
-   const clap_plugin_params_t *pp = open_plug.params;
-   Buf                        b = {0};
-   buf_fmt(&b, "{\"ok\":true,\"inputChannels\":%u,\"outputChannels\":%u,\"latency\":%u,",
-           open_plug.in_ch, open_plug.out_ch,
-           open_plug.latency && open_plug.latency->get ? open_plug.latency->get(p) : 0);
-   buf_str(&b, "\"params\":[");
-   uint32_t n = pp && pp->count ? pp->count(p) : 0;
+   const Backend *be = cur_be;
+   Buf            b = {0};
+   buf_fmt(&b, "{\"ok\":true,\"format\":\"%s\",\"inputChannels\":%u,\"outputChannels\":%u,"
+               "\"latency\":%u,\"params\":[",
+           be->name, be->in_channels(), be->out_channels(), be->latency());
+   uint32_t n = be->param_count();
    int      written = 0;
    for (uint32_t i = 0; i < n; i++) {
-      clap_param_info_t info;
-      memset(&info, 0, sizeof info);
-      if (!pp->get_info(p, i, &info)) continue;
-      if (info.flags & CLAP_PARAM_IS_HIDDEN) continue;
-      double value = info.default_value;
-      if (pp->get_value) pp->get_value(p, info.id, &value);
-      char text[CLAP_NAME_SIZE * 2];
-      text[0] = 0;
-      if (pp->value_to_text) pp->value_to_text(p, info.id, value, text, sizeof text);
+      ParamInfo p;
+      if (!be->param_at(i, &p)) continue;
       if (written++) buf_str(&b, ",");
-      buf_fmt(&b, "{\"id\":%u,", (unsigned)info.id);
+      buf_fmt(&b, "{\"id\":%u,", (unsigned)p.id);
       buf_str(&b, "\"name\":");
-      buf_json(&b, info.name);
+      buf_json(&b, p.name);
       buf_str(&b, ",\"module\":");
-      buf_json(&b, info.module);
+      buf_json(&b, p.module);
       // Not finite is not representable in JSON, and a plugin is allowed to be
       // wrong about this; clamping keeps the page from getting a NaN literal.
       buf_fmt(&b, ",\"min\":%.17g,\"max\":%.17g,\"default\":%.17g,\"value\":%.17g",
-              isfinite(info.min_value) ? info.min_value : 0.0,
-              isfinite(info.max_value) ? info.max_value : 1.0,
-              isfinite(info.default_value) ? info.default_value : 0.0,
-              isfinite(value) ? value : 0.0);
-      buf_fmt(&b, ",\"stepped\":%s", (info.flags & CLAP_PARAM_IS_STEPPED) ? "true" : "false");
-      buf_fmt(&b, ",\"enum\":%s", (info.flags & CLAP_PARAM_IS_ENUM) ? "true" : "false");
-      buf_fmt(&b, ",\"readonly\":%s", (info.flags & CLAP_PARAM_IS_READONLY) ? "true" : "false");
-      buf_fmt(&b, ",\"bypass\":%s", (info.flags & CLAP_PARAM_IS_BYPASS) ? "true" : "false");
+              isfinite(p.min) ? p.min : 0.0, isfinite(p.max) ? p.max : 1.0,
+              isfinite(p.def) ? p.def : 0.0, isfinite(p.value) ? p.value : 0.0);
+      buf_fmt(&b, ",\"stepped\":%s", p.stepped ? "true" : "false");
+      buf_fmt(&b, ",\"enum\":%s", p.is_enum ? "true" : "false");
+      buf_fmt(&b, ",\"readonly\":%s", p.readonly ? "true" : "false");
+      buf_fmt(&b, ",\"bypass\":%s", p.bypass ? "true" : "false");
       buf_str(&b, ",\"text\":");
-      buf_json(&b, text);
+      buf_json(&b, p.text);
       buf_str(&b, "}");
    }
    buf_str(&b, "]}");
@@ -1005,8 +635,8 @@ static void route_page(int fd) {
       respond(fd, 500, "Internal Server Error", "text/plain; charset=utf-8", msg, strlen(msg));
       return;
    }
-   Buf b = {0};
-   char chunk[8192];
+   Buf    b = {0};
+   char   chunk[8192];
    size_t n;
    while ((n = fread(chunk, 1, sizeof chunk, f)) > 0) buf_add(&b, chunk, n);
    fclose(f);
@@ -1072,7 +702,7 @@ static void handle(int fd) {
 
    // The token travels in a header on the API calls, so it never reaches the URL
    // bar or a log. The page itself is the one thing served without it.
-   char tbuf[128];
+   char tbuf[160];
    bool authed = hdr_get(head, "x-pluginhost-token", tbuf, sizeof tbuf) && !strcmp(tbuf, token);
 
    if (!strcmp(path, "/") || !strcmp(path, "/index.html")) {
@@ -1091,8 +721,11 @@ static void handle(int fd) {
 
    if (!strcmp(path, "/api/health")) {
       Buf b = {0};
-      buf_fmt(&b, "{\"ok\":true,\"name\":\"pluginhost\",\"clap\":\"%d.%d.%d\",\"plugins\":%d}",
-              CLAP_VERSION_MAJOR, CLAP_VERSION_MINOR, CLAP_VERSION_REVISION, nfound);
+      int clap_n = 0, vst3_n = 0;
+      for (int i = 0; i < nfound; i++)
+         if (found[i].be == &clap_backend) clap_n++; else vst3_n++;
+      buf_fmt(&b, "{\"ok\":true,\"name\":\"pluginhost\",\"plugins\":%d,\"clap\":%d,\"vst3\":%d}",
+              nfound, clap_n, vst3_n);
       respond(fd, 200, "OK", "application/json; charset=utf-8", b.s, b.len);
       free(b.s);
       return;
@@ -1104,7 +737,6 @@ static void handle(int fd) {
    if (!strcmp(path, "/api/params")) {
       char id[1024] = {0};
       int  rate = 48000;
-      // id=<urlencoded>&rate=<n>
       const char *s = strstr(query, "id=");
       if (s) {
          s += 3;
@@ -1168,7 +800,7 @@ static void handle(int fd) {
 // ------------------------------------------------------------------------ main
 
 static char *exe_dir(const char *argv0) {
-   char buf[4096];
+   char    buf[4096];
    ssize_t n = readlink("/proc/self/exe", buf, sizeof buf - 1);
    if (n > 0)
       buf[n] = 0;
@@ -1201,11 +833,10 @@ int main(int argc, char **argv) {
             return 1;
          }
          snprintf(token, sizeof token, "%s", argv[++i]);
-      }
-      else {
-         printf("pluginhost — your CLAP plugins, played in a browser\n\n"
+      } else {
+         printf("pluginhost — your CLAP and VST3 plugins, played in a browser\n\n"
                 "  --port N       listen on 127.0.0.1:N (default 7777)\n"
-                "  --scan PATH    also scan this folder, or load this one .clap\n"
+                "  --scan PATH    also scan this folder, or load this one plugin\n"
                 "  --page FILE    serve this page.html\n"
                 "  --token TOK    use this token instead of a fresh random one\n"
                 "  --no-open      do not try to open a browser\n"
@@ -1225,11 +856,15 @@ int main(int argc, char **argv) {
       if (!page_path && is_file("pluginhost/page.html")) page_path = xstrdup("pluginhost/page.html");
    }
 
-   say("pluginhost: scanning for CLAP plugins…");
+   say("pluginhost: scanning for CLAP and VST3 plugins…");
    scan_all(extra, nextra);
-   say("pluginhost: %d plugin%s found", nfound, nfound == 1 ? "" : "s");
+   int clap_n = 0, vst3_n = 0;
+   for (int i = 0; i < nfound; i++)
+      if (found[i].be == &clap_backend) clap_n++; else vst3_n++;
+   say("pluginhost: %d plugin%s found (%d CLAP, %d VST3)", nfound, nfound == 1 ? "" : "s",
+       clap_n, vst3_n);
    for (int i = 0; i < nfound && verbose; i++)
-      say("  %s — %s (%s)", found[i].name, found[i].vendor, found[i].id);
+      say("  [%s] %s — %s (%s)", found[i].be->name, found[i].name, found[i].vendor, found[i].id);
 
    int srv = socket(AF_INET, SOCK_STREAM, 0);
    if (srv < 0) {
@@ -1267,9 +902,9 @@ int main(int argc, char **argv) {
       if (system(cmd) != 0 && verbose) say("could not open a browser; do it by hand");
    }
 
-   // One request at a time, deliberately. CLAP's threading rules are about which
-   // thread may call what, and the simplest way to never break them is to have
-   // one thread. A local tool with one user does not need more.
+   // One request at a time, deliberately. Both formats have threading rules
+   // about which thread may call what, and the simplest way to never break
+   // them is to have one thread. A local tool with one user does not need more.
    for (;;) {
       int fd = accept(srv, NULL, NULL);
       if (fd < 0) {
@@ -1280,6 +915,6 @@ int main(int argc, char **argv) {
       handle(fd);
       close(fd);
    }
-   unload();
+   unload_current();
    return 0;
 }

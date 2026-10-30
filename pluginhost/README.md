@@ -1,6 +1,6 @@
 # pluginhost
 
-Your own CLAP plugins, running on your machine, played in your browser.
+Your own CLAP and VST3 plugins, running on your machine, played in your browser.
 
 ```sh
 cd pluginhost
@@ -75,8 +75,10 @@ Two details that are easy to get wrong and are handled here:
 | | |
 |---|---|
 | Linux | `~/.clap`, `/usr/lib/clap`, `/usr/local/lib/clap` |
+| | `~/.vst3`, `/usr/lib/vst3`, `/usr/local/lib/vst3` |
 | macOS | `~/Library/Audio/Plug-Ins/CLAP`, `/Library/Audio/Plug-Ins/CLAP` |
-| anywhere | every path in `CLAP_PATH`, and every `--scan PATH` you pass |
+| | `~/Library/Audio/Plug-Ins/VST3`, `/Library/Audio/Plug-Ins/VST3` |
+| anywhere | every path in `CLAP_PATH` and `VST3_PATH`, and every `--scan PATH` |
 
 ```sh
 ./pluginhost --scan ~/Downloads/some-plugin.clap
@@ -88,24 +90,39 @@ means a plugin that crashes on load takes the scanner with it — run with
 `--verbose` and the last path printed is the one that did it, then start again
 without that folder.
 
-## CLAP first, and what that leaves out
-
-This hosts **CLAP**, and only CLAP, today. That is a real limitation and worth
-stating plainly rather than burying:
+## Two formats, and the one that is missing
 
 - **CLAP** is a pure C ABI in MIT-licensed headers, with no SDK to download and
-  no licence to agree to. `make` fetches the headers and compiles one file.
-  That is why it is first — not because it is the most common format.
-- **VST3** is a genuine next step, not a nicety. Its ABI is COM-like and needs
-  C++ and Steinberg's SDK, which is dual-licensed GPLv3 / proprietary — so it is
-  a few hundred lines of real work plus a licence decision about distribution.
-  Nothing about the design here blocks it: the scan, the protocol and the page
-  do not care what format produced the audio.
-- **Audio Units** are macOS-only, want Objective-C and `AudioToolbox`, and
-  cannot be compiled or tested anywhere but a Mac. That one has to be built and
-  proven on your machine, not in a Linux container.
+  no licence to agree to. It was first for that reason, not because it is the
+  most common format.
+- **VST3** works too, and more easily than its reputation suggests. The main
+  VST3 SDK is C++ and dual-licensed GPLv3 / proprietary, which would be both a
+  dependency and a licence decision — but Steinberg also publish
+  [vst3_c_api](https://github.com/steinbergmedia/vst3_c_api), a **single header
+  under a BSD 3-clause licence** that describes the same ABI in plain C. That is
+  what `vst3_backend.c` is written against, so VST3 costs this project one more
+  file and no licence entanglement at all.
+- **Audio Units** are the one still missing. They are macOS-only, want
+  Objective-C and `AudioToolbox`, and cannot be compiled or tested anywhere but
+  a Mac — so that one has to be built and proven on your machine rather than
+  guessed at from a Linux container.
 
-If a plugin you own ships a CLAP build as well — many now do — it works today.
+Everything above the backends is format-blind: the scan, the render protocol and
+the page never learn which kind a plugin is, beyond printing a label.
+
+### What differs between the two, and is hidden from you
+
+- **Parameters.** CLAP gives plain values with their own range. VST3 normalises
+  everything to 0..1 and keeps the real number private, surfacing it only as
+  display text. The page gets a range and a value either way.
+- **Categories.** VST3 writes `Fx|Delay`; CLAP writes a list. Both arrive as the
+  same comma-separated vocabulary.
+- **Clearing a tail.** CLAP has `reset()`. VST3 has nothing of the kind, so the
+  plugin is switched inactive and active again between renders, which is the
+  supported way and is what stops one render's reverb opening the next.
+- **The controller.** A VST3 plugin's audio and its parameter names often live
+  in two different objects, sometimes two different classes that have to be
+  introduced to each other by hand. Both arrangements are tested.
 
 ## Is this safe to run?
 
@@ -128,14 +145,22 @@ It holds nothing between requests and writes nothing to disk.
 make test
 ```
 
-The suite builds `test/gainplug.clap` — a CLAP plugin that exists to be measured
-rather than listened to. It computes `out = in[n-64] * gain + offset` and
-declares those 64 frames through `clap.latency`, so a correct host hands back
-the input **bit for bit** at gain 1. An off-by-one in the delay compensation, a
-planar/interleaved mix-up, or a parameter that never reached the plugin all show
-up as a failure instead of as something that merely sounds plausible. 35 checks
-cover the scan, the descriptors, the parameters, the rendering, the refusals and
-the page.
+The suite builds two plugins that exist to be measured rather than listened to:
+`test/gainplug.clap` and `test/gainvst.vst3`. Both compute
+`out = in[n-64] * gain + offset` and both declare those 64 frames of latency —
+one through `clap.latency`, one through `getLatencySamples()` — so a correct host
+hands back the input **bit for bit** at unity gain. An off-by-one in the delay
+compensation, a planar/interleaved mix-up, or a parameter that never reached the
+plugin all show up as a failure instead of as something that merely sounds
+plausible.
+
+The same block of assertions runs against both formats, because the point of the
+backend split is that a plugin's format stops mattering the moment it loads. The
+VST3 fixture publishes **two** effects on purpose: one object that is its own
+edit controller, and one component that names a separate controller class — the
+arrangement most commercial plugins use, and the path a host is likelier to get
+wrong. 78 checks in all, plus a format-swap test that catches one backend
+leaving buffers behind when the other takes over.
 
 ## Options
 
@@ -150,6 +175,11 @@ the page.
 
 ## Credits
 
-The CLAP headers are by Alexandre Bique and contributors, MIT licensed, fetched
-at build time from [free-audio/clap](https://github.com/free-audio/clap) and
-pinned to a tag in the `Makefile`. Nothing is vendored into this repository.
+Neither set of headers is vendored here. `make` fetches both, each pinned to a
+tag in the `Makefile`:
+
+- **CLAP** — MIT, by Alexandre Bique and contributors,
+  [free-audio/clap](https://github.com/free-audio/clap).
+- **VST3 C API** — BSD 3-clause, Steinberg Media Technologies GmbH,
+  [steinbergmedia/vst3_c_api](https://github.com/steinbergmedia/vst3_c_api).
+  VST3 is a trademark of Steinberg Media Technologies GmbH.

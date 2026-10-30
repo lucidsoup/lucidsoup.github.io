@@ -5,8 +5,11 @@ node_modules/
 # your host, never committed — GitHub Pages caps the site at 1GB.
 dist/
 
-# pluginhost build outputs: the binary, the CLAP headers `make` fetches, and
-# the test plugin it compiles. All reproducible from source with one `make`.
+# pluginhost build outputs: the binary, the CLAP and VST3 headers `make`
+# fetches, and the test plugins it compiles. All reproducible from source with
+# one `make`.
 pluginhost/pluginhost
 pluginhost/clap/
+pluginhost/vst3/
 pluginhost/test/*.clap
+pluginhost/test/*.vst3

@@ -99,7 +99,7 @@
 <div class="wrap">
   <header>
     <h1>Plugin Host</h1>
-    <p class="tagline">Your own CLAP plugins, running on this machine, played in this browser.
+    <p class="tagline">Your own CLAP and VST3 plugins, running on this machine, played in this browser.
        Nothing leaves the computer — <strong id="hostline">connecting…</strong></p>
   </header>
 
@@ -222,14 +222,16 @@ async function api(path, opts = {}) {
 async function boot() {
   try {
     const h = await (await api("/api/health")).json();
-    $("hostline").textContent = `pluginhost, CLAP ${h.clap}`;
+    $("hostline").textContent =
+      `pluginhost, ${h.clap} CLAP and ${h.vst3} VST3`;
     const list = await (await api("/api/plugins")).json();
     plugins = list.plugins || [];
     drawPlugins();
     $("plugnote").textContent = plugins.length
       ? `${plugins.length} plugin${plugins.length === 1 ? "" : "s"} found.`
-      : "No CLAP plugins were found. Put one in ~/.clap (or ~/Library/Audio/Plug-Ins/CLAP on a Mac), " +
-        "or start pluginhost with --scan pointing at the folder you keep them in.";
+      : "No plugins were found. CLAP lives in ~/.clap and VST3 in ~/.vst3 (on a Mac, " +
+        "~/Library/Audio/Plug-Ins/CLAP and .../VST3), or start pluginhost with --scan " +
+        "pointing at the folder you keep them in.";
   } catch (e) {
     $("hostline").textContent = "not answering";
     say("Cannot reach pluginhost: " + e.message, "err");
@@ -245,11 +247,14 @@ function drawPlugins() {
   for (const p of shown) {
     const b = document.createElement("button");
     b.className = "plug" + (current && current.id === p.id ? " sel" : "");
+    // Both formats are normalised to the same words by their backend, so the
+    // page does not have to know that VST3 spells its categories "Fx|Delay".
     const kinds = (p.features || "").split(",").filter((f) =>
       ["instrument", "audio-effect", "note-effect", "analyzer"].includes(f));
     b.innerHTML = `<b></b><span class="k"></span><span class="v"></span>`;
     b.querySelector("b").textContent = p.name;
-    b.querySelector(".v").textContent = [p.vendor, p.version].filter(Boolean).join(" · ");
+    b.querySelector(".v").textContent =
+      [p.format.toUpperCase(), p.vendor, p.version].filter(Boolean).join(" · ");
     const k = b.querySelector(".k");
     for (const kind of kinds.length ? kinds : ["plugin"]) {
       const t = document.createElement("i");
