@@ -868,6 +868,7 @@
                         <li><a href="synthsoup/webapp/play/">Play SynthSoup</a></li>
                         <li><a href="#drumseek">DrumSeek</a></li>
                         <li><a href="sp404.html">SP-404 Converter</a></li>
+                        <li><a href="plugins.html">Plugin Host</a></li>
                         <li><a href="#blackboxfx">BlackboxFX</a></li>
                         <li><a href="#shop">Shop</a></li>
                         <li><a href="#about">About</a></li>
@@ -902,6 +903,23 @@
                 </p>
                 <div class="contact-links">
                     <a href="sp404.html" class="contact-link">Open the Converter</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="plugins">
+            <h2>Plugin Host</h2>
+            <div class="contact">
+                <p style="margin-bottom: 1.25rem;">
+                    Your own <strong>CLAP</strong> and <strong>VST3</strong> plugins, loaded on your
+                    machine and played in your browser. Pick a plugin, drop a sound on it, drag out a
+                    region and move the knobs &mdash; it re-renders as you go and hands you a WAV at
+                    the end, ready to chop. A browser cannot open a plugin itself, so a small program
+                    does that part and serves the page that drives it; it runs on your computer and
+                    talks to nothing else.
+                </p>
+                <div class="contact-links">
+                    <a href="plugins.html" class="contact-link">How to run it</a>
                 </div>
             </div>
         </section>
@@ -1348,7 +1366,7 @@
         // and only when the gallery has sent you to it by name; with no hash you
         // get the entrance and nothing else. This is what makes the gallery the
         // site's only index rather than a second way in beside the old one.
-        var SECTION_IDS = ['drumseek', 'sp404', 'synthsoup', 'blackboxfx', 'portfolio',
+        var SECTION_IDS = ['drumseek', 'sp404', 'plugins', 'synthsoup', 'blackboxfx', 'portfolio',
                            'shader-library', 'shop', 'about', 'contact'];
 
         function routeSections() {

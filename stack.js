@@ -48,6 +48,7 @@
 
         { t: 2, name: 'DrumSeek',         tag: 'tool',  href: '/index.html#drumseek',  g: 'grid' },
         { t: 2, name: 'SP-404 Converter', tag: 'tool',  href: '/sp404.html',           g: 'grid' },
+        { t: 2, name: 'Plugin Host',      tag: 'tool',  href: '/plugins.html',         g: 'grid' },
         { t: 2, name: 'SynthSoup',        tag: 'tool',  href: '/index.html#synthsoup', g: 'grid' },
         { t: 2, name: 'SynthSoup — Play', tag: 'live', href: '/synthsoup/webapp/play/', g: 'core' },
         { t: 2, name: 'BlackboxFX',       tag: 'tool',  href: '/index.html#blackboxfx', g: 'grid' },

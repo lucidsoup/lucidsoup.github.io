@@ -632,13 +632,26 @@ static bool param_at(uint32_t index, ParamInfo *out) {
    memset(out, 0, sizeof *out);
    out->id = info.id;
    from_utf16(info.title, out->name, sizeof out->name);
-   from_utf16(info.units, out->module, sizeof out->module);
+   // module stays empty. VST3 groups parameters by unitId through IUnitInfo,
+   // which is not implemented here; info.units is a display suffix like "dB",
+   // and putting that where the page prints a heading gives you a section
+   // called "x".
+   out->module[0] = 0;
 
    double value = op.ctrl->lpVtbl->getParamNormalized(op.ctrl, info.id);
    Steinberg_Vst_String128 txt;
    memset(txt, 0, sizeof txt);
    if (op.ctrl->lpVtbl->getParamStringByValue(op.ctrl, info.id, value, txt) == Steinberg_kResultOk)
       from_utf16(txt, out->text, sizeof out->text);
+   // VST3 says the value string comes back without its unit and the host adds
+   // it. Plenty of plugins include it anyway, so only add what is missing.
+   char units[PNAME];
+   from_utf16(info.units, units, sizeof units);
+   if (units[0] && out->text[0] && !strstr(out->text, units)) {
+      size_t have = strlen(out->text);
+      if (have + strlen(units) + 2 < sizeof out->text)
+         snprintf(out->text + have, sizeof out->text - have, " %s", units);
+   }
 
    // Everything in VST3 is normalised; the plain value is the plugin's private
    // business and only ever reaches us as that display string.
