@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plugin Host — LucidSoup</title>
+<!-- Served by pluginhost on 127.0.0.1, so everything here is inline: no fonts,
+     no CDN, no network. It has to work on a laptop with the wifi off. -->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --accent: #8b6cf5; --accent2: #8ae04b; --accent3: #d44fb0;
+    --line: rgba(255,255,255,.08); --dim: rgba(255,255,255,.5);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    line-height: 1.6; color: #fff; background: #0a0a0a; min-height: 100vh;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+  header { margin-bottom: 2rem; }
+  h1 {
+    font-weight: 900; font-size: clamp(1.5rem, 4vw, 2.2rem); letter-spacing: .06em;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, var(--accent3), var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    color: var(--accent);
+  }
+  .tagline { color: rgba(255,255,255,.6); font-size: .9rem; margin-top: .5rem; }
+  .panel {
+    background: rgba(255,255,255,.03); border: 1px solid var(--line);
+    border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem;
+  }
+  .panel h2 {
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .18em;
+    color: rgba(139,108,245,.75); font-weight: bold; margin-bottom: .9rem;
+  }
+  button, select, input[type=text], input[type=number] {
+    font: inherit; font-size: .85rem; color: #fff; background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: .45rem .8rem;
+  }
+  button { cursor: pointer; transition: border-color .15s, background .15s; }
+  button:hover:not(:disabled) { border-color: rgba(139,108,245,.7); background: rgba(139,108,245,.1); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.go { border-color: rgba(139,108,245,.6); background: rgba(139,108,245,.16); font-weight: bold; }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+  .spacer { flex: 1 1 auto; }
+
+  /* ---- plugin list ---- */
+  #search { width: 100%; margin-bottom: .8rem; }
+  #plugs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .6rem;
+           max-height: 340px; overflow-y: auto; }
+  .plug {
+    text-align: left; padding: .7rem .85rem; border-radius: 10px; width: 100%;
+    background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.1);
+  }
+  .plug.sel { border-color: rgba(139,108,245,.75); background: rgba(139,108,245,.1); }
+  .plug b { display: block; font-size: .92rem; }
+  .plug span { display: block; font-size: .72rem; color: var(--dim); }
+  .tag { display: inline-block; padding: .05rem .4rem; margin-right: .25rem; border-radius: 999px;
+         font-size: .6rem; letter-spacing: .06em; text-transform: uppercase;
+         border: 1px solid rgba(138,224,75,.35); color: rgba(138,224,75,.9); }
+
+  /* ---- waveform ---- */
+  #waveBox { position: relative; border-radius: 10px; overflow: hidden;
+             border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.4); }
+  #wave { display: block; width: 100%; height: 170px; cursor: crosshair; touch-action: none; }
+  #drop { border: 2px dashed rgba(255,255,255,.16); border-radius: 12px; padding: 2rem 1rem;
+          text-align: center; cursor: pointer; }
+  #drop:hover, #drop.over { border-color: rgba(139,108,245,.7); background: rgba(139,108,245,.04); }
+  #drop .big { font-size: 1rem; } #drop .small { font-size: .78rem; color: rgba(255,255,255,.45); }
+
+  /* ---- params ---- */
+  #params { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: .5rem 1.2rem; }
+  .pr { display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; align-items: center;
+        padding: .3rem 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .pr .nm { font-size: .8rem; }
+  .pr .vl { font-size: .74rem; color: var(--accent2); font-variant-numeric: tabular-nums;
+            white-space: nowrap; }
+  .pr input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+  .pr.ro { opacity: .55; }
+  .mod { grid-column: 1 / -1; font-size: .64rem; text-transform: uppercase; letter-spacing: .12em;
+         color: rgba(255,255,255,.35); margin-top: .7rem; }
+
+  /* ---- keyboard ---- */
+  #keys { display: flex; gap: 2px; margin-top: .3rem; }
+  #keys button { flex: 1 1 0; padding: 1.4rem .2rem .4rem; font-size: .62rem; border-radius: 0 0 6px 6px; }
+  #keys button.blk { background: rgba(0,0,0,.6); }
+
+  .note { font-size: .78rem; color: var(--dim); margin-top: .6rem; }
+  .note code { color: rgba(138,224,75,.85); }
+  #say { min-height: 1.5rem; font-size: .84rem; margin-top: .5rem; }
+  #say.err { color: #ff8080; } #say.good { color: rgba(138,224,75,.9); }
+  .hide { display: none !important; }
+  .meter { height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; margin-top:.5rem; }
+  .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent3)); transition: width .1s; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Plugin Host</h1>
+    <p class="tagline">Your own CLAP plugins, running on this machine, played in this browser.
+       Nothing leaves the computer — <strong id="hostline">connecting…</strong></p>
+  </header>
+
+  <div class="panel">
+    <h2>Plugins</h2>
+    <input id="search" type="text" placeholder="Filter by name, vendor or kind…" autocomplete="off">
+    <div id="plugs"></div>
+    <p class="note" id="plugnote"></p>
+  </div>
+
+  <div class="panel" id="srcPanel">
+    <h2>Source</h2>
+    <div id="drop">
+      <div class="big">Drop an audio file here</div>
+      <div class="small">or click to choose &middot; wav, mp3, flac, m4a, ogg — whatever this browser can decode</div>
+    </div>
+    <input id="file" type="file" accept="audio/*,video/*" class="hide">
+    <div id="waveBox" class="hide"><canvas id="wave"></canvas></div>
+    <div class="row" style="margin-top:.8rem">
+      <button id="tone">Use a test tone</button>
+      <button id="selAll" disabled>Select all</button>
+      <span class="spacer"></span>
+      <span class="note" id="sel" style="margin:0"></span>
+    </div>
+  </div>
+
+  <div class="panel hide" id="notePanel">
+    <h2>Notes</h2>
+    <p class="note" style="margin-top:0">This plugin has no audio input, so it is an instrument.
+       Play a key and it renders that note.</p>
+    <div id="keys"></div>
+    <div class="row" style="margin-top:.8rem">
+      <label class="note" style="margin:0">Hold
+        <input id="noteLen" type="number" value="1.0" min="0.05" max="20" step="0.05" style="width:5.5rem"> s</label>
+      <label class="note" style="margin:0">Tail
+        <input id="noteTail" type="number" value="1.5" min="0" max="20" step="0.1" style="width:5.5rem"> s</label>
+    </div>
+  </div>
+
+  <div class="panel hide" id="paramPanel">
+    <h2>Parameters</h2>
+    <div id="params"></div>
+    <div class="row" style="margin-top:1rem">
+      <button id="defaults">Back to defaults</button>
+      <label class="note" style="margin:0"><input type="checkbox" id="live" checked> re-render as I move things</label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Out</h2>
+    <div class="row">
+      <button id="render" class="go" disabled>Render</button>
+      <button id="play" disabled>Play</button>
+      <button id="stop" disabled>Stop</button>
+      <span style="width:.8rem"></span>
+      <button id="dry" disabled>Hear it dry</button>
+      <span class="spacer"></span>
+      <select id="bits"><option value="16">16-bit WAV</option><option value="32">32-bit float WAV</option></select>
+      <button id="save" disabled>Save</button>
+    </div>
+    <div class="meter"><i id="bar"></i></div>
+    <div id="say"></div>
+  </div>
+
+  <p class="note">
+    A browser cannot open a <code>.clap</code>, a <code>.vst3</code> or a <code>.component</code> — they are
+    native libraries, and no browser will load one. <code>pluginhost</code> does that part and serves this page,
+    which is why the address is <code>127.0.0.1</code> and not your site: a page on an https:// site cannot
+    reach a local helper on Safari at all, and Chrome 142 began asking permission first.
+  </p>
+</div>
+
+<script>
+"use strict";
+// The host substitutes this when it serves the page, so the token never appears
+// in the address bar, the history or a referer header.
+const TOKEN = "__PLUGINHOST_TOKEN__";
+const MAGIC = 0x3148504c;  // 'LPH1'
+const $ = (id) => document.getElementById(id);
+
+let plugins = [];        // everything the scan found
+let current = null;      // the selected plugin's descriptor
+let info = null;         // its ports and parameters
+let values = new Map();  // param id -> value we are asking for
+let dryBuf = null;       // the decoded source, as an AudioBuffer
+let wetBuf = null;       // the last render
+let sel = { a: 0, b: 0 };// selection in frames of dryBuf
+let ac = null, node = null, playing = null;
+let pending = 0, renderSeq = 0;
+
+function say(msg, kind) {
+  const el = $("say");
+  el.textContent = msg || "";
+  el.className = kind || "";
+}
+const fmt = (s) => {
+  if (!isFinite(s)) return "—";
+  const m = Math.floor(s / 60), r = s - m * 60;
+  return m ? `${m}:${r.toFixed(1).padStart(4, "0")}` : `${r.toFixed(2)}s`;
+};
+
+function audio() {
+  if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state === "suspended") ac.resume();
+  return ac;
+}
+
+// ------------------------------------------------------------------ the host
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { "x-pluginhost-token": TOKEN, ...(opts.headers || {}) } });
+  if (!r.ok) {
+    let msg = `${r.status}`;
+    try { msg = (await r.json()).error || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return r;
+}
+
+async function boot() {
+  try {
+    const h = await (await api("/api/health")).json();
+    $("hostline").textContent = `pluginhost, CLAP ${h.clap}`;
+    const list = await (await api("/api/plugins")).json();
+    plugins = list.plugins || [];
+    drawPlugins();
+    $("plugnote").textContent = plugins.length
+      ? `${plugins.length} plugin${plugins.length === 1 ? "" : "s"} found.`
+      : "No CLAP plugins were found. Put one in ~/.clap (or ~/Library/Audio/Plug-Ins/CLAP on a Mac), " +
+        "or start pluginhost with --scan pointing at the folder you keep them in.";
+  } catch (e) {
+    $("hostline").textContent = "not answering";
+    say("Cannot reach pluginhost: " + e.message, "err");
+  }
+}
+
+function drawPlugins() {
+  const q = $("search").value.trim().toLowerCase();
+  const box = $("plugs");
+  box.textContent = "";
+  const shown = plugins.filter((p) =>
+    !q || (p.name + " " + p.vendor + " " + p.features + " " + p.id).toLowerCase().includes(q));
+  for (const p of shown) {
+    const b = document.createElement("button");
+    b.className = "plug" + (current && current.id === p.id ? " sel" : "");
+    const kinds = (p.features || "").split(",").filter((f) =>
+      ["instrument", "audio-effect", "note-effect", "analyzer"].includes(f));
+    b.innerHTML = `<b></b><span class="k"></span><span class="v"></span>`;
+    b.querySelector("b").textContent = p.name;
+    b.querySelector(".v").textContent = [p.vendor, p.version].filter(Boolean).join(" · ");
+    const k = b.querySelector(".k");
+    for (const kind of kinds.length ? kinds : ["plugin"]) {
+      const t = document.createElement("i");
+      t.className = "tag";
+      t.textContent = kind;
+      k.appendChild(t);
+    }
+    b.title = p.path + (p.description ? "\n\n" + p.description : "");
+    b.onclick = () => pick(p);
+    box.appendChild(b);
+  }
+  if (!shown.length && plugins.length) {
+    const p = document.createElement("p");
+    p.className = "note";
+    p.textContent = "Nothing matches that.";
+    box.appendChild(p);
+  }
+}
+
+async function pick(p) {
+  current = p;
+  drawPlugins();
+  say("Loading " + p.name + "…");
+  try {
+    const rate = Math.round(audio().sampleRate);
+    info = await (await api(`/api/params?id=${encodeURIComponent(p.id)}&rate=${rate}`)).json();
+  } catch (e) {
+    say(`${p.name} would not load: ${e.message}`, "err");
+    info = null;
+    return;
+  }
+  values = new Map(info.params.map((q) => [q.id, q.value]));
+  drawParams();
+  const instrument = info.inputChannels === 0;
+  $("notePanel").classList.toggle("hide", !instrument);
+  $("srcPanel").classList.toggle("hide", instrument);
+  $("paramPanel").classList.toggle("hide", !info.params.length);
+  if (instrument) buildKeys();
+  const lat = info.latency ? `, ${info.latency} frames of latency compensated` : "";
+  say(`${p.name}: ${info.inputChannels} in, ${info.outputChannels} out, ` +
+      `${info.params.length} parameter${info.params.length === 1 ? "" : "s"}${lat}.`, "good");
+  refreshButtons();
+}
+
+// ---------------------------------------------------------------- parameters
+
+function drawParams() {
+  const box = $("params");
+  box.textContent = "";
+  if (!info) return;
+  let mod = null;
+  for (const p of info.params) {
+    if (p.module && p.module !== mod) {
+      mod = p.module;
+      const h = document.createElement("div");
+      h.className = "mod";
+      h.textContent = mod;
+      box.appendChild(h);
+    }
+    const row = document.createElement("div");
+    row.className = "pr" + (p.readonly ? " ro" : "");
+    const nm = document.createElement("div");
+    nm.className = "nm";
+    nm.textContent = p.name;
+    const vl = document.createElement("div");
+    vl.className = "vl";
+    vl.textContent = p.text || String(p.value);
+    const sl = document.createElement("input");
+    sl.type = "range";
+    sl.min = String(p.min);
+    sl.max = String(p.max);
+    // A stepped parameter moves in whole numbers; everything else gets a fine
+    // slider rather than 100 notches, which on a filter cutoff is audible.
+    sl.step = p.stepped ? "1" : String((p.max - p.min) / 1000 || 0.001);
+    sl.value = String(values.get(p.id));
+    sl.disabled = !!p.readonly;
+    sl.oninput = () => {
+      values.set(p.id, Number(sl.value));
+      vl.textContent = p.stepped ? sl.value : Number(sl.value).toFixed(3);
+      if ($("live").checked) liveRender();
+    };
+    row.append(nm, vl, sl);
+    box.appendChild(row);
+  }
+}
+
+$("defaults").onclick = () => {
+  if (!info) return;
+  values = new Map(info.params.map((p) => [p.id, p.default]));
+  drawParams();
+  if ($("live").checked) liveRender();
+};
+
+function buildKeys() {
+  const box = $("keys");
+  box.textContent = "";
+  const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  for (let i = 0; i < 13; i++) {
+    const key = 60 + i;
+    const b = document.createElement("button");
+    const nm = names[i % 12];
+    if (nm.includes("#")) b.className = "blk";
+    b.textContent = nm + (i === 12 ? "5" : "4");
+    b.onclick = () => renderNote(key);
+    box.appendChild(b);
+  }
+}
+
+// ------------------------------------------------------------------ the source
+
+$("drop").onclick = () => $("file").click();
+$("drop").ondragover = (e) => { e.preventDefault(); $("drop").classList.add("over"); };
+$("drop").ondragleave = () => $("drop").classList.remove("over");
+$("drop").ondrop = (e) => {
+  e.preventDefault();
+  $("drop").classList.remove("over");
+  if (e.dataTransfer.files[0]) takeFile(e.dataTransfer.files[0]);
+};
+$("file").onchange = (e) => e.target.files[0] && takeFile(e.target.files[0]);
+
+async function takeFile(f) {
+  say("Decoding " + f.name + "…");
+  try {
+    const buf = await audio().decodeAudioData(await f.arrayBuffer());
+    setSource(buf, f.name);
+  } catch (e) {
+    say(`This browser could not decode ${f.name}. A wav or an mp3 always works.`, "err");
+  }
+}
+
+$("tone").onclick = () => {
+  // Something to hear a plugin on without hunting for a file: a sweep, because
+  // a sine tells you nothing about a filter and a sweep tells you everything.
+  const a = audio(), n = Math.round(a.sampleRate * 3);
+  const buf = a.createBuffer(2, n, a.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = buf.getChannelData(c);
+    let ph = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / n;
+      const hz = 60 * Math.pow(900 / 60, t);          // 60 Hz to 900 Hz, logarithmically
+      ph += (2 * Math.PI * hz) / a.sampleRate;
+      const env = Math.min(1, t * 40) * Math.min(1, (1 - t) * 12);
+      d[i] = 0.5 * env * Math.sin(ph + (c ? 0.4 : 0));
+    }
+  }
+  setSource(buf, "test sweep");
+};
+
+function setSource(buf, name) {
+  dryBuf = buf;
+  wetBuf = null;
+  sel = { a: 0, b: buf.length };
+  $("waveBox").classList.remove("hide");
+  $("drop").classList.add("hide");
+  $("selAll").disabled = false;
+  drawWave();
+  say(`${name} — ${fmt(buf.duration)}, ${buf.numberOfChannels === 1 ? "mono" : buf.numberOfChannels + " ch"}, ${buf.sampleRate} Hz.`, "good");
+  refreshButtons();
+}
+
+$("selAll").onclick = () => { if (dryBuf) { sel = { a: 0, b: dryBuf.length }; drawWave(); refreshButtons(); } };
+
+// ------------------------------------------------------------------ waveform
+
+let peaks = null;
+function buildPeaks(buf, width) {
+  const step = Math.max(1, Math.floor(buf.length / width));
+  const out = [];
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c), mins = new Float32Array(width), maxs = new Float32Array(width);
+    for (let x = 0; x < width; x++) {
+      let lo = 0, hi = 0;
+      const from = x * step, to = Math.min(buf.length, from + step);
+      for (let i = from; i < to; i++) { const v = d[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      mins[x] = lo; maxs[x] = hi;
+    }
+    out.push({ mins, maxs });
+  }
+  return out;
+}
+
+function drawWave() {
+  const cv = $("wave");
+  if (!dryBuf) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(200, Math.floor(cv.clientWidth)), h = 170;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+
+  // the selection band first, so the trace sits on top of it
+  const x1 = (sel.a / dryBuf.length) * w, x2 = (sel.b / dryBuf.length) * w;
+  g.fillStyle = "rgba(139,108,245,.16)";
+  g.fillRect(Math.min(x1, x2), 0, Math.abs(x2 - x1), h);
+
+  const show = wetBuf || dryBuf;
+  peaks = buildPeaks(show, w);
+  const n = peaks.length;
+  for (let c = 0; c < n; c++) {
+    const top = (h / n) * c, mid = top + h / n / 2, amp = (h / n / 2) * 0.92;
+    g.strokeStyle = wetBuf ? "rgba(138,224,75,.75)" : "rgba(139,108,245,.75)";
+    g.beginPath();
+    for (let x = 0; x < w; x++) {
+      g.moveTo(x + 0.5, mid - peaks[c].maxs[x] * amp);
+      g.lineTo(x + 0.5, mid - peaks[c].mins[x] * amp);
+    }
+    g.stroke();
+    g.strokeStyle = "rgba(255,255,255,.08)";
+    g.beginPath(); g.moveTo(0, mid); g.lineTo(w, mid); g.stroke();
+  }
+  if (playing != null) {
+    const px = (playing / show.length) * w;
+    g.strokeStyle = "rgba(255,255,255,.8)";
+    g.beginPath(); g.moveTo(px, 0); g.lineTo(px, h); g.stroke();
+  }
+  const secs = (sel.b - sel.a) / dryBuf.sampleRate;
+  $("sel").textContent = `selection ${fmt(secs)} of ${fmt(dryBuf.duration)}` +
+    (wetBuf ? " · showing the render" : "");
+}
+
+(function selectable() {
+  const cv = $("wave");
+  let dragging = false, anchor = 0;
+  const at = (e) => {
+    const r = cv.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    return Math.max(0, Math.min(dryBuf.length, Math.round((x / r.width) * dryBuf.length)));
+  };
+  const down = (e) => {
+    if (!dryBuf) return;
+    e.preventDefault();
+    dragging = true; anchor = at(e); sel = { a: anchor, b: anchor }; drawWave();
+  };
+  const move = (e) => {
+    if (!dragging || !dryBuf) return;
+    const p = at(e);
+    sel = { a: Math.min(anchor, p), b: Math.max(anchor, p) };
+    drawWave();
+  };
+  const up = () => {
+    if (!dragging) return;
+    dragging = false;
+    // A click rather than a drag means "all of it", not an empty selection.
+    if (sel.b - sel.a < (dryBuf.sampleRate / 100)) sel = { a: 0, b: dryBuf.length };
+    drawWave(); refreshButtons();
+    if ($("live").checked && current) liveRender();
+  };
+  cv.addEventListener("mousedown", down);
+  cv.addEventListener("touchstart", down, { passive: false });
+  window.addEventListener("mousemove", move);
+  window.addEventListener("touchmove", move, { passive: false });
+  window.addEventListener("mouseup", up);
+  window.addEventListener("touchend", up);
+})();
+
+window.addEventListener("resize", () => dryBuf && drawWave());
+
+// ------------------------------------------------------------- the wire format
+
+function buildRequest({ id, rate, channels, frames, params, notes, chans }) {
+  const idBytes = new TextEncoder().encode(id);
+  // Round the id up to a multiple of 4. Everything after it is read as 4- or
+  // 8-byte numbers, and a Float32Array simply refuses an unaligned offset.
+  const idPad = (idBytes.length + 3) & ~3;
+  const audioBytes = channels * frames * 4;
+  const size = 28 + idPad + params.length * 12 + notes.length * 20 + audioBytes;
+  const buf = new ArrayBuffer(size);
+  const dv = new DataView(buf);
+  dv.setUint32(0, MAGIC, true);
+  dv.setUint32(4, rate, true);
+  dv.setUint32(8, channels, true);
+  dv.setUint32(12, frames, true);
+  dv.setUint32(16, params.length, true);
+  dv.setUint32(20, notes.length, true);
+  dv.setUint32(24, idBytes.length, true);
+  let at = 28;
+  new Uint8Array(buf, at, idBytes.length).set(idBytes); at += idPad;
+  for (const p of params) { dv.setUint32(at, p.id, true); dv.setFloat64(at + 4, p.value, true); at += 12; }
+  for (const n of notes) {
+    dv.setUint32(at, n.start, true); dv.setUint32(at + 4, n.length, true);
+    dv.setInt16(at + 8, n.key, true); dv.setInt16(at + 10, 0, true);
+    dv.setFloat64(at + 12, n.velocity, true); at += 20;
+  }
+  // Planar, one channel after another, which is what CLAP hands a plugin anyway.
+  // A Float32Array write is little-endian on every machine a browser runs on,
+  // and host.c reads it the same way.
+  for (let c = 0; c < channels; c++)
+    new Float32Array(buf, at + c * frames * 4, frames).set(chans[c]);
+  return buf;
+}
+
+function parseReply(ab, rate) {
+  const dv = new DataView(ab);
+  if (dv.getUint32(0, true) !== MAGIC) throw new Error("the reply was not a render");
+  const channels = dv.getUint32(4, true), frames = dv.getUint32(8, true);
+  const out = audio().createBuffer(Math.max(1, channels), Math.max(1, frames), rate);
+  for (let c = 0; c < channels; c++)
+    out.copyToChannel(new Float32Array(ab, 16 + c * frames * 4, frames), c);
+  return out;
+}
+
+// -------------------------------------------------------------------- render
+
+async function doRender(opts = {}) {
+  if (!current || !info) { say("Pick a plugin first."); return null; }
+  const rate = Math.round(audio().sampleRate);
+  const params = [...values.entries()].map(([id, value]) => ({ id, value }));
+  let channels = 0, frames = 0, chans = [], notes = opts.notes || [];
+
+  if (info.inputChannels === 0) {
+    frames = opts.frames || Math.round(rate * 2);
+  } else {
+    if (!dryBuf) { say("Load a sound first, or try the test tone."); return null; }
+    const a = Math.min(sel.a, sel.b), b = Math.max(sel.a, sel.b);
+    frames = Math.max(1, b - a);
+    channels = dryBuf.numberOfChannels;
+    for (let c = 0; c < channels; c++) chans.push(dryBuf.getChannelData(c).subarray(a, b));
+  }
+  if (frames / rate > 600) { say("That is over ten minutes. Select a shorter region.", "err"); return null; }
+
+  const seq = ++renderSeq;
+  pending++;
+  $("bar").style.width = "35%";
+  try {
+    const body = buildRequest({ id: current.id, rate, channels, frames, params, notes, chans });
+    const r = await api("/api/render", {
+      method: "POST", headers: { "content-type": "application/octet-stream" }, body });
+    const ab = await r.arrayBuffer();
+    // A slider moved three times while the first render was in flight: only the
+    // newest answer is the one worth keeping.
+    if (seq !== renderSeq) return null;
+    const buf = parseReply(ab, rate);
+    $("bar").style.width = "100%";
+    setTimeout(() => ($("bar").style.width = "0"), 350);
+    return buf;
+  } catch (e) {
+    $("bar").style.width = "0";
+    say(current.name + ": " + e.message, "err");
+    return null;
+  } finally {
+    pending--;
+  }
+}
+
+$("render").onclick = async () => {
+  const t0 = performance.now();
+  const buf = await doRender();
+  if (!buf) return;
+  wetBuf = buf;
+  drawWave();
+  refreshButtons();
+  const secs = buf.length / buf.sampleRate;
+  say(`Rendered ${fmt(secs)} through ${current.name} in ${Math.round(performance.now() - t0)} ms` +
+      ` — ${(secs / ((performance.now() - t0) / 1000)).toFixed(0)}x real time.`, "good");
+  play(wetBuf);
+};
+
+let liveTimer = null;
+function liveRender() {
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(async () => {
+    const wasPlaying = playing != null;
+    const buf = await doRender();
+    if (!buf) return;
+    wetBuf = buf;
+    drawWave();
+    refreshButtons();
+    if (wasPlaying) play(wetBuf);
+  }, 140);
+}
+
+async function renderNote(key) {
+  const rate = Math.round(audio().sampleRate);
+  const hold = Math.max(0.05, Number($("noteLen").value) || 1);
+  const tail = Math.max(0, Number($("noteTail").value) || 0);
+  const frames = Math.round(rate * (hold + tail));
+  const buf = await doRender({
+    frames,
+    notes: [{ start: 0, length: Math.round(rate * hold), key, velocity: 0.85 }],
+  });
+  if (!buf) return;
+  wetBuf = buf;
+  dryBuf = buf;               // so the waveform has something to draw
+  sel = { a: 0, b: buf.length };
+  $("waveBox").classList.remove("hide");
+  drawWave();
+  refreshButtons();
+  play(buf);
+  say(`${current.name}: note ${key}, held ${hold}s.`, "good");
+}
+
+// ------------------------------------------------------------------ transport
+
+function play(buf) {
+  if (!buf) return;
+  stopPlay();
+  const a = audio();
+  node = a.createBufferSource();
+  node.buffer = buf;
+  node.connect(a.destination);
+  const startedAt = a.currentTime;
+  node.onended = () => { if (node) { node = null; playing = null; drawWave(); refreshButtons(); } };
+  node.start();
+  playing = 0;
+  const tick = () => {
+    if (!node) return;
+    playing = Math.min(buf.length, (a.currentTime - startedAt) * buf.sampleRate);
+    drawWave();
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  refreshButtons();
+}
+function stopPlay() {
+  if (node) { try { node.onended = null; node.stop(); } catch (e) {} node = null; }
+  playing = null;
+  refreshButtons();
+}
+$("play").onclick = () => play(wetBuf || dryBuf);
+$("stop").onclick = () => { stopPlay(); drawWave(); };
+$("dry").onclick = () => {
+  if (!dryBuf) return;
+  const a = Math.min(sel.a, sel.b), b = Math.max(sel.a, sel.b);
+  const cut = audio().createBuffer(dryBuf.numberOfChannels, Math.max(1, b - a), dryBuf.sampleRate);
+  for (let c = 0; c < dryBuf.numberOfChannels; c++)
+    cut.copyToChannel(dryBuf.getChannelData(c).subarray(a, b), c);
+  play(cut);
+};
+
+// ----------------------------------------------------------------------- WAV
+
+function wavBlob(buf, bits) {
+  const ch = buf.numberOfChannels, frames = buf.length, rate = buf.sampleRate;
+  const float = bits === 32;
+  const bytes = float ? 4 : 2;
+  const data = frames * ch * bytes;
+  const out = new ArrayBuffer(44 + data);
+  const dv = new DataView(out);
+  const str = (at, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(at + i, s.charCodeAt(i)); };
+  str(0, "RIFF"); dv.setUint32(4, 36 + data, true); str(8, "WAVE");
+  str(12, "fmt "); dv.setUint32(16, 16, true);
+  dv.setUint16(20, float ? 3 : 1, true);        // 3 = IEEE float, 1 = PCM
+  dv.setUint16(22, ch, true);
+  dv.setUint32(24, rate, true);
+  dv.setUint32(28, rate * ch * bytes, true);
+  dv.setUint16(32, ch * bytes, true);
+  dv.setUint16(34, bits, true);
+  str(36, "data"); dv.setUint32(40, data, true);
+  const chans = [];
+  for (let c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
+  let at = 44;
+  for (let i = 0; i < frames; i++)
+    for (let c = 0; c < ch; c++) {
+      const v = chans[c][i];
+      if (float) { dv.setFloat32(at, v, true); at += 4; }
+      else {
+        // Clamp before scaling: a plugin is perfectly entitled to hand back
+        // something over 1.0, and wrapping that would turn loud into broken.
+        const s = Math.max(-1, Math.min(1, v));
+        dv.setInt16(at, s < 0 ? s * 0x8000 : s * 0x7fff, true); at += 2;
+      }
+    }
+  return new Blob([out], { type: "audio/wav" });
+}
+
+$("save").onclick = () => {
+  const buf = wetBuf || dryBuf;
+  if (!buf) return;
+  const name = ((current && current.name) || "render").replace(/[^\w\-. ]+/g, "_").trim();
+  const url = URL.createObjectURL(wavBlob(buf, Number($("bits").value)));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${name}.wav`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  say(`Saved ${name}.wav. Drop it into the SP-404 converter to chop it.`, "good");
+};
+
+function refreshButtons() {
+  const haveSrc = !!dryBuf, haveWet = !!wetBuf, instrument = info && info.inputChannels === 0;
+  $("render").disabled = !current || (!haveSrc && !instrument);
+  $("play").disabled = !(haveWet || haveSrc);
+  $("stop").disabled = !node;
+  $("dry").disabled = !haveSrc;
+  $("save").disabled = !(haveWet || haveSrc);
+}
+
+$("search").oninput = drawPlugins;
+window.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if (e.code === "Space") { e.preventDefault(); node ? stopPlay() : play(wetBuf || dryBuf); }
+});
+
+boot();
+</script>
+</body>
+</html>
