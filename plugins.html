@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="/lucid.css">
+    <link rel="stylesheet" href="/stack.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugin Host — LucidSoup</title>
+    <meta name="description" content="Run your own CLAP and VST3 plugins from a browser. A small program loads the plugin on your machine and serves the page that drives it; render a selection, hear it, save a WAV. Nothing is uploaded.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif; line-height: 1.6; color: #fff;
+            background: #0a0a0a; min-height: 100vh; overflow-x: hidden;
+        }
+        a { color: var(--lucid-accent, #8b6cf5); }
+
+        .wrap { max-width: 1000px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+
+        header { text-align: center; margin-bottom: 2.5rem; }
+        @media (max-width: 640px) { header { padding-top: 1.75rem; } }
+        h1 {
+            font-family: 'Orbitron', monospace; font-weight: 900;
+            font-size: clamp(1.6rem, 5vw, 2.6rem); letter-spacing: .06em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, var(--lucid-accent-3, #d44fb0), var(--lucid-accent, #8b6cf5), var(--lucid-accent-2, #8ae04b));
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .tagline { color: rgba(255,255,255,.6); font-size: .95rem; margin-top: .75rem; }
+        .tagline strong { color: rgba(139, 108, 245,.85); font-weight: normal; }
+
+        .panel {
+            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .panel h2 {
+            font-size: .72rem; text-transform: uppercase; letter-spacing: .18em;
+            color: rgba(139, 108, 245,.75); font-weight: bold; margin-bottom: 1.1rem;
+        }
+        .panel p + p, .panel ul + p, .panel table + p { margin-top: .9rem; }
+        .panel p, .panel li { font-size: .95rem; color: rgba(255,255,255,.82); }
+        .panel ul { margin: .8rem 0 0 1.1rem; }
+        .panel li + li { margin-top: .45rem; }
+        code {
+            font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .88em;
+            color: rgba(138, 224, 75,.88);
+        }
+
+        /* ---- the catch, said first and said plainly ---- */
+        .catch {
+            border-color: rgba(212, 79, 176,.3);
+            background: linear-gradient(135deg, rgba(212, 79, 176,.07), rgba(139, 108, 245,.04));
+        }
+        .catch h2 { color: rgba(212, 79, 176,.85); }
+        .catch .big { font-size: 1.08rem; color: #fff; }
+
+        /* ---- commands ---- */
+        .cmd {
+            position: relative; margin-top: 1rem; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.45);
+            padding: 1rem 3.4rem 1rem 1.1rem; overflow-x: auto;
+        }
+        .cmd pre {
+            font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86rem;
+            line-height: 1.75; color: rgba(255,255,255,.9); white-space: pre;
+        }
+        .cmd .p { color: rgba(255,255,255,.35); user-select: none; }
+        .copy {
+            position: absolute; top: .6rem; right: .6rem; cursor: pointer;
+            font: inherit; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+            color: rgba(255,255,255,.55); background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: .3rem .55rem;
+        }
+        .copy:hover { color: #fff; border-color: rgba(139, 108, 245,.6); }
+
+        .open {
+            display: inline-block; margin-top: 1.1rem; padding: .7rem 1.3rem;
+            border-radius: 10px; text-decoration: none; font-weight: bold; font-size: .95rem;
+            color: #fff; border: 1px solid rgba(139, 108, 245,.6);
+            background: linear-gradient(135deg, rgba(139, 108, 245,.22), rgba(212, 79, 176,.14));
+        }
+        .open:hover { border-color: rgba(139, 108, 245,.95); }
+        .after { font-size: .82rem; color: rgba(255,255,255,.45); margin-top: .6rem; }
+
+        /* ---- the screenshot ---- */
+        figure { margin: 0; }
+        figure img {
+            display: block; width: 100%; height: auto; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.1);
+        }
+        figcaption { font-size: .8rem; color: rgba(255,255,255,.45); margin-top: .7rem; }
+
+        /* ---- formats ---- */
+        table { width: 100%; border-collapse: collapse; margin-top: .4rem; }
+        th, td { text-align: left; padding: .65rem .6rem; vertical-align: top; font-size: .9rem; }
+        th { font-size: .68rem; text-transform: uppercase; letter-spacing: .12em;
+             color: rgba(255,255,255,.4); font-weight: bold; }
+        tbody tr { border-top: 1px solid rgba(255,255,255,.07); }
+        td:first-child { white-space: nowrap; font-weight: bold; }
+        .yes { color: rgba(138, 224, 75,.9); }
+        .no  { color: rgba(255,255,255,.4); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>Plugin Host</h1>
+        <p class="tagline">
+            Your own CLAP and VST3 plugins, loaded on your machine and played in your browser.
+            Render a selection, move the knobs, keep the WAV.
+            <strong>Nothing is uploaded anywhere</strong>.
+        </p>
+    </header>
+
+    <div class="panel catch">
+        <h2>Read this first</h2>
+        <p class="big">
+            A browser cannot load a <code>.clap</code>, a <code>.vst3</code> or a
+            <code>.component</code>.
+        </p>
+        <p>
+            Those are native shared libraries. No browser has an API that will open one, there is no
+            flag for it, and there is no clever way round it &mdash; the sandbox exists precisely to
+            stop a web page running native code off your disk. Anything claiming to run your plugin
+            collection <em>inside</em> a tab is either running something else entirely, or has a
+            local program doing the real work and is not telling you.
+        </p>
+        <p>
+            So this page is not the thing. <strong>pluginhost</strong> is: a small program you run on
+            your own machine. It opens the plugin, and it serves the page that drives it. It is under
+            sixty kilobytes, it talks to nothing but your browser, and it is about two thousand lines
+            of C you could read in an afternoon.
+        </p>
+    </div>
+
+    <div class="panel">
+        <h2>Run it</h2>
+        <p>
+            You need a C compiler, <code>make</code> and <code>git</code> &mdash; on a Mac that means
+            Xcode's command line tools, which you probably already have.
+        </p>
+        <div class="cmd">
+            <button class="copy" data-copy="git clone https://github.com/lucidsoup/lucidsoup.github.io.git
+cd lucidsoup.github.io/pluginhost
+make
+./pluginhost">copy</button>
+<pre><span class="p">$</span> git clone https://github.com/lucidsoup/lucidsoup.github.io.git
+<span class="p">$</span> cd lucidsoup.github.io/pluginhost
+<span class="p">$</span> make
+<span class="p">$</span> ./pluginhost</pre>
+        </div>
+        <p class="after">
+            <code>make</code> fetches two sets of plugin headers &mdash; CLAP's, which are MIT, and
+            Steinberg's C binding for VST3, which is BSD &mdash; and builds one binary. Nothing else
+            is downloaded and nothing is installed.
+        </p>
+        <p style="margin-top:1.2rem">
+            It prints an address and opens it. If it did not, or you closed the tab:
+        </p>
+        <a class="open" href="http://127.0.0.1:7777/">Open pluginhost &rarr;</a>
+        <p class="after">
+            That only works while the program is running on this computer, and you will get a
+            connection error otherwise. It is deliberately not reachable from anywhere else.
+        </p>
+    </div>
+
+    <div class="panel">
+        <h2>What it looks like</h2>
+        <figure>
+            <img src="/pluginhost/doc/pluginhost.png" width="1400" height="1406" loading="lazy"
+                 alt="The pluginhost page: a list of three plugins with their formats, a stereo waveform of a frequency sweep, two parameter sliders, and a status line reading 'Rendered 3.00s through Gainvst in 379 ms — 8x real time'.">
+            <figcaption>
+                Running against two test plugins written to be measured rather than listened to.
+                Yours appear the same way.
+            </figcaption>
+        </figure>
+    </div>
+
+    <div class="panel">
+        <h2>How it works</h2>
+        <p>
+            Pick a plugin, drop a sound on it, and drag across the waveform to choose a region. The
+            plugin's own parameters appear as sliders &mdash; its names, its ranges, its readouts,
+            not a guess at them. Move one and the selection re-renders in about a tenth of a second.
+        </p>
+        <p>
+            It renders rather than streams, which is a choice and not a shortcut. A plugin runs far
+            faster than real time, so a passage comes back in a fraction of its own length, and what
+            you keep at the end is a <strong>WAV</strong> rather than a performance you had to sit
+            through and capture. Save it and drop it straight into the
+            <a href="/sp404.html">SP-404 converter</a> to chop.
+        </p>
+        <p>
+            Two things it gets right that are easy to get wrong: a plugin that reports latency has it
+            compensated, so what comes back lines up with what went in instead of being quietly
+            shifted; and parameters are settled against silence before the audio starts, so a value
+            lands where you put it instead of gliding up to it over the first few milliseconds.
+        </p>
+    </div>
+
+    <div class="panel">
+        <h2>Which plugins</h2>
+        <table>
+            <thead>
+                <tr><th>Format</th><th>Works</th><th></th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>CLAP</td>
+                    <td class="yes">Yes</td>
+                    <td>A plain C interface in MIT headers, with no SDK and no licence to agree to.
+                        It was first for that reason, not because it is the most common.</td>
+                </tr>
+                <tr>
+                    <td>VST3</td>
+                    <td class="yes">Yes</td>
+                    <td>Easier than its reputation: the main SDK is C++ and dual-licensed, but
+                        Steinberg also publish a single BSD-licensed header describing the same
+                        interface in C, which is what this is built against.</td>
+                </tr>
+                <tr>
+                    <td>AU</td>
+                    <td class="no">Not yet</td>
+                    <td>macOS only, and it cannot be built or tested anywhere but a Mac &mdash; so it
+                        has to be done on the machine it runs on rather than guessed at.</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>
+            It looks where each format is normally kept &mdash; <code>~/.clap</code> and
+            <code>~/.vst3</code> on Linux, <code>~/Library/Audio/Plug-Ins/</code> on a Mac &mdash; and
+            anywhere else you point it with <code>--scan</code>. Plenty of plugins now ship a CLAP
+            build alongside their VST3, so it is worth checking what you already own.
+        </p>
+    </div>
+
+    <div class="panel">
+        <h2>Is it safe to run</h2>
+        <p>
+            It loads native code from your own disk, which is exactly what any DAW does. The care
+            taken is proportionate to that:
+        </p>
+        <ul>
+            <li>It listens on <code>127.0.0.1</code> only, and there is no flag to change it.</li>
+            <li>Every call needs a token, freshly made each time it starts and written into the page
+                as it is served &mdash; so it never reaches the address bar, your history, or a
+                referer header.</li>
+            <li>A request from another website is refused, so a page you have open elsewhere cannot
+                drive it even knowing the port.</li>
+            <li>It keeps nothing between requests and writes nothing to disk.</li>
+        </ul>
+        <p>
+            There is also a reason the address is <code>127.0.0.1</code> and not this site. Safari
+            will not let an <code>https://</code> page reach a local program at all, and Chrome began
+            asking permission before it would. Serving the page from the program that answers it
+            sidesteps both, and behaves the same in every browser.
+        </p>
+    </div>
+
+    <div class="panel">
+        <h2>The source</h2>
+        <p>
+            Four files of C and one page, in
+            <a href="https://github.com/lucidsoup/lucidsoup.github.io/tree/main/pluginhost">pluginhost/</a>.
+            It is tested against two plugins written to be measured: both compute a known result and
+            declare a known latency, so a correct host hands back the input sample for sample. That
+            is what the test suite checks, rather than whether the output merely sounds plausible.
+        </p>
+    </div>
+</div>
+
+<script>
+// Copy buttons. The clipboard API needs a secure context, which this page has;
+// if it is ever refused, say so rather than appearing to have worked.
+document.querySelectorAll('.copy').forEach(function (b) {
+    b.addEventListener('click', function () {
+        var text = b.getAttribute('data-copy');
+        var done = function (msg) {
+            var was = b.textContent;
+            b.textContent = msg;
+            setTimeout(function () { b.textContent = was; }, 1400);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () { done('copied'); },
+                                                     function () { done('select it'); });
+        } else {
+            done('select it');
+        }
+    });
+});
+</script>
+<script src="/lucid.js" defer></script>
+<script src="/stack.js" defer></script>
+</body>
+</html>

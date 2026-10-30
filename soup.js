@@ -71,9 +71,10 @@
         { id: 'synthsoup',      label: 'SynthSoup',  sub: 'synth · firmware', hash: 'synthsoup', shape: 'eye', d: 92, ring: 0, a: .67 },
 
         { id: 'drumseek',       label: 'DrumSeek',   sub: 'sequencer',     hash: 'drumseek',       shape: 'grid',   d: 74, ring: 1, a: .09 },
-        { id: 'sp404',          label: 'SP-404',     sub: 'converter',     href: 'sp404.html',     shape: 'cube',   d: 74, ring: 1, a: .34 },
-        { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'ring',   d: 70, ring: 1, a: .59 },
-        { id: 'shop',           label: 'Shop',       sub: 'prints',        hash: 'shop',           shape: 'noodle', d: 70, ring: 1, a: .84 },
+        { id: 'sp404',          label: 'SP-404',     sub: 'converter',     href: 'sp404.html',     shape: 'cube',   d: 74, ring: 1, a: .29 },
+        { id: 'plugins',        label: 'Plugins',    sub: 'clap · vst3',   href: 'plugins.html',   shape: 'faders', d: 72, ring: 1, a: .49 },
+        { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'ring',   d: 70, ring: 1, a: .69 },
+        { id: 'shop',           label: 'Shop',       sub: 'prints',        hash: 'shop',           shape: 'noodle', d: 70, ring: 1, a: .89 },
 
         { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'spiral', d: 74, ring: 2, a: .17 },
         { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'star', d: 58, ring: 2, a: .42 },
@@ -137,6 +138,15 @@
         star: function () {
             return svg('<path d="M50 8l10 24 26-6-16 21 16 21-26-6-10 24-10-24-26 6 16-21-16-21 26 6z" ' +
                 'fill="#2a0a28" opacity=".8"/>', 'linear-gradient(145deg,#ffe36f,#d44fb0)');
+        },
+        faders: function () {
+            return svg('<g stroke="#140a24" stroke-width="7" stroke-linecap="round" opacity=".55">' +
+                '<path d="M30 20v60M50 20v60M70 20v60"/></g>' +
+                '<g fill="#fdf6ff">' +
+                '<rect x="20" y="52" width="20" height="9" rx="4.5"/>' +
+                '<rect x="40" y="30" width="20" height="9" rx="4.5"/>' +
+                '<rect x="60" y="62" width="20" height="9" rx="4.5"/></g>',
+                'linear-gradient(145deg,#c0a0ff,#5a32b8)');
         },
         pea: function () {
             return svg('<circle cx="35" cy="42" r="19" fill="#6fbd3a"/><circle cx="63" cy="38" r="15" fill="#8ae04b"/>' +
