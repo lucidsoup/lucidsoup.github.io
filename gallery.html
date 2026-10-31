@@ -223,7 +223,10 @@
     #fx.folded .fx-row:not(.always) { display: none; }
 
     @media (max-width: 640px) {
-        #fx { top: auto; bottom: 108px; left: 10px; right: 10px; }
+        /* 108px was the height of one row of exit chips. A room with five exits
+           wraps them to two rows on a phone and the alter controls landed on
+           top of them, so take the measured height instead (paintHUD writes it). */
+        #fx { top: auto; bottom: calc(var(--hud-h, 108px) + 8px); left: 10px; right: 10px; }
         .fx-row { flex-wrap: wrap; }
         .fx-btn { font-size: 9px; padding: 7px; min-width: 34px; }
     }
@@ -328,12 +331,23 @@
     #leave:hover { color: var(--ink); border-color: rgba(255,255,255,.45); }
 
     #hint {
-        position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%);
+        position: fixed; left: 50%; bottom: calc(var(--hud-h, 64px) + 12px);
+        transform: translateX(-50%);
         z-index: 50; color: var(--dim); font-size: 11px; letter-spacing: .14em;
         pointer-events: none; opacity: 1; transition: opacity .6s ease;
         text-align: center; white-space: nowrap;
     }
     #hint.gone { opacity: 0; }
+    /* One line of four clauses is 773px wide. On a 390px phone it ran off both
+       edges and straight through the exit chips, so it read as damage rather
+       than as help. Let it wrap, and sit it above everything else down there. */
+    @media (max-width: 820px) {
+        #hint {
+            left: 12px; right: 12px; transform: none; white-space: normal;
+            line-height: 1.7; letter-spacing: .1em;
+            bottom: calc(var(--hud-h, 64px) + var(--fx-h, 0px) + 16px);
+        }
+    }
 
     /* ===== lightbox for a full piece ===== */
     #lb { position: fixed; inset: 0; background: rgba(0,0,0,.96); z-index: 60;
@@ -1605,6 +1619,40 @@ function paintHUD(room, surfaces) {
     leave.textContent = 'the soup';
     leave.addEventListener('click', function () { window.location.href = 'index.html'; });
     hudBottom.appendChild(leave);
+
+    measureHUD();
+}
+
+/* Three fixed layers share the bottom of the screen: the exit chips, the alter
+   row, and the hint. Each was placed as though the other two were a fixed
+   height. They are not — the chips wrap once a room has more than three exits,
+   and the alter row wraps too — so on a phone the three of them were drawn on
+   top of one another. Publish what they actually measure and let the CSS stack
+   them. Nothing below reads a variable that changes its own height, so this
+   settles in one pass. */
+var measureRaf = 0;
+function measureHUD() {
+    if (measureRaf) return;
+    measureRaf = requestAnimationFrame(function () {
+        measureRaf = 0;
+        // Not named fx: that is the filter state object, and shadowing it here
+        // is a trap for whoever edits this next.
+        var alterEl = document.getElementById('fx');
+        var st = document.documentElement.style;
+        st.setProperty('--hud-h', Math.round(hudBottom.offsetHeight) + 'px');
+        // On a wide screen the alter controls are up the left-hand side and are
+        // not part of the pile at the bottom, so they take no room in it.
+        var stacked = window.matchMedia('(max-width: 640px)').matches;
+        st.setProperty('--fx-h', (stacked && alterEl ? Math.round(alterEl.offsetHeight) : 0) + 'px');
+    });
+}
+window.addEventListener('resize', measureHUD);
+window.addEventListener('orientationchange', measureHUD);
+if (window.ResizeObserver) {
+    var hudRO = new ResizeObserver(measureHUD);
+    hudRO.observe(hudBottom);
+    var alterBox = document.getElementById('fx');
+    if (alterBox) hudRO.observe(alterBox);
 }
 
 /* ========================= manipulation =========================

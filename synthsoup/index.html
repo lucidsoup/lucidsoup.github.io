@@ -31,7 +31,12 @@ body::before { content: ""; position: fixed; inset: -20vmax; z-index: -1; pointe
 @keyframes swirl { to { transform: rotate(360deg); filter: blur(60px) hue-rotate(360deg); } }
 main { max-width: 1040px; margin: 0 auto; padding-block: 32px 48px;
        padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-       display: grid; gap: 64px; }
+       display: grid; gap: 64px;
+       /* splat.js paints the boxes as liquid splatters that break their edges on
+          purpose. On a 320px phone one reached 2px past the viewport and gave
+          the whole page a horizontal scrollbar. `clip` stops the scroll without
+          making a scroll container, and the margin keeps the bleed paintable. */
+       overflow-x: clip; overflow-clip-margin: 24px; }
 a { color: var(--fg); text-decoration-color: var(--neon); text-underline-offset: 3px; }
 a:focus-visible, button:focus-visible { outline: 3px solid var(--acid); outline-offset: 3px; }
 h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; }

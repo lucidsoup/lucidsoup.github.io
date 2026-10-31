@@ -20,7 +20,8 @@
         .wrap { max-width: 1000px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
 
         header { text-align: center; margin-bottom: 2.5rem; }
-        @media (max-width: 640px) { header { padding-top: 1.75rem; } }
+        /* clear the fixed way-back and index chips, whose height lucid.css states */
+        @media (max-width: 640px) { header { padding-top: var(--lucid-chrome-clear, 41px); } }
         h1 {
             font-family: 'Orbitron', monospace; font-weight: 900;
             font-size: clamp(1.6rem, 5vw, 2.6rem); letter-spacing: .06em;

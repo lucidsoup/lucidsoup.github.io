@@ -46,6 +46,14 @@ input[type="range"] { accent-color: var(--accent); width: 100%; }
   display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
   padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
   position: sticky; top: 0; z-index: 2;
+  /* The way back and the index are fixed in the top right corner of every page
+     on the site. This bar is sticky, so it sits under them forever rather than
+     scrolling clear: keep that corner empty. Reserving width works while the
+     bar is wide; on a phone there is none to spare, so give them a row. */
+  padding-right: 212px;
+}
+@media (max-width: 640px) {
+  .top { padding-right: 16px; padding-top: calc(14px + var(--lucid-chrome-clear, 41px)); }
 }
 .connect { display: flex; flex-wrap: wrap; gap: 8px; }
 .status { margin: 2px 0 0; font-size: 13px; color: var(--muted); }

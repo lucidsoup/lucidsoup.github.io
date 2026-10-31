@@ -20,8 +20,8 @@
         .wrap { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
 
         header { text-align: center; margin-bottom: 2.5rem; }
-        /* clear the fixed way-back link on a phone, where the title spans the width */
-        @media (max-width: 640px) { header { padding-top: 1.75rem; } }
+        /* clear the fixed way-back and index chips, whose height lucid.css states */
+        @media (max-width: 640px) { header { padding-top: var(--lucid-chrome-clear, 41px); } }
         .back { display: inline-block; font-size: .75rem; letter-spacing: .15em;
                 text-transform: uppercase; color: rgba(255,255,255,.5);
                 text-decoration: none; margin-bottom: 1.5rem; }
