@@ -36,6 +36,11 @@ body::before { content: ""; position: fixed; inset: -20vmax; z-index: -1; pointe
 main { max-width: 1040px; margin: 0 auto; padding-block: 24px 40px;
        padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 24px; margin-bottom: 16px; }
+/* The wordmark is set in a display face at 40px and the chrome in the corner is
+   about 180px wide; below roughly 470px there is no width where both fit on one
+   line, and the two were being drawn on top of each other. Give the chrome its
+   own band rather than shrinking the one thing on the page that names it. */
+@media (max-width: 640px) { header.top { padding-top: var(--lucid-chrome-clear, 41px); } }
 .wordmark { margin: 0; font: 400 clamp(40px, 7vw, 64px)/1 var(--display); letter-spacing: .01em;
   background: linear-gradient(90deg, #ff4fd8, #ff9a3c, #ffe24f, #9dff4f, #4fe0ff, #8a6cff, #ff4fd8); background-size: 200% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent; animation: flow 12s linear infinite; }

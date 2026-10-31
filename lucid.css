@@ -54,6 +54,13 @@
     /* Rhythm */
     --lucid-radius:    3px;
     --lucid-track:     .18em;     /* the letter-spacing used on small caps */
+
+    /* How far down the page has to start to clear the fixed chrome in the
+       corner. Every page that draws a title across the full width needs this
+       number, and every page had been guessing at it separately — which is how
+       the SynthSoup wordmark ended up underneath the index button. One number,
+       stated where the chrome itself is defined, so it cannot drift. */
+    --lucid-chrome-clear: 48px;   /* 12 top + 27 tall + 9 of air */
 }
 
 /* ===== the way back =====
@@ -101,6 +108,7 @@
     border-radius: 0 0 50% 50% / 0 0 100% 100%;
 }
 @media (max-width: 640px) {
+    :root { --lucid-chrome-clear: 41px; }   /* 8 top + 25 tall + 8 of air */
     .lucid-return { font-size: 9px; padding: 7px 10px; top: 8px; right: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -50,6 +50,13 @@
             transition: opacity 0.2s ease;
         }
 
+        /* The bar is fixed, so anything that scrolls to y=0 lands underneath it.
+           Its height is three different numbers across the breakpoints below;
+           stated once here so the rules that have to clear it can say so
+           instead of each picking a number and being wrong on two thirds of
+           the screens. Measured, not guessed: 72 / 56 / 58. */
+        :root { --nav-h: 72px; }
+        html { scroll-padding-top: var(--nav-h); }
         nav { position: fixed; top: 0; width: 100%; padding: 1rem clamp(.75rem, 3vw, 2rem); background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); z-index: 1000; transition: background .3s ease; }
         /* Gap scales with the viewport: at a fixed 2rem the eight links wrapped
            to a second row between about 770 and 960px. */
@@ -106,6 +113,12 @@
             transition: background .2s, border-color .2s;
         }
         .back-to-gallery:hover { background: rgba(139, 108, 245,.14); border-color: rgba(139, 108, 245,.8); }
+        /* A focused section is the only thing on the page and starts at the very
+           top, under the bar. On a phone its 3rem of padding is less than the
+           bar is tall, so eighteen pixels of every heading on this site — every
+           link in the bowl and every line of the menu — was hidden behind it. */
+        body.focused section { padding-top: calc(var(--nav-h) + 16px); }
+
         /* The back link is fixed to the bottom, so a focused section needs room
            underneath it or the link sits on top of the last control. */
         body.focused { padding-bottom: 76px; }
@@ -174,9 +187,75 @@
             background: transparent;
         }
 
-        .about { background: rgba(255,255,255,.02); border-radius: 20px; padding: 3rem; text-align: center; margin: 3rem 0; }
-        .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 800px; margin: 0 auto 2rem; }
-        .skills { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
+        /* ===== about =====
+           This section has one job: somebody who landed here cold should know
+           who made this and what they can be hired for inside ten seconds.
+           So the shape is plain — a lead, four cards, a list of materials —
+           and the flair is in the lit edge of each card and the two-digit
+           address on it, which is the same mark the gallery puts on its exits
+           and the Stack puts on its plates. Decoration that agrees with the
+           rest of the site reads as one hand; decoration that doesn't reads as
+           a template. */
+        .about { background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.06); border-radius: 20px; padding: 3rem; margin: 3rem auto 0; max-width: 1060px; }
+        .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 62ch; margin: 0 auto 1.1rem; text-align: center; }
+        .about p.quiet { font-size: 1rem; color: rgba(255,255,255,.58); margin-bottom: 0; }
+        .about p strong { color: #fff; font-weight: 400; }
+
+        .doing { counter-reset: doing; display: grid; grid-template-columns: repeat(auto-fit, minmax(226px, 1fr)); gap: 1rem; margin-top: 2.75rem; }
+        .doing-card {
+            counter-increment: doing; position: relative; overflow: hidden;
+            /* a column so the tools line can be pushed to the floor of the card
+               and the four of them line up however long the prose runs */
+            display: flex; flex-direction: column;
+            padding: 1.5rem 1.3rem 1.35rem;
+            background: rgba(255,255,255,.025);
+            border: 1px solid rgba(255,255,255,.09); border-radius: 14px;
+            transition: border-color .35s ease, background .35s ease, transform .35s ease;
+        }
+        /* The lit edge. One hairline, the card's own hue, brightest in the
+           middle — the same gradient the page titles are filled with. */
+        .doing-card::before {
+            content: ''; position: absolute; inset: 0 0 auto; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--edge), transparent);
+            opacity: .6; transition: opacity .35s ease;
+        }
+        .doing-card::after {
+            content: counter(doing, decimal-leading-zero);
+            position: absolute; top: 1.15rem; right: 1.2rem;
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .62rem; letter-spacing: .1em; color: var(--edge); opacity: .5;
+        }
+        .doing-card:hover, .doing-card:focus-within {
+            border-color: color-mix(in srgb, var(--edge) 42%, transparent);
+            background: rgba(255,255,255,.045);
+            transform: translateY(-3px);
+        }
+        .doing-card:hover::before, .doing-card:focus-within::before { opacity: 1; }
+        .doing-card:nth-child(4n+1) { --edge: var(--lucid-accent,   #9b7bff); }
+        .doing-card:nth-child(4n+2) { --edge: var(--lucid-accent-3, #d44fb0); }
+        .doing-card:nth-child(4n+3) { --edge: var(--lucid-accent-2, #8ae04b); }
+        .doing-card:nth-child(4n+4) { --edge: var(--lucid-focal,    #6fe3e8); }
+        .doing-card h3 {
+            font-size: .72rem; font-weight: 400; letter-spacing: .2em; text-transform: uppercase;
+            color: var(--edge); margin: 0 0 .7rem; padding-right: 2rem;
+        }
+        .doing-card p { font-size: .9rem; line-height: 1.62; color: rgba(255,255,255,.68); margin: 0 0 .85rem; max-width: none; text-align: left; }
+        .doing-card .with {
+            display: block; margin-top: auto; padding-top: .7rem;
+            border-top: 1px solid rgba(255,255,255,.07);
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .68rem; letter-spacing: .04em; color: rgba(255,255,255,.4);
+        }
+
+        /* The materials, named rather than branded: a row per kind so the list
+           can be read instead of only counted. */
+        .materials { margin: 2.5rem 0 0; display: grid; gap: .75rem; }
+        .mat { display: flex; flex-wrap: wrap; align-items: baseline; gap: .55rem; margin: 0; }
+        .mat dt {
+            flex: 0 0 7.5rem; font-size: .64rem; letter-spacing: .2em; text-transform: uppercase;
+            color: rgba(255,255,255,.34); padding-top: .35rem;
+        }
+        .skills { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 14rem; margin: 0; }
 
         /* ===== SHOP ===== */
         .shop-grid {
@@ -469,12 +548,74 @@
             -webkit-overflow-scrolling: touch;
         }
         .shader-card.src-open .shader-card-src { display: block; }
-        .skill { padding: .8rem 1.5rem; background: linear-gradient(45deg, rgba(139, 108, 245,.1), rgba(212, 79, 176,.1)); border-radius: 25px; border: 1px solid rgba(255,255,255,.1); color: #fff; font-weight: 400; }
+        .skill {
+            padding: .4rem .8rem; border-radius: 20px;
+            background: linear-gradient(45deg, rgba(139, 108, 245,.1), rgba(212, 79, 176,.1));
+            border: 1px solid rgba(255,255,255,.1);
+            color: rgba(255,255,255,.82); font-size: .82rem; font-weight: 400; line-height: 1.4;
+        }
 
         .contact { text-align: center; background: linear-gradient(45deg, rgba(139, 108, 245,.05), rgba(212, 79, 176,.05)); border-radius: 20px; padding: 3rem; }
         .contact-links { display: flex; justify-content: center; gap: 2rem; margin-top: 2rem; }
         .contact-link { padding: 1rem 2rem; background: rgba(255,255,255,.1); border-radius: 30px; color: #fff; text-decoration: none; transition: all .3s ease; border: 1px solid rgba(255,255,255,.2); }
         .contact-link:hover { background: rgba(139, 108, 245,.2); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(139, 108, 245,.2); }
+
+        /* ===== contact =====
+           The address itself is the control, at the size of a thing meant to be
+           tapped, with the subject line already written. Under it, the four
+           things that turn "are you free in March" into an answer rather than
+           three more emails. Everything else here is secondary and looks it. */
+        .reach {
+            display: inline-flex; align-items: center; gap: .7rem;
+            margin: 1.5rem 0 0; padding: 1rem 1.6rem;
+            border: 1px solid rgba(139, 108, 245,.45); border-radius: 30px;
+            background: linear-gradient(45deg, rgba(139, 108, 245,.16), rgba(212, 79, 176,.12));
+            color: #fff; text-decoration: none;
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: 1.02rem; letter-spacing: .02em;
+            transition: border-color .3s ease, box-shadow .3s ease, transform .3s ease;
+        }
+        .reach::before {
+            content: ''; width: 13px; height: 7px; flex: none;
+            border: 1px solid var(--lucid-accent-2, #8ae04b); border-top: 0;
+            border-radius: 0 0 50% 50% / 0 0 100% 100%;   /* the bowl, seen from the side */
+        }
+        .reach:hover, .reach:focus-visible {
+            border-color: rgba(138, 224, 75,.8); transform: translateY(-3px);
+            box-shadow: 0 10px 24px rgba(139, 108, 245,.22); outline: none;
+        }
+        .brief { margin: 2.25rem auto 0; max-width: 46rem; text-align: left; }
+        .brief > p {
+            font-size: .68rem; letter-spacing: .2em; text-transform: uppercase;
+            color: rgba(255,255,255,.34); margin: 0 0 .9rem; text-align: center;
+        }
+        .brief ol {
+            list-style: none; counter-reset: brief; margin: 0; padding: 0;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .7rem;
+        }
+        .brief li {
+            counter-increment: brief; position: relative;
+            padding: .75rem .9rem .75rem 2.5rem;
+            border: 1px solid rgba(255,255,255,.08); border-radius: 10px;
+            background: rgba(255,255,255,.02);
+            font-size: .88rem; line-height: 1.5; color: rgba(255,255,255,.72);
+        }
+        .brief li::before {
+            content: counter(brief, decimal-leading-zero);
+            position: absolute; left: .9rem; top: .82rem;
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .62rem; letter-spacing: .1em; color: rgba(155, 123, 255,.7);
+        }
+        .elsewhere {
+            margin-top: 2.25rem; padding-top: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,.07);
+        }
+        .elsewhere > p {
+            font-size: .68rem; letter-spacing: .2em; text-transform: uppercase;
+            color: rgba(255,255,255,.34); margin: 0 0 1rem;
+        }
+        .elsewhere .contact-links { margin-top: 0; gap: 1rem; }
+        .elsewhere .contact-link { padding: .7rem 1.3rem; font-size: .88rem; background: rgba(255,255,255,.055); }
 
         .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 2rem; }
         .lightbox.active { display: flex; }
@@ -760,6 +901,7 @@
             /* Tighter section spacing */
             section { padding: 3rem 1rem; }
 
+            :root { --nav-h: 56px; }
             nav { padding: .6rem 1rem; }
             nav ul { flex-direction: row; gap: .3rem; justify-content: center; }
             nav a { padding: .5rem .3rem; font-size: .82rem; letter-spacing: .2px; }
@@ -777,13 +919,25 @@
             #drumseek-frame { height: 1400px; }
 
             /* About */
-            .about { padding: 1.75rem 1.25rem; margin: 1.5rem 0; }
+            .about { padding: 1.75rem 1.25rem; margin: 1.5rem 0 0; }
             .about p { font-size: 0.95rem; line-height: 1.65; }
-            .skill { padding: .55rem 1rem; font-size: 0.85rem; }
+            .about p.quiet { font-size: 0.92rem; }
+            .doing { margin-top: 2rem; gap: .8rem; }
+            .doing-card { padding: 1.25rem 1.1rem 1.15rem; }
+            .materials { margin-top: 2rem; }
+            /* The label sits over its row rather than beside it: a 7.5rem
+               column leaves about nine characters for the chips themselves. */
+            .mat { gap: .35rem; }
+            .mat dt { flex: 1 1 100%; padding-top: 0; }
+            .skill { padding: .38rem .7rem; font-size: 0.8rem; }
 
             /* Contact */
             .contact { padding: 2rem 1.25rem; }
             .contact-link { padding: 0.85rem 1.5rem; font-size: 0.95rem; }
+            .reach { font-size: .92rem; padding: .9rem 1.2rem; max-width: 100%; }
+            .brief { margin-top: 1.75rem; }
+            .brief ol { grid-template-columns: 1fr; gap: .55rem; }
+            .elsewhere { margin-top: 1.75rem; padding-top: 1.25rem; }
 
             /* Visual controls - more compact, narrower */
             .visual-controls {
@@ -809,6 +963,7 @@
             /* With the links hidden the bar collapses to its padding, which left
                the 44px button hanging off the top of the viewport. Give it a
                height the tap target actually fits inside. */
+            :root { --nav-h: 58px; }
             nav { min-height: 58px; }
             .nav-toggle { display: flex; }
             nav ul { display: none; position: absolute; right: 1rem; top: calc(100% + 0.5rem); background: rgba(0,0,0,0.95); flex-direction: column; gap: 0; padding: .5rem; border-radius: 8px; min-width: 160px; box-shadow: 0 6px 20px rgba(0,0,0,.6); }
@@ -990,30 +1145,119 @@
             <h2>About</h2>
             <div class="about">
                 <p>
-                    LucidSoup is a creative practice focused on large-scale immersive experiences combining projection mapping, real-time graphics, and audio-reactive synthesis. Specializing in architectural projections, live concert visuals, and interactive installations that blur the line between art and technology.
+                    I'm <strong>LucidSoup</strong> &mdash; I put light on things that weren't built to carry it.
+                    Buildings, stages, gallery walls. Most of the work is <strong>real time</strong>: shaders and
+                    patches taking live audio and movement as their input, so the piece answers the room it is
+                    standing in rather than playing back something decided weeks ago.
                 </p>
-                <div class="skills">
-                    <span class="skill">Projection Mapping</span>
-                    <span class="skill">Real-Time Graphics</span>
-                    <span class="skill">Audio Reactivity</span>
-                    <span class="skill">Visual Art</span>
-                    <span class="skill">GLSL Shaders</span>
-                    <span class="skill">3D Visualization</span>
-                    <span class="skill">Interactive Design</span>
-                    <span class="skill">Live Performance</span>
+                <p class="quiet">
+                    The other half is tools. Every time a job needed something that didn't exist I wrote it, and
+                    then finished it far enough to hand to somebody else. That's most of what's floating in the
+                    bowl at the top of this page, and all of it runs on your own machine.
+                </p>
+
+                <div class="doing">
+                    <div class="doing-card">
+                        <h3>Live &amp; architectural</h3>
+                        <p>
+                            Facades, stages and rooms. Content cut for the surface it is going to land on and
+                            mapped on site, running against the set instead of beside it.
+                        </p>
+                        <span class="with">Resolume &middot; Synesthesia &middot; TouchDesigner</span>
+                    </div>
+                    <div class="doing-card">
+                        <h3>Installations</h3>
+                        <p>
+                            Pieces that move because somebody walked in, not because a timer went off. Depth
+                            cameras, MIDI and sensors driving the same real-time graphics.
+                        </p>
+                        <span class="with">TouchDesigner &middot; depth cameras &middot; MIDI</span>
+                    </div>
+                    <div class="doing-card">
+                        <h3>Instruments &amp; tools</h3>
+                        <p>
+                            Synth firmware, a plugin host, a sampler converter, a new shader every day. Everything
+                            here runs in your browser or on your own machine &mdash; no account, no upload.
+                        </p>
+                        <span class="with">C &middot; WebAssembly &middot; WebGL &middot; Web Audio</span>
+                    </div>
+                    <div class="doing-card">
+                        <h3>Objects</h3>
+                        <p>
+                            Paintings, hand-tufted rugs, 3D-printed work and prints. One of each, made to a brief
+                            or to my own, and photographed properly before it leaves.
+                        </p>
+                        <span class="with">paint &middot; tufting &middot; 3D printing</span>
+                    </div>
                 </div>
+
+                <dl class="materials">
+                    <div class="mat">
+                        <dt>Real time</dt>
+                        <dd class="skills">
+                            <span class="skill">TouchDesigner</span>
+                            <span class="skill">GLSL</span>
+                            <span class="skill">WebGL</span>
+                            <span class="skill">Resolume</span>
+                            <span class="skill">Synesthesia</span>
+                        </dd>
+                    </div>
+                    <div class="mat">
+                        <dt>Code</dt>
+                        <dd class="skills">
+                            <span class="skill">C</span>
+                            <span class="skill">WebAssembly</span>
+                            <span class="skill">JavaScript</span>
+                            <span class="skill">Web Audio</span>
+                        </dd>
+                    </div>
+                    <div class="mat">
+                        <dt>Signal</dt>
+                        <dd class="skills">
+                            <span class="skill">MIDI</span>
+                            <span class="skill">Web MIDI</span>
+                            <span class="skill">audio reactivity</span>
+                            <span class="skill">depth cameras</span>
+                        </dd>
+                    </div>
+                    <div class="mat">
+                        <dt>By hand</dt>
+                        <dd class="skills">
+                            <span class="skill">painting</span>
+                            <span class="skill">tufting</span>
+                            <span class="skill">3D printing</span>
+                            <span class="skill">photography</span>
+                        </dd>
+                    </div>
+                </dl>
             </div>
         </section>
 
         <section id="contact">
             <h2>Contact</h2>
             <div class="contact">
-                <p style="margin-bottom: 1rem;">Get in touch for commissions, collaborations, or general inquiries.</p>
-                <div class="contact-links">
-                    <a href="mailto:hello@lucidsoup.io" class="contact-link">Email</a>
-                    <a href="https://www.instagram.com/lucidsoup" class="contact-link">Instagram</a>
-                    <a href="#" class="contact-link">Vimeo</a>
-                    <a href="#" class="contact-link">LinkedIn</a>
+                <p style="margin-bottom: 0;">
+                    Commissions, bookings, collaborations, or a question about anything on this site.
+                </p>
+                <a class="reach" href="mailto:hello@lucidsoup.io?subject=Enquiry%20via%20lucidsoup.com">hello@lucidsoup.io</a>
+
+                <div class="brief">
+                    <p>Four things that get you a real answer first time</p>
+                    <ol>
+                        <li>When, and where in the world.</li>
+                        <li>What it's going on &mdash; building, stage, gallery wall, something odder.</li>
+                        <li>What you want it to do, even roughly.</li>
+                        <li>The budget you're working to.</li>
+                    </ol>
+                </div>
+
+                <div class="elsewhere">
+                    <p>Elsewhere</p>
+                    <div class="contact-links">
+                        <a href="https://www.instagram.com/lucidsoup" class="contact-link">Instagram</a>
+                        <a href="#shop" class="contact-link">Shop</a>
+                        <a href="gallery.html" class="contact-link">The Gallery</a>
+                    </div>
                 </div>
             </div>
         </section>
