@@ -257,12 +257,10 @@
         }
         .skills { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 14rem; margin: 0; }
 
-        /* ===== SHOP ===== */
-        .shop-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.5rem;
-        }
+        /* ===== a section with nothing in it yet =====
+           Named for the shop, which had them first; the portfolio renders its
+           empty and loading states through the same two rules, so they outlive
+           the storefront that is currently switched off. */
         .shop-loading {
             grid-column: 1 / -1;
             text-align: center;
@@ -279,125 +277,30 @@
             border: 1px dashed rgba(255,255,255,.1);
             border-radius: 12px;
         }
-        .shop-item {
-            position: relative;
-            border-radius: 12px;
-            overflow: hidden;
-            background: rgba(255,255,255,.03);
-            border: 1px solid rgba(255,255,255,.08);
-            display: flex;
-            flex-direction: column;
-            transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+
+        /* ===== coming soon =====
+           A section that is on its way rather than gone. It keeps its place in
+           the bowl, on the Stack and in the gallery, so nothing that points at
+           it becomes a dead end; it just says plainly that there is nothing to
+           buy yet instead of showing three cards wired to example.com. */
+        .soon {
+            max-width: 640px; margin: 0 auto; text-align: center;
+            padding: 3rem 2rem; border-radius: 20px;
+            border: 1px dashed rgba(255,255,255,.14);
+            background: rgba(255,255,255,.02);
         }
-        .shop-item:hover {
-            transform: translateY(-4px);
-            border-color: rgba(139, 108, 245,.4);
-            box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 24px rgba(139, 108, 245,.15);
-        }
-        .shop-item.sold-out { opacity: 0.5; }
-        .shop-item.sold-out::after {
-            content: "SOLD OUT";
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(255,0,80,.9);
-            color: #fff;
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 0.1em;
-            padding: 4px 10px;
-            border-radius: 4px;
-            z-index: 2;
-        }
-        .shop-item-image {
-            width: 100%;
-            aspect-ratio: 4/3;
-            background: linear-gradient(135deg, rgba(212, 79, 176,.15), rgba(139, 108, 245,.15));
-            position: relative;
-            overflow: hidden;
-        }
-        .shop-item-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-        .shop-item-image-placeholder {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,.3);
-            font-size: 2.5rem;
-        }
-        .shop-item-body {
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            gap: 0.5rem;
-        }
-        .shop-item-subtitle {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            color: rgba(139, 108, 245,.7);
-            font-weight: bold;
-        }
-        .shop-item-title {
-            font-size: 1.15rem;
-            font-weight: bold;
-            color: #fff;
-            line-height: 1.2;
-        }
-        .shop-item-description {
-            font-size: 0.85rem;
-            line-height: 1.5;
-            color: rgba(255,255,255,.65);
-            flex: 1;
-        }
-        .shop-item-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            margin-top: 0.5rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid rgba(255,255,255,.06);
-        }
-        .shop-item-price {
-            font-size: 1.1rem;
-            font-weight: bold;
-            background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .shop-item-button {
-            background: linear-gradient(135deg, rgba(139, 108, 245,.12), rgba(212, 79, 176,.12));
+        .soon-tag {
+            display: inline-block; margin-bottom: 1.1rem;
+            padding: .4rem .9rem; border-radius: 20px;
             border: 1px solid rgba(139, 108, 245,.4);
-            color: #fff;
-            padding: 0.5rem 1.1rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            letter-spacing: 0.1em;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all .2s ease;
-            white-space: nowrap;
+            background: linear-gradient(45deg, rgba(139, 108, 245,.14), rgba(212, 79, 176,.1));
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .64rem; letter-spacing: .22em; text-transform: uppercase;
+            color: rgba(255,255,255,.8);
         }
-        .shop-item-button:hover {
-            background: linear-gradient(135deg, rgba(139, 108, 245,.25), rgba(212, 79, 176,.25));
-            border-color: rgba(139, 108, 245,.8);
-            box-shadow: 0 0 12px rgba(139, 108, 245,.3);
-        }
-        .shop-item-button.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
+        .soon p { font-size: 1rem; line-height: 1.7; color: rgba(255,255,255,.66); max-width: 44ch; margin: 0 auto; }
+        .soon p + p { margin-top: .9rem; }
+        .soon a { color: var(--lucid-accent, #8b6cf5); }
 
         /* ===== SHADER LIBRARY ===== */
         .shader-lib-intro {
@@ -1025,7 +928,7 @@
                         <li><a href="sp404.html">SP-404 Converter</a></li>
                         <li><a href="plugins.html">Plugin Host</a></li>
                         <li><a href="#blackboxfx">BlackboxFX</a></li>
-                        <li><a href="#shop">Shop</a></li>
+                        <li><a href="#shop">Shop &mdash; coming soon</a></li>
                         <li><a href="#about">About</a></li>
                         <li><a href="#contact">Contact</a></li>
                         <li><a href="gallery.html">The Gallery</a></li>
@@ -1135,9 +1038,16 @@
 
         <section id="shop">
             <h2>Shop</h2>
-            <div id="shop-grid" class="shop-grid">
-                <!-- items rendered dynamically from items.json -->
-                <div class="shop-loading">Loading...</div>
+            <div class="soon">
+                <span class="soon-tag">Coming soon</span>
+                <p>
+                    Prints, sample packs and the hand-made things aren't up for sale yet.
+                    There is nothing here worth showing you until there is.
+                </p>
+                <p>
+                    Commissions are open in the meantime &mdash;
+                    <a href="#contact">say what you're after</a>.
+                </p>
             </div>
         </section>
 
@@ -1255,7 +1165,6 @@
                     <p>Elsewhere</p>
                     <div class="contact-links">
                         <a href="https://www.instagram.com/lucidsoup" class="contact-link">Instagram</a>
-                        <a href="#shop" class="contact-link">Shop</a>
                         <a href="gallery.html" class="contact-link">The Gallery</a>
                     </div>
                 </div>
@@ -1505,67 +1414,6 @@
                 }
                 return p;
             };
-        })();
-
-        // ===== SHOP — fetches items.json and renders cards =====
-        (function loadShop() {
-            const grid = document.getElementById('shop-grid');
-            if (!grid) return;
-
-            function escapeHtml(str) {
-                return String(str || '').replace(/[&<>"']/g, c =>
-                    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-            }
-
-            function renderItems(items) {
-                if (!items || items.length === 0) {
-                    grid.innerHTML = '<div class="shop-empty">No items available right now. Check back soon.</div>';
-                    return;
-                }
-                grid.innerHTML = items.map(item => {
-                    const checkoutHref = item.checkoutType === 'email'
-                        ? `mailto:${item.checkoutValue}?subject=${encodeURIComponent('Inquiry: ' + (item.title||''))}`
-                        : (item.checkoutValue || '#');
-                    const isExt = item.checkoutType !== 'email' && /^https?:/.test(item.checkoutValue || '');
-                    const imageEl = item.image
-                        ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" loading="lazy"
-                               onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                           <div class="shop-item-image-placeholder" style="display:none">✶</div>`
-                        : `<div class="shop-item-image-placeholder">✶</div>`;
-                    return `
-                        <div class="shop-item ${item.available === false ? 'sold-out' : ''}">
-                            <div class="shop-item-image">${imageEl}</div>
-                            <div class="shop-item-body">
-                                ${item.subtitle ? `<div class="shop-item-subtitle">${escapeHtml(item.subtitle)}</div>` : ''}
-                                <div class="shop-item-title">${escapeHtml(item.title || 'Untitled')}</div>
-                                ${item.description ? `<div class="shop-item-description">${escapeHtml(item.description)}</div>` : ''}
-                                <div class="shop-item-footer">
-                                    ${item.price ? `<div class="shop-item-price">${escapeHtml(item.price)}</div>` : '<div></div>'}
-                                    <a class="shop-item-button ${item.available === false ? 'disabled' : ''}"
-                                       href="${escapeHtml(checkoutHref)}"
-                                       ${isExt ? 'target="_blank" rel="noopener"' : ''}>
-                                        ${escapeHtml(item.buttonText || (item.checkoutType === 'email' ? 'INQUIRE' : 'BUY'))}
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            // Fetch items.json with cache-bust to ensure fresh content
-            fetch('items.json?t=' + Date.now())
-                .then(r => r.ok ? r.json() : Promise.reject(new Error('No items.json (' + r.status + ')')))
-                .then(data => {
-                    const items = Array.isArray(data) ? data : (data.items || []);
-                    renderItems(items);
-                })
-                .catch(err => {
-                    console.warn('[Shop] Could not load items.json:', err.message);
-                    // Hide whole shop section if no items file at all
-                    const section = document.getElementById('shop');
-                    if (section) section.style.display = 'none';
-                });
         })();
 
         // ===== NAVBAR =====

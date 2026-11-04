@@ -74,7 +74,7 @@
         { id: 'sp404',          label: 'SP-404',     sub: 'converter',     href: 'sp404.html',     shape: 'cube',   d: 74, ring: 1, a: .29 },
         { id: 'plugins',        label: 'Plugins',    sub: 'clap · vst3',   href: 'plugins.html',   shape: 'faders', d: 72, ring: 1, a: .49 },
         { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'ring',   d: 70, ring: 1, a: .69 },
-        { id: 'shop',           label: 'Shop',       sub: 'prints',        hash: 'shop',           shape: 'noodle', d: 70, ring: 1, a: .89 },
+        { id: 'shop',           label: 'Shop',       sub: 'coming soon',   hash: 'shop',           shape: 'noodle', d: 70, ring: 1, a: .89 },
 
         { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'spiral', d: 74, ring: 2, a: .17 },
         { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'star', d: 58, ring: 2, a: .42 },
