@@ -120,6 +120,22 @@
             color: rgba(255,255,255,.88); font-size: .82rem; line-height: 1.55;
         }
         #warn[hidden] { display: none; }
+        /* Every browser refuses to start audio without a gesture, and some
+           of them refuse one that arrives after an await even though the
+           click that began it is long since handled. There is nothing to do
+           about that from code; there is something to do about it from a
+           button, which is this. */
+        #unblock {
+            position: fixed; z-index: 23; left: 50%; top: 50%;
+            transform: translate(-50%, -50%);
+            padding: 1rem 1.6rem; border-radius: 30px; cursor: pointer;
+            font: inherit; font-size: 1rem; color: #fff;
+            border: 1px solid rgba(138,224,75,.7);
+            background: linear-gradient(135deg, rgba(155,123,255,.35), rgba(212,79,176,.25));
+            box-shadow: 0 10px 40px rgba(0,0,0,.6);
+        }
+        #unblock[hidden] { display: none; }
+        #unblock:hover { border-color: rgba(138,224,75,1); }
         #warn b { color: var(--lucid-warn, #ffd34d); font-weight: normal; }
         @media (max-width: 760px) {
             #warn { left: 10px; right: 10px; max-width: none; top: calc(66px + var(--lucid-chrome-clear, 41px)); font-size: .78rem; }
@@ -376,6 +392,7 @@
 </div>
 
 <div id="warn" role="status" hidden></div>
+<button type="button" id="unblock" hidden>Sound is blocked &mdash; tap to start</button>
 
 <button type="button" class="chip" id="dock-toggle" aria-expanded="true" aria-controls="dock">controls</button>
 
@@ -537,6 +554,8 @@
         var hist = [], taps = [];
         var cfg = { gain: 1, sens: 1, attack: .5, release: .12 };
 
+        var player = null, playerNode = null;
+
         function ensure() {
             if (ctx) return ctx;
             var AC = window.AudioContext || window.webkitAudioContext;
@@ -553,10 +572,91 @@
             return ctx;
         }
 
+        /* Unlock, and why it has to happen in the click rather than after it.
+
+           A browser only lets audio start from a user gesture. Chrome counts
+           the gesture as sticky: once you have clicked anything, a play()
+           thirty seconds later is still allowed. Safari does not work that
+           way — resume() has to be reached while the gesture is still being
+           handled, and a resume() that happens after an await lands on a
+           context that stays suspended. Nothing throws. The page carries on
+           with a running render loop, a connected source and an analyser
+           reading zeroes, which looks exactly like a page that does not
+           work. Fetching a link through the service takes seconds, so this
+           was always going to be the shape of it off Chrome.
+
+           So: resume the context and bump a silent buffer through it the
+           moment the button is pressed, before anything async happens. */
+        function unlock() {
+            var c = ensure();
+            if (!c) return Promise.resolve();
+            try {
+                var b = c.createBufferSource();
+                b.buffer = c.createBuffer(1, 1, 22050);
+                b.connect(c.destination);
+                b.start(0);
+            } catch (e) { /* older engines; resume alone has to do */ }
+            // Same for the element: one element, primed inside the gesture
+            // and reused for every file and link after it, so its permission
+            // to play is established once and never asked for again.
+            ensurePlayer();
+            try { var pr = player.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+            return c.resume().catch(function () {});
+        }
+
+        /* One <audio>, for every file and every link.
+
+           createMediaElementSource can only be called once per element, so a
+           fresh element per source would need a fresh node each time and
+           leak both. One element, one node, wired once; changing source is
+           changing src. */
+        function ensurePlayer() {
+            var c = ensure();
+            if (!c) return null;
+            if (player) return player;
+            player = new Audio();
+            player.preload = 'auto';
+            player.crossOrigin = 'anonymous';
+            playerNode = c.createMediaElementSource(player);
+            playerNode.connect(analyser);
+            // A file or a link is the one thing you are meant to hear: a tab
+            // and an input are already audible and routing those to the
+            // speakers would double them.
+            playerNode.connect(c.destination);
+            return player;
+        }
+
+        // Load a source into the one player and wait for it to be playable.
+        function loadInto(src, timeout) {
+            var a = ensurePlayer();
+            if (!a) return Promise.reject(new Error('No Web Audio in this browser.'));
+            return new Promise(function (res, rej) {
+                var done = false;
+                function off() {
+                    a.removeEventListener('error', bad);
+                    a.removeEventListener('canplay', good);
+                }
+                function bad() { if (done) return; done = true; clearTimeout(t); off(); rej(new Error('refused')); }
+                function good() { if (done) return; done = true; clearTimeout(t); off(); res(a); }
+                var t = setTimeout(function () {
+                    if (done) return; done = true; off(); rej(new Error('timeout'));
+                }, timeout || 12000);
+                a.addEventListener('error', bad);
+                a.addEventListener('canplay', good);
+                a.src = src;
+                a.load();
+            });
+        }
+
+        var lastBlob = '';
         function stop() {
             if (node) { try { node.disconnect(); } catch (e) {} node = null; }
             if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
-            if (el) { try { el.pause(); } catch (e) {} if (el.src) URL.revokeObjectURL(el.src); el = null; }
+            // The player and its node stay: they are what holds the right to
+            // play, and the node can never be made again for this element.
+            if (player) { try { player.pause(); } catch (e) {} }
+            if (lastBlob) { URL.revokeObjectURL(lastBlob); lastBlob = ''; }
+            el = null;
         }
 
         /* A tab, via getDisplayMedia. Four things bite here, in order:
@@ -641,40 +741,14 @@
                 is a counter on screen, not a hang. */
         var ripper = 'https://vst-library.fly.dev';
 
-        function playable(src, timeout) {
-            return new Promise(function (res, rej) {
-                var a = new Audio();
-                a.crossOrigin = 'anonymous';
-                a.preload = 'auto';
-                var done = false;
-                var t = setTimeout(function () {
-                    if (done) return;
-                    done = true; a.removeAttribute('src'); a.load();
-                    rej(new Error('timeout'));
-                }, timeout || 9000);
-                a.addEventListener('error', function () {
-                    if (done) return; done = true; clearTimeout(t); rej(new Error('refused'));
-                }, { once: true });
-                a.addEventListener('canplay', function () {
-                    if (done) return; done = true; clearTimeout(t); res(a);
-                }, { once: true });
-                a.src = src;
-                a.load();
-            });
-        }
-
-        function attachElement(a, name, loop) {
+        function startPlayer(name, how, loop) {
             var c = ensure();
-            if (!c) throw new Error('No Web Audio in this browser.');
-            stop();
-            a.loop = !!loop;
-            el = a;
-            node = c.createMediaElementSource(a);
-            node.connect(analyser);
-            node.connect(c.destination);
-            kind = 'link';
+            player.loop = !!loop;
+            el = player;
+            kind = how;
             label = name.length > 26 ? name.slice(0, 25) + '\u2026' : name;
-            return c.resume().then(function () { return a.play(); }).then(function () { onchange(); });
+            return c.resume().then(function () { return player.play(); })
+                .then(function () { onchange(); });
         }
 
         function viaRipper(target, host, step) {
@@ -703,9 +777,10 @@
                 var title = '';
                 try { title = decodeURIComponent(r.headers.get('x-rip-title') || ''); } catch (e) {}
                 return r.blob().then(function (b) {
-                    var a = new Audio();
-                    a.src = URL.createObjectURL(b);
-                    return attachElement(a, title || host, true);
+                    stop();
+                    lastBlob = URL.createObjectURL(b);
+                    return loadInto(lastBlob, 20000)
+                        .then(function () { return startPlayer(title || host, 'link', true); });
                 });
             });
         }
@@ -727,34 +802,24 @@
                 return Promise.reject(new Error('That does not look like a web address. Paste the ' +
                     'whole thing, including the part before the first slash.'));
             }
+            var host = u.hostname.replace(/^www\./, '');
             step('trying the link\u2026');
-            return playable(clean).then(function (a) {
-                // A stream has no end to loop back to; a file does.
-                return attachElement(a, u.hostname.replace(/^www\./, ''), true);
-            }).catch(function () {
-                step('that link will not play straight through \u2014 asking the audio service\u2026');
-                return viaRipper(clean, u.hostname.replace(/^www\./, ''), step);
-            });
+            stop();
+            return loadInto(clean, 10000)
+                .then(function () { return startPlayer(host, 'link', true); })
+                .catch(function () {
+                    step('that link will not play straight through \u2014 asking the audio service\u2026');
+                    return viaRipper(clean, host, step);
+                });
         }
 
         function fromFile(file) {
             var c = ensure();
             if (!c) return Promise.reject(new Error('No Web Audio in this browser.'));
             stop();
-            var a = new Audio();
-            a.src = URL.createObjectURL(file);
-            a.loop = true;
-            a.crossOrigin = 'anonymous';
-            el = a;
-            node = c.createMediaElementSource(a);
-            node.connect(analyser);
-            // A file is the one source you are meant to hear: a tab and an
-            // input are already audible, and routing those to the speakers
-            // would double them or feed back.
-            node.connect(c.destination);
-            kind = 'file';
-            label = file.name.length > 26 ? file.name.slice(0, 25) + '…' : file.name;
-            return c.resume().then(function () { return a.play(); }).then(function () { onchange(); });
+            lastBlob = URL.createObjectURL(file);
+            return loadInto(lastBlob, 20000)
+                .then(function () { return startPlayer(file.name, 'file', true); });
         }
 
         function attachStream(s, k, name) {
@@ -882,7 +947,22 @@
             get analyser() { return analyser; },
             read: read, fromTab: fromTab, fromInput: fromInput, fromFile: fromFile, fromUrl: fromUrl,
             set ripper(v) { ripper = v; },
-            none: setNone, ensure: ensure,
+            none: setNone, ensure: ensure, unlock: unlock,
+            // A source can be attached and still not be making a sound,
+            // which from the outside looks exactly like a broken page. This
+            // is the difference, stated.
+            get blocked() {
+                if (kind === 'none') return false;
+                if (ctx && ctx.state !== 'running') return true;
+                return (kind === 'link' || kind === 'file') && !!(player && player.paused);
+            },
+            start: function () {
+                var c = ensure();
+                if (!c) return Promise.resolve();
+                return c.resume().then(function () {
+                    if ((kind === 'link' || kind === 'file') && player) return player.play();
+                });
+            },
             resume: function () { return ctx ? ctx.resume() : Promise.resolve(); },
             set onchange(f) { onchange = f; }
         };
@@ -1604,9 +1684,14 @@
         readout.innerHTML = bits.join(' &middot; ');
     }
 
-    var warnEl = null, warnShown = '';
+    var warnEl = null, warnShown = '', unblockEl = null;
     function paintWarning() {
         if (!warnEl) warnEl = document.getElementById('warn');
+        if (!unblockEl) unblockEl = document.getElementById('unblock');
+        // Blocked is a different thing from quiet, and it has a cure.
+        var blocked = Ears.blocked;
+        unblockEl.hidden = !blocked;
+        if (blocked) { warnEl.hidden = true; warnShown = ''; return; }
         var quiet = Ears.quietFor;
         var chip = document.getElementById('source-chip');
         if (quiet < 4) {
@@ -1636,6 +1721,10 @@
         warnEl.innerHTML = why;
         warnEl.hidden = false;
     }
+
+    document.getElementById('unblock').addEventListener('click', function () {
+        Ears.start().then(function () { document.getElementById('unblock').hidden = true; });
+    });
 
     /* =====================================================================
        5. Where the sound comes from
@@ -1682,7 +1771,7 @@
         e.preventDefault();
         say('');
         linkgo.disabled = true;
-        Ears.ensure();
+        Ears.unlock();          // inside the click, before the network
         // say() doubles as the progress line: fetching through the service
         // can take most of a minute on a cold start, and a counter that is
         // climbing is the difference between waiting and hung.
@@ -1697,7 +1786,7 @@
 
     document.getElementById('src-tab').addEventListener('click', function () {
         say('');
-        Ears.ensure();
+        Ears.unlock();
         Ears.fromTab().then(closeGate).catch(function (e) {
             if (e && e.message === 'NOAUDIO') {
                 say('That tab came through without audio. Two things to check when you share it again: ' +
@@ -1714,7 +1803,7 @@
 
     document.getElementById('src-input').addEventListener('click', function () {
         say('');
-        Ears.ensure();
+        Ears.unlock();
         Ears.fromInput(deviceSel.value || null).then(function () {
             return listDevices().then(function (ds) {
                 deviceSel.innerHTML = '';
@@ -1740,12 +1829,12 @@
             .catch(function () { say('That input would not open.'); });
     });
 
-    document.getElementById('src-file').addEventListener('click', function () { say(''); filepick.click(); });
+    document.getElementById('src-file').addEventListener('click', function () { say(''); Ears.unlock(); filepick.click(); });
     filepick.addEventListener('change', function () {
         if (filepick.files && filepick.files[0]) takeFile(filepick.files[0]);
     });
     function takeFile(f) {
-        Ears.ensure();
+        Ears.unlock();
         Ears.fromFile(f).then(closeGate).catch(function (e) {
             say('That file would not play: ' + ((e && e.message) || 'unsupported') + '.');
             openGate();
