@@ -109,6 +109,22 @@
         }
         #beatlamp.on { background: var(--lucid-accent-3, #d44fb0); box-shadow: 0 0 12px var(--lucid-accent-3, #d44fb0); }
 
+        /* Connected but silent is the one failure this page cannot show you
+           by drawing: the scenes carry on under their own clock and look
+           fine. Say it in words, with the reason that fits the source. */
+        #warn {
+            position: fixed; z-index: 22; left: 12px; top: 56px; max-width: 30rem;
+            padding: .7rem .9rem; border-radius: 9px;
+            border: 1px solid rgba(255, 211, 77,.42); background: rgba(32, 24, 4,.92);
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+            color: rgba(255,255,255,.88); font-size: .82rem; line-height: 1.55;
+        }
+        #warn[hidden] { display: none; }
+        #warn b { color: var(--lucid-warn, #ffd34d); font-weight: normal; }
+        @media (max-width: 760px) {
+            #warn { left: 10px; right: 10px; max-width: none; top: calc(66px + var(--lucid-chrome-clear, 41px)); font-size: .78rem; }
+        }
+
         /* ---- the control dock ---- */
         #dock {
             position: fixed; z-index: 19; top: 0; right: 0; bottom: 0; width: 310px;
@@ -265,7 +281,7 @@
         .card .lede { color: rgba(255,255,255,.62); font-size: .93rem; line-height: 1.65; margin-top: .7rem; }
         .sources { display: grid; gap: .6rem; margin-top: 1.4rem; }
         .src {
-            display: grid; grid-template-columns: auto 1fr; gap: .9rem; align-items: start;
+            display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .9rem; align-items: start;
             width: 100%; text-align: left; cursor: pointer; font: inherit;
             padding: .95rem 1.05rem; border-radius: 11px;
             border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.025);
@@ -284,6 +300,30 @@
         .src .t { display: block; font-size: .97rem; }
         .src .d { display: block; font-size: .8rem; line-height: 1.55; color: rgba(255,255,255,.5); margin-top: .22rem; }
         .src .d em { color: rgba(212,79,176,.85); font-style: normal; }
+        /* The link row holds a field, so it is not itself a button and must
+           not light up like one. */
+        .src-form { cursor: default; }
+        .src-form:hover { border-color: rgba(255,255,255,.1); background: rgba(255,255,255,.025); transform: none; }
+        #linkform { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; }
+        #linkform input {
+            flex: 1 1 9rem; min-width: 0; font: inherit; font-size: .86rem; padding: .58rem .7rem;
+            border-radius: 8px; background: rgba(0,0,0,.35); color: #fff;
+            border: 1px solid rgba(255,255,255,.16);
+        }
+        #linkform input::placeholder { color: rgba(255,255,255,.3); }
+        #linkform input:focus { outline: none; border-color: rgba(155,123,255,.75); }
+        #linkform button {
+            flex: none; font: inherit; font-size: .8rem; letter-spacing: .08em;
+            text-transform: uppercase; padding: .58rem 1.1rem; border-radius: 8px; cursor: pointer;
+            border: 1px solid rgba(155,123,255,.55); color: #fff;
+            background: linear-gradient(135deg, rgba(155,123,255,.26), rgba(212,79,176,.18));
+            transition: border-color .2s, background .2s;
+        }
+        #linkform button:hover { border-color: rgba(138,224,75,.8); }
+        #linkform button:disabled { opacity: .5; cursor: progress; }
+        /* Below about 360px the two will not sit side by side; let the button
+           take its own line rather than pushing out of the card. */
+        @media (max-width: 400px) { #linkform button { flex: 1 1 100%; } }
         .card footer {
             margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,.08);
             font-size: .78rem; line-height: 1.6; color: rgba(255,255,255,.4);
@@ -334,6 +374,8 @@
     <div id="beatlamp" aria-hidden="true"></div>
     <div id="readout" class="mono"></div>
 </div>
+
+<div id="warn" role="status" hidden></div>
 
 <button type="button" class="chip" id="dock-toggle" aria-expanded="true" aria-controls="dock">controls</button>
 
@@ -392,20 +434,38 @@
         </p>
 
         <div class="sources">
-            <button type="button" class="src" id="src-tab" data-src="tab">
+            <div class="src src-form">
                 <span class="n">01</span>
+                <span>
+                    <span class="t">A link</span>
+                    <span class="d">
+                        Paste the address of anything with sound on it. A direct audio link or a radio
+                        stream plays straight through; a page with the audio buried in it goes via the
+                        same service the SP-404 converter uses. Works in every browser.
+                    </span>
+                    <form id="linkform" autocomplete="off" novalidate>
+                        <input type="url" id="linkurl" inputmode="url" spellcheck="false"
+                               placeholder="https://… a track, a stream, a video" aria-label="Address to play">
+                        <button type="submit" id="linkgo">Play</button>
+                    </form>
+                </span>
+            </div>
+
+            <button type="button" class="src" id="src-tab" data-src="tab">
+                <span class="n">02</span>
                 <span>
                     <span class="t">A browser tab</span>
                     <span class="d" id="src-tab-d">
-                        Open the site you want to hear in another tab, come back, and pick it from the
-                        list. <em>Tick &ldquo;Also share tab audio&rdquo; in the corner of that dialog</em> &mdash;
-                        without it you get a picture and silence.
+                        Open the site you want to hear in another tab, come back, and choose it from the
+                        <em>Chrome Tab</em> list &mdash; a window or the whole screen is offered no audio at
+                        all. Then <em>tick &ldquo;Also share tab audio&rdquo;</em> in the corner of that
+                        dialog; without it you get a picture and silence.
                     </span>
                 </span>
             </button>
 
             <button type="button" class="src" id="src-input" data-src="input">
-                <span class="n">02</span>
+                <span class="n">03</span>
                 <span>
                     <span class="t">An input on this machine</span>
                     <span class="d">
@@ -417,7 +477,7 @@
             </button>
 
             <button type="button" class="src" id="src-file" data-src="file">
-                <span class="n">03</span>
+                <span class="n">04</span>
                 <span>
                     <span class="t">A file</span>
                     <span class="d">Drop one anywhere on the page, or click here to pick. It plays out loud and drives the visuals.</span>
@@ -425,7 +485,7 @@
             </button>
 
             <button type="button" class="src" id="src-none" data-src="none">
-                <span class="n">04</span>
+                <span class="n">05</span>
                 <span>
                     <span class="t">Nothing, for now</span>
                     <span class="d">The scenes run on their own clock. You can plug the sound in later from the chip in the corner.</span>
@@ -473,7 +533,7 @@
         // instead of drawing a flat line, and a loud one does not clip.
         var ceil  = { level: .15, bass: .15, mid: .15, high: .15 };
 
-        var beat = 0, beatAt = 0, bpm = 0;
+        var beat = 0, beatAt = 0, bpm = 0, quietSince = 0;
         var hist = [], taps = [];
         var cfg = { gain: 1, sens: 1, attack: .5, release: .12 };
 
@@ -499,15 +559,27 @@
             if (el) { try { el.pause(); } catch (e) {} if (el.src) URL.revokeObjectURL(el.src); el = null; }
         }
 
-        /* A tab, via getDisplayMedia. Three things bite here, in order:
-           - Chrome refuses an audio-only request, so video has to be asked for
-             and then thrown away. Keeping the video track alive would hold a
-             capture running for a picture nobody looks at.
-           - The audio checkbox in the picker is off by default and easy to
-             miss, so a stream with no audio track is the common failure and
-             needs its own message rather than a shrug.
-           - Firefox and Safari have no tab audio at all. Feature detection
-             cannot see that — getDisplayMedia exists in both — so the caller
+        /* A tab, via getDisplayMedia. Four things bite here, in order:
+
+           - Chrome refuses an audio-only request, so video has to be asked
+             for even though this page never draws it.
+
+           - That video track must then be DISABLED, not stopped. Stopping it
+             is the obvious move — nobody is looking at the picture — and in
+             Chrome it can tear down the whole capture session, taking the
+             audio track with it. The symptom is a share that is granted and
+             then immediately silent, which is what this page did until
+             somebody tried it in Chrome. Disabled, the track produces
+             nothing and costs nothing, and the session stays up.
+
+           - The audio checkbox is off by default and is only offered in the
+             picker's "Chrome Tab" pane at all: pick a window or the whole
+             screen and there is no audio to be had, which the message below
+             has to say, because "share audio" is not a thing the user can
+             find on the pane they are looking at.
+
+           - Firefox and Safari have no tab audio whatsoever. No feature test
+             sees that — getDisplayMedia exists in both — so the caller
              checks the engine instead. */
         function fromTab() {
             if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia)
@@ -516,15 +588,23 @@
                 video: true,
                 audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
             }).then(function (s) {
-                s.getVideoTracks().forEach(function (t) { t.stop(); s.removeTrack(t); });
                 var a = s.getAudioTracks();
                 if (!a.length) {
                     s.getTracks().forEach(function (t) { t.stop(); });
                     throw new Error('NOAUDIO');
                 }
-                attachStream(s, 'tab', 'a tab');
+                s.getVideoTracks().forEach(function (t) {
+                    t.enabled = false;
+                    // The share dies with this track, so notice when it does.
+                    t.addEventListener('ended', function () { if (kind === 'tab') setNone('the tab stopped sharing'); });
+                });
+                attachStream(s, 'tab', labelOf(a[0], 'a tab'));
                 a[0].addEventListener('ended', function () { if (kind === 'tab') setNone('the tab stopped sharing'); });
             });
+        }
+        function labelOf(track, dflt) {
+            var l = track && track.label;
+            return (l && l !== 'System Audio' && l.length > 1) ? l : dflt;
         }
 
         function fromInput(deviceId) {
@@ -536,6 +616,124 @@
                 var t = s.getAudioTracks()[0];
                 attachStream(s, 'input', (t && t.label) ? t.label : 'an input');
                 if (t) t.addEventListener('ended', function () { if (kind === 'input') setNone('the input went away'); });
+            });
+        }
+
+        /* A link.
+
+           Tab sharing only carries audio in Chrome, Edge and Opera, which
+           leaves everyone else with no way to hear a site that is not this
+           one. A pasted address covers it, in two steps:
+
+             1. Try the link in an <audio> element with crossOrigin set. A
+                direct media URL — an mp3, a podcast enclosure, an Icecast
+                stream — plays straight through with no server involved, and
+                an endless radio stream is the best thing you can give this
+                page. crossOrigin must be set even though it causes the
+                failure below, because without it a cross-origin element
+                still "plays" and createMediaElementSource silently returns
+                silence. A refusal is better than a dead meter.
+             2. Anything else — a YouTube or SoundCloud page, a video with
+                the audio buried in it — goes to the same service the SP-404
+                converter uses, which pulls the audio out and hands back a
+                file. It sleeps when nobody is converting, so the first
+                request after a quiet spell can take most of a minute; that
+                is a counter on screen, not a hang. */
+        var ripper = 'https://vst-library.fly.dev';
+
+        function playable(src, timeout) {
+            return new Promise(function (res, rej) {
+                var a = new Audio();
+                a.crossOrigin = 'anonymous';
+                a.preload = 'auto';
+                var done = false;
+                var t = setTimeout(function () {
+                    if (done) return;
+                    done = true; a.removeAttribute('src'); a.load();
+                    rej(new Error('timeout'));
+                }, timeout || 9000);
+                a.addEventListener('error', function () {
+                    if (done) return; done = true; clearTimeout(t); rej(new Error('refused'));
+                }, { once: true });
+                a.addEventListener('canplay', function () {
+                    if (done) return; done = true; clearTimeout(t); res(a);
+                }, { once: true });
+                a.src = src;
+                a.load();
+            });
+        }
+
+        function attachElement(a, name, loop) {
+            var c = ensure();
+            if (!c) throw new Error('No Web Audio in this browser.');
+            stop();
+            a.loop = !!loop;
+            el = a;
+            node = c.createMediaElementSource(a);
+            node.connect(analyser);
+            node.connect(c.destination);
+            kind = 'link';
+            label = name.length > 26 ? name.slice(0, 25) + '\u2026' : name;
+            return c.resume().then(function () { return a.play(); }).then(function () { onchange(); });
+        }
+
+        function viaRipper(target, host, step) {
+            var url = ripper + '/rip?format=m4a&url=' + encodeURIComponent(target);
+            var began = Date.now(), WAKE = 90000;
+            function ask() {
+                return fetch(url).catch(function () {
+                    var waited = Date.now() - began;
+                    if (waited > WAKE) {
+                        throw new Error('The audio service did not answer in ninety seconds. ' +
+                            'It may be down rather than asleep \u2014 try again in a few minutes.');
+                    }
+                    var sec = Math.round(waited / 1000);
+                    step('waking the audio service\u2026 ' + sec + 's. It sleeps when nobody is ' +
+                         'using it and the first one after that takes a moment.');
+                    return new Promise(function (go) { setTimeout(go, 3000); }).then(ask);
+                });
+            }
+            return ask().then(function (r) {
+                if (!r.ok) {
+                    return r.json().catch(function () { return {}; }).then(function (j) {
+                        throw new Error(j.error || ('The audio service answered HTTP ' + r.status + '.'));
+                    });
+                }
+                step('got it \u2014 loading\u2026');
+                var title = '';
+                try { title = decodeURIComponent(r.headers.get('x-rip-title') || ''); } catch (e) {}
+                return r.blob().then(function (b) {
+                    var a = new Audio();
+                    a.src = URL.createObjectURL(b);
+                    return attachElement(a, title || host, true);
+                });
+            });
+        }
+
+        function fromUrl(raw, step) {
+            step = step || function () {};
+            var c = ensure();
+            if (!c) return Promise.reject(new Error('No Web Audio in this browser.'));
+            var clean = String(raw || '').trim();
+            if (!clean) return Promise.reject(new Error('Paste a web address first.'));
+            if (!/^https?:\/\//i.test(clean)) clean = 'https://' + clean.replace(/^\/+/, '');
+            var u;
+            try { u = new URL(clean); } catch (e) { u = null; }
+            // URL() is forgiving enough to accept "not a url at all" as a
+            // host, and then the page spends nine seconds on an <audio> that
+            // will never load and ninety more waking a service for it. A
+            // hostname has dots and no spaces; check before any of that.
+            if (!u || !/^[a-z0-9.-]+$/i.test(u.hostname) || u.hostname.indexOf('.') < 1) {
+                return Promise.reject(new Error('That does not look like a web address. Paste the ' +
+                    'whole thing, including the part before the first slash.'));
+            }
+            step('trying the link\u2026');
+            return playable(clean).then(function (a) {
+                // A stream has no end to loop back to; a file does.
+                return attachElement(a, u.hostname.replace(/^www\./, ''), true);
+            }).catch(function () {
+                step('that link will not play straight through \u2014 asking the audio service\u2026');
+                return viaRipper(clean, u.hostname.replace(/^www\./, ''), step);
             });
         }
 
@@ -621,6 +819,18 @@
             raw.mid   = slice(160, 2000);
             raw.high  = slice(2000, 12000);
 
+            // A connected source that carries nothing looks exactly like a
+            // broken page: the scenes drift on their clock and no control
+            // does anything. Time the silence so the interface can say which
+            // it is, with the reason that actually applies to this source.
+            if (kind === 'none') {
+                quietSince = 0;
+            } else if (rms > 0.0015 || raw.bass > 0.02 || raw.mid > 0.02 || raw.high > 0.02) {
+                quietSince = 0;
+            } else if (!quietSince) {
+                quietSince = performance.now();
+            }
+
             var decay = Math.pow(.5, dt / 2.5);          // ceiling halves every 2.5s
             ['level', 'bass', 'mid', 'high'].forEach(function (k) {
                 var r = raw[k] * cfg.gain;
@@ -664,12 +874,14 @@
             get beat() { return beat; },
             get bpm() { return bpm; },
             get rate() { return ctx ? ctx.sampleRate : 0; },
+            get quietFor() { return quietSince ? (performance.now() - quietSince) / 1000 : 0; },
             get spectrum() { return freq; },
             // The analyser itself, so anything can be patched into it from a
             // console — which is also how the test suite feeds it a tone it
             // already knows the answer for.
             get analyser() { return analyser; },
-            read: read, fromTab: fromTab, fromInput: fromInput, fromFile: fromFile,
+            read: read, fromTab: fromTab, fromInput: fromInput, fromFile: fromFile, fromUrl: fromUrl,
+            set ripper(v) { ripper = v; },
             none: setNone, ensure: ensure,
             resume: function () { return ctx ? ctx.resume() : Promise.resolve(); },
             set onchange(f) { onchange = f; }
@@ -1383,12 +1595,46 @@
             meterBars[i].classList.toggle('hot', v > .72);
         }
         beatlamp.classList.toggle('on', Ears.beat > .5);
+        paintWarning();
         var bits = [];
         bits.push('<b>' + (SCENES.filter(function (s) { return s.id === state.scene; })[0] || {}).name + '</b>');
         if (Ears.bpm) bits.push('<b>' + Ears.bpm + '</b> bpm');
         if (Ears.rate) bits.push((Ears.rate / 1000).toFixed(1) + 'k');
         bits.push('<b>' + fps + '</b> fps');
         readout.innerHTML = bits.join(' &middot; ');
+    }
+
+    var warnEl = null, warnShown = '';
+    function paintWarning() {
+        if (!warnEl) warnEl = document.getElementById('warn');
+        var quiet = Ears.quietFor;
+        var chip = document.getElementById('source-chip');
+        if (quiet < 4) {
+            if (warnShown) { warnEl.hidden = true; warnShown = ''; warnEl.innerHTML = ''; }
+            if (chip) chip.classList.remove('dead');
+            return;
+        }
+        if (chip && Ears.kind !== 'none') chip.classList.add('dead');
+        var k = Ears.kind;
+        if (warnShown === k) return;
+        warnShown = k;
+        var why;
+        if (k === 'tab') {
+            why = '<b>That tab is sharing, but nothing is coming through.</b> Check it is actually ' +
+                  'playing, and that you picked it from the <b>Chrome Tab</b> list in the share dialog ' +
+                  '— a window or the whole screen is offered no audio at all, so the tick box for it ' +
+                  'is not even on those panes.';
+        } else if (k === 'input') {
+            why = '<b>That input is open, but silent.</b> If it is a loopback device, check your sound ' +
+                  'output is still pointed at it; if it is a microphone, check it is not muted.';
+        } else if (k === 'link' || k === 'file') {
+            why = '<b>It is loaded, but silent so far.</b> It may be paused, or the part playing now ' +
+                  'may simply be quiet.';
+        } else {
+            return;
+        }
+        warnEl.innerHTML = why;
+        warnEl.hidden = false;
     }
 
     /* =====================================================================
@@ -1429,13 +1675,35 @@
         }).catch(function () { return []; });
     }
 
+    var linkform = document.getElementById('linkform');
+    var linkurl = document.getElementById('linkurl');
+    var linkgo = document.getElementById('linkgo');
+    linkform.addEventListener('submit', function (e) {
+        e.preventDefault();
+        say('');
+        linkgo.disabled = true;
+        Ears.ensure();
+        // say() doubles as the progress line: fetching through the service
+        // can take most of a minute on a cold start, and a counter that is
+        // climbing is the difference between waiting and hung.
+        Ears.fromUrl(linkurl.value, say).then(function () {
+            linkgo.disabled = false;
+            closeGate();
+        }).catch(function (err) {
+            linkgo.disabled = false;
+            say((err && err.message) || 'That link would not play.');
+        });
+    });
+
     document.getElementById('src-tab').addEventListener('click', function () {
         say('');
         Ears.ensure();
         Ears.fromTab().then(closeGate).catch(function (e) {
             if (e && e.message === 'NOAUDIO') {
-                say('That tab came through without audio. Share it again and tick "Also share tab audio" — ' +
-                    'it is a checkbox in the bottom corner of the picker, and it is off until you tick it.');
+                say('That tab came through without audio. Two things to check when you share it again: ' +
+                    'pick it from the "Chrome Tab" list rather than a window or the whole screen, because ' +
+                    'only tabs are offered audio — and tick "Also share tab audio" in the bottom corner, ' +
+                    'which is off until you tick it.');
             } else if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) {
                 say('No tab was shared. Nothing has changed — pick a source when you are ready.');
             } else {
@@ -1594,14 +1862,20 @@
     function tabActuallyPossible() { return tabAudio; }
     function whyNoTab() {
         if (isMobile) return 'Not on a phone or tablet: no mobile browser can hand a tab’s audio to a page. Use a file, or do this on a desktop.';
-        if (isSafari) return 'Safari cannot do this. It will share a tab’s picture but never its sound, so use an input below — ' +
-                             '<em>BlackHole</em> routed from your output catches the whole machine — or open this page in Chrome.';
-        if (isFirefox) return 'Firefox cannot do this. Its tab sharing carries no audio, so use an input below, or open this page in Chrome.';
-        return 'This browser has no tab sharing at all. Use an input or a file below.';
+        if (isSafari) return 'Safari cannot do this — it shares a tab’s picture but never its sound. ' +
+                             '<em>Paste the address above instead</em>, which works here, or use an input below: ' +
+                             'BlackHole routed from your output catches the whole machine.';
+        if (isFirefox) return 'Firefox cannot do this — its tab sharing carries no audio. ' +
+                              '<em>Paste the address above instead</em>, or use an input below.';
+        return 'This browser has no tab sharing at all. Paste an address above, or use an input or a file below.';
     }
-    note.innerHTML = tabAudio
-        ? 'Tab audio works in Chrome, Edge and Opera on a desktop. It is the only part of this that is browser-specific — an input or a file works anywhere.'
-        : 'Tab audio is a Chrome, Edge and Opera feature on desktop only. Everything else on this page works in any browser that can run WebGL.';
+    // Where tab sharing is not an option, the link field is the answer, so
+    // put the cursor in it rather than making them go looking.
+    if (!tabAudio) { try { linkurl.focus({ preventScroll: true }); } catch (e) {} }
+    note.innerHTML = 'Only tab sharing is browser-specific — Chrome, Edge and Opera, on a desktop. ' +
+        'A link, an input and a file work anywhere. Nothing you play is uploaded or recorded; a link ' +
+        'that will not play on its own is fetched by the same service the SP-404 converter uses, which ' +
+        'reads the page and hands back the audio.';
 
     if (GLFail) {
         say('This browser could not open a WebGL context, so there is nothing to draw on. The audio side would work, but the picture will not.');
@@ -1625,6 +1899,7 @@
     window.__pg.pickScene = pickScene;
     window.__pg.at = at;
     window.__pg.tabAudio = tabAudio;
+    window.__pg.setRipper = function (u) { Ears.ripper = u; };
     window.__pg.pixels = function () {
         if (!gl || !accum[0]) return null;
         var px = new Uint8Array(W * H * 4);
