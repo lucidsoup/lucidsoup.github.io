@@ -187,6 +187,40 @@
             border-bottom: 1px solid rgba(255,255,255,.07);
         }
         .scenes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        #deckpick { float: right; display: inline-flex; gap: 3px; }
+        #deckpick button {
+            font: inherit; font-size: 9px; letter-spacing: .14em; cursor: pointer;
+            width: 22px; padding: 2px 0; border-radius: 3px;
+            border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.03);
+            color: rgba(255,255,255,.5);
+        }
+        #deckpick button.on { color: #04040a; background: var(--lucid-accent, #9b7bff); border-color: var(--lucid-accent, #9b7bff); }
+        /* Which deck a scene is on has to be visible without switching to it,
+           or setting B up while A plays is guesswork. */
+        .scene-btn { position: relative; }
+        .scene-btn.on-a::after, .scene-btn.on-b::after {
+            position: absolute; top: 3px; right: 4px;
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: 8px; letter-spacing: 0; opacity: .9;
+        }
+        .scene-btn.on-a::after { content: 'A'; color: var(--lucid-accent, #9b7bff); }
+        .scene-btn.on-b::after { content: 'B'; color: var(--lucid-accent-3, #d44fb0); }
+        .scene-btn.on-a.on-b::after { content: 'AB'; color: var(--lucid-accent-2, #8ae04b); }
+        #camsel, #midisel {
+            width: 100%; margin-top: 7px; font: inherit; font-size: 10px; padding: 5px 6px;
+            border-radius: 4px; background: rgba(255,255,255,.05); color: rgba(255,255,255,.75);
+            border: 1px solid rgba(255,255,255,.12);
+        }
+        #camsel option, #midisel option { background: #0b0b14; }
+        #camsel[hidden], #midisel[hidden] { display: none; }
+        /* A row waiting to be bound to a knob, and one already bound. */
+        .row-top label { cursor: default; }
+        body.learning .row-top label { cursor: crosshair; text-decoration: underline dotted rgba(255,211,77,.6); }
+        .row.armed .row-top label { color: var(--lucid-warn, #ffd34d); }
+        .row-top .cc {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: 8px; letter-spacing: .06em; color: rgba(138,224,75,.75); margin-left: 5px;
+        }
         .scene-btn {
             padding: 9px 4px; border-radius: 4px; cursor: pointer;
             border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03);
@@ -413,8 +447,36 @@
     </header>
     <div id="dock-scroll">
         <div class="group">
-            <h2>Scene</h2>
+            <h2>Scene <span id="deckpick"><button type="button" class="on" data-deck="a">A</button><button type="button" data-deck="b">B</button></span></h2>
             <div class="scenes" id="scenes"></div>
+            <p class="hint">Shift-click loads the other deck.</p>
+        </div>
+
+        <div class="group">
+            <h2>Mix</h2>
+            <div id="mixer"></div>
+        </div>
+
+        <div class="group">
+            <h2>Picture</h2>
+            <div class="toggles" id="vidpick">
+                <button type="button" class="tog on" data-vid="none">Off</button>
+                <button type="button" class="tog" data-vid="camera">Camera</button>
+                <button type="button" class="tog" data-vid="tab">Shared tab</button>
+                <button type="button" class="tog" data-vid="media">File / link</button>
+            </div>
+            <select id="camsel" aria-label="Camera" hidden></select>
+            <p class="hint" id="vidnote">Pick <b>Video</b> or <b>Mirror</b> on a deck to see it.</p>
+        </div>
+
+        <div class="group">
+            <h2>MIDI</h2>
+            <div class="toggles">
+                <button type="button" class="tog" id="midi-on">Connect</button>
+                <button type="button" class="tog" id="midi-learn">Learn</button>
+            </div>
+            <select id="midisel" aria-label="MIDI input" hidden></select>
+            <p class="hint" id="midinote">Connect a controller, hit Learn, click a knob’s name, then move the hardware.</p>
         </div>
 
         <div class="group">
@@ -445,7 +507,9 @@
             <p class="hint">
                 <kbd>1</kbd>&ndash;<kbd>6</kbd> scene &middot; <kbd>space</kbd> blackout &middot;
                 <kbd>f</kbd> fullscreen &middot; <kbd>h</kbd> hide the panel &middot;
-                <kbd>r</kbd> randomise &middot; <kbd>s</kbd> change the sound
+                <kbd>r</kbd> randomise &middot; <kbd>s</kbd> change the sound &middot;
+                <kbd>a</kbd>/<kbd>b</kbd> deck &middot; <kbd>[</kbd> <kbd>]</kbd> crossfade &middot;
+                <kbd>\</kbd> slam it across
             </p>
         </div>
     </div>
@@ -467,10 +531,10 @@
                     <span class="t">A link</span>
                     <span class="d">
                         A direct audio link or a radio stream plays straight through. A page &mdash;
-                        YouTube, SoundCloud, Bandcamp, Mixcloud and a thousand others &mdash; goes via the
-                        same service the SP-404 converter uses. A station that streams through its own
-                        player is the one thing this cannot read; <em>share that as a tab instead</em>.
-                        Works in every browser.
+                        SoundCloud, Bandcamp, Mixcloud and a thousand others &mdash; goes via the same
+                        service the SP-404 converter uses. Two it cannot help with: a station that
+                        streams through its own player, and <em>YouTube, which refuses servers it does
+                        not recognise</em>. For those, share the tab. Works in every browser.
                     </span>
                     <form id="linkform" autocomplete="off" novalidate>
                         <input type="url" id="linkurl" inputmode="url" spellcheck="false"
@@ -626,9 +690,17 @@
             var c = ensure();
             if (!c) return null;
             if (player) return player;
-            player = new Audio();
+            // A <video>, not an <audio>: it plays audio-only files exactly the
+            // same way, and when the file does have a picture that picture
+            // becomes a source the scenes can sample. Kept in the document
+            // and one pixel across, because a detached element is not
+            // guaranteed to decode frames.
+            player = document.createElement('video');
+            player.setAttribute('playsinline', '');
             player.preload = 'auto';
             player.crossOrigin = 'anonymous';
+            player.style.cssText = 'position:fixed;left:-4px;top:-4px;width:2px;height:2px;opacity:0.01;pointer-events:none';
+            document.body.appendChild(player);
             playerNode = c.createMediaElementSource(player);
             playerNode.connect(analyser);
             // A file or a link is the one thing you are meant to hear: a tab
@@ -953,6 +1025,11 @@
             get rate() { return ctx ? ctx.sampleRate : 0; },
             get quietFor() { return quietSince ? (performance.now() - quietSince) / 1000 : 0; },
             get spectrum() { return freq; },
+            get waveform() { return wave; },
+            // What the video side needs from here: the shared player, and the
+            // tab's own stream when one was handed over.
+            get element() { return player; },
+            get stream() { return stream; },
             // The analyser itself, so anything can be patched into it from a
             // console — which is also how the test suite feeds it a tone it
             // already knows the answer for.
@@ -981,6 +1058,138 @@
     })();
 
     /* =====================================================================
+       1b. Eyes
+
+       A picture to go with the sound, from a camera, from the tab that is
+       already being shared, or from whatever the player is holding — a
+       dropped film, or a link that turned out to have a picture in it.
+
+       Nothing here uploads anything either. The frame goes from the element
+       into a texture and no further.
+       ===================================================================== */
+    var Vid = (function () {
+        var want = 'none', camEl = null, camStream = null, tabEl = null;
+        var lastAt = -1, broken = false, lab = '';
+        var onchange = function () {};
+
+        function hidden() {
+            var v = document.createElement('video');
+            v.setAttribute('playsinline', '');
+            v.muted = true;                 // a camera has no sound to add
+            v.autoplay = true;
+            v.style.cssText = 'position:fixed;left:-4px;top:-4px;width:2px;height:2px;opacity:0.01;pointer-events:none';
+            document.body.appendChild(v);
+            return v;
+        }
+
+        function dropCam() {
+            if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
+            if (camEl) { try { camEl.pause(); } catch (e) {} camEl.srcObject = null; }
+        }
+
+        function camera(deviceId) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+                return Promise.reject(new Error('This browser has no camera API.'));
+            var c = { width: { ideal: 1280 }, height: { ideal: 720 } };
+            if (deviceId) c.deviceId = { exact: deviceId };
+            return navigator.mediaDevices.getUserMedia({ video: c }).then(function (st) {
+                dropCam();
+                camStream = st;
+                if (!camEl) camEl = hidden();
+                camEl.srcObject = st;
+                var t = st.getVideoTracks()[0];
+                lab = (t && t.label) || 'camera';
+                if (t) t.addEventListener('ended', function () { if (want === 'camera') use('none'); });
+                broken = false;
+                use('camera');
+                return camEl.play().catch(function () {});
+            });
+        }
+
+        /* The tab's picture. The audio fix keeps that video track alive and
+           disabled; turning it on is all this needs, which is a nice return
+           on having had to keep it. */
+        function tab() {
+            var st = Ears.stream;
+            if (!st || !st.getVideoTracks().length) return false;
+            st.getVideoTracks().forEach(function (t) { t.enabled = true; });
+            if (!tabEl) tabEl = hidden();
+            if (tabEl.srcObject !== st) tabEl.srcObject = st;
+            tabEl.play().catch(function () {});
+            lab = 'the shared tab';
+            broken = false;
+            use('tab');
+            return true;
+        }
+
+        function current() {
+            if (want === 'camera') return camEl;
+            if (want === 'tab') return tabEl;
+            if (want === 'media') return Ears.element;
+            return null;
+        }
+
+        function ready(v) {
+            return !!(v && v.readyState >= 2 && v.videoWidth > 0 && v.videoHeight > 0);
+        }
+
+        function use(k) {
+            want = k;
+            if (k !== 'camera') dropCam();
+            if (k !== 'tab' && tabEl) {
+                var st = Ears.stream;
+                // Back off again so a tab being listened to is not also being
+                // decoded for a picture nobody is using.
+                if (st) st.getVideoTracks().forEach(function (t) { t.enabled = false; });
+            }
+            if (k === 'media') lab = 'the file or link';
+            if (k === 'none') lab = '';
+            lastAt = -1;
+            onchange();
+        }
+
+        return {
+            get kind() { return want; },
+            get label() { return lab; },
+            get broken() { return broken; },
+            live: function () { return !broken && ready(current()); },
+            size: function () {
+                var v = current();
+                return ready(v) ? [v.videoWidth, v.videoHeight] : [16, 9];
+            },
+            // Only hand back an element when it has moved on, so the upload
+            // (the most expensive call in the frame) is not repeated for a
+            // picture that has not changed.
+            frame: function () {
+                var v = current();
+                if (!ready(v) || broken) return null;
+                var at = v.currentTime;
+                if (want !== 'camera' && want !== 'tab' && at === lastAt) return null;
+                lastAt = at;
+                return v;
+            },
+            ok: function () { broken = false; },
+            fail: function (e) {
+                // A cross-origin film with no CORS headers taints the canvas
+                // and texImage2D throws. Nothing to do but stop asking.
+                broken = true;
+                console.warn('[playground] video frame refused:', e && e.message);
+                onchange();
+            },
+            camera: camera, tab: tab, use: use, hasTab: function () {
+                var st = Ears.stream; return !!(st && st.getVideoTracks().length);
+            },
+            devices: function () {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return Promise.resolve([]);
+                return navigator.mediaDevices.enumerateDevices().then(function (ds) {
+                    return ds.filter(function (d) { return d.kind === 'videoinput'; });
+                }).catch(function () { return []; });
+            },
+            set onchange(f) { onchange = f; }
+        };
+    })();
+
+    /* =====================================================================
        2. The picture
 
        Three passes a frame: the scene into a buffer, a composite that mixes
@@ -1002,6 +1211,10 @@
         'uniform float uBeat;',
         'uniform float uSpeed, uScale, uWarp, uGlow, uHue;',
         'uniform sampler2D uFFT;',
+        'uniform sampler2D uWave;',
+        'uniform sampler2D uVideo;',
+        'uniform float uHasVid;',
+        'uniform vec2  uVidSize;',
         '#define LEVEL uBands.x',
         '#define BASS  uBands.y',
         '#define MID   uBands.z',
@@ -1029,6 +1242,26 @@
         // The analyser's bins, uploaded as a 256x1 texture, so a scene can
         // draw the actual spectrum instead of only four numbers from it.
         'float fft(float x){ return texture2D(uFFT, vec2(clamp(x, 0.0, 1.0), 0.5)).r; }',
+        // And the waveform, which is a different thing: the bins say how much
+        // of each frequency there is, this says what the cone is doing. An
+        // oscilloscope cannot be drawn from a spectrum.
+        'float wave(float x){ return texture2D(uWave, vec2(clamp(x, 0.0, 1.0), 0.5)).r * 2.0 - 1.0; }',
+        // Live picture, fitted to cover the frame whatever shape either is.
+        // uv is in short-axis units, so it goes through the aspect twice:
+        // once to reach 0..1 across the frame, once for the source's own.
+        'vec2 vidUV(vec2 uv){',
+        '  vec2 t = uv * (min(uRes.x, uRes.y) / uRes) * 0.5 + 0.5;',
+        '  float fa = uRes.x / max(uRes.y, 1.0);',
+        '  float va = uVidSize.x / max(uVidSize.y, 1.0);',
+        '  vec2 k = fa > va ? vec2(1.0, va / fa) : vec2(fa / va, 1.0);',
+        '  return (t - 0.5) / k + 0.5;',
+        '}',
+        'vec3 vid(vec2 uv){',
+        '  if (uHasVid < 0.5) return vec3(0.0);',
+        '  vec2 t = vidUV(uv);',
+        '  if (t.x < 0.0 || t.x > 1.0 || t.y < 0.0 || t.y > 1.0) return vec3(0.0);',
+        '  return texture2D(uVideo, t).rgb;',
+        '}',
         ''
     ].join('\n');
 
@@ -1181,6 +1414,186 @@
             '  return col;' +
             '}' },
 
+        { id: 'rings', name: 'Rings', note: 'per band', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  float r = length(uv) / max(uScale, 0.05);' +
+            '  float a = atan(uv.y, uv.x);' +
+            '  vec3 col = vec3(0.0);' +
+            // Eight rings, each owning a slice of the spectrum and breathing
+            // on it. Radius carries frequency, so the picture is laid out
+            // the way the sound is.
+            '  for (int i = 0; i < 8; i++){' +
+            '    float fi = float(i);' +
+            '    float e = fft(pow((fi + 0.5) / 8.0, 0.7));' +
+            '    float rad = 0.16 + fi * 0.11 + e * 0.07;' +
+            '    float wob = 0.02 * uWarp * sin(a * (3.0 + fi) + t * (0.7 + fi * 0.2));' +
+            '    float d = abs(r - rad - wob);' +
+            '    col += pal(fi / 8.0 + t * 0.05) * (0.002 + e * 0.012 + uGlow * 0.004) / (d + 0.004);' +
+            '  }' +
+            '  col *= 0.6 * (0.3 + LEVEL * 1.2);' +
+            '  col += pal(t * 0.2) * uBeat * 0.04 / (r + 0.1);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'plasma', name: 'Plasma', note: 'the old one', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  float v = sin(uv.x * 3.0 + t);' +
+            '  v += sin((uv.y + t * 0.6) * 3.0);' +
+            '  v += sin((uv.x + uv.y + t * 0.4) * 2.5);' +
+            '  vec2 c = uv + vec2(sin(t * 0.33), cos(t * 0.27)) * (0.6 + uWarp);' +
+            '  v += sin(length(c) * (5.0 + BASS * 7.0) - t * 1.6);' +
+            '  v *= 0.25;' +
+            '  vec3 col = pal(v + t * 0.04 + MID * 0.2) * (0.4 + LEVEL * 1.3);' +
+            // A hard edge through the field, so it is not only soft gradient.
+            '  float band = smoothstep(0.02, 0.0, abs(fract(v * 3.0) - 0.5) - 0.42);' +
+            '  col += pal(v + 0.3) * band * (0.4 + uGlow * 1.2) * (0.3 + HIGH * 1.6);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'scope', name: 'Scope', note: 'the waveform', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  vec3 col = vec3(0.0);' +
+            // Lissajous: the waveform against a delayed copy of itself, which
+            // is the figure an oscilloscope in X-Y mode draws.
+            '  float lag = 0.02 + uWarp * 0.06;' +
+            '  for (int i = 0; i < 48; i++){' +
+            '    float f = float(i) / 48.0;' +
+            '    vec2 p = vec2(wave(f), wave(fract(f + lag)));' +
+            '    p *= 0.8;' +
+            '    p *= rot(t * 0.1);' +
+            '    float d = length(uv - p);' +
+            '    col += pal(f + t * 0.06) * (0.0006 + uGlow * 0.0014) / (d * d + 0.0008);' +
+            '  }' +
+            // And the trace itself across the frame, the plain reading.
+            '  float y = wave(uv.x * 0.5 + 0.5) * 0.55;' +
+            '  col += pal(0.4 + t * 0.05) * (0.0015 + uGlow * 0.002) / (abs(uv.y - y) + 0.01);' +
+            '  col *= 0.5 * (0.35 + LEVEL * 1.2);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'terrain', name: 'Terrain', note: 'a landscape', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            // A horizon with a perspective floor under it: dividing by the
+            // height below the horizon is the whole projection.
+            '  float h = uv.y + 0.35;' +
+            '  if (h > -0.02) {' +
+            '    vec3 sky = pal(0.15 + t * 0.03 + uv.y * 0.3) * (0.05 + HIGH * 0.25);' +
+            '    sky += pal(t * 0.05) * uGlow * 0.04 / (abs(h) + 0.02);' +
+            '    return sky;' +
+            '  }' +
+            '  float z = 0.5 / -h;' +
+            '  vec2 g = vec2(uv.x * z, z + t * (1.5 + BASS * 4.0)) / max(uScale, 0.05);' +
+            '  float ridge = fbm(g * 0.6) * (0.6 + uWarp * 1.2);' +
+            '  float lines = abs(fract(g.y * 0.5 + ridge) - 0.5);' +
+            '  float cross = abs(fract(g.x * 0.5) - 0.5);' +
+            '  float w = min(lines, cross);' +
+            '  float fade = exp(-z * 0.08);' +
+            '  vec3 col = pal(ridge * 0.6 + t * 0.04) * (0.004 + uGlow * 0.006) / (w + 0.01) * fade;' +
+            '  col *= 0.5 * (0.3 + LEVEL * 1.4);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'swarm', name: 'Swarm', note: 'flow field', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  vec3 col = vec3(0.0);' +
+            // Forty dots walking a noise field. Each one is integrated from
+            // its own seed, so they travel together without touching.
+            '  for (int i = 0; i < 40; i++){' +
+            '    float fi = float(i);' +
+            '    vec2 p = vec2(hash(vec2(fi, 1.0)), hash(vec2(fi, 7.0))) * 2.0 - 1.0;' +
+            '    float ph = t * (0.25 + 0.3 * hash(vec2(fi, 3.0)));' +
+            '    for (int k = 0; k < 4; k++){' +
+            '      float n = fbm(p * 1.4 + ph);' +
+            '      p += vec2(cos(n * 6.28318), sin(n * 6.28318)) * (0.09 + uWarp * 0.1);' +
+            '    }' +
+            '    float e = fft(fract(fi * 0.137));' +
+            '    float d = length(uv - p);' +
+            '    col += pal(fi / 40.0 + t * 0.05) * (0.00035 + e * 0.0016 + uGlow * 0.0007) / (d * d + 0.0006);' +
+            '  }' +
+            '  col *= 0.7 * (0.3 + LEVEL * 1.3);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'strobe', name: 'Strobe', note: 'hard cuts', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv *= rot(floor(t * 0.5 + uBeat) * 0.3);' +
+            '  float n = 4.0 + floor(BASS * 8.0);' +
+            '  float x = uv.x / max(uScale, 0.05) * n;' +
+            '  float cell = floor(x);' +
+            '  float e = fft(fract(cell * 0.173));' +
+            // Each column is on or off, not shaded: the point of this one is
+            // that it has no midtones to muddy on a big surface. The travelling
+            // term is what keeps it a scene rather than a black rectangle when
+            // nothing is playing — audio adds columns, it does not supply the
+            // only ones.
+            '  float roll = 0.5 + 0.5 * sin(cell * 1.7 + t * 2.2);' +
+            '  float on = step(0.45, e * 1.2 + uBeat * 0.4 + roll * 0.55);' +
+            '  float edge = smoothstep(0.5, 0.42, abs(fract(x) - 0.5));' +
+            '  float band = step(abs(uv.y), 0.2 + e * 0.8 + uWarp * 0.3);' +
+            '  vec3 col = pal(cell * 0.07 + t * 0.03) * on * edge * band;' +
+            '  col *= 0.6 + LEVEL * 1.1 + uGlow * 0.3;' +
+            '  return col;' +
+            '}' },
+
+        /* The two below are the picture rather than a generated scene, which
+           is what makes the mixer worth having: pick one on a deck and the
+           crossfader puts live video against a shader with no extra code. */
+        { id: 'video', name: 'Video', note: 'the input', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  uv += vec2(fbm(uv * 2.0 + t * 0.2), fbm(uv * 2.0 - t * 0.2)) * 0.25 * uWarp - 0.125 * uWarp;' +
+            '  vec3 c = vid(uv);' +
+            '  if (uHasVid < 0.5) {' +
+            // No camera, no tab, no film. The first version of this was a
+            // hairline at a mean of 0.002 — technically not black and
+            // practically invisible, which is the same as broken. It is a
+            // breathing iris now, bright enough to read as "waiting".
+            '    float r = length(uv);' +
+            '    float d = abs(r - 0.42 - 0.04 * sin(uTime * 1.6));' +
+            '    vec3 c = pal(uTime * 0.08) * 0.05 / (d + 0.035);' +
+            '    c += pal(uTime * 0.08 + 0.35) * 0.09 * smoothstep(0.42, 0.0, r);' +
+            '    return c;' +
+            '  }' +
+            '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));' +
+            // Tint toward the palette by luma, so it belongs with the rest.
+            '  c = mix(c, pal(l + uHue + LEVEL * 0.1) * (0.3 + l * 1.4), uGlow * 0.45);' +
+            '  c *= 0.75 + LEVEL * 0.7;' +
+            '  return c;' +
+            '}' },
+
+        { id: 'vidkaleido', name: 'Mirror', note: 'input, folded', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  float slices = 3.0 + floor(3.0 + HIGH * 7.0);' +
+            '  float a = atan(uv.y, uv.x) + t * 0.1;' +
+            '  float r = length(uv) / max(uScale, 0.05) * (1.0 - BASS * 0.2);' +
+            '  a = mod(a + 3.14159 / slices, 6.28318 / slices) - 3.14159 / slices;' +
+            '  vec2 q = vec2(cos(a), sin(a)) * r;' +
+            '  q += vec2(sin(r * 6.0 - t), cos(r * 6.0 + t)) * 0.06 * uWarp;' +
+            '  vec3 c = vid(q * 0.9);' +
+            '  if (uHasVid < 0.5) {' +
+            // Same again: the folded placeholder has to be visible too.
+            '    float d = abs(q.x) + abs(q.y);' +
+            '    vec3 c = pal(d * 0.6 + t * 0.1) * 0.05 / (abs(d - 0.45) + 0.045);' +
+            '    c += pal(d + t * 0.1 + 0.3) * 0.07 * smoothstep(0.7, 0.0, d);' +
+            '    return c;' +
+            '  }' +
+            '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));' +
+            '  c = mix(c, pal(l * 0.7 + r * 0.3 + t * 0.03), uGlow * 0.5);' +
+            '  c *= 0.7 + LEVEL * 0.8;' +
+            '  return c;' +
+            '}' },
+
         { id: 'shards', name: 'Shards', note: 'cuts on beat', src:
             'vec3 scene(vec2 uv){' +
             '  float t = uTime * uSpeed;' +
@@ -1257,6 +1670,36 @@
         '}'
     ].join('\n');
 
+    /* The mixer.
+
+       Two decks, each rendering a scene of its own, and one pass that puts
+       them together. It is a pass rather than a flag because every blend
+       below needs both pictures at once, and because a crossfade that can
+       be patched to the beat is the difference between a page of toys and
+       something you can play. Deck B is skipped entirely at x=0: every mode
+       here returns A untouched there, so the second scene costs nothing
+       until it is wanted. */
+    var MIX = [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D uA, uB;',
+        'uniform float uX, uMode;',
+        'void main(){',
+        '  vec3 a = texture2D(uA, vUv).rgb;',
+        '  vec3 b = texture2D(uB, vUv).rgb;',
+        '  float x = clamp(uX, 0.0, 1.0);',
+        '  vec3 r;',
+        '  if (uMode < 0.5)      r = mix(a, b, x);',                 // fade
+        '  else if (uMode < 1.5) r = a + b * x;',                    // add
+        '  else if (uMode < 2.5) r = 1.0 - (1.0 - a) * (1.0 - b * x);', // screen
+        '  else if (uMode < 3.5) r = mix(a, a * b, x);',             // multiply
+        '  else if (uMode < 4.5) r = mix(a, abs(a - b), x);',        // difference
+        '  else if (uMode < 5.5) r = mix(a, max(a, b), x);',         // lighten
+        '  else                  r = x < 0.5 ? a : b;',              // cut
+        '  gl_FragColor = vec4(clamp(r, 0.0, 1.0), 1.0);',
+        '}'
+    ].join('\n');
+
     var BLIT = [
         'precision highp float;',
         'varying vec2 vUv;',
@@ -1271,8 +1714,8 @@
           || canvas.getContext('experimental-webgl', { alpha: false, antialias: false });
 
     var GLFail = !gl;
-    var quad, sceneProgs = {}, compProg, blitProg, fftTex;
-    var sceneFB, accum = [], W = 1, H = 1;
+    var quad, sceneProgs = {}, compProg, blitProg, mixProg, fftTex, waveTex, vidTex;
+    var fbA, fbB, mixFB, accum = [], W = 1, H = 1;
 
     function compile(type, src) {
         var sh = gl.createShader(type);
@@ -1335,19 +1778,37 @@
         });
         compProg = link(COMP);
         blitProg = link(BLIT);
+        mixProg = link(MIX);
 
-        fftTex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, fftTex);
+        function lut(n) {
+            var t = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, t);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, n, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array(n));
+            return t;
+        }
+        fftTex = lut(256);
+        waveTex = lut(512);
+
+        // One pixel of grey until a camera or a film arrives, so a scene that
+        // samples the video never reads an unbound texture.
+        vidTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, vidTex);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 256, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array(256));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([20, 20, 28, 255]));
+        // Video frames arrive the other way up from how GL wants them.
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
         window.__pg = window.__pg || {};
         window.__pg.scenesBuilt = built;
-        window.__pg.compOk = !!compProg && !!blitProg;
-        return built === SCENES.length && !!compProg && !!blitProg;
+        window.__pg.compOk = !!compProg && !!blitProg && !!mixProg;
+        return built === SCENES.length && !!compProg && !!blitProg && !!mixProg;
     }
 
     function resize() {
@@ -1360,14 +1821,14 @@
         canvas.width = W; canvas.height = H;
         canvas.style.width = '100%'; canvas.style.height = '100%';
         if (!gl) return;
-        [sceneFB].concat(accum).forEach(function (t) {
+        [fbA, fbB, mixFB].concat(accum).forEach(function (t) {
             if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fb); }
         });
-        sceneFB = target(W, H);
+        fbA = target(W, H); fbB = target(W, H); mixFB = target(W, H);
         accum = [target(W, H), target(W, H)];
         // A fresh buffer is undefined, not black, and the feedback pass reads
         // it on the very first frame.
-        accum.concat([sceneFB]).forEach(function (t) {
+        accum.concat([fbA, fbB, mixFB]).forEach(function (t) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, t.fb);
             gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
         });
@@ -1427,10 +1888,19 @@
           fmt: function (v) { return Math.round(v * 100) + '%'; } }
     ];
 
-    var ALL = MACROS.concat(POSTS).concat(LISTEN);
-    var state = { scene: SCENES[0].id, blackout: false, freeze: false, val: {}, mod: {}, dep: {} };
+    var MIXC = [
+        { k: 'xfade', n: 'A — B', min: 0, max: 1, step: .005, def: 0, mod: 'none', dep: 0 },
+        { k: 'blend', n: 'Blend', min: 0, max: 6, step: 1, def: 0, mod: null, dep: 0,
+          fmt: function (v) { return ['fade', 'add', 'screen', 'multiply', 'difference', 'lighten', 'cut'][v | 0]; } },
+        { k: 'hueB',  n: 'B hue', min: -.5, max: .5, step: .005, def: .33, mod: 'none', dep: 0 }
+    ];
+
+    var ALL = MACROS.concat(MIXC).concat(POSTS).concat(LISTEN);
+    var state = { scene: SCENES[0].id, sceneB: SCENES[1].id, deck: 'a',
+                  blackout: false, freeze: false, val: {}, mod: {}, dep: {}, midi: {} };
     function defaults() {
         state.scene = SCENES[0].id;
+        state.sceneB = SCENES[1].id;
         ALL.forEach(function (c) { state.val[c.k] = c.def; state.mod[c.k] = c.mod || 'none'; state.dep[c.k] = c.dep || 0; });
     }
     defaults();
@@ -1438,7 +1908,8 @@
     var SAVE = 'lucid.playground.v1';
     function save() {
         try {
-            localStorage.setItem(SAVE, JSON.stringify({ scene: state.scene, val: state.val, mod: state.mod, dep: state.dep }));
+            localStorage.setItem(SAVE, JSON.stringify({ scene: state.scene, sceneB: state.sceneB,
+                val: state.val, mod: state.mod, dep: state.dep, midi: state.midi }));
         } catch (e) { /* private window, blocked storage: the rig still works */ }
     }
     function load() {
@@ -1448,6 +1919,8 @@
             var d = JSON.parse(raw);
             if (d && typeof d === 'object') {
                 if (d.scene && sceneExists(d.scene)) state.scene = d.scene;
+                if (d.sceneB && sceneExists(d.sceneB)) state.sceneB = d.sceneB;
+                if (d.midi && typeof d.midi === 'object') state.midi = d.midi;
                 ALL.forEach(function (c) {
                     if (d.val && typeof d.val[c.k] === 'number' && isFinite(d.val[c.k]))
                         state.val[c.k] = Math.max(c.min, Math.min(c.max, d.val[c.k]));
@@ -1480,11 +1953,28 @@
     function buildRow(c, host) {
         var row = document.createElement('div');
         row.className = 'row';
+        row.dataset.k = c.k;
         var top = document.createElement('div');
         top.className = 'row-top';
         var lab = document.createElement('label');
         lab.textContent = c.n;
         lab.htmlFor = 'c-' + c.k;
+        var cc = document.createElement('span');
+        cc.className = 'cc';
+        lab.appendChild(cc);
+        // The name is also the target when MIDI learn is armed. It stays a
+        // plain label the rest of the time, so nothing new to learn unless
+        // there is a controller plugged in.
+        lab.addEventListener('click', function (e) {
+            if (!MIDI.learn) return;
+            e.preventDefault();
+            if (e.shiftKey) {
+                Object.keys(state.midi).forEach(function (m) { if (state.midi[m] === c.k) delete state.midi[m]; });
+                syncPanel(); save();
+                return;
+            }
+            arm(c.k);
+        });
         var out = document.createElement('output');
         out.textContent = fmt(c, state.val[c.k]);
         top.appendChild(lab); top.appendChild(out);
@@ -1537,38 +2027,61 @@
         SCENES.forEach(function (s, i) {
             var b = document.createElement('button');
             b.type = 'button';
-            b.className = 'scene-btn' + (s.id === state.scene ? ' on' : '');
+            b.className = 'scene-btn';
             b.dataset.scene = s.id;
-            b.innerHTML = '';
             b.appendChild(document.createTextNode(s.name));
             var sm = document.createElement('small');
             sm.textContent = s.note;
             b.appendChild(sm);
-            b.title = s.name + ' — key ' + (i + 1);
-            b.addEventListener('click', function () { pickScene(s.id); });
+            b.title = s.name + (i < 9 ? ' — key ' + (i + 1) : '');
+            b.addEventListener('click', function (e) {
+                // Shift loads the other deck, so B can be set up without
+                // leaving the deck you are playing.
+                pickScene(s.id, e.shiftKey ? (state.deck === 'a' ? 'b' : 'a') : state.deck);
+            });
             sceneHost.appendChild(b);
         });
+        [].forEach.call(document.querySelectorAll('#deckpick button'), function (b) {
+            b.addEventListener('click', function () { setDeck(b.dataset.deck); });
+        });
+        MIXC.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('mixer')); });
         MACROS.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('macros')); });
         POSTS.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('posts')); });
         LISTEN.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('listen')); });
         for (var i = 0; i < 24; i++) document.getElementById('meters').appendChild(document.createElement('i'));
     }
 
-    function pickScene(id) {
+    function pickScene(id, deck) {
         if (!sceneExists(id)) return;
-        state.scene = id;
-        [].forEach.call(document.querySelectorAll('.scene-btn'), function (b) {
-            b.classList.toggle('on', b.dataset.scene === id);
-        });
+        if ((deck || state.deck) === 'b') state.sceneB = id; else state.scene = id;
+        markScenes();
         save();
+    }
+    function markScenes() {
+        [].forEach.call(document.querySelectorAll('.scene-btn'), function (b) {
+            b.classList.toggle('on-a', b.dataset.scene === state.scene);
+            b.classList.toggle('on-b', b.dataset.scene === state.sceneB);
+            b.classList.toggle('on', b.dataset.scene === (state.deck === 'b' ? state.sceneB : state.scene));
+        });
+    }
+    function setDeck(d) {
+        state.deck = d === 'b' ? 'b' : 'a';
+        [].forEach.call(document.querySelectorAll('#deckpick button'), function (b) {
+            b.classList.toggle('on', b.dataset.deck === state.deck);
+        });
+        markScenes();
     }
 
     function syncPanel() {
+        var bound = {};
+        Object.keys(state.midi).forEach(function (m) { bound[state.midi[m]] = m.replace(/^cc/, 'CC '); });
         ALL.forEach(function (c) {
             var r = rows[c.k];
             if (!r) return;
             r.slider.value = state.val[c.k];
             r.out.textContent = fmt(c, state.val[c.k]);
+            var cc = r.slider.parentNode.querySelector('.cc');
+            if (cc) cc.textContent = bound[c.k] || '';
         });
         [].forEach.call(document.querySelectorAll('.mod'), function (m) {
             var k = m.dataset.k;
@@ -1586,7 +2099,34 @@
     function U(pr, n) { return (pr && pr.u && pr.u[n]) || null; }
 
     var sceneTime = 0, last = 0, fps = 0, fpsAcc = 0, fpsN = 0;
-    var fftBytes = new Uint8Array(256);
+    var fftBytes = new Uint8Array(256), waveBytes = new Uint8Array(512);
+
+    function drawDeck(into, sceneId, hueOffset) {
+        var pr = sceneProgs[sceneId] || sceneProgs[SCENES[0].id];
+        if (!pr) return;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, into.fb);
+        gl.viewport(0, 0, W, H);
+        gl.useProgram(pr);
+        gl.uniform2f(U(pr, 'uRes'), W, H);
+        gl.uniform1f(U(pr, 'uTime'), sceneTime);
+        gl.uniform4f(U(pr, 'uBands'), Ears.band.level, Ears.band.bass, Ears.band.mid, Ears.band.high);
+        gl.uniform1f(U(pr, 'uBeat'), Ears.beat);
+        gl.uniform1f(U(pr, 'uSpeed'), 1);
+        gl.uniform1f(U(pr, 'uScale'), at('scale'));
+        gl.uniform1f(U(pr, 'uWarp'), at('warp'));
+        gl.uniform1f(U(pr, 'uGlow'), at('glow'));
+        gl.uniform1f(U(pr, 'uHue'), at('hue') + (hueOffset || 0));
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fftTex);
+        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, waveTex);
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vidTex);
+        gl.uniform1i(U(pr, 'uFFT'), 0);
+        gl.uniform1i(U(pr, 'uWave'), 1);
+        gl.uniform1i(U(pr, 'uVideo'), 2);
+        gl.uniform1f(U(pr, 'uHasVid'), Vid.live() ? 1 : 0);
+        var sz = Vid.size();
+        gl.uniform2f(U(pr, 'uVidSize'), sz[0], sz[1]);
+        draw(pr);
+    }
 
     function frame(now) {
         requestAnimationFrame(frame);
@@ -1604,41 +2144,59 @@
         // which on a feedback scene looks like a glitch rather than a ramp.
         if (!state.freeze) sceneTime += dt * at('speed');
 
-        var pr = sceneProgs[state.scene] || sceneProgs[SCENES[0].id];
-        if (!pr || !compProg || !blitProg) return;
+        if (!compProg || !blitProg || !mixProg || !fbA) return;
 
         if (!state.freeze) {
-            var spec = Ears.spectrum;
+            var spec = Ears.spectrum, wv = Ears.waveform;
             if (spec && spec.length) {
                 var stride = spec.length / 256;
                 for (var i = 0; i < 256; i++) fftBytes[i] = spec[Math.min(spec.length - 1, (i * stride) | 0)];
-            } else {
-                fftBytes.fill(0);
-            }
+            } else { fftBytes.fill(0); }
+            if (wv && wv.length) {
+                var ws = wv.length / 512;
+                for (var j = 0; j < 512; j++) waveBytes[j] = wv[Math.min(wv.length - 1, (j * ws) | 0)];
+            } else { waveBytes.fill(128); }
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, fftTex);
             gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.LUMINANCE, gl.UNSIGNED_BYTE, fftBytes);
+            gl.bindTexture(gl.TEXTURE_2D, waveTex);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 512, 1, gl.LUMINANCE, gl.UNSIGNED_BYTE, waveBytes);
 
-            // pass 1 — the scene
-            gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFB.fb);
+            // The picture, if there is one. A frame is only uploaded when the
+            // element has advanced, because texImage2D from a video is the
+            // most expensive thing in this loop by some way.
+            var vsrc = Vid.frame();
+            if (vsrc) {
+                gl.bindTexture(gl.TEXTURE_2D, vidTex);
+                try {
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, vsrc);
+                    Vid.ok();
+                } catch (e) { Vid.fail(e); }
+            }
+
+            drawDeck(fbA, state.scene, 0);
+            // Every blend returns A untouched at x=0, so the second scene is
+            // only worth rendering once the fader has left the end stop.
+            var x = at('xfade');
+            var useB = x > 0.002;
+            if (useB) drawDeck(fbB, state.sceneB, at('hueB'));
+            else { gl.bindFramebuffer(gl.FRAMEBUFFER, fbB.fb); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, mixFB.fb);
             gl.viewport(0, 0, W, H);
-            gl.useProgram(pr);
-            gl.uniform2f(U(pr, 'uRes'), W, H);
-            gl.uniform1f(U(pr, 'uTime'), sceneTime);
-            gl.uniform4f(U(pr, 'uBands'), Ears.band.level, Ears.band.bass, Ears.band.mid, Ears.band.high);
-            gl.uniform1f(U(pr, 'uBeat'), Ears.beat);
-            gl.uniform1f(U(pr, 'uSpeed'), 1);
-            gl.uniform1f(U(pr, 'uScale'), at('scale'));
-            gl.uniform1f(U(pr, 'uWarp'), at('warp'));
-            gl.uniform1f(U(pr, 'uGlow'), at('glow'));
-            gl.uniform1f(U(pr, 'uHue'), at('hue'));
-            gl.uniform1i(U(pr, 'uFFT'), 0);
-            draw(pr);
+            gl.useProgram(mixProg);
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fbA.tex);
+            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fbB.tex);
+            gl.uniform1i(U(mixProg, 'uA'), 0);
+            gl.uniform1i(U(mixProg, 'uB'), 1);
+            gl.uniform1f(U(mixProg, 'uX'), x);
+            gl.uniform1f(U(mixProg, 'uMode'), Math.round(at('blend')));
+            draw(mixProg);
 
-            // pass 2 — feedback and grade, into the back buffer
+            // feedback and grade, into the back buffer
             gl.bindFramebuffer(gl.FRAMEBUFFER, accum[1].fb);
             gl.useProgram(compProg);
-            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sceneFB.tex);
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mixFB.tex);
             gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, accum[0].tex);
             gl.uniform1i(U(compProg, 'uScene'), 0);
             gl.uniform1i(U(compProg, 'uPrev'), 1);
@@ -1790,6 +2348,15 @@
             (tabAudio ? '<button type="button" data-go="src-tab">Share the tab instead</button>' : '') +
             '<button type="button" data-go="src-input">Use an input instead</button>' +
             '</div>';
+        if (/sign in to confirm|not a bot|--cookies|confirm you.?re not/i.test(m)) {
+            return '<b>' + esc(host) + ' is blocking the server, not you.</b> It asks anything running ' +
+                'in a data centre to prove it is a person, and the service has no account and never ' +
+                'will \u2014 handing it one would mean putting your cookies on a machine other people ' +
+                'share. Your own browser is already signed in and already trusted, which is exactly ' +
+                'what sharing the tab uses:' + outs +
+                '<small>SoundCloud, Bandcamp and Mixcloud are usually happy to be read; YouTube is the ' +
+                'one that pushes back hardest.</small>';
+        }
         if (/unsupported url|no suitable extractor|unable to extract/i.test(m)) {
             return '<b>' + esc(host) + ' is not a site the audio service can read.</b> It knows ' +
                 'YouTube, SoundCloud, Bandcamp, Mixcloud, Vimeo and a thousand others, but a station ' +
@@ -1932,6 +2499,172 @@
     document.getElementById('source-chip').addEventListener('click', openGate);
 
     /* =====================================================================
+       5b. The picture, and a controller to drive it with
+       ===================================================================== */
+    var camsel = document.getElementById('camsel');
+    var vidnote = document.getElementById('vidnote');
+
+    function markVid() {
+        [].forEach.call(document.querySelectorAll('#vidpick button'), function (b) {
+            b.classList.toggle('on', b.dataset.vid === Vid.kind);
+        });
+        camsel.hidden = Vid.kind !== 'camera' || camsel.options.length < 2;
+        var using = state.scene === 'video' || state.scene === 'vidkaleido' ||
+                    state.sceneB === 'video' || state.sceneB === 'vidkaleido';
+        if (Vid.broken) {
+            vidnote.innerHTML = '<b>That picture cannot be read.</b> A film from another site with no ' +
+                'CORS headers taints the frame and the browser will not hand it over. A local file works.';
+        } else if (Vid.kind === 'none') {
+            vidnote.innerHTML = 'Pick <b>Video</b> or <b>Mirror</b> on a deck to see it.';
+        } else if (!using) {
+            vidnote.innerHTML = Vid.label + ' is open — now put <b>Video</b> or <b>Mirror</b> on a deck.';
+        } else {
+            vidnote.textContent = 'Showing ' + Vid.label + '.';
+        }
+    }
+    Vid.onchange = markVid;
+
+    [].forEach.call(document.querySelectorAll('#vidpick button'), function (b) {
+        b.addEventListener('click', function () {
+            var k = b.dataset.vid;
+            if (k === 'camera') {
+                Vid.camera(camsel.value || null).then(function () {
+                    return Vid.devices().then(function (ds) {
+                        camsel.innerHTML = '';
+                        ds.forEach(function (d, i) {
+                            var o = document.createElement('option');
+                            o.value = d.deviceId; o.textContent = d.label || ('Camera ' + (i + 1));
+                            camsel.appendChild(o);
+                        });
+                        markVid();
+                    });
+                }).catch(function (e) {
+                    vidnote.textContent = (e && e.name === 'NotAllowedError')
+                        ? 'The camera was refused.' : 'No camera here: ' + ((e && e.message) || 'unavailable') + '.';
+                });
+            } else if (k === 'tab') {
+                if (!Vid.tab()) {
+                    vidnote.innerHTML = 'No tab is shared yet. Share one from the source card first ' +
+                        '— the same share carries both the sound and the picture.';
+                }
+            } else {
+                Vid.use(k);
+            }
+        });
+    });
+    camsel.addEventListener('change', function () { Vid.camera(camsel.value).catch(function () {}); });
+
+    /* MIDI.
+
+       Learn rather than a fixed map, because no two controllers agree on
+       anything: arm it, click the name of the knob you want, move the one
+       on the desk, and the two are bound. Bindings are saved with the rest
+       of the rig, so the desk comes back the way you left it. */
+    var MIDI = { access: null, input: null, learn: false, armed: null };
+    var midiOn = document.getElementById('midi-on');
+    var midiLearn = document.getElementById('midi-learn');
+    var midisel = document.getElementById('midisel');
+    var midinote = document.getElementById('midinote');
+
+    function midiSay(h) { midinote.innerHTML = h; }
+
+    midiOn.addEventListener('click', function () {
+        if (!navigator.requestMIDIAccess) {
+            midiSay('<b>This browser has no Web MIDI.</b> Chrome, Edge and Opera have it; Safari does not. ' +
+                    'Everything else here still works.');
+            return;
+        }
+        navigator.requestMIDIAccess({ sysex: false }).then(function (acc) {
+            MIDI.access = acc;
+            midiOn.classList.add('on');
+            listMidi();
+            acc.onstatechange = listMidi;
+        }).catch(function (e) {
+            midiSay('MIDI was refused: ' + ((e && e.message) || 'no access') + '.');
+        });
+    });
+
+    function listMidi() {
+        if (!MIDI.access) return;
+        var ins = [];
+        MIDI.access.inputs.forEach(function (i) { ins.push(i); });
+        midisel.innerHTML = '';
+        ins.forEach(function (i) {
+            var o = document.createElement('option');
+            o.value = i.id; o.textContent = i.name || i.id;
+            midisel.appendChild(o);
+        });
+        midisel.hidden = ins.length === 0;
+        if (!ins.length) { midiSay('No MIDI inputs found. Plug something in and press Connect again.'); return; }
+        bindInput(ins[0].id);
+    }
+    midisel.addEventListener('change', function () { bindInput(midisel.value); });
+
+    function bindInput(id) {
+        if (!MIDI.access) return;
+        if (MIDI.input) MIDI.input.onmidimessage = null;
+        MIDI.input = null;
+        MIDI.access.inputs.forEach(function (i) { if (i.id === id) MIDI.input = i; });
+        if (!MIDI.input) return;
+        midisel.value = id;
+        MIDI.input.onmidimessage = onMidi;
+        midiSay('Listening to <b>' + (MIDI.input.name || id) + '</b>. Hit Learn, click a knob’s name, ' +
+                'then move the hardware.');
+    }
+
+    function onMidi(e) {
+        var d = e.data;
+        if (!d || d.length < 2) return;
+        var status = d[0] & 0xf0, a = d[1], b = d.length > 2 ? d[2] : 0;
+        if (status === 0xb0) {                       // control change
+            var key = 'cc' + a;
+            if (MIDI.learn && MIDI.armed) {
+                state.midi[key] = MIDI.armed;
+                arm(null);
+                setLearn(false);
+                syncPanel();
+                save();
+                midiSay('Bound <b>CC ' + a + '</b>. Learn again for the next one.');
+                return;
+            }
+            var target = state.midi[key];
+            if (target && byKey[target]) {
+                var c = byKey[target];
+                var v = c.min + (b / 127) * (c.max - c.min);
+                state.val[target] = c.step >= 1 ? Math.round(v) : v;
+                var r = rows[target];
+                if (r) { r.slider.value = state.val[target]; r.out.textContent = fmt(c, state.val[target]); }
+                if (target === 'renderScale') resize();
+                if (byKey[target] && ['gain', 'sens', 'attack', 'release'].indexOf(target) >= 0)
+                    Ears.cfg[target] = state.val[target];
+            }
+        } else if (status === 0x90 && b > 0) {       // note on
+            // Notes pick scenes on the deck you are editing, lowest note
+            // first, so a pad row maps onto the grid in order.
+            var n = a % 24;
+            if (n < SCENES.length) pickScene(SCENES[n].id);
+        }
+    }
+
+    function arm(k) {
+        MIDI.armed = k;
+        [].forEach.call(document.querySelectorAll('.row'), function (r) {
+            r.classList.toggle('armed', !!k && r.dataset.k === k);
+        });
+    }
+    function setLearn(on) {
+        MIDI.learn = !!on;
+        midiLearn.classList.toggle('on', MIDI.learn);
+        document.body.classList.toggle('learning', MIDI.learn);
+        if (!MIDI.learn) arm(null);
+    }
+    midiLearn.addEventListener('click', function () {
+        setLearn(!MIDI.learn);
+        if (MIDI.learn) midiSay('Click the name of a knob, then move the one on the desk. ' +
+                                'Shift-click a name to forget its binding.');
+    });
+
+    /* =====================================================================
        6. Output, keys, start
        ===================================================================== */
     var dock = document.getElementById('dock');
@@ -1976,16 +2709,21 @@
 
     document.getElementById('t-random').addEventListener('click', randomise);
     function randomise() {
-        pickScene(SCENES[(Math.random() * SCENES.length) | 0].id);
-        MACROS.concat(POSTS).forEach(function (c) {
+        pickScene(SCENES[(Math.random() * SCENES.length) | 0].id, 'a');
+        pickScene(SCENES[(Math.random() * SCENES.length) | 0].id, 'b');
+        MACROS.concat(MIXC).concat(POSTS).forEach(function (c) {
             if (c.k === 'mirror') { state.val[c.k] = Math.random() < .7 ? 0 : (Math.random() < .5 ? 1 : 2); return; }
+            if (c.k === 'blend') { state.val[c.k] = (Math.random() * 7) | 0; return; }
+            // Most of the time one deck is enough; the fader only gets
+            // interesting when it is somewhere in the middle, not at random.
+            if (c.k === 'xfade') { state.val[c.k] = Math.random() < .45 ? 0 : (0.2 + Math.random() * 0.6); return; }
             // Feedback stays in the half of its range that still reads as a
             // trail. Rolled across the whole range it lands on 0.95 often
             // enough to white the screen out mid-set, which is not a look.
             var lo = c.k === 'feed' ? .3 : c.min, hi = c.k === 'feed' ? .8 : c.max;
             state.val[c.k] = lo + Math.random() * (hi - lo);
         });
-        MACROS.concat(POSTS).forEach(function (c) {
+        MACROS.concat(MIXC).concat(POSTS).forEach(function (c) {
             if (c.mod === null) return;
             var pick = SOURCES[(Math.random() * SOURCES.length) | 0];
             state.mod[c.k] = pick.k;
@@ -2004,6 +2742,13 @@
         if (window.lucidStack && window.lucidStack.isOpen && window.lucidStack.isOpen()) return;
         var n = parseInt(e.key, 10);
         if (n >= 1 && n <= SCENES.length) { pickScene(SCENES[n - 1].id); e.preventDefault(); return; }
+        switch (e.key) {
+            case '[': nudgeX(-0.08); e.preventDefault(); return;
+            case ']': nudgeX(0.08); e.preventDefault(); return;
+            case '\\': nudgeX(at('xfade') > 0.5 ? -1 : 1); e.preventDefault(); return;
+            case 'a': case 'A': setDeck('a'); return;
+            case 'b': case 'B': setDeck('b'); return;
+        }
         switch (e.key.toLowerCase()) {
             case ' ': setBlack(!state.blackout); e.preventDefault(); break;
             case 'f': goFull(); break;
@@ -2013,6 +2758,14 @@
         }
     });
 
+    function nudgeX(d) {
+        var c = byKey.xfade;
+        state.val.xfade = Math.max(c.min, Math.min(c.max, state.val.xfade + d));
+        var r = rows.xfade;
+        if (r) { r.slider.value = state.val.xfade; r.out.textContent = fmt(c, state.val.xfade); }
+        save();
+    }
+
     /* ---- start ---- */
     beatlamp = document.getElementById('beatlamp');
     readout = document.getElementById('readout');
@@ -2020,7 +2773,9 @@
     load();
     buildPanel();
     syncPanel();
+    setDeck(state.deck);
     markSource();
+    markVid();
 
     var note = document.getElementById('gate-note');
     var tabBtn = document.getElementById('src-tab');
@@ -2069,6 +2824,13 @@
     window.__pg.at = at;
     window.__pg.tabAudio = tabAudio;
     window.__pg.setRipper = function (u) { Ears.ripper = u; };
+    window.__pg.vid = Vid;
+    window.__pg.midi = MIDI;
+    window.__pg.onMidi = onMidi;
+    window.__pg.pickScene = pickScene;
+    window.__pg.setDeck = setDeck;
+    window.__pg.setLearn = setLearn;
+    window.__pg.blends = ['fade', 'add', 'screen', 'multiply', 'difference', 'lighten', 'cut'];
     window.__pg.pixels = function () {
         if (!gl || !accum[0]) return null;
         var px = new Uint8Array(W * H * 4);
