@@ -62,10 +62,10 @@
            to a second row between about 770 and 960px. */
         nav ul { display: flex; justify-content: center; align-items: center; list-style: none; gap: clamp(.85rem, 2vw, 2rem); }
         nav li { margin: 0; }
-        nav a { color: #fff; text-decoration: none; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; }
-        nav a:hover { color: var(--lucid-accent, #8b6cf5); }
-        nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0)); transition: width .3s ease; }
-        nav a:hover::after { width: 100%; }
+        nav a, nav li > button { color: #fff; text-decoration: none; font: inherit; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; background: none; border: 0; cursor: pointer; }
+        nav a:hover, nav li > button:hover { color: var(--lucid-accent, #8b6cf5); }
+        nav a::after, nav li > button::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0)); transition: width .3s ease; }
+        nav a:hover::after, nav li > button:hover::after { width: 100%; }
 
         /* Burger. Laid out with flex + gap rather than margins so the bar pitch
            (height 3 + gap 4 = 7px) matches the +/-7px rotations below exactly. */
@@ -257,20 +257,15 @@
         }
         .skills { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 14rem; margin: 0; }
 
-        /* ===== SHOP ===== */
-        .shop-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.5rem;
-        }
-        .shop-loading {
+        /* ===== a section with nothing in it yet ===== */
+        .pane-loading {
             grid-column: 1 / -1;
             text-align: center;
             padding: 3rem;
             color: rgba(255,255,255,.4);
             font-size: 0.9rem;
         }
-        .shop-empty {
+        .pane-empty {
             grid-column: 1 / -1;
             text-align: center;
             padding: 3rem;
@@ -278,125 +273,6 @@
             font-size: 0.9rem;
             border: 1px dashed rgba(255,255,255,.1);
             border-radius: 12px;
-        }
-        .shop-item {
-            position: relative;
-            border-radius: 12px;
-            overflow: hidden;
-            background: rgba(255,255,255,.03);
-            border: 1px solid rgba(255,255,255,.08);
-            display: flex;
-            flex-direction: column;
-            transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
-        }
-        .shop-item:hover {
-            transform: translateY(-4px);
-            border-color: rgba(139, 108, 245,.4);
-            box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 24px rgba(139, 108, 245,.15);
-        }
-        .shop-item.sold-out { opacity: 0.5; }
-        .shop-item.sold-out::after {
-            content: "SOLD OUT";
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(255,0,80,.9);
-            color: #fff;
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 0.1em;
-            padding: 4px 10px;
-            border-radius: 4px;
-            z-index: 2;
-        }
-        .shop-item-image {
-            width: 100%;
-            aspect-ratio: 4/3;
-            background: linear-gradient(135deg, rgba(212, 79, 176,.15), rgba(139, 108, 245,.15));
-            position: relative;
-            overflow: hidden;
-        }
-        .shop-item-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-        .shop-item-image-placeholder {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,.3);
-            font-size: 2.5rem;
-        }
-        .shop-item-body {
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            gap: 0.5rem;
-        }
-        .shop-item-subtitle {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            color: rgba(139, 108, 245,.7);
-            font-weight: bold;
-        }
-        .shop-item-title {
-            font-size: 1.15rem;
-            font-weight: bold;
-            color: #fff;
-            line-height: 1.2;
-        }
-        .shop-item-description {
-            font-size: 0.85rem;
-            line-height: 1.5;
-            color: rgba(255,255,255,.65);
-            flex: 1;
-        }
-        .shop-item-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            margin-top: 0.5rem;
-            padding-top: 0.75rem;
-            border-top: 1px solid rgba(255,255,255,.06);
-        }
-        .shop-item-price {
-            font-size: 1.1rem;
-            font-weight: bold;
-            background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .shop-item-button {
-            background: linear-gradient(135deg, rgba(139, 108, 245,.12), rgba(212, 79, 176,.12));
-            border: 1px solid rgba(139, 108, 245,.4);
-            color: #fff;
-            padding: 0.5rem 1.1rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            letter-spacing: 0.1em;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all .2s ease;
-            white-space: nowrap;
-        }
-        .shop-item-button:hover {
-            background: linear-gradient(135deg, rgba(139, 108, 245,.25), rgba(212, 79, 176,.25));
-            border-color: rgba(139, 108, 245,.8);
-            box-shadow: 0 0 12px rgba(139, 108, 245,.3);
-        }
-        .shop-item-button.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            pointer-events: none;
         }
 
         /* ===== SHADER LIBRARY ===== */
@@ -904,7 +780,7 @@
             :root { --nav-h: 56px; }
             nav { padding: .6rem 1rem; }
             nav ul { flex-direction: row; gap: .3rem; justify-content: center; }
-            nav a { padding: .5rem .3rem; font-size: .82rem; letter-spacing: .2px; }
+            nav a, nav li > button { padding: .5rem .3rem; font-size: .82rem; letter-spacing: .2px; }
 
             .portfolio-grid { grid-template-columns: 1fr; }
             .shader-lib-grid { grid-template-columns: 1fr; }
@@ -968,7 +844,7 @@
             .nav-toggle { display: flex; }
             nav ul { display: none; position: absolute; right: 1rem; top: calc(100% + 0.5rem); background: rgba(0,0,0,0.95); flex-direction: column; gap: 0; padding: .5rem; border-radius: 8px; min-width: 160px; box-shadow: 0 6px 20px rgba(0,0,0,.6); }
             nav ul li { margin: 0; }
-            nav ul a { display: block; padding: .75rem 1rem; }
+            nav ul a, nav ul li > button { display: block; width: 100%; text-align: left; padding: .75rem 1rem; }
             nav.menu-open ul { display: flex; }
         }
 
@@ -998,8 +874,8 @@
                  pages once you are deep in one. The gallery is in the bowl like
                  everything else — it is a place to go, not a gate to pass. -->
             <ul>
-                <li class="only-focused"><a href="#" id="nav-home">The Soup</a></li>
-                <li><a href="#" id="nav-stack">The Stack</a></li>
+                <li class="only-focused"><a href="/" id="nav-home">The Soup</a></li>
+                <li><button type="button" id="nav-stack">The Stack</button></li>
             </ul>
         </nav>
 
@@ -1024,8 +900,8 @@
                         <li><a href="#drumseek">DrumSeek</a></li>
                         <li><a href="sp404.html">SP-404 Converter</a></li>
                         <li><a href="plugins.html">Plugin Host</a></li>
+                        <li><a href="playground.html">Visual Playground</a></li>
                         <li><a href="#blackboxfx">BlackboxFX</a></li>
-                        <li><a href="#shop">Shop</a></li>
                         <li><a href="#about">About</a></li>
                         <li><a href="#contact">Contact</a></li>
                         <li><a href="gallery.html">The Gallery</a></li>
@@ -1079,6 +955,22 @@
             </div>
         </section>
 
+        <section id="playground">
+            <h2>Visual Playground</h2>
+            <div class="contact">
+                <p style="margin-bottom: 1.25rem;">
+                    Six WebGL scenes driven by whatever you are listening to, with the knobs out where
+                    you can reach them. Hand it a <strong>browser tab</strong> and it reacts to the site
+                    playing in it; hand it a line in or a loopback device and it reacts to the whole
+                    machine. Patch bass to scale, treble to glow, the beat to the feedback zoom, then
+                    put it fullscreen. The audio is analysed here and never leaves your machine.
+                </p>
+                <div class="contact-links">
+                    <a href="playground.html" class="contact-link">Open the Playground</a>
+                </div>
+            </div>
+        </section>
+
         <section id="synthsoup">
             <h2>SynthSoup</h2>
             <div class="contact">
@@ -1114,7 +1006,7 @@
         <section id="portfolio">
             <h2>Portfolio</h2>
             <div id="portfolio-body">
-                <div class="shop-loading">Loading…</div>
+                <div class="pane-loading">Loading…</div>
             </div>
         </section>
 
@@ -1133,13 +1025,6 @@
             </div>
         </section>
 
-        <section id="shop">
-            <h2>Shop</h2>
-            <div id="shop-grid" class="shop-grid">
-                <!-- items rendered dynamically from items.json -->
-                <div class="shop-loading">Loading...</div>
-            </div>
-        </section>
 
         <section id="about">
             <h2>About</h2>
@@ -1255,7 +1140,6 @@
                     <p>Elsewhere</p>
                     <div class="contact-links">
                         <a href="https://www.instagram.com/lucidsoup" class="contact-link">Instagram</a>
-                        <a href="#shop" class="contact-link">Shop</a>
                         <a href="gallery.html" class="contact-link">The Gallery</a>
                     </div>
                 </div>
@@ -1478,7 +1362,7 @@
 
     <!-- Lightbox -->
     <!-- Shown only inside a section: the way back into the architecture. -->
-    <a class="back-to-gallery" id="back-to-gallery" href="#" hidden>&larr; back to the soup</a>
+    <a class="back-to-gallery" id="back-to-gallery" href="/" hidden>&larr; back to the soup</a>
 
     <div class="lightbox" id="lightbox">
         <button class="lightbox-close" id="lightbox-close">&times;</button>
@@ -1505,67 +1389,6 @@
                 }
                 return p;
             };
-        })();
-
-        // ===== SHOP — fetches items.json and renders cards =====
-        (function loadShop() {
-            const grid = document.getElementById('shop-grid');
-            if (!grid) return;
-
-            function escapeHtml(str) {
-                return String(str || '').replace(/[&<>"']/g, c =>
-                    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-            }
-
-            function renderItems(items) {
-                if (!items || items.length === 0) {
-                    grid.innerHTML = '<div class="shop-empty">No items available right now. Check back soon.</div>';
-                    return;
-                }
-                grid.innerHTML = items.map(item => {
-                    const checkoutHref = item.checkoutType === 'email'
-                        ? `mailto:${item.checkoutValue}?subject=${encodeURIComponent('Inquiry: ' + (item.title||''))}`
-                        : (item.checkoutValue || '#');
-                    const isExt = item.checkoutType !== 'email' && /^https?:/.test(item.checkoutValue || '');
-                    const imageEl = item.image
-                        ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" loading="lazy"
-                               onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                           <div class="shop-item-image-placeholder" style="display:none">✶</div>`
-                        : `<div class="shop-item-image-placeholder">✶</div>`;
-                    return `
-                        <div class="shop-item ${item.available === false ? 'sold-out' : ''}">
-                            <div class="shop-item-image">${imageEl}</div>
-                            <div class="shop-item-body">
-                                ${item.subtitle ? `<div class="shop-item-subtitle">${escapeHtml(item.subtitle)}</div>` : ''}
-                                <div class="shop-item-title">${escapeHtml(item.title || 'Untitled')}</div>
-                                ${item.description ? `<div class="shop-item-description">${escapeHtml(item.description)}</div>` : ''}
-                                <div class="shop-item-footer">
-                                    ${item.price ? `<div class="shop-item-price">${escapeHtml(item.price)}</div>` : '<div></div>'}
-                                    <a class="shop-item-button ${item.available === false ? 'disabled' : ''}"
-                                       href="${escapeHtml(checkoutHref)}"
-                                       ${isExt ? 'target="_blank" rel="noopener"' : ''}>
-                                        ${escapeHtml(item.buttonText || (item.checkoutType === 'email' ? 'INQUIRE' : 'BUY'))}
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            // Fetch items.json with cache-bust to ensure fresh content
-            fetch('items.json?t=' + Date.now())
-                .then(r => r.ok ? r.json() : Promise.reject(new Error('No items.json (' + r.status + ')')))
-                .then(data => {
-                    const items = Array.isArray(data) ? data : (data.items || []);
-                    renderItems(items);
-                })
-                .catch(err => {
-                    console.warn('[Shop] Could not load items.json:', err.message);
-                    // Hide whole shop section if no items file at all
-                    const section = document.getElementById('shop');
-                    if (section) section.style.display = 'none';
-                });
         })();
 
         // ===== NAVBAR =====
@@ -1610,8 +1433,8 @@
         // and only when the gallery has sent you to it by name; with no hash you
         // get the entrance and nothing else. This is what makes the gallery the
         // site's only index rather than a second way in beside the old one.
-        var SECTION_IDS = ['drumseek', 'sp404', 'plugins', 'synthsoup', 'blackboxfx', 'portfolio',
-                           'shader-library', 'shop', 'about', 'contact'];
+        var SECTION_IDS = ['drumseek', 'sp404', 'plugins', 'playground', 'synthsoup', 'blackboxfx',
+                           'portfolio', 'shader-library', 'about', 'contact'];
 
         function routeSections() {
             var want = (location.hash || '').replace(/^#/, '').split('&')[0];
@@ -3499,7 +3322,7 @@
         function render(data) {
             var works = (data.works || []).filter(function (w) { return w && (w.preview || w.poster || w.full || w.vimeo || w.youtube); });
             if (!works.length) {
-                body.innerHTML = '<div class="shop-empty">No work published yet.</div>';
+                body.innerHTML = '<div class="pane-empty">No work published yet.</div>';
                 return;
             }
             var cats = data.categories || [];

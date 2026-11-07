@@ -36,7 +36,7 @@
         { key: 'surface',     name: 'Surface',     note: 'the bowl, and the long way round' },
         { key: 'works',       name: 'Works',       note: 'what there is to look at' },
         { key: 'instruments', name: 'Instruments', note: 'things that run' },
-        { key: 'trade',       name: 'Trade',       note: 'ask, buy, write' }
+        { key: 'trade',       name: 'Trade',       note: 'ask and write' }
     ];
 
     var NODES = [
@@ -53,8 +53,8 @@
         { t: 2, name: 'SynthSoup — Play', tag: 'live', href: '/synthsoup/webapp/play/', g: 'core' },
         { t: 2, name: 'BlackboxFX',       tag: 'tool',  href: '/index.html#blackboxfx', g: 'grid' },
         { t: 2, name: 'BlackboxFX \u2014 Control', tag: 'live', href: '/blackboxfx/',   g: 'core' },
+        { t: 2, name: 'Visual Playground', tag: 'live', href: '/playground.html',      g: 'core' },
 
-        { t: 3, name: 'Shop',             tag: 'trade', href: '/index.html#shop',    g: 'frame' },
         { t: 3, name: 'About',            tag: 'text',  href: '/index.html#about',   g: 'frame' },
         { t: 3, name: 'Contact',          tag: 'text',  href: '/index.html#contact', g: 'frame' }
     ];

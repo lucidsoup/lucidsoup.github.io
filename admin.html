@@ -455,7 +455,9 @@
 
     <div class="admin-main">
         <div class="admin-help">
-            <strong>How it works:</strong> Edit any field below — changes save automatically to your browser as you type. When you're done, click <strong>SAVE / EXPORT JSON</strong> to download an updated <code>items.json</code>, then upload that file to the root of your repository to publish it. The live storefront reads from <code>items.json</code> next to <code>index.html</code>.
+            <strong>The storefront is not on the site.</strong> There is no Shop section, nothing links to one, and nothing reads <code>items.json</code> but this page &mdash; so what you edit here is the shop as it will be, not anything a visitor can see today. Putting it back means restoring the section and the grid in <code>index.html</code> and the route to it in <code>soup.js</code> and <code>stack.js</code>; all of it is in the commit that took it out.
+            <br><br>
+            <strong>How it works:</strong> Edit any field below — changes save automatically to your browser as you type. When you're done, click <strong>SAVE / EXPORT JSON</strong> to download an updated <code>items.json</code>, then upload that file to the root of your repository.
         </div>
         <div class="admin-grid" id="admin-grid"></div>
     </div>
@@ -891,8 +893,8 @@ function exportItems() {
         alert(
             "items.json downloaded.\n\n" +
             "Next: upload this file to the root of your repository\n" +
-            "(same folder as index.html) and push. The live shop will\n" +
-            "update on your next deploy.\n\n" +
+            "(same folder as index.html) and push. Nothing on the site\n" +
+            "reads it yet \u2014 the shop is not published.\n\n" +
             "Your changes stay saved in this browser in the meantime."
         );
     }, 100);
