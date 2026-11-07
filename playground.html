@@ -350,6 +350,16 @@
             font-size: .84rem; line-height: 1.6; color: rgba(255,255,255,.82);
         }
         #gate-err[hidden] { display: none; }
+        #gate-err b { color: #fff; font-weight: normal; }
+        #gate-err small { display: block; margin-top: .7rem; font-size: .78rem; color: rgba(255,255,255,.5); }
+        .outs { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .85rem; }
+        .outs button {
+            font: inherit; font-size: .8rem; letter-spacing: .04em; cursor: pointer;
+            padding: .5rem .9rem; border-radius: 8px; color: #fff;
+            border: 1px solid rgba(155,123,255,.55);
+            background: linear-gradient(135deg, rgba(155,123,255,.24), rgba(212,79,176,.16));
+        }
+        .outs button:hover { border-color: rgba(138,224,75,.8); }
         #devicepick { margin-top: 1rem; }
         #devicepick[hidden] { display: none; }
         #devicepick select {
@@ -456,9 +466,11 @@
                 <span>
                     <span class="t">A link</span>
                     <span class="d">
-                        Paste the address of anything with sound on it. A direct audio link or a radio
-                        stream plays straight through; a page with the audio buried in it goes via the
-                        same service the SP-404 converter uses. Works in every browser.
+                        A direct audio link or a radio stream plays straight through. A page &mdash;
+                        YouTube, SoundCloud, Bandcamp, Mixcloud and a thousand others &mdash; goes via the
+                        same service the SP-404 converter uses. A station that streams through its own
+                        player is the one thing this cannot read; <em>share that as a tab instead</em>.
+                        Works in every browser.
                     </span>
                     <form id="linkform" autocomplete="off" novalidate>
                         <input type="url" id="linkurl" inputmode="url" spellcheck="false"
@@ -1745,7 +1757,70 @@
     var deviceSel = document.getElementById('device-select');
     var filepick = document.getElementById('filepick');
 
-    function say(msg) { gateErr.textContent = msg; gateErr.hidden = !msg; }
+    // The card is taller than most windows and this sits at the bottom of
+    // it, so an answer nobody scrolls to is the same as no answer.
+    function reveal() {
+        if (gateErr.hidden) return;
+        try { gateErr.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { gateErr.scrollIntoView(false); }
+    }
+    function say(msg) { gateErr.textContent = msg; gateErr.hidden = !msg; reveal(); }
+    function sayRich(html) { gateErr.innerHTML = html; gateErr.hidden = !html; wireOuts(); reveal(); }
+    // A dead end should offer the way out, not just name itself.
+    function wireOuts() {
+        [].forEach.call(gateErr.querySelectorAll('[data-go]'), function (b) {
+            b.addEventListener('click', function () {
+                var id = b.getAttribute('data-go');
+                var t = document.getElementById(id);
+                if (t) t.click();
+            });
+        });
+    }
+
+    /* yt-dlp's own words, turned into something you can act on.
+
+       "ERROR: Unsupported URL: https://tundra.fm/" is accurate and useless:
+       it says what the extractor thinks without saying what you should do,
+       and what you should do is the whole question. A site that streams
+       through its own player, with no page per track, will never be
+       readable by an extractor — but it is perfectly shareable as a tab,
+       and that is one click away from here. */
+    function explain(raw, host) {
+        var m = String(raw || '').replace(/^ERROR:\s*/i, '').trim();
+        var outs = '<div class="outs">' +
+            (tabAudio ? '<button type="button" data-go="src-tab">Share the tab instead</button>' : '') +
+            '<button type="button" data-go="src-input">Use an input instead</button>' +
+            '</div>';
+        if (/unsupported url|no suitable extractor|unable to extract/i.test(m)) {
+            return '<b>' + esc(host) + ' is not a site the audio service can read.</b> It knows ' +
+                'YouTube, SoundCloud, Bandcamp, Mixcloud, Vimeo and a thousand others, but a station ' +
+                'that streams through its own player has no page per track for it to read. ' +
+                'Two things that do work on a site like that:' + outs +
+                '<small>Or paste the address of the audio file itself, if the site will show you one.</small>';
+        }
+        if (/private|sign in|log in|login|members.only|account/i.test(m)) {
+            return '<b>That one needs an account.</b> The service is not signed in to anything and ' +
+                'will not be. Play it in a tab and share that instead:' + outs;
+        }
+        if (/drm|protected|encrypted/i.test(m)) {
+            return '<b>That is DRM-protected</b>, so nothing can pull the audio out of it. ' +
+                'Play it and share the tab:' + outs;
+        }
+        if (/unavailable|not found|404|unable to download webpage|failed to resolve/i.test(m)) {
+            return '<b>Could not reach that page.</b> Check the address, or play it in a tab and ' +
+                'share that:' + outs;
+        }
+        if (/live stream|endless/i.test(m)) {
+            return '<b>' + esc(m) + '</b> A live stream is better shared as a tab anyway \u2014 it ' +
+                'starts instantly and never ends:' + outs;
+        }
+        if (/limit|too many/i.test(m)) return esc(m);
+        return '<b>' + esc(m) + '</b>' + outs;
+    }
+    function esc(x) {
+        return String(x).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+    }
     function openGate() { gate.classList.remove('gone'); }
     function closeGate() { gate.classList.add('gone'); say(''); }
 
@@ -1775,12 +1850,17 @@
         // say() doubles as the progress line: fetching through the service
         // can take most of a minute on a cold start, and a counter that is
         // climbing is the difference between waiting and hung.
+        var host = '';
+        try { host = new URL(/^https?:/i.test(linkurl.value.trim()) ? linkurl.value.trim()
+                     : 'https://' + linkurl.value.trim()).hostname.replace(/^www\./, ''); } catch (e) {}
         Ears.fromUrl(linkurl.value, say).then(function () {
             linkgo.disabled = false;
             closeGate();
         }).catch(function (err) {
             linkgo.disabled = false;
-            say((err && err.message) || 'That link would not play.');
+            var m = (err && err.message) || 'That link would not play.';
+            if (/does not look like a web address/.test(m)) say(m);
+            else sayRich(explain(m, host || 'that address'));
         });
     });
 
