@@ -1300,44 +1300,6 @@
             '  return col;' +
             '}' },
 
-        { id: 'lattice', name: 'Lattice', note: 'six-fold', src:
-            'float seg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a;' +
-            '  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }' +
-            'float figure(vec2 p, float t){' +
-            '  p *= rot(t * 0.11);' +
-            '  float a = atan(p.y, p.x), r = length(p);' +
-            '  a = mod(a + TAU / 12.0, TAU / 6.0) - TAU / 12.0;' +
-            '  vec2 q = vec2(cos(a), sin(a)) * r;' +
-            '  float d = 1e4;' +
-            '  d = min(d, abs(length(q) - 0.17));' +
-            '  d = min(d, abs(length(q - vec2(0.44, 0.0)) - 0.17));' +
-            '  d = min(d, abs(length(q - vec2(0.88, 0.0)) - 0.17));' +
-            '  d = min(d, seg(q, vec2(0.0), vec2(0.88, 0.0)));' +
-            '  d = min(d, seg(q, vec2(0.44, 0.0), vec2(0.22, 0.381)));' +
-            '  d = min(d, seg(q, vec2(0.88, 0.0), vec2(0.44, 0.762)));' +
-            '  return d;' +
-            '}' +
-            'vec3 scene(vec2 uv){' +
-            '  float t = uTime * uSpeed;' +
-            '  uv /= max(uScale, 0.05) * (1.0 + BASS * 0.28);' +
-            '  uv += vec2(fbm(uv * 1.6 + t * 0.1), fbm(uv * 1.6 - t * 0.1)) * 0.22 * uWarp;' +
-            '  vec3 col = vec3(0.0);' +
-            // Seven time-offset copies: a feedback trail baked into the one
-            // pass, so the figure still smears when feedback is turned off.
-            '  for (int i = 0; i < 7; i++){' +
-            '    float fi = float(i);' +
-            '    float d = figure(uv * (1.0 + fi * 0.013), t - fi * (0.05 + MID * 0.05));' +
-            '    float g = (0.0010 + uGlow * 0.0015) / (d * d + 0.0006);' +
-            '    col += pal(t * 0.08 + fi * 0.04 + length(uv) * 0.8) * g * exp(-fi * 0.5);' +
-            '  }' +
-            // 0.4 x 1.7 pushed the line cores past 1 even after the tone
-            // curve, so the figure came out as white rope with colour only
-            // in its halo. The point of the scene is the neon.
-            '  col *= 0.34 * (0.35 + LEVEL * 1.15);' +
-            '  col += pal(t * 0.2 + 0.5) * uBeat * 0.08 / (dot(uv, uv) + 0.06);' +
-            '  return col;' +
-            '}' },
-
         { id: 'fluid', name: 'Fluid', note: 'blobs', src:
             'vec3 scene(vec2 uv){' +
             '  float t = uTime * uSpeed;' +
@@ -2247,7 +2209,7 @@
         beatlamp.classList.toggle('on', Ears.beat > .5);
         paintWarning();
         var bits = [];
-        bits.push('<b>' + (SCENES.filter(function (s) { return s.id === state.scene; })[0] || {}).name + '</b>');
+        bits.push(showing());
         if (Ears.bpm) bits.push('<b>' + Ears.bpm + '</b> bpm');
         if (Ears.rate) bits.push((Ears.rate / 1000).toFixed(1) + 'k');
         bits.push('<b>' + fps + '</b> fps');
@@ -2295,6 +2257,23 @@
     document.getElementById('unblock').addEventListener('click', function () {
         Ears.start().then(function () { document.getElementById('unblock').hidden = true; });
     });
+
+    /* What is on screen, which is not the same as what deck A holds. Naming
+       only A meant that with the fader up the readout said one scene while
+       the picture showed another, and the only way to find out was to know
+       the shaders by sight. */
+    function sceneName(id) {
+        for (var i = 0; i < SCENES.length; i++) if (SCENES[i].id === id) return SCENES[i].name;
+        return id;
+    }
+    function showing() {
+        var x = at('xfade');
+        var a = sceneName(state.scene), b = sceneName(state.sceneB);
+        if (x <= 0.002) return '<b>' + a + '</b>';
+        if (x >= 0.998) return '<b>' + b + '</b>';
+        return '<b>' + a + '</b> ' + Math.round((1 - x) * 100) + '/' + Math.round(x * 100) +
+               ' <b>' + b + '</b>';
+    }
 
     /* =====================================================================
        5. Where the sound comes from
