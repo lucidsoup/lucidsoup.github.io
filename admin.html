@@ -455,7 +455,7 @@
 
     <div class="admin-main">
         <div class="admin-help">
-            <strong>The storefront is switched off.</strong> The Shop section on the front page says &ldquo;coming soon&rdquo; and reads nothing, so editing here changes what the shop will hold, not what anyone can see today. Turning it back on means restoring the shop grid in <code>index.html</code>; the markup it replaced is in the commit that switched it off.
+            <strong>The storefront is not on the site.</strong> There is no Shop section, nothing links to one, and nothing reads <code>items.json</code> but this page &mdash; so what you edit here is the shop as it will be, not anything a visitor can see today. Putting it back means restoring the section and the grid in <code>index.html</code> and the route to it in <code>soup.js</code> and <code>stack.js</code>; all of it is in the commit that took it out.
             <br><br>
             <strong>How it works:</strong> Edit any field below — changes save automatically to your browser as you type. When you're done, click <strong>SAVE / EXPORT JSON</strong> to download an updated <code>items.json</code>, then upload that file to the root of your repository.
         </div>
@@ -893,8 +893,8 @@ function exportItems() {
         alert(
             "items.json downloaded.\n\n" +
             "Next: upload this file to the root of your repository\n" +
-            "(same folder as index.html) and push. The live shop will\n" +
-            "update on your next deploy.\n\n" +
+            "(same folder as index.html) and push. Nothing on the site\n" +
+            "reads it yet \u2014 the shop is not published.\n\n" +
             "Your changes stay saved in this browser in the meantime."
         );
     }, 100);

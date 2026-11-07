@@ -621,7 +621,7 @@
           "art": "pattern:triangle",
           "repeat": 3,
           "exit": "counting-house",
-          "label": "shop"
+          "label": "counting house"
         },
         "west": {
           "art": "pattern:escher",
@@ -668,10 +668,6 @@
           "exit": "studio",
           "label": "back"
         }
-      },
-      "opens": {
-        "href": "index.html#shop",
-        "title": "Shop"
       }
     },
     "loft": {
@@ -1070,7 +1066,7 @@
             },
             {
               "exit": "counting-house",
-              "label": "shop",
+              "label": "counting house",
               "at": 0.72,
               "tall": true
             }

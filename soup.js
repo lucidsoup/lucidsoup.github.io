@@ -74,7 +74,7 @@
         { id: 'sp404',          label: 'SP-404',     sub: 'converter',     href: 'sp404.html',     shape: 'cube',   d: 74, ring: 1, a: .29 },
         { id: 'plugins',        label: 'Plugins',    sub: 'clap · vst3',   href: 'plugins.html',   shape: 'faders', d: 72, ring: 1, a: .49 },
         { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'ring',   d: 70, ring: 1, a: .69 },
-        { id: 'shop',           label: 'Shop',       sub: 'coming soon',   hash: 'shop',           shape: 'noodle', d: 70, ring: 1, a: .89 },
+        { id: 'playground',     label: 'Playground', sub: 'audio \u2192 visuals', href: 'playground.html', shape: 'scope', d: 72, ring: 1, a: .89 },
 
         { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'spiral', d: 74, ring: 2, a: .17 },
         { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'star', d: 58, ring: 2, a: .42 },
@@ -138,6 +138,13 @@
         star: function () {
             return svg('<path d="M50 8l10 24 26-6-16 21 16 21-26-6-10 24-10-24-26 6 16-21-16-21 26 6z" ' +
                 'fill="#2a0a28" opacity=".8"/>', 'linear-gradient(145deg,#ffe36f,#d44fb0)');
+        },
+        scope: function () {
+            return svg('<circle cx="50" cy="50" r="33" fill="none" stroke="#1a0b2e" stroke-width="6" opacity=".6"/>' +
+                '<path d="M20 50c5-18 9-18 14 0s9 18 14 0 9-18 14 0 9 18 14 0" fill="none" ' +
+                'stroke="#eafff2" stroke-width="5" stroke-linecap="round"/>' +
+                '<circle cx="50" cy="50" r="33" fill="none" stroke="#9dffcf" stroke-width="2.5" opacity=".5"/>',
+                'linear-gradient(145deg,#59e0ff,#2a3bb8)');
         },
         faders: function () {
             return svg('<g stroke="#140a24" stroke-width="7" stroke-linecap="round" opacity=".55">' +

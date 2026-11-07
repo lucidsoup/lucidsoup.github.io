@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="/lucid.css">
+    <link rel="stylesheet" href="/stack.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Visual Playground — LucidSoup</title>
+    <meta name="description" content="Point it at a tab, a line in, or a file, and drive a WebGL visual rig with whatever is playing. Six audio-reactive scenes, a patchable modulation matrix, feedback and post. Nothing is uploaded.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <style>
+        /* ===================================================================
+           Visual Playground
+
+           The front page already has an audio-reactive canvas, but it can only
+           hear DrumSeek: the levels arrive by postMessage from the iframe, so
+           anything else playing on the machine is invisible to it. This page
+           exists for the other case — something playing on a site that is not
+           this one, which is the normal case when you are VJing.
+
+           A browser cannot reach into another origin and read its audio. What
+           it can do is ask the user to hand over a tab, which is a different
+           thing with a different prompt and a very different support story:
+
+             getDisplayMedia({audio:true})  Chrome / Edge / Opera on desktop.
+                                            Not Firefox. Not Safari. Not mobile.
+             getUserMedia({audio:true})     everywhere, and the route a real rig
+                                            uses anyway: a loopback device such
+                                            as BlackHole or VB-Cable.
+
+           So the page offers both, says which is which, and never pretends the
+           first one is available when it is not. Whichever arrives, the audio
+           is analysed here and never leaves the machine.
+           =================================================================== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: 'Arial', sans-serif; color: #fff; background: #04040a;
+            overflow: hidden; overscroll-behavior: none;
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: var(--lucid-accent, #9b7bff); }
+        .mono { font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); }
+
+        /* ---- the picture ---- */
+        #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #000; }
+        #stage.hidden-cursor { cursor: none; }
+
+        /* ---- top bar: what is playing, and proof that it is ---- */
+        #hud {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px;
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+            /* the fixed way back and index chips live in the right-hand corner */
+            padding-right: 212px;
+            background: linear-gradient(rgba(0,0,0,.72), transparent);
+            pointer-events: none;
+            font-size: 11px; letter-spacing: .1em;
+            transition: opacity .25s ease;
+        }
+        #hud > * { pointer-events: auto; }
+        .chip {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 7px 11px; border-radius: 3px; line-height: 1;
+            border: 1px solid rgba(255,255,255,.16);
+            background: rgba(5,5,10,.72);
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: 10px; letter-spacing: var(--lucid-track, .18em);
+            text-transform: uppercase; color: rgba(255,255,255,.72);
+            cursor: pointer; transition: border-color .2s, color .2s, background .2s;
+        }
+        .chip:hover, .chip:focus-visible { color: #fff; border-color: rgba(155,123,255,.7); outline: none; }
+        .chip.live { border-color: rgba(138,224,75,.55); color: var(--lucid-accent-2, #8ae04b); }
+        .chip.dead { border-color: rgba(212,79,176,.5); color: var(--lucid-accent-3, #d44fb0); }
+        .chip .dot {
+            width: 7px; height: 7px; border-radius: 50%; flex: none;
+            background: currentColor; box-shadow: 0 0 8px currentColor;
+        }
+        .chip.live .dot { animation: pulse 1.6s ease-in-out infinite; }
+        @keyframes pulse { 50% { opacity: .35; } }
+
+        /* The meters are the honest part of the interface: if the bars are
+           flat, the problem is the audio, not the visuals, and you can see
+           that at a glance instead of guessing. */
+        #meters {
+            display: flex; align-items: flex-end; gap: 3px; height: 26px;
+            padding: 5px 9px; border-radius: 3px;
+            border: 1px solid rgba(255,255,255,.12); background: rgba(5,5,10,.72);
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+        }
+        #meters i {
+            display: block; width: 5px; height: 2px; border-radius: 1px;
+            background: var(--lucid-accent, #9b7bff);
+            transition: height .06s linear, background .2s;
+        }
+        #meters i.hot { background: var(--lucid-accent-2, #8ae04b); }
+        #readout {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: 10px; letter-spacing: .12em; color: rgba(255,255,255,.4);
+            white-space: nowrap;
+        }
+        #readout b { color: rgba(255,255,255,.78); font-weight: normal; }
+        #beatlamp {
+            width: 9px; height: 9px; border-radius: 50%; flex: none;
+            background: rgba(255,255,255,.14); transition: background .05s, box-shadow .05s;
+        }
+        #beatlamp.on { background: var(--lucid-accent-3, #d44fb0); box-shadow: 0 0 12px var(--lucid-accent-3, #d44fb0); }
+
+        /* ---- the control dock ---- */
+        #dock {
+            position: fixed; z-index: 19; top: 0; right: 0; bottom: 0; width: 310px;
+            display: flex; flex-direction: column;
+            background: rgba(6,6,13,.88);
+            -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+            border-left: 1px solid rgba(255,255,255,.09);
+            transform: translateX(0); transition: transform .28s ease;
+            overflow: hidden;
+        }
+        #dock.shut { transform: translateX(100%); }
+        /* The dock's own header, rather than a floating button: a fixed one
+           at the bottom right sat on top of whichever control happened to
+           scroll under it. */
+        #dock-head {
+            flex: none; display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; padding: 12px 12px 11px;
+            /* The dock runs up the right-hand edge, which is where the fixed
+               way back and index chips live, so its own hide button was
+               underneath them. lucid.css states how far down that is. */
+            padding-top: calc(var(--lucid-chrome-clear, 48px) + env(safe-area-inset-top, 0px));
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+        #dock-head span {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+            color: rgba(255,255,255,.42);
+        }
+        #dock-scroll {
+            flex: 1; overflow-y: auto; overscroll-behavior: contain;
+            padding: 14px 14px calc(18px + env(safe-area-inset-bottom, 0px));
+        }
+        /* The floating chip only exists while the dock is away. */
+        #dock-toggle {
+            position: fixed; z-index: 21; right: 12px; display: none;
+            bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        }
+        body.dock-shut #dock-toggle { display: inline-flex; }
+        .group { margin-bottom: 18px; }
+        .group > h2 {
+            font-size: .62rem; letter-spacing: .22em; text-transform: uppercase;
+            color: rgba(155,123,255,.72); font-weight: bold;
+            margin-bottom: .7rem; padding-bottom: .4rem;
+            border-bottom: 1px solid rgba(255,255,255,.07);
+        }
+        .scenes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        .scene-btn {
+            padding: 9px 4px; border-radius: 4px; cursor: pointer;
+            border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03);
+            color: rgba(255,255,255,.66); font: inherit; font-size: 10px;
+            letter-spacing: .06em; text-transform: uppercase;
+            transition: border-color .2s, background .2s, color .2s;
+        }
+        .scene-btn:hover { color: #fff; border-color: rgba(155,123,255,.5); }
+        .scene-btn.on {
+            color: #fff; border-color: rgba(155,123,255,.9);
+            background: linear-gradient(135deg, rgba(155,123,255,.22), rgba(212,79,176,.14));
+        }
+        .scene-btn small {
+            display: block; margin-top: 3px; font-size: 8px; letter-spacing: .1em;
+            color: rgba(255,255,255,.3); text-transform: none;
+        }
+
+        /* A row is: name, value, slider — and, where the control can be
+           patched, the source it is patched to and how much. Keeping the
+           modulation on the same row as the control is the whole point: you
+           can see what is moving on its own and what is being driven. */
+        .row { margin-bottom: 9px; }
+        .row-top {
+            display: flex; align-items: baseline; justify-content: space-between;
+            gap: 8px; margin-bottom: 3px;
+        }
+        .row-top label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.52); }
+        .row-top output {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: 10px; color: rgba(255,255,255,.4);
+        }
+        input[type=range] {
+            -webkit-appearance: none; appearance: none; width: 100%; height: 18px;
+            background: transparent; cursor: pointer; display: block;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 3px; border-radius: 2px; background: rgba(255,255,255,.13);
+        }
+        input[type=range]::-moz-range-track { height: 3px; border-radius: 2px; background: rgba(255,255,255,.13); }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 13px; height: 13px; margin-top: -5px; border-radius: 50%;
+            background: var(--lucid-accent, #9b7bff); border: 0;
+            box-shadow: 0 0 10px rgba(155,123,255,.5);
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 13px; height: 13px; border-radius: 50%; border: 0;
+            background: var(--lucid-accent, #9b7bff); box-shadow: 0 0 10px rgba(155,123,255,.5);
+        }
+        input[type=range]:focus-visible { outline: 2px solid var(--lucid-accent-2, #8ae04b); outline-offset: 3px; }
+
+        .mod { display: flex; align-items: center; gap: 6px; margin-top: 1px; }
+        .mod select {
+            flex: 0 0 76px; font: inherit; font-size: 9px; letter-spacing: .08em;
+            text-transform: uppercase; padding: 3px 4px; border-radius: 3px;
+            background: rgba(255,255,255,.05); color: rgba(255,255,255,.6);
+            border: 1px solid rgba(255,255,255,.1);
+        }
+        .mod select option { background: #0b0b14; color: #fff; }
+        .mod input[type=range] { flex: 1; height: 14px; }
+        .mod input[type=range]::-webkit-slider-thumb {
+            width: 9px; height: 9px; margin-top: -3px;
+            background: var(--lucid-accent-3, #d44fb0); box-shadow: 0 0 8px rgba(212,79,176,.5);
+        }
+        .mod input[type=range]::-moz-range-thumb {
+            width: 9px; height: 9px; background: var(--lucid-accent-3, #d44fb0);
+        }
+        .mod.off select { color: rgba(255,255,255,.3); }
+        .mod.off input[type=range] { opacity: .3; pointer-events: none; }
+
+        .toggles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
+        .tog {
+            padding: 8px 6px; border-radius: 4px; cursor: pointer; font: inherit;
+            font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+            border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03);
+            color: rgba(255,255,255,.6); transition: all .2s;
+        }
+        .tog:hover { color: #fff; border-color: rgba(155,123,255,.5); }
+        .tog.on { color: #04040a; background: var(--lucid-accent-2, #8ae04b); border-color: var(--lucid-accent-2, #8ae04b); }
+        .hint { font-size: 10px; line-height: 1.6; color: rgba(255,255,255,.34); margin-top: .6rem; }
+        .hint kbd {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace); font-size: 9px;
+            padding: 1px 4px; border-radius: 3px; border: 1px solid rgba(255,255,255,.16);
+            background: rgba(255,255,255,.05); color: rgba(255,255,255,.6);
+        }
+
+        /* ---- the opening card ---- */
+        #gate {
+            position: fixed; inset: 0; z-index: 40;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; overflow-y: auto;
+            background: radial-gradient(60% 60% at 50% 40%, rgba(20,8,40,.86), rgba(3,3,8,.96));
+            -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+        }
+        #gate.gone { display: none; }
+        .card {
+            width: min(620px, 100%); margin: auto;
+            border: 1px solid rgba(255,255,255,.1); border-radius: 16px;
+            background: rgba(8,8,16,.92); padding: 1.9rem 1.7rem;
+        }
+        .card h1 {
+            font-family: 'Orbitron', monospace; font-weight: 900;
+            font-size: clamp(1.35rem, 4.4vw, 2.1rem); letter-spacing: .05em;
+            text-transform: uppercase; line-height: 1.1;
+            background: linear-gradient(90deg, var(--lucid-accent-3, #d44fb0), var(--lucid-accent, #9b7bff), var(--lucid-accent-2, #8ae04b));
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .card .lede { color: rgba(255,255,255,.62); font-size: .93rem; line-height: 1.65; margin-top: .7rem; }
+        .sources { display: grid; gap: .6rem; margin-top: 1.4rem; }
+        .src {
+            display: grid; grid-template-columns: auto 1fr; gap: .9rem; align-items: start;
+            width: 100%; text-align: left; cursor: pointer; font: inherit;
+            padding: .95rem 1.05rem; border-radius: 11px;
+            border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.025);
+            color: #fff; transition: border-color .2s, background .2s, transform .2s;
+        }
+        .src:hover:not(:disabled), .src:focus-visible:not(:disabled) {
+            border-color: rgba(155,123,255,.6); background: rgba(155,123,255,.07);
+            transform: translateY(-2px); outline: none;
+        }
+        .src:disabled { opacity: .42; cursor: not-allowed; }
+        .src .n {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .62rem; letter-spacing: .1em; color: rgba(155,123,255,.75);
+            padding-top: .25rem;
+        }
+        .src .t { display: block; font-size: .97rem; }
+        .src .d { display: block; font-size: .8rem; line-height: 1.55; color: rgba(255,255,255,.5); margin-top: .22rem; }
+        .src .d em { color: rgba(212,79,176,.85); font-style: normal; }
+        .card footer {
+            margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,.08);
+            font-size: .78rem; line-height: 1.6; color: rgba(255,255,255,.4);
+        }
+        #gate-err {
+            margin-top: 1rem; padding: .8rem 1rem; border-radius: 9px;
+            border: 1px solid rgba(212,79,176,.42); background: rgba(212,79,176,.08);
+            font-size: .84rem; line-height: 1.6; color: rgba(255,255,255,.82);
+        }
+        #gate-err[hidden] { display: none; }
+        #devicepick { margin-top: 1rem; }
+        #devicepick[hidden] { display: none; }
+        #devicepick select {
+            width: 100%; font: inherit; font-size: .86rem; padding: .6rem .7rem;
+            border-radius: 8px; background: rgba(255,255,255,.05); color: #fff;
+            border: 1px solid rgba(255,255,255,.14);
+        }
+        #devicepick select option { background: #0b0b14; }
+
+        /* ---- phones: the dock becomes a sheet ---- */
+        @media (max-width: 760px) {
+            #hud { padding-right: 12px; padding-top: calc(10px + var(--lucid-chrome-clear, 41px)); gap: 7px; flex-wrap: wrap; }
+            #readout { font-size: 9px; letter-spacing: .08em; }
+            #dock {
+                top: auto; left: 0; right: 0; bottom: 0; width: auto;
+                max-height: 62vh; border-left: 0;
+                border-top: 1px solid rgba(255,255,255,.1);
+                border-radius: 14px 14px 0 0;
+            }
+            #dock.shut { transform: translateY(100%); }
+            #dock-head { padding-top: 12px; }
+            #dock-scroll { padding: 14px 14px calc(22px + env(safe-area-inset-bottom, 0px)); }
+            .card { padding: 1.4rem 1.15rem; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #dock, .src, .chip, #meters i { transition: none; }
+            .chip.live .dot { animation: none; }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+
+<div id="hud">
+    <button type="button" class="chip" id="source-chip"><span class="dot"></span><span id="source-name">no sound</span></button>
+    <div id="meters" aria-hidden="true"></div>
+    <div id="beatlamp" aria-hidden="true"></div>
+    <div id="readout" class="mono"></div>
+</div>
+
+<button type="button" class="chip" id="dock-toggle" aria-expanded="true" aria-controls="dock">controls</button>
+
+<aside id="dock" aria-label="Visual controls">
+    <header id="dock-head">
+        <span>Controls</span>
+        <button type="button" class="chip" id="dock-close" aria-label="Hide the controls">hide</button>
+    </header>
+    <div id="dock-scroll">
+        <div class="group">
+            <h2>Scene</h2>
+            <div class="scenes" id="scenes"></div>
+        </div>
+
+        <div class="group">
+            <h2>The look</h2>
+            <div id="macros"></div>
+        </div>
+
+        <div class="group">
+            <h2>Feedback &amp; post</h2>
+            <div id="posts"></div>
+        </div>
+
+        <div class="group">
+            <h2>Listening</h2>
+            <div id="listen"></div>
+        </div>
+
+        <div class="group">
+            <h2>Output</h2>
+            <div class="toggles">
+                <button type="button" class="tog" id="t-full">Fullscreen</button>
+                <button type="button" class="tog" id="t-hide">Hide panel</button>
+                <button type="button" class="tog" id="t-freeze">Freeze</button>
+                <button type="button" class="tog" id="t-black">Blackout</button>
+                <button type="button" class="tog" id="t-random">Randomise</button>
+                <button type="button" class="tog" id="t-reset">Reset</button>
+            </div>
+            <p class="hint">
+                <kbd>1</kbd>&ndash;<kbd>6</kbd> scene &middot; <kbd>space</kbd> blackout &middot;
+                <kbd>f</kbd> fullscreen &middot; <kbd>h</kbd> hide the panel &middot;
+                <kbd>r</kbd> randomise &middot; <kbd>s</kbd> change the sound
+            </p>
+        </div>
+    </div>
+</aside>
+
+<div id="gate">
+    <div class="card">
+        <h1>Visual Playground</h1>
+        <p class="lede">
+            Six WebGL scenes driven by whatever you are listening to, with the knobs out where you
+            can reach them. Pick where the sound comes from &mdash; everything after that happens on
+            this machine, and nothing is uploaded or recorded.
+        </p>
+
+        <div class="sources">
+            <button type="button" class="src" id="src-tab" data-src="tab">
+                <span class="n">01</span>
+                <span>
+                    <span class="t">A browser tab</span>
+                    <span class="d" id="src-tab-d">
+                        Open the site you want to hear in another tab, come back, and pick it from the
+                        list. <em>Tick &ldquo;Also share tab audio&rdquo; in the corner of that dialog</em> &mdash;
+                        without it you get a picture and silence.
+                    </span>
+                </span>
+            </button>
+
+            <button type="button" class="src" id="src-input" data-src="input">
+                <span class="n">02</span>
+                <span>
+                    <span class="t">An input on this machine</span>
+                    <span class="d">
+                        A microphone, a line in, or a loopback device &mdash; BlackHole on a Mac,
+                        VB-Cable on Windows &mdash; which is how you catch the whole system, not just
+                        one tab. Works in every browser.
+                    </span>
+                </span>
+            </button>
+
+            <button type="button" class="src" id="src-file" data-src="file">
+                <span class="n">03</span>
+                <span>
+                    <span class="t">A file</span>
+                    <span class="d">Drop one anywhere on the page, or click here to pick. It plays out loud and drives the visuals.</span>
+                </span>
+            </button>
+
+            <button type="button" class="src" id="src-none" data-src="none">
+                <span class="n">04</span>
+                <span>
+                    <span class="t">Nothing, for now</span>
+                    <span class="d">The scenes run on their own clock. You can plug the sound in later from the chip in the corner.</span>
+                </span>
+            </button>
+        </div>
+
+        <div id="devicepick" hidden>
+            <select id="device-select" aria-label="Audio input"></select>
+        </div>
+
+        <div id="gate-err" hidden></div>
+
+        <footer id="gate-note"></footer>
+    </div>
+</div>
+
+<input type="file" id="filepick" accept="audio/*,video/*" hidden>
+
+<script>
+(function () {
+    'use strict';
+
+    /* =====================================================================
+       1. Ears
+
+       One AudioContext, one analyser, and whatever source is currently
+       feeding it. Everything downstream reads four smoothed bands and a beat
+       envelope, so the scenes never need to know whether the sound arrived
+       from a tab, a cable or a file.
+       ===================================================================== */
+    var Ears = (function () {
+        var ctx = null, analyser = null, node = null, stream = null, el = null;
+        var freq = null, wave = null;
+        var kind = 'none';
+        var label = 'no sound';
+        var onchange = function () {};
+
+        // Smoothed 0..1 values the renderer reads. `raw` is before auto-gain,
+        // which the meter needs so a hot signal still shows as hot.
+        var band = { level: 0, bass: 0, mid: 0, high: 0 };
+        var raw   = { level: 0, bass: 0, mid: 0, high: 0 };
+        // The ceiling each band is normalised against. It rises instantly and
+        // falls slowly, so a quiet stream opens up over a second or two
+        // instead of drawing a flat line, and a loud one does not clip.
+        var ceil  = { level: .15, bass: .15, mid: .15, high: .15 };
+
+        var beat = 0, beatAt = 0, bpm = 0;
+        var hist = [], taps = [];
+        var cfg = { gain: 1, sens: 1, attack: .5, release: .12 };
+
+        function ensure() {
+            if (ctx) return ctx;
+            var AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return null;
+            ctx = new AC();
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 2048;
+            // Smoothing is done by hand below, per band, with separate attack
+            // and release. The analyser's own single constant cannot do that,
+            // so it is left off rather than fighting it.
+            analyser.smoothingTimeConstant = 0;
+            freq = new Uint8Array(analyser.frequencyBinCount);
+            wave = new Uint8Array(analyser.fftSize);
+            return ctx;
+        }
+
+        function stop() {
+            if (node) { try { node.disconnect(); } catch (e) {} node = null; }
+            if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+            if (el) { try { el.pause(); } catch (e) {} if (el.src) URL.revokeObjectURL(el.src); el = null; }
+        }
+
+        /* A tab, via getDisplayMedia. Three things bite here, in order:
+           - Chrome refuses an audio-only request, so video has to be asked for
+             and then thrown away. Keeping the video track alive would hold a
+             capture running for a picture nobody looks at.
+           - The audio checkbox in the picker is off by default and easy to
+             miss, so a stream with no audio track is the common failure and
+             needs its own message rather than a shrug.
+           - Firefox and Safari have no tab audio at all. Feature detection
+             cannot see that — getDisplayMedia exists in both — so the caller
+             checks the engine instead. */
+        function fromTab() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia)
+                return Promise.reject(new Error('This browser cannot hand over a tab at all.'));
+            return navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+            }).then(function (s) {
+                s.getVideoTracks().forEach(function (t) { t.stop(); s.removeTrack(t); });
+                var a = s.getAudioTracks();
+                if (!a.length) {
+                    s.getTracks().forEach(function (t) { t.stop(); });
+                    throw new Error('NOAUDIO');
+                }
+                attachStream(s, 'tab', 'a tab');
+                a[0].addEventListener('ended', function () { if (kind === 'tab') setNone('the tab stopped sharing'); });
+            });
+        }
+
+        function fromInput(deviceId) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+                return Promise.reject(new Error('This browser has no audio input API.'));
+            var c = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+            if (deviceId) c.deviceId = { exact: deviceId };
+            return navigator.mediaDevices.getUserMedia({ audio: c }).then(function (s) {
+                var t = s.getAudioTracks()[0];
+                attachStream(s, 'input', (t && t.label) ? t.label : 'an input');
+                if (t) t.addEventListener('ended', function () { if (kind === 'input') setNone('the input went away'); });
+            });
+        }
+
+        function fromFile(file) {
+            var c = ensure();
+            if (!c) return Promise.reject(new Error('No Web Audio in this browser.'));
+            stop();
+            var a = new Audio();
+            a.src = URL.createObjectURL(file);
+            a.loop = true;
+            a.crossOrigin = 'anonymous';
+            el = a;
+            node = c.createMediaElementSource(a);
+            node.connect(analyser);
+            // A file is the one source you are meant to hear: a tab and an
+            // input are already audible, and routing those to the speakers
+            // would double them or feed back.
+            node.connect(c.destination);
+            kind = 'file';
+            label = file.name.length > 26 ? file.name.slice(0, 25) + '…' : file.name;
+            return c.resume().then(function () { return a.play(); }).then(function () { onchange(); });
+        }
+
+        function attachStream(s, k, name) {
+            var c = ensure();
+            if (!c) throw new Error('No Web Audio in this browser.');
+            stop();
+            stream = s;
+            node = c.createMediaStreamSource(s);
+            node.connect(analyser);
+            kind = k;
+            label = name.length > 26 ? name.slice(0, 25) + '…' : name;
+            c.resume();
+            onchange();
+        }
+
+        function setNone(why) {
+            stop();
+            kind = 'none';
+            label = why || 'no sound';
+            onchange();
+        }
+
+        // Hz to bin. Doing this from the real sample rate rather than a fixed
+        // table matters: a 48k context and a 44.1k one put the same frequency
+        // in different bins, and a hard-coded split puts the crossover in the
+        // wrong place on one of them.
+        function bin(hz) {
+            if (!ctx || !analyser) return 0;
+            var n = Math.round(hz / (ctx.sampleRate / 2) * analyser.frequencyBinCount);
+            return Math.max(0, Math.min(analyser.frequencyBinCount - 1, n));
+        }
+        // Half the mean, half the peak, and the reason is the width of the
+        // bands. Treble spans 2k-12k, which is sixty times as many bins as
+        // the 20-160 bass band, so a mean buries anything narrow: a hi-hat
+        // that pins its own bins reads 0.01 next to a kick's 0.77, and the
+        // band looks dead when it is not. A pure peak overreacts to one
+        // bright bin instead, so take both — loud-and-narrow and
+        // loud-and-wide then both register, which is what an eye expects.
+        function slice(lo, hi) {
+            var a = bin(lo), b = bin(hi), s = 0, n = 0, m = 0;
+            for (var i = a; i <= b; i++) { s += freq[i]; if (freq[i] > m) m = freq[i]; n++; }
+            if (!n) return 0;
+            return (0.5 * (s / n) + 0.5 * m) / 255;
+        }
+
+        function smooth(prev, next) {
+            var k = next > prev ? cfg.attack : cfg.release;
+            return prev + (next - prev) * k;
+        }
+
+        function read(dt) {
+            if (!analyser) { beat *= .9; return band; }
+            analyser.getByteFrequencyData(freq);
+            analyser.getByteTimeDomainData(wave);
+
+            var sum = 0;
+            for (var i = 0; i < wave.length; i += 4) { var v = (wave[i] - 128) / 128; sum += v * v; }
+            var rms = Math.sqrt(sum / (wave.length / 4));
+
+            raw.level = rms;
+            raw.bass  = slice(20, 160);
+            raw.mid   = slice(160, 2000);
+            raw.high  = slice(2000, 12000);
+
+            var decay = Math.pow(.5, dt / 2.5);          // ceiling halves every 2.5s
+            ['level', 'bass', 'mid', 'high'].forEach(function (k) {
+                var r = raw[k] * cfg.gain;
+                // A floor under the ceiling, so silence does not divide by
+                // nothing and turn dither into a full-scale signal. Low
+                // enough that a genuinely quiet band still opens up.
+                ceil[k] = Math.max(r, Math.max(.02, ceil[k] * decay));
+                var n = Math.min(1, (r / ceil[k]) * cfg.sens);
+                band[k] = smooth(band[k], n);
+            });
+
+            // Beat: bass energy against its own rolling mean. A plain
+            // threshold fires continuously on loud music and never on quiet
+            // music; measuring against the recent average makes it a question
+            // of contrast, which is what a kick actually is.
+            hist.push(raw.bass);
+            if (hist.length > 43) hist.shift();
+            var mean = 0;
+            for (var j = 0; j < hist.length; j++) mean += hist[j];
+            mean /= Math.max(1, hist.length);
+            var now = performance.now();
+            if (hist.length > 12 && raw.bass > mean * 1.38 && raw.bass > .06 && now - beatAt > 240) {
+                if (beatAt) {
+                    taps.push(now - beatAt);
+                    if (taps.length > 12) taps.shift();
+                    var sorted = taps.slice().sort(function (a, b) { return a - b; });
+                    var med = sorted[Math.floor(sorted.length / 2)];
+                    if (med > 200 && med < 1500) bpm = Math.round(60000 / med);
+                }
+                beatAt = now;
+                beat = 1;
+            }
+            beat *= Math.pow(.02, dt);                   // ~decays over 250ms
+            return band;
+        }
+
+        return {
+            band: band, raw: raw, cfg: cfg,
+            get kind() { return kind; },
+            get label() { return label; },
+            get beat() { return beat; },
+            get bpm() { return bpm; },
+            get rate() { return ctx ? ctx.sampleRate : 0; },
+            get spectrum() { return freq; },
+            // The analyser itself, so anything can be patched into it from a
+            // console — which is also how the test suite feeds it a tone it
+            // already knows the answer for.
+            get analyser() { return analyser; },
+            read: read, fromTab: fromTab, fromInput: fromInput, fromFile: fromFile,
+            none: setNone, ensure: ensure,
+            resume: function () { return ctx ? ctx.resume() : Promise.resolve(); },
+            set onchange(f) { onchange = f; }
+        };
+    })();
+
+    /* =====================================================================
+       2. The picture
+
+       Three passes a frame: the scene into a buffer, a composite that mixes
+       that with the previous frame (the feedback, which is what makes a
+       still scene feel like a performance) and grades it, then a blit to the
+       screen. Written against WebGL1 and GLSL ES 1.00 on purpose: every
+       browser that can run the audio side can run this, with no fallback to
+       maintain.
+       ===================================================================== */
+    var VERT = 'attribute vec2 p; varying vec2 vUv;' +
+               'void main(){ vUv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
+
+    var PRELUDE = [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform vec2  uRes;',
+        'uniform float uTime;',
+        'uniform vec4  uBands;',      // level, bass, mid, high
+        'uniform float uBeat;',
+        'uniform float uSpeed, uScale, uWarp, uGlow, uHue;',
+        'uniform sampler2D uFFT;',
+        '#define LEVEL uBands.x',
+        '#define BASS  uBands.y',
+        '#define MID   uBands.z',
+        '#define HIGH  uBands.w',
+        'const float TAU = 6.28318530718;',
+        'mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }',
+        // The site's ramp, the same three neons the shader library uses, so a
+        // scene here and a shader from the library read as the same place.
+        'vec3 ramp(float t){',
+        '  t = fract(t) * 3.0;',
+        '  vec3 m = vec3(1.00, 0.06, 0.94), c = vec3(0.00, 1.00, 1.00), g = vec3(0.22, 1.00, 0.08);',
+        '  if (t < 1.0) return mix(m, c, t);',
+        '  if (t < 2.0) return mix(c, g, t - 1.0);',
+        '  return mix(g, m, t - 2.0);',
+        '}',
+        'vec3 pal(float t){ return ramp(t + uHue); }',
+        'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+        'float noise(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  f = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(hash(i), hash(i + vec2(1,0)), f.x),',
+        '             mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);',
+        '}',
+        'float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a * noise(p); p *= 2.02; a *= 0.5; } return v; }',
+        // The analyser's bins, uploaded as a 256x1 texture, so a scene can
+        // draw the actual spectrum instead of only four numbers from it.
+        'float fft(float x){ return texture2D(uFFT, vec2(clamp(x, 0.0, 1.0), 0.5)).r; }',
+        ''
+    ].join('\n');
+
+    // Every scene is tone-mapped here rather than in its own code, the way
+    // the shader library's pieces each end with col/(1+col). Without it a
+    // glow term like 0.003/(d*d + 0.0003) peaks near 10, the feedback then
+    // carries that forward, and the middle of the frame is a white hole —
+    // which is exactly what Lattice, Fluid and Shards did. Bounding each
+    // scene first also means the feedback pass is mixing comparable things.
+    var TAIL = '\nvoid main(){ vec2 uv = (gl_FragCoord.xy * 2.0 - uRes) / min(uRes.x, uRes.y);' +
+               ' vec3 c = max(scene(uv), 0.0); c = c / (1.0 + c);' +
+               ' gl_FragColor = vec4(c, 1.0); }';
+
+    var SCENES = [
+        { id: 'tunnel', name: 'Tunnel', note: 'bass drives', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            // Slices on the highs: a hi-hat opens the kaleidoscope out and a
+            // dark passage closes it back down to a plain tube.
+            '  float slices = 3.0 + floor(3.0 + HIGH * 9.0);' +
+            '  float a = atan(uv.y, uv.x);' +
+            '  float r = length(uv) * (1.0 / max(uScale, 0.05));' +
+            '  a = mod(a + TAU / (slices * 2.0), TAU / slices) - TAU / (slices * 2.0);' +
+            '  vec2 q = vec2(cos(a), sin(a)) * r;' +
+            // Dividing by r is the tunnel: it sends the far end to infinity.
+            '  vec2 tu = vec2(atan(q.y, q.x) / TAU, 0.35 / max(length(q), 0.04) + t * (0.35 + BASS * 1.4));' +
+            '  tu.x += sin(tu.y * 2.0 + t) * 0.12 * uWarp;' +
+            '  float g = 0.5 + 0.5 * sin(tu.y * TAU * 3.0 + tu.x * TAU * 6.0);' +
+            '  g = pow(g, 3.0 - BASS * 1.6);' +
+            '  float depth = smoothstep(0.0, 1.1, length(q));' +
+            // 0.12 put the whole visible depth inside a tenth of the ramp, so
+            // the tube came out one colour and the feedback smeared it flat.
+            '  vec3 col = pal(tu.y * 0.26 + tu.x * 0.5 + t * 0.05) * g * (0.35 + LEVEL * 1.5);' +
+            '  col += pal(t * 0.1 + 0.4) * uGlow * 0.045 / (dot(q, q) + 0.03) * (0.4 + BASS);' +
+            '  col *= depth;' +
+            '  return col;' +
+            '}' },
+
+        { id: 'lattice', name: 'Lattice', note: 'six-fold', src:
+            'float seg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a;' +
+            '  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }' +
+            'float figure(vec2 p, float t){' +
+            '  p *= rot(t * 0.11);' +
+            '  float a = atan(p.y, p.x), r = length(p);' +
+            '  a = mod(a + TAU / 12.0, TAU / 6.0) - TAU / 12.0;' +
+            '  vec2 q = vec2(cos(a), sin(a)) * r;' +
+            '  float d = 1e4;' +
+            '  d = min(d, abs(length(q) - 0.17));' +
+            '  d = min(d, abs(length(q - vec2(0.44, 0.0)) - 0.17));' +
+            '  d = min(d, abs(length(q - vec2(0.88, 0.0)) - 0.17));' +
+            '  d = min(d, seg(q, vec2(0.0), vec2(0.88, 0.0)));' +
+            '  d = min(d, seg(q, vec2(0.44, 0.0), vec2(0.22, 0.381)));' +
+            '  d = min(d, seg(q, vec2(0.88, 0.0), vec2(0.44, 0.762)));' +
+            '  return d;' +
+            '}' +
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05) * (1.0 + BASS * 0.28);' +
+            '  uv += vec2(fbm(uv * 1.6 + t * 0.1), fbm(uv * 1.6 - t * 0.1)) * 0.22 * uWarp;' +
+            '  vec3 col = vec3(0.0);' +
+            // Seven time-offset copies: a feedback trail baked into the one
+            // pass, so the figure still smears when feedback is turned off.
+            '  for (int i = 0; i < 7; i++){' +
+            '    float fi = float(i);' +
+            '    float d = figure(uv * (1.0 + fi * 0.013), t - fi * (0.05 + MID * 0.05));' +
+            '    float g = (0.0010 + uGlow * 0.0015) / (d * d + 0.0006);' +
+            '    col += pal(t * 0.08 + fi * 0.04 + length(uv) * 0.8) * g * exp(-fi * 0.5);' +
+            '  }' +
+            // 0.4 x 1.7 pushed the line cores past 1 even after the tone
+            // curve, so the figure came out as white rope with colour only
+            // in its halo. The point of the scene is the neon.
+            '  col *= 0.34 * (0.35 + LEVEL * 1.15);' +
+            '  col += pal(t * 0.2 + 0.5) * uBeat * 0.08 / (dot(uv, uv) + 0.06);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'fluid', name: 'Fluid', note: 'blobs', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  float f = 0.0, tw = 0.0;' +
+            '  vec3 tint = vec3(0.0);' +
+            // Six metaballs on their own orbits. Each one is sized by a slice
+            // of the spectrum, so the mass of the thing follows the mix
+            // rather than a single level.
+            '  for (int i = 0; i < 6; i++){' +
+            '    float fi = float(i);' +
+            '    float e = fft((fi + 0.5) / 6.0);' +
+            '    vec2 c = vec2(cos(t * (0.3 + fi * 0.11) + fi * 2.1), sin(t * (0.26 + fi * 0.13) + fi * 1.3));' +
+            '    c *= 0.55 + 0.3 * sin(t * 0.21 + fi) + uWarp * 0.25 * sin(t * 0.7 + fi * 3.0);' +
+            // Six balls this size overlap everywhere: the field clears the
+            // threshold across the whole frame and the scene is one wash
+            // instead of blobs. A metaball only reads as a blob while there
+            // is black between it and the next one.
+            '    float rad = 0.07 + e * 0.13 + BASS * 0.05;' +
+            '    float w = rad * rad / max(dot(uv - c, uv - c), 1e-4);' +
+            '    f += w;' +
+            // The field is the plain sum, but the colour is weighted by the
+            // square: a straight average of six hues off a three-colour ramp
+            // is grey nearly everywhere, which is what the blobs came out as.
+            // Squaring lets the nearest ball win its own territory.
+            '    tint += pal(fi / 6.0 + t * 0.05) * w * w;' +
+            '    tw += w * w;' +
+            '  }' +
+            '  tint /= max(tw, 1e-4);' +
+            '  float edge = smoothstep(0.88, 1.12, f);' +
+            '  float rim = smoothstep(0.86, 1.02, f) - smoothstep(1.02, 1.45, f);' +
+            '  vec3 col = tint * edge * (0.3 + LEVEL * 1.15);' +
+            '  col += tint * rim * (0.9 + uGlow * 1.5);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'spectrum', name: 'Spectrum', note: 'the readout', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv *= rot(t * 0.07);' +
+            '  float a = atan(uv.y, uv.x) / TAU + 0.5;' +
+            '  float r = length(uv) / max(uScale, 0.05);' +
+            // Mirrored around the vertical so the ring reads as one figure
+            // rather than a strip with a seam down one side.
+            '  float x = abs(a * 2.0 - 1.0);' +
+            '  float bars = 72.0;' +
+            '  float cell = floor(x * bars) / bars;' +
+            '  float e = fft(pow(cell, 0.6));' +
+            '  float inner = 0.30 + BASS * 0.07;' +
+            '  float h = inner + e * (0.55 + uWarp * 0.4);' +
+            '  float gap = abs(fract(x * bars) - 0.5) * 2.0;' +
+            '  float bar = step(r, h) * step(inner, r) * smoothstep(0.95, 0.4, gap);' +
+            '  vec3 col = pal(cell * 0.7 + t * 0.05) * bar * (0.5 + e * 1.6);' +
+            // The ring itself, so there is something to look at in silence.
+            '  col += pal(t * 0.1) * (0.004 + uGlow * 0.006) / (abs(r - inner) + 0.004);' +
+            '  col += pal(t * 0.1 + 0.3) * uBeat * 0.02 / (abs(r - h) + 0.02);' +
+            '  col *= 1.0 - smoothstep(0.95, 1.45, r);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'warp', name: 'Warp', note: 'domain-warped', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed * 0.5;' +
+            '  uv /= max(uScale, 0.05);' +
+            // Inigo Quilez's fbm-of-fbm: the field is sampled at a position
+            // that is itself a field, which is what gives the curdled look.
+            '  vec2 q = vec2(fbm(uv + t * 0.2), fbm(uv + vec2(5.2, 1.3) - t * 0.15));' +
+            '  vec2 s = vec2(fbm(uv + 3.4 * q + vec2(1.7, 9.2) + BASS * 1.2),' +
+            '                fbm(uv + 3.4 * q + vec2(8.3, 2.8) + MID * 1.2));' +
+            '  float v = fbm(uv + (2.0 + uWarp * 3.0) * s + t * 0.1);' +
+            '  vec3 col = pal(v * 1.4 + t * 0.1 + length(q) * 0.3);' +
+            '  col *= (0.25 + v * 1.5) * (0.35 + LEVEL * 1.4);' +
+            '  col += pal(v + 0.35) * pow(v, 6.0) * (0.6 + uGlow * 2.5) * (0.4 + HIGH * 2.0);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'shards', name: 'Shards', note: 'cuts on beat', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  uv *= rot(t * 0.05 + uBeat * 0.12);' +
+            '  vec2 g = floor(uv * 3.0), f = fract(uv * 3.0);' +
+            '  float best = 8.0, second = 8.0, id = 0.0;' +
+            '  for (int y = -1; y <= 1; y++) { for (int x = -1; x <= 1; x++){' +
+            '    vec2 o = vec2(float(x), float(y));' +
+            '    vec2 p = o + 0.5 + 0.5 * sin(t * 0.6 + TAU * vec2(hash(g + o), hash(g + o + 17.0)))' +
+            '             * (0.4 + uWarp * 0.6);' +
+            '    float d = length(p - f);' +
+            '    if (d < best){ second = best; best = d; id = hash(g + o); } else if (d < second) second = d;' +
+            '  } }' +
+            // The gap between nearest and next-nearest is the cell wall. It
+            // is the one voronoi measure that does not bunch up at the seeds.
+            '  float wall = second - best;' +
+            '  float face = smoothstep(0.0, 0.14 + uBeat * 0.1, wall);' +
+            '  vec3 col = pal(id + t * 0.05 + BASS * 0.25) * face * (0.3 + LEVEL * 1.5);' +
+            '  col += pal(id + 0.4) * (1.0 - face) * (0.6 + uGlow * 2.2) * (0.3 + HIGH * 1.8);' +
+            '  col *= 1.0 - 0.35 * smoothstep(0.4, 1.6, length(uv));' +
+            '  return col;' +
+            '}' }
+    ];
+
+    var COMP = [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D uScene, uPrev;',
+        'uniform vec2  uRes;',
+        'uniform float uFeed, uFbZoom, uFbRot, uHueShift, uSat, uContrast, uGrain, uMirror, uTime;',
+        'mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }',
+        'vec3 hueshift(vec3 c, float h){',
+        '  const vec3 k = vec3(0.57735);',
+        '  float ca = cos(h * 6.28318);',
+        '  return c * ca + cross(k, c) * sin(h * 6.28318) + k * dot(k, c) * (1.0 - ca);',
+        '}',
+        'void main(){',
+        '  vec2 uv = vUv;',
+        // Mirroring is a composite job, not a scene one: folding here means
+        // the feedback trails fold with it and the symmetry stays exact.
+        '  if (uMirror > 0.5) uv.x = 0.5 + abs(uv.x - 0.5);',
+        '  if (uMirror > 1.5) uv.y = 0.5 + abs(uv.y - 0.5);',
+        '  vec3 scene = texture2D(uScene, uv).rgb;',
+        // The previous frame, sampled through a small zoom and spin. That
+        // offset is the whole trick: without it the feedback is a dissolve,
+        // with it the trails travel.
+        '  vec2 c = vUv - 0.5;',
+        '  c.x *= uRes.x / uRes.y;',
+        '  c = rot(uFbRot) * c * (1.0 - uFbZoom);',
+        '  c.x /= uRes.x / uRes.y;',
+        '  vec3 prev = texture2D(uPrev, c + 0.5).rgb;',
+        // Adding the scene to the decayed previous frame is the obvious way
+        // to do this and it runs away: for a steady scene the sum converges
+        // on scene/(1-feed), so at the default 0.62 a half-lit frame settles
+        // at 2.6x and the tone curve hands back a white rectangle. Four of
+        // the six scenes washed out that way. max() cannot: it is bounded by
+        // the brighter of the two, so the trail decays geometrically wherever
+        // the scene goes dark and sits still where it does not. The small
+        // product term puts the glow back where trail and scene overlap, and
+        // is bounded by 1 because both are.
+        '  vec3 trail = prev * uFeed;',
+        '  vec3 col = max(scene, trail) + scene * trail * 0.5;',
+        '  col = col / (1.0 + col * 0.3);',
+        '  col = hueshift(col, uHueShift);',
+        '  float l = dot(col, vec3(0.2126, 0.7152, 0.0722));',
+        '  col = mix(vec3(l), col, uSat);',
+        '  col = clamp((col - 0.5) * uContrast + 0.5, 0.0, 1.0);',
+        '  if (uGrain > 0.001){',
+        '    float n = fract(sin(dot(gl_FragCoord.xy + uTime, vec2(12.9898, 78.233))) * 43758.5453);',
+        '    col += (n - 0.5) * uGrain * 0.22;',
+        '  }',
+        '  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);',
+        '}'
+    ].join('\n');
+
+    var BLIT = [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D uTex;',
+        'uniform float uFade;',
+        'void main(){ gl_FragColor = vec4(texture2D(uTex, vUv).rgb * uFade, 1.0); }'
+    ].join('\n');
+
+    /* ---- GL plumbing ---- */
+    var canvas = document.getElementById('stage');
+    var gl = canvas.getContext('webgl', { alpha: false, antialias: false, powerPreference: 'high-performance' })
+          || canvas.getContext('experimental-webgl', { alpha: false, antialias: false });
+
+    var GLFail = !gl;
+    var quad, sceneProgs = {}, compProg, blitProg, fftTex;
+    var sceneFB, accum = [], W = 1, H = 1;
+
+    function compile(type, src) {
+        var sh = gl.createShader(type);
+        gl.shaderSource(sh, src);
+        gl.compileShader(sh);
+        if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+            console.error('[playground] shader:', gl.getShaderInfoLog(sh), '\n', src);
+            gl.deleteShader(sh);
+            return null;
+        }
+        return sh;
+    }
+    function link(fsrc) {
+        var vs = compile(gl.VERTEX_SHADER, VERT), fs = compile(gl.FRAGMENT_SHADER, fsrc);
+        if (!vs || !fs) return null;
+        var pr = gl.createProgram();
+        gl.attachShader(pr, vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
+        gl.deleteShader(vs); gl.deleteShader(fs);
+        if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) {
+            console.error('[playground] link:', gl.getProgramInfoLog(pr));
+            return null;
+        }
+        // Cache every uniform up front. Calling getUniformLocation per frame
+        // is a string lookup across the driver boundary, 20-odd times a
+        // frame, for values that never move.
+        var u = {}, n = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS);
+        for (var i = 0; i < n; i++) {
+            var info = gl.getActiveUniform(pr, i);
+            u[info.name] = gl.getUniformLocation(pr, info.name);
+        }
+        pr.u = u;
+        return pr;
+    }
+    function target(w, h) {
+        var t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        // CLAMP_TO_EDGE, not repeat: the feedback zoom samples outside the
+        // frame every pass, and wrapping drags the opposite edge into shot.
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        var f = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return { tex: t, fb: f };
+    }
+
+    function initGL() {
+        quad = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+
+        var built = 0;
+        SCENES.forEach(function (s) {
+            var pr = link(PRELUDE + s.src + TAIL);
+            if (pr) { sceneProgs[s.id] = pr; built++; }
+        });
+        compProg = link(COMP);
+        blitProg = link(BLIT);
+
+        fftTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, fftTex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 256, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array(256));
+
+        window.__pg = window.__pg || {};
+        window.__pg.scenesBuilt = built;
+        window.__pg.compOk = !!compProg && !!blitProg;
+        return built === SCENES.length && !!compProg && !!blitProg;
+    }
+
+    function resize() {
+        var scale = state.val.renderScale || 1;
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var w = Math.max(16, Math.round(window.innerWidth * dpr * scale));
+        var h = Math.max(16, Math.round(window.innerHeight * dpr * scale));
+        if (w === W && h === H) return;
+        W = w; H = h;
+        canvas.width = W; canvas.height = H;
+        canvas.style.width = '100%'; canvas.style.height = '100%';
+        if (!gl) return;
+        [sceneFB].concat(accum).forEach(function (t) {
+            if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fb); }
+        });
+        sceneFB = target(W, H);
+        accum = [target(W, H), target(W, H)];
+        // A fresh buffer is undefined, not black, and the feedback pass reads
+        // it on the very first frame.
+        accum.concat([sceneFB]).forEach(function (t) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, t.fb);
+            gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+        });
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    function draw(pr) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        var loc = gl.getAttribLocation(pr, 'p');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    /* =====================================================================
+       3. State and controls
+
+       Every knob is declared once, in a table, and the panel, the keyboard,
+       the save file and the modulation all read from the same declaration.
+       Adding a control means adding a row here, not editing four places and
+       forgetting the fourth.
+       ===================================================================== */
+    var SOURCES = [
+        { k: 'none',  n: 'free' },
+        { k: 'level', n: 'level' },
+        { k: 'bass',  n: 'bass' },
+        { k: 'mid',   n: 'mid' },
+        { k: 'high',  n: 'high' },
+        { k: 'beat',  n: 'beat' }
+    ];
+
+    var MACROS = [
+        { k: 'speed', n: 'Speed', min: 0,    max: 3,   step: .01, def: 1,   mod: 'none', dep: 0 },
+        { k: 'scale', n: 'Scale', min: .25,  max: 2.5, step: .01, def: 1,   mod: 'bass', dep: .25 },
+        { k: 'warp',  n: 'Warp',  min: 0,    max: 2,   step: .01, def: .5,  mod: 'mid',  dep: .3 },
+        { k: 'glow',  n: 'Glow',  min: 0,    max: 2,   step: .01, def: .7,  mod: 'high', dep: .4 },
+        { k: 'hue',   n: 'Hue',   min: 0,    max: 1,   step: .005, def: 0,  mod: 'none', dep: 0 }
+    ];
+
+    var POSTS = [
+        { k: 'feed',     n: 'Feedback',  min: 0,   max: .96, step: .01, def: .62, mod: 'none', dep: 0 },
+        { k: 'fbZoom',   n: 'Fb zoom',   min: -.06, max: .06, step: .001, def: .012, mod: 'beat', dep: .2 },
+        { k: 'fbRot',    n: 'Fb spin',   min: -.05, max: .05, step: .001, def: .004, mod: 'none', dep: 0 },
+        { k: 'hueShift', n: 'Hue shift', min: 0,   max: 1,   step: .005, def: 0,   mod: 'none', dep: 0 },
+        { k: 'sat',      n: 'Saturation', min: 0,  max: 2,   step: .01, def: 1.15, mod: 'none', dep: 0 },
+        { k: 'contrast', n: 'Contrast',  min: .5,  max: 2.2, step: .01, def: 1.12, mod: 'none', dep: 0 },
+        { k: 'grain',    n: 'Grain',     min: 0,   max: 1,   step: .01, def: .08, mod: 'none', dep: 0 },
+        { k: 'mirror',   n: 'Mirror',    min: 0,   max: 2,   step: 1,   def: 0,   mod: null, dep: 0, fmt: function (v) { return ['off', 'half', 'quad'][v | 0]; } }
+    ];
+
+    var LISTEN = [
+        { k: 'gain',    n: 'Gain',    min: .25, max: 6,  step: .05, def: 1,   mod: null, dep: 0 },
+        { k: 'sens',    n: 'Drive',   min: .25, max: 3,  step: .05, def: 1,   mod: null, dep: 0 },
+        { k: 'attack',  n: 'Attack',  min: .05, max: 1,  step: .01, def: .5,  mod: null, dep: 0 },
+        { k: 'release', n: 'Release', min: .02, max: .6, step: .01, def: .12, mod: null, dep: 0 },
+        { k: 'renderScale', n: 'Render', min: .4, max: 1, step: .05, def: 1, mod: null, dep: 0,
+          fmt: function (v) { return Math.round(v * 100) + '%'; } }
+    ];
+
+    var ALL = MACROS.concat(POSTS).concat(LISTEN);
+    var state = { scene: SCENES[0].id, blackout: false, freeze: false, val: {}, mod: {}, dep: {} };
+    function defaults() {
+        state.scene = SCENES[0].id;
+        ALL.forEach(function (c) { state.val[c.k] = c.def; state.mod[c.k] = c.mod || 'none'; state.dep[c.k] = c.dep || 0; });
+    }
+    defaults();
+
+    var SAVE = 'lucid.playground.v1';
+    function save() {
+        try {
+            localStorage.setItem(SAVE, JSON.stringify({ scene: state.scene, val: state.val, mod: state.mod, dep: state.dep }));
+        } catch (e) { /* private window, blocked storage: the rig still works */ }
+    }
+    function load() {
+        try {
+            var raw = localStorage.getItem(SAVE);
+            if (!raw) return;
+            var d = JSON.parse(raw);
+            if (d && typeof d === 'object') {
+                if (d.scene && sceneExists(d.scene)) state.scene = d.scene;
+                ALL.forEach(function (c) {
+                    if (d.val && typeof d.val[c.k] === 'number' && isFinite(d.val[c.k]))
+                        state.val[c.k] = Math.max(c.min, Math.min(c.max, d.val[c.k]));
+                    if (d.mod && typeof d.mod[c.k] === 'string') state.mod[c.k] = d.mod[c.k];
+                    if (d.dep && typeof d.dep[c.k] === 'number' && isFinite(d.dep[c.k])) state.dep[c.k] = d.dep[c.k];
+                });
+            }
+        } catch (e) { /* a corrupt save is not worth a broken page */ }
+    }
+    function sceneExists(id) { return SCENES.some(function (s) { return s.id === id; }); }
+
+    // A modulated value is the knob plus a share of its own range, so depth
+    // means the same thing on every control whatever its units.
+    function at(k) {
+        var c = byKey[k];
+        var v = state.val[k];
+        var src = state.mod[k], d = state.dep[k];
+        if (src && src !== 'none' && d) {
+            var s = src === 'beat' ? Ears.beat : (Ears.band[src] || 0);
+            v += s * d * (c.max - c.min);
+        }
+        return Math.max(c.min, Math.min(c.max, v));
+    }
+    var byKey = {};
+    ALL.forEach(function (c) { byKey[c.k] = c; });
+
+    /* ---- the panel ---- */
+    function fmt(c, v) { return c.fmt ? c.fmt(v) : (c.step >= 1 ? String(v | 0) : v.toFixed(c.step < .01 ? 3 : 2)); }
+
+    function buildRow(c, host) {
+        var row = document.createElement('div');
+        row.className = 'row';
+        var top = document.createElement('div');
+        top.className = 'row-top';
+        var lab = document.createElement('label');
+        lab.textContent = c.n;
+        lab.htmlFor = 'c-' + c.k;
+        var out = document.createElement('output');
+        out.textContent = fmt(c, state.val[c.k]);
+        top.appendChild(lab); top.appendChild(out);
+
+        var sl = document.createElement('input');
+        sl.type = 'range'; sl.id = 'c-' + c.k;
+        sl.min = c.min; sl.max = c.max; sl.step = c.step; sl.value = state.val[c.k];
+        sl.addEventListener('input', function () {
+            state.val[c.k] = parseFloat(sl.value);
+            out.textContent = fmt(c, state.val[c.k]);
+            if (c.k === 'renderScale') resize();
+            if (c.k === 'gain' || c.k === 'sens' || c.k === 'attack' || c.k === 'release') Ears.cfg[c.k] = state.val[c.k];
+            save();
+        });
+
+        row.appendChild(top); row.appendChild(sl);
+
+        if (c.mod !== null) {
+            var mod = document.createElement('div');
+            mod.className = 'mod' + (state.mod[c.k] === 'none' ? ' off' : '');
+            mod.dataset.k = c.k;
+            var sel = document.createElement('select');
+            sel.setAttribute('aria-label', c.n + ' modulation source');
+            SOURCES.forEach(function (s) {
+                var o = document.createElement('option');
+                o.value = s.k; o.textContent = s.n;
+                if (s.k === state.mod[c.k]) o.selected = true;
+                sel.appendChild(o);
+            });
+            var dep = document.createElement('input');
+            dep.type = 'range'; dep.min = -1; dep.max = 1; dep.step = .01; dep.value = state.dep[c.k];
+            dep.setAttribute('aria-label', c.n + ' modulation depth');
+            sel.addEventListener('change', function () {
+                state.mod[c.k] = sel.value;
+                mod.classList.toggle('off', sel.value === 'none');
+                if (sel.value !== 'none' && !state.dep[c.k]) { state.dep[c.k] = .35; dep.value = .35; }
+                save();
+            });
+            dep.addEventListener('input', function () { state.dep[c.k] = parseFloat(dep.value); save(); });
+            mod.appendChild(sel); mod.appendChild(dep);
+            row.appendChild(mod);
+        }
+        host.appendChild(row);
+        return { slider: sl, out: out, c: c };
+    }
+
+    var rows = {};
+    function buildPanel() {
+        var sceneHost = document.getElementById('scenes');
+        SCENES.forEach(function (s, i) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'scene-btn' + (s.id === state.scene ? ' on' : '');
+            b.dataset.scene = s.id;
+            b.innerHTML = '';
+            b.appendChild(document.createTextNode(s.name));
+            var sm = document.createElement('small');
+            sm.textContent = s.note;
+            b.appendChild(sm);
+            b.title = s.name + ' — key ' + (i + 1);
+            b.addEventListener('click', function () { pickScene(s.id); });
+            sceneHost.appendChild(b);
+        });
+        MACROS.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('macros')); });
+        POSTS.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('posts')); });
+        LISTEN.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('listen')); });
+        for (var i = 0; i < 24; i++) document.getElementById('meters').appendChild(document.createElement('i'));
+    }
+
+    function pickScene(id) {
+        if (!sceneExists(id)) return;
+        state.scene = id;
+        [].forEach.call(document.querySelectorAll('.scene-btn'), function (b) {
+            b.classList.toggle('on', b.dataset.scene === id);
+        });
+        save();
+    }
+
+    function syncPanel() {
+        ALL.forEach(function (c) {
+            var r = rows[c.k];
+            if (!r) return;
+            r.slider.value = state.val[c.k];
+            r.out.textContent = fmt(c, state.val[c.k]);
+        });
+        [].forEach.call(document.querySelectorAll('.mod'), function (m) {
+            var k = m.dataset.k;
+            if (!k || !byKey[k]) return;
+            m.querySelector('select').value = state.mod[k];
+            m.querySelector('input').value = state.dep[k];
+            m.classList.toggle('off', state.mod[k] === 'none');
+        });
+        ['gain', 'sens', 'attack', 'release'].forEach(function (k) { Ears.cfg[k] = state.val[k]; });
+    }
+
+    /* =====================================================================
+       4. The loop
+       ===================================================================== */
+    function U(pr, n) { return (pr && pr.u && pr.u[n]) || null; }
+
+    var sceneTime = 0, last = 0, fps = 0, fpsAcc = 0, fpsN = 0;
+    var fftBytes = new Uint8Array(256);
+
+    function frame(now) {
+        requestAnimationFrame(frame);
+        var dt = last ? Math.min(.1, (now - last) / 1000) : 1 / 60;
+        last = now;
+        fpsAcc += dt; fpsN++;
+        if (fpsAcc > .5) { fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
+
+        Ears.read(dt);
+        paintMeters();
+
+        if (GLFail) return;
+        // Speed scales the clock rather than multiplying it inside the
+        // shader: multiplying makes every change of speed jump the phase,
+        // which on a feedback scene looks like a glitch rather than a ramp.
+        if (!state.freeze) sceneTime += dt * at('speed');
+
+        var pr = sceneProgs[state.scene] || sceneProgs[SCENES[0].id];
+        if (!pr || !compProg || !blitProg) return;
+
+        if (!state.freeze) {
+            var spec = Ears.spectrum;
+            if (spec && spec.length) {
+                var stride = spec.length / 256;
+                for (var i = 0; i < 256; i++) fftBytes[i] = spec[Math.min(spec.length - 1, (i * stride) | 0)];
+            } else {
+                fftBytes.fill(0);
+            }
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, fftTex);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.LUMINANCE, gl.UNSIGNED_BYTE, fftBytes);
+
+            // pass 1 — the scene
+            gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFB.fb);
+            gl.viewport(0, 0, W, H);
+            gl.useProgram(pr);
+            gl.uniform2f(U(pr, 'uRes'), W, H);
+            gl.uniform1f(U(pr, 'uTime'), sceneTime);
+            gl.uniform4f(U(pr, 'uBands'), Ears.band.level, Ears.band.bass, Ears.band.mid, Ears.band.high);
+            gl.uniform1f(U(pr, 'uBeat'), Ears.beat);
+            gl.uniform1f(U(pr, 'uSpeed'), 1);
+            gl.uniform1f(U(pr, 'uScale'), at('scale'));
+            gl.uniform1f(U(pr, 'uWarp'), at('warp'));
+            gl.uniform1f(U(pr, 'uGlow'), at('glow'));
+            gl.uniform1f(U(pr, 'uHue'), at('hue'));
+            gl.uniform1i(U(pr, 'uFFT'), 0);
+            draw(pr);
+
+            // pass 2 — feedback and grade, into the back buffer
+            gl.bindFramebuffer(gl.FRAMEBUFFER, accum[1].fb);
+            gl.useProgram(compProg);
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sceneFB.tex);
+            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, accum[0].tex);
+            gl.uniform1i(U(compProg, 'uScene'), 0);
+            gl.uniform1i(U(compProg, 'uPrev'), 1);
+            gl.uniform2f(U(compProg, 'uRes'), W, H);
+            gl.uniform1f(U(compProg, 'uFeed'), at('feed'));
+            gl.uniform1f(U(compProg, 'uFbZoom'), at('fbZoom'));
+            gl.uniform1f(U(compProg, 'uFbRot'), at('fbRot'));
+            gl.uniform1f(U(compProg, 'uHueShift'), at('hueShift'));
+            gl.uniform1f(U(compProg, 'uSat'), at('sat'));
+            gl.uniform1f(U(compProg, 'uContrast'), at('contrast'));
+            gl.uniform1f(U(compProg, 'uGrain'), at('grain'));
+            gl.uniform1f(U(compProg, 'uMirror'), Math.round(at('mirror')));
+            gl.uniform1f(U(compProg, 'uTime'), sceneTime);
+            draw(compProg);
+            accum.reverse();
+        }
+
+        // pass 3 — to the screen
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, W, H);
+        gl.useProgram(blitProg);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, accum[0].tex);
+        gl.uniform1i(U(blitProg, 'uTex'), 0);
+        gl.uniform1f(U(blitProg, 'uFade'), state.blackout ? 0 : 1);
+        draw(blitProg);
+    }
+
+    /* ---- the meters and the readout ---- */
+    var meterBars = null, beatlamp, readout;
+    function paintMeters() {
+        if (!meterBars) meterBars = document.querySelectorAll('#meters i');
+        var spec = Ears.spectrum;
+        for (var i = 0; i < meterBars.length; i++) {
+            var v = 0;
+            if (spec && spec.length) {
+                // Log-ish spread, so the bass is not one bar and everything
+                // above 2 kHz the other twenty-three.
+                var a = Math.pow(i / meterBars.length, 2) * (spec.length * .55) | 0;
+                var b = Math.pow((i + 1) / meterBars.length, 2) * (spec.length * .55) | 0;
+                var s = 0, n = 0;
+                for (var j = a; j <= Math.max(a, b); j++) { s += spec[j]; n++; }
+                v = n ? (s / n) / 255 : 0;
+            }
+            v = Math.min(1, v * Ears.cfg.gain * 1.6);
+            meterBars[i].style.height = (2 + v * 18).toFixed(1) + 'px';
+            meterBars[i].classList.toggle('hot', v > .72);
+        }
+        beatlamp.classList.toggle('on', Ears.beat > .5);
+        var bits = [];
+        bits.push('<b>' + (SCENES.filter(function (s) { return s.id === state.scene; })[0] || {}).name + '</b>');
+        if (Ears.bpm) bits.push('<b>' + Ears.bpm + '</b> bpm');
+        if (Ears.rate) bits.push((Ears.rate / 1000).toFixed(1) + 'k');
+        bits.push('<b>' + fps + '</b> fps');
+        readout.innerHTML = bits.join(' &middot; ');
+    }
+
+    /* =====================================================================
+       5. Where the sound comes from
+       ===================================================================== */
+    var ua = navigator.userAgent;
+    var isFirefox = /Firefox\//.test(ua);
+    var isSafari = /Safari\//.test(ua) && !/Chrome|Chromium|Edg|OPR|CriOS|FxiOS/.test(ua);
+    var isMobile = /Android|iPhone|iPad|iPod/i.test(ua) ||
+                   (/Macintosh/.test(ua) && navigator.maxTouchPoints > 2);
+    // getDisplayMedia exists in Firefox and Safari; its audio does not. No
+    // feature test can see that, so this is the one place the page has to go
+    // by the engine, and it says so to the user rather than silently failing.
+    var tabAudio = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) && !isFirefox && !isSafari && !isMobile;
+
+    var gate = document.getElementById('gate');
+    var gateErr = document.getElementById('gate-err');
+    var devicePick = document.getElementById('devicepick');
+    var deviceSel = document.getElementById('device-select');
+    var filepick = document.getElementById('filepick');
+
+    function say(msg) { gateErr.textContent = msg; gateErr.hidden = !msg; }
+    function openGate() { gate.classList.remove('gone'); }
+    function closeGate() { gate.classList.add('gone'); say(''); }
+
+    function markSource() {
+        var chip = document.getElementById('source-chip');
+        document.getElementById('source-name').textContent = Ears.label;
+        chip.classList.toggle('live', Ears.kind !== 'none');
+        chip.classList.toggle('dead', Ears.kind === 'none');
+    }
+    Ears.onchange = markSource;
+
+    function listDevices() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return Promise.resolve([]);
+        return navigator.mediaDevices.enumerateDevices().then(function (ds) {
+            return ds.filter(function (d) { return d.kind === 'audioinput'; });
+        }).catch(function () { return []; });
+    }
+
+    document.getElementById('src-tab').addEventListener('click', function () {
+        say('');
+        Ears.ensure();
+        Ears.fromTab().then(closeGate).catch(function (e) {
+            if (e && e.message === 'NOAUDIO') {
+                say('That tab came through without audio. Share it again and tick "Also share tab audio" — ' +
+                    'it is a checkbox in the bottom corner of the picker, and it is off until you tick it.');
+            } else if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) {
+                say('No tab was shared. Nothing has changed — pick a source when you are ready.');
+            } else {
+                say('Could not take audio from a tab here: ' + ((e && e.message) || 'the browser refused') + '.');
+            }
+        });
+    });
+
+    document.getElementById('src-input').addEventListener('click', function () {
+        say('');
+        Ears.ensure();
+        Ears.fromInput(deviceSel.value || null).then(function () {
+            return listDevices().then(function (ds) {
+                deviceSel.innerHTML = '';
+                ds.forEach(function (d, i) {
+                    var o = document.createElement('option');
+                    o.value = d.deviceId;
+                    o.textContent = d.label || ('Input ' + (i + 1));
+                    deviceSel.appendChild(o);
+                });
+                // Only worth showing once there is a choice to make.
+                devicePick.hidden = ds.length < 2;
+                if (ds.length < 2) closeGate();
+                else say('Listening. Pick a different input below if this is the wrong one, or close this card.');
+            });
+        }).catch(function (e) {
+            if (e && e.name === 'NotAllowedError') say('Permission for the microphone was refused, so there is nothing to listen to.');
+            else if (e && e.name === 'NotFoundError') say('This machine reports no audio inputs at all.');
+            else say('Could not open an input: ' + ((e && e.message) || 'the browser refused') + '.');
+        });
+    });
+    deviceSel.addEventListener('change', function () {
+        Ears.fromInput(deviceSel.value).then(function () { say('Listening to ' + (deviceSel.selectedOptions[0] || {}).textContent + '.'); })
+            .catch(function () { say('That input would not open.'); });
+    });
+
+    document.getElementById('src-file').addEventListener('click', function () { say(''); filepick.click(); });
+    filepick.addEventListener('change', function () {
+        if (filepick.files && filepick.files[0]) takeFile(filepick.files[0]);
+    });
+    function takeFile(f) {
+        Ears.ensure();
+        Ears.fromFile(f).then(closeGate).catch(function (e) {
+            say('That file would not play: ' + ((e && e.message) || 'unsupported') + '.');
+            openGate();
+        });
+    }
+    ['dragover', 'drop'].forEach(function (ev) {
+        document.addEventListener(ev, function (e) {
+            e.preventDefault();
+            if (ev === 'drop' && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0])
+                takeFile(e.dataTransfer.files[0]);
+        });
+    });
+
+    document.getElementById('src-none').addEventListener('click', function () { Ears.none('no sound'); closeGate(); });
+    document.getElementById('source-chip').addEventListener('click', openGate);
+
+    /* =====================================================================
+       6. Output, keys, start
+       ===================================================================== */
+    var dock = document.getElementById('dock');
+    var hud = document.getElementById('hud');
+    var dockToggle = document.getElementById('dock-toggle');
+
+    function setDock(shut) {
+        dock.classList.toggle('shut', shut);
+        document.body.classList.toggle('dock-shut', shut);
+        dockToggle.setAttribute('aria-expanded', String(!shut));
+        document.getElementById('t-hide').classList.toggle('on', shut);
+    }
+    dockToggle.addEventListener('click', function () { setDock(false); });
+    document.getElementById('dock-close').addEventListener('click', function () { setDock(true); });
+    document.getElementById('t-hide').addEventListener('click', function () { setDock(!dock.classList.contains('shut')); });
+
+    document.getElementById('t-full').addEventListener('click', goFull);
+    function goFull() {
+        var el = document.documentElement;
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            (el.requestFullscreen || el.webkitRequestFullscreen || function () {}).call(el);
+        } else {
+            (document.exitFullscreen || document.webkitExitFullscreen || function () {}).call(document);
+        }
+    }
+    function onFs() {
+        var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        document.getElementById('t-full').classList.toggle('on', on);
+    }
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+
+    document.getElementById('t-freeze').addEventListener('click', function () {
+        state.freeze = !state.freeze;
+        this.classList.toggle('on', state.freeze);
+    });
+    function setBlack(on) {
+        state.blackout = on;
+        document.getElementById('t-black').classList.toggle('on', on);
+    }
+    document.getElementById('t-black').addEventListener('click', function () { setBlack(!state.blackout); });
+
+    document.getElementById('t-random').addEventListener('click', randomise);
+    function randomise() {
+        pickScene(SCENES[(Math.random() * SCENES.length) | 0].id);
+        MACROS.concat(POSTS).forEach(function (c) {
+            if (c.k === 'mirror') { state.val[c.k] = Math.random() < .7 ? 0 : (Math.random() < .5 ? 1 : 2); return; }
+            // Feedback stays in the half of its range that still reads as a
+            // trail. Rolled across the whole range it lands on 0.95 often
+            // enough to white the screen out mid-set, which is not a look.
+            var lo = c.k === 'feed' ? .3 : c.min, hi = c.k === 'feed' ? .8 : c.max;
+            state.val[c.k] = lo + Math.random() * (hi - lo);
+        });
+        MACROS.concat(POSTS).forEach(function (c) {
+            if (c.mod === null) return;
+            var pick = SOURCES[(Math.random() * SOURCES.length) | 0];
+            state.mod[c.k] = pick.k;
+            state.dep[c.k] = pick.k === 'none' ? 0 : (Math.random() * 1.2 - .45);
+        });
+        syncPanel(); save();
+    }
+    document.getElementById('t-reset').addEventListener('click', function () {
+        defaults(); syncPanel(); pickScene(state.scene); resize(); save();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        var t = e.target;
+        if (t && (/^(input|textarea|select)$/i.test(t.tagName || '') || t.isContentEditable)) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (window.lucidStack && window.lucidStack.isOpen && window.lucidStack.isOpen()) return;
+        var n = parseInt(e.key, 10);
+        if (n >= 1 && n <= SCENES.length) { pickScene(SCENES[n - 1].id); e.preventDefault(); return; }
+        switch (e.key.toLowerCase()) {
+            case ' ': setBlack(!state.blackout); e.preventDefault(); break;
+            case 'f': goFull(); break;
+            case 'h': setDock(!dock.classList.contains('shut')); break;
+            case 'r': randomise(); break;
+            case 's': openGate(); break;
+        }
+    });
+
+    /* ---- start ---- */
+    beatlamp = document.getElementById('beatlamp');
+    readout = document.getElementById('readout');
+
+    load();
+    buildPanel();
+    syncPanel();
+    markSource();
+
+    var note = document.getElementById('gate-note');
+    var tabBtn = document.getElementById('src-tab');
+    if (!tabActuallyPossible()) {
+        tabBtn.disabled = true;
+        document.getElementById('src-tab-d').innerHTML = whyNoTab();
+    }
+    function tabActuallyPossible() { return tabAudio; }
+    function whyNoTab() {
+        if (isMobile) return 'Not on a phone or tablet: no mobile browser can hand a tab’s audio to a page. Use a file, or do this on a desktop.';
+        if (isSafari) return 'Safari cannot do this. It will share a tab’s picture but never its sound, so use an input below — ' +
+                             '<em>BlackHole</em> routed from your output catches the whole machine — or open this page in Chrome.';
+        if (isFirefox) return 'Firefox cannot do this. Its tab sharing carries no audio, so use an input below, or open this page in Chrome.';
+        return 'This browser has no tab sharing at all. Use an input or a file below.';
+    }
+    note.innerHTML = tabAudio
+        ? 'Tab audio works in Chrome, Edge and Opera on a desktop. It is the only part of this that is browser-specific — an input or a file works anywhere.'
+        : 'Tab audio is a Chrome, Edge and Opera feature on desktop only. Everything else on this page works in any browser that can run WebGL.';
+
+    if (GLFail) {
+        say('This browser could not open a WebGL context, so there is nothing to draw on. The audio side would work, but the picture will not.');
+        openGate();
+    } else {
+        resize();
+        var ok = initGL();
+        if (!ok) say('Some of the scenes would not compile on this graphics driver. The ones that did are still in the list.');
+        window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', resize);
+        requestAnimationFrame(frame);
+    }
+
+    // A small hook so the page can be driven and measured from outside, which
+    // is the only way to prove the analysis chain is right rather than
+    // plausible: feed it a known tone and check the band it lands in.
+    window.__pg = window.__pg || {};
+    window.__pg.state = state;
+    window.__pg.scenes = SCENES.map(function (s) { return s.id; });
+    window.__pg.ears = Ears;
+    window.__pg.pickScene = pickScene;
+    window.__pg.at = at;
+    window.__pg.tabAudio = tabAudio;
+    window.__pg.pixels = function () {
+        if (!gl || !accum[0]) return null;
+        var px = new Uint8Array(W * H * 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, accum[0].fb);
+        gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        var sum = 0, max = 0;
+        for (var i = 0; i < px.length; i += 4) {
+            var l = px[i] + px[i + 1] + px[i + 2];
+            sum += l; if (l > max) max = l;
+        }
+        return { mean: sum / (px.length / 4) / 765, max: max / 765 };
+    };
+})();
+</script>
+<script src="/lucid.js" defer></script>
+<script src="/stack.js" defer></script>
+</body>
+</html>

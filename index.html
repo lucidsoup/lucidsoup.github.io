@@ -62,10 +62,10 @@
            to a second row between about 770 and 960px. */
         nav ul { display: flex; justify-content: center; align-items: center; list-style: none; gap: clamp(.85rem, 2vw, 2rem); }
         nav li { margin: 0; }
-        nav a { color: #fff; text-decoration: none; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; }
-        nav a:hover { color: var(--lucid-accent, #8b6cf5); }
-        nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0)); transition: width .3s ease; }
-        nav a:hover::after { width: 100%; }
+        nav a, nav li > button { color: #fff; text-decoration: none; font: inherit; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; background: none; border: 0; cursor: pointer; }
+        nav a:hover, nav li > button:hover { color: var(--lucid-accent, #8b6cf5); }
+        nav a::after, nav li > button::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0)); transition: width .3s ease; }
+        nav a:hover::after, nav li > button:hover::after { width: 100%; }
 
         /* Burger. Laid out with flex + gap rather than margins so the bar pitch
            (height 3 + gap 4 = 7px) matches the +/-7px rotations below exactly. */
@@ -257,18 +257,15 @@
         }
         .skills { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 14rem; margin: 0; }
 
-        /* ===== a section with nothing in it yet =====
-           Named for the shop, which had them first; the portfolio renders its
-           empty and loading states through the same two rules, so they outlive
-           the storefront that is currently switched off. */
-        .shop-loading {
+        /* ===== a section with nothing in it yet ===== */
+        .pane-loading {
             grid-column: 1 / -1;
             text-align: center;
             padding: 3rem;
             color: rgba(255,255,255,.4);
             font-size: 0.9rem;
         }
-        .shop-empty {
+        .pane-empty {
             grid-column: 1 / -1;
             text-align: center;
             padding: 3rem;
@@ -277,30 +274,6 @@
             border: 1px dashed rgba(255,255,255,.1);
             border-radius: 12px;
         }
-
-        /* ===== coming soon =====
-           A section that is on its way rather than gone. It keeps its place in
-           the bowl, on the Stack and in the gallery, so nothing that points at
-           it becomes a dead end; it just says plainly that there is nothing to
-           buy yet instead of showing three cards wired to example.com. */
-        .soon {
-            max-width: 640px; margin: 0 auto; text-align: center;
-            padding: 3rem 2rem; border-radius: 20px;
-            border: 1px dashed rgba(255,255,255,.14);
-            background: rgba(255,255,255,.02);
-        }
-        .soon-tag {
-            display: inline-block; margin-bottom: 1.1rem;
-            padding: .4rem .9rem; border-radius: 20px;
-            border: 1px solid rgba(139, 108, 245,.4);
-            background: linear-gradient(45deg, rgba(139, 108, 245,.14), rgba(212, 79, 176,.1));
-            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
-            font-size: .64rem; letter-spacing: .22em; text-transform: uppercase;
-            color: rgba(255,255,255,.8);
-        }
-        .soon p { font-size: 1rem; line-height: 1.7; color: rgba(255,255,255,.66); max-width: 44ch; margin: 0 auto; }
-        .soon p + p { margin-top: .9rem; }
-        .soon a { color: var(--lucid-accent, #8b6cf5); }
 
         /* ===== SHADER LIBRARY ===== */
         .shader-lib-intro {
@@ -807,7 +780,7 @@
             :root { --nav-h: 56px; }
             nav { padding: .6rem 1rem; }
             nav ul { flex-direction: row; gap: .3rem; justify-content: center; }
-            nav a { padding: .5rem .3rem; font-size: .82rem; letter-spacing: .2px; }
+            nav a, nav li > button { padding: .5rem .3rem; font-size: .82rem; letter-spacing: .2px; }
 
             .portfolio-grid { grid-template-columns: 1fr; }
             .shader-lib-grid { grid-template-columns: 1fr; }
@@ -871,7 +844,7 @@
             .nav-toggle { display: flex; }
             nav ul { display: none; position: absolute; right: 1rem; top: calc(100% + 0.5rem); background: rgba(0,0,0,0.95); flex-direction: column; gap: 0; padding: .5rem; border-radius: 8px; min-width: 160px; box-shadow: 0 6px 20px rgba(0,0,0,.6); }
             nav ul li { margin: 0; }
-            nav ul a { display: block; padding: .75rem 1rem; }
+            nav ul a, nav ul li > button { display: block; width: 100%; text-align: left; padding: .75rem 1rem; }
             nav.menu-open ul { display: flex; }
         }
 
@@ -901,8 +874,8 @@
                  pages once you are deep in one. The gallery is in the bowl like
                  everything else — it is a place to go, not a gate to pass. -->
             <ul>
-                <li class="only-focused"><a href="#" id="nav-home">The Soup</a></li>
-                <li><a href="#" id="nav-stack">The Stack</a></li>
+                <li class="only-focused"><a href="/" id="nav-home">The Soup</a></li>
+                <li><button type="button" id="nav-stack">The Stack</button></li>
             </ul>
         </nav>
 
@@ -927,8 +900,8 @@
                         <li><a href="#drumseek">DrumSeek</a></li>
                         <li><a href="sp404.html">SP-404 Converter</a></li>
                         <li><a href="plugins.html">Plugin Host</a></li>
+                        <li><a href="playground.html">Visual Playground</a></li>
                         <li><a href="#blackboxfx">BlackboxFX</a></li>
-                        <li><a href="#shop">Shop &mdash; coming soon</a></li>
                         <li><a href="#about">About</a></li>
                         <li><a href="#contact">Contact</a></li>
                         <li><a href="gallery.html">The Gallery</a></li>
@@ -982,6 +955,22 @@
             </div>
         </section>
 
+        <section id="playground">
+            <h2>Visual Playground</h2>
+            <div class="contact">
+                <p style="margin-bottom: 1.25rem;">
+                    Six WebGL scenes driven by whatever you are listening to, with the knobs out where
+                    you can reach them. Hand it a <strong>browser tab</strong> and it reacts to the site
+                    playing in it; hand it a line in or a loopback device and it reacts to the whole
+                    machine. Patch bass to scale, treble to glow, the beat to the feedback zoom, then
+                    put it fullscreen. The audio is analysed here and never leaves your machine.
+                </p>
+                <div class="contact-links">
+                    <a href="playground.html" class="contact-link">Open the Playground</a>
+                </div>
+            </div>
+        </section>
+
         <section id="synthsoup">
             <h2>SynthSoup</h2>
             <div class="contact">
@@ -1017,7 +1006,7 @@
         <section id="portfolio">
             <h2>Portfolio</h2>
             <div id="portfolio-body">
-                <div class="shop-loading">Loading…</div>
+                <div class="pane-loading">Loading…</div>
             </div>
         </section>
 
@@ -1036,20 +1025,6 @@
             </div>
         </section>
 
-        <section id="shop">
-            <h2>Shop</h2>
-            <div class="soon">
-                <span class="soon-tag">Coming soon</span>
-                <p>
-                    Prints, sample packs and the hand-made things aren't up for sale yet.
-                    There is nothing here worth showing you until there is.
-                </p>
-                <p>
-                    Commissions are open in the meantime &mdash;
-                    <a href="#contact">say what you're after</a>.
-                </p>
-            </div>
-        </section>
 
         <section id="about">
             <h2>About</h2>
@@ -1387,7 +1362,7 @@
 
     <!-- Lightbox -->
     <!-- Shown only inside a section: the way back into the architecture. -->
-    <a class="back-to-gallery" id="back-to-gallery" href="#" hidden>&larr; back to the soup</a>
+    <a class="back-to-gallery" id="back-to-gallery" href="/" hidden>&larr; back to the soup</a>
 
     <div class="lightbox" id="lightbox">
         <button class="lightbox-close" id="lightbox-close">&times;</button>
@@ -1458,8 +1433,8 @@
         // and only when the gallery has sent you to it by name; with no hash you
         // get the entrance and nothing else. This is what makes the gallery the
         // site's only index rather than a second way in beside the old one.
-        var SECTION_IDS = ['drumseek', 'sp404', 'plugins', 'synthsoup', 'blackboxfx', 'portfolio',
-                           'shader-library', 'shop', 'about', 'contact'];
+        var SECTION_IDS = ['drumseek', 'sp404', 'plugins', 'playground', 'synthsoup', 'blackboxfx',
+                           'portfolio', 'shader-library', 'about', 'contact'];
 
         function routeSections() {
             var want = (location.hash || '').replace(/^#/, '').split('&')[0];
@@ -3347,7 +3322,7 @@
         function render(data) {
             var works = (data.works || []).filter(function (w) { return w && (w.preview || w.poster || w.full || w.vimeo || w.youtube); });
             if (!works.length) {
-                body.innerHTML = '<div class="shop-empty">No work published yet.</div>';
+                body.innerHTML = '<div class="pane-empty">No work published yet.</div>';
                 return;
             }
             var cats = data.categories || [];

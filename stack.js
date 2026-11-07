@@ -36,7 +36,7 @@
         { key: 'surface',     name: 'Surface',     note: 'the bowl, and the long way round' },
         { key: 'works',       name: 'Works',       note: 'what there is to look at' },
         { key: 'instruments', name: 'Instruments', note: 'things that run' },
-        { key: 'trade',       name: 'Trade',       note: 'ask, write, and soon buy' }
+        { key: 'trade',       name: 'Trade',       note: 'ask and write' }
     ];
 
     var NODES = [
@@ -53,10 +53,8 @@
         { t: 2, name: 'SynthSoup — Play', tag: 'live', href: '/synthsoup/webapp/play/', g: 'core' },
         { t: 2, name: 'BlackboxFX',       tag: 'tool',  href: '/index.html#blackboxfx', g: 'grid' },
         { t: 2, name: 'BlackboxFX \u2014 Control', tag: 'live', href: '/blackboxfx/',   g: 'core' },
+        { t: 2, name: 'Visual Playground', tag: 'live', href: '/playground.html',      g: 'core' },
 
-        // Still on the tower, because the section is still there and still says
-        // something; the tag is what tells you there is nothing to buy yet.
-        { t: 3, name: 'Shop',             tag: 'soon',  href: '/index.html#shop',    g: 'frame' },
         { t: 3, name: 'About',            tag: 'text',  href: '/index.html#about',   g: 'frame' },
         { t: 3, name: 'Contact',          tag: 'text',  href: '/index.html#contact', g: 'frame' }
     ];
