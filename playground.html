@@ -371,6 +371,29 @@
         }
         #linkform button:hover { border-color: rgba(138,224,75,.8); }
         #linkform button:disabled { opacity: .5; cursor: progress; }
+        .svcline { margin-top: .6rem; font-size: .76rem; color: rgba(255,255,255,.44); }
+        .svcline button {
+            font: inherit; font-size: .76rem; background: none; border: 0; padding: 0 0 0 .4rem;
+            color: var(--lucid-accent, #9b7bff); cursor: pointer; text-decoration: underline;
+        }
+        #svcbox { margin-top: .7rem; padding-top: .7rem; border-top: 1px solid rgba(255,255,255,.08); }
+        #svcbox[hidden] { display: none; }
+        #svcbox p { font-size: .76rem; line-height: 1.6; color: rgba(255,255,255,.5); margin-bottom: .6rem; }
+        #svcbox input {
+            display: block; width: 100%; margin-bottom: .4rem; font: inherit; font-size: .82rem;
+            padding: .45rem .6rem; border-radius: 7px; background: rgba(0,0,0,.35); color: #fff;
+            border: 1px solid rgba(255,255,255,.14);
+        }
+        #svcbox input:focus { outline: none; border-color: rgba(155,123,255,.7); }
+        .svcbtns { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .2rem; }
+        .svcbtns button {
+            font: inherit; font-size: .76rem; padding: .4rem .8rem; border-radius: 7px; cursor: pointer;
+            color: #fff; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.05);
+        }
+        .svcbtns button:hover { border-color: rgba(155,123,255,.7); }
+        #svcsay { margin-top: .5rem; margin-bottom: 0; }
+        #svcsay.good { color: rgba(138,224,75,.85); }
+        #svcsay.bad { color: rgba(212,79,176,.85); }
         /* Below about 360px the two will not sit side by side; let the button
            take its own line rather than pushing out of the card. */
         @media (max-width: 400px) { #linkform button { flex: 1 1 100%; } }
@@ -541,6 +564,28 @@
                                placeholder="https://… a track, a stream, a video" aria-label="Address to play">
                         <button type="submit" id="linkgo">Play</button>
                     </form>
+                    <p class="svcline">
+                        <span id="svcwhich"></span>
+                        <button type="button" id="svctoggle">change</button>
+                    </p>
+                    <div id="svcbox" hidden>
+                        <p>
+                            The shared service gives every address twenty clips an hour, because it is
+                            one machine paid for by one person. Run your own and the limit is whatever
+                            you set it to &mdash; it is one container in
+                            <a href="https://github.com/lucidsoup/lucidsoup.github.io/tree/main/ripper" target="_blank" rel="noopener">ripper/</a>
+                            with no state and no database. This is the same setting the SP-404 converter
+                            uses, so filling it in here fills it in there.
+                        </p>
+                        <input type="url" id="svcurl" spellcheck="false" placeholder="https://your-ripper.fly.dev" aria-label="Your audio service address">
+                        <input type="password" id="svckey" spellcheck="false" placeholder="key, if you set one" aria-label="Your audio service key">
+                        <div class="svcbtns">
+                            <button type="button" id="svccheck">Check</button>
+                            <button type="button" id="svcsave">Save</button>
+                            <button type="button" id="svcclear">Use the shared one</button>
+                        </div>
+                        <p id="svcsay"></p>
+                    </div>
                 </span>
             </div>
 
@@ -823,7 +868,29 @@
                 file. It sleeps when nobody is converting, so the first
                 request after a quiet spell can take most of a minute; that
                 is a counter on screen, not a hang. */
-        var ripper = 'https://vst-library.fly.dev';
+        /* Which audio service to ask.
+
+           The SP-404 converter already lets you point at one of your own,
+           and keeps it under lucid.svc.* — site-wide keys, by the look of
+           the prefix, but this page was ignoring them and calling the shared
+           instance regardless. So somebody who stood up their own server to
+           escape the shared rate limit escaped it on one page out of two.
+           Same keys, same meaning, read in one place. */
+        var RIPPER_BUILT_IN = 'https://vst-library.fly.dev';
+        var ripperOverride = '';          // test hook; wins over everything
+
+        function svcCfg() {
+            if (ripperOverride) return { url: ripperOverride, key: '', mine: true };
+            var url = '', key = '', off = false;
+            try {
+                url = (localStorage.getItem('lucid.svc.url') || '').trim().replace(/\/+$/, '');
+                key = localStorage.getItem('lucid.svc.key') || '';
+                off = localStorage.getItem('lucid.svc.off') === '1';
+            } catch (e) { /* private window: fall through to the shared one */ }
+            if (url) return { url: url, key: key, mine: true };
+            if (off) return { url: '', key: '', off: true };
+            return { url: RIPPER_BUILT_IN, key: '', mine: false };
+        }
 
         function startPlayer(name, how, loop) {
             var c = ensure();
@@ -836,14 +903,24 @@
         }
 
         function viaRipper(target, host, step) {
-            var url = ripper + '/rip?format=m4a&url=' + encodeURIComponent(target);
+            var cfg = svcCfg();
+            if (cfg.off) {
+                return Promise.reject(new Error('The audio service is switched off in your settings, ' +
+                    'so there is nothing to hand this link to. Turn it back on, point this at a service ' +
+                    'of your own, or share the tab instead.'));
+            }
+            var url = cfg.url + '/rip?format=m4a&url=' + encodeURIComponent(target);
+            var opts = cfg.key ? { headers: { authorization: 'Bearer ' + cfg.key } } : {};
             var began = Date.now(), WAKE = 90000;
             function ask() {
-                return fetch(url).catch(function () {
+                return fetch(url, opts).catch(function () {
                     var waited = Date.now() - began;
                     if (waited > WAKE) {
-                        throw new Error('The audio service did not answer in ninety seconds. ' +
-                            'It may be down rather than asleep \u2014 try again in a few minutes.');
+                        throw new Error(cfg.mine
+                            ? 'Your own service at ' + cfg.url + ' did not answer in ninety seconds. ' +
+                              'Check it is running and that it allows this site as an origin.'
+                            : 'The audio service did not answer in ninety seconds. ' +
+                              'It may be down rather than asleep \u2014 try again in a few minutes.');
                     }
                     var sec = Math.round(waited / 1000);
                     step('waking the audio service\u2026 ' + sec + 's. It sleeps when nobody is ' +
@@ -1035,7 +1112,8 @@
             // already knows the answer for.
             get analyser() { return analyser; },
             read: read, fromTab: fromTab, fromInput: fromInput, fromFile: fromFile, fromUrl: fromUrl,
-            set ripper(v) { ripper = v; },
+            set ripper(v) { ripperOverride = v; },
+            get service() { return svcCfg(); },
             none: setNone, ensure: ensure, unlock: unlock,
             // A source can be attached and still not be making a sound,
             // which from the outside looks exactly like a broken page. This
@@ -2385,6 +2463,76 @@
         }).catch(function () { return []; });
     }
 
+    /* The audio service panel. It writes the same three localStorage keys
+       the SP-404 converter reads, so a service you stand up is a service
+       both pages use — the alternative is setting it twice and forgetting
+       which page you set. */
+    var svcWhich = document.getElementById('svcwhich');
+    var svcBox   = document.getElementById('svcbox');
+    var svcUrl   = document.getElementById('svcurl');
+    var svcKey   = document.getElementById('svckey');
+    var svcSay   = document.getElementById('svcsay');
+
+    function svcStore(url, key, off) {
+        try {
+            if (url === null) localStorage.removeItem('lucid.svc.url'); else localStorage.setItem('lucid.svc.url', url);
+            if (key === null) localStorage.removeItem('lucid.svc.key'); else localStorage.setItem('lucid.svc.key', key);
+            localStorage.setItem('lucid.svc.off', off ? '1' : '0');
+        } catch (e) { /* private window: the setting just will not stick */ }
+    }
+    function svcNote(msg, cls) {
+        svcSay.textContent = msg || '';
+        svcSay.className = cls || '';
+    }
+    function svcRefresh() {
+        var c = Ears.service;
+        svcWhich.textContent = c.off ? 'No audio service — links the browser cannot read will not play.'
+                             : c.mine ? 'Using your own service at ' + c.url
+                             : 'Using the shared service — twenty clips an hour per address.';
+        try {
+            svcUrl.value = localStorage.getItem('lucid.svc.url') || '';
+            svcKey.value = localStorage.getItem('lucid.svc.key') || '';
+        } catch (e) {}
+    }
+    document.getElementById('svctoggle').addEventListener('click', function () {
+        svcBox.hidden = !svcBox.hidden;
+        if (!svcBox.hidden) svcUrl.focus();
+    });
+    document.getElementById('svcsave').addEventListener('click', function () {
+        var u = svcUrl.value.trim().replace(/\/+$/, '');
+        svcStore(u || null, svcKey.value || null, false);
+        svcRefresh();
+        svcNote(u ? 'Saved. This browser will use it here and on the SP-404 converter.'
+                  : 'Cleared — back to the shared service.', 'good');
+    });
+    document.getElementById('svcclear').addEventListener('click', function () {
+        svcStore(null, null, false);
+        svcUrl.value = ''; svcKey.value = '';
+        svcRefresh();
+        svcNote('Back to the shared service.', 'good');
+    });
+    document.getElementById('svccheck').addEventListener('click', function () {
+        var u = svcUrl.value.trim().replace(/\/+$/, '');
+        if (!u) { svcNote('Put an address in first.', 'bad'); return; }
+        svcNote('Asking ' + u + '…');
+        var opts = svcKey.value ? { headers: { authorization: 'Bearer ' + svcKey.value } } : {};
+        fetch(u + '/health', opts).then(function (r) {
+            return r.json().catch(function () { return null; }).then(function (j) {
+                if (!r.ok || !j) throw new Error('answered HTTP ' + r.status);
+                // keyOk false means it wants a key and this one is wrong, which
+                // is worth saying now rather than on the first link.
+                if (j.needsToken && !j.keyOk) { svcNote('It answered, but that key is wrong.', 'bad'); return; }
+                svcNote('Answered. yt-dlp ' + (j.ytdlp || '?') + ', ' +
+                        (j.ratePerHour ? j.ratePerHour + ' clips an hour per address' : 'no per-address limit') +
+                        '. Press Save to use it.', 'good');
+            });
+        }).catch(function (e) {
+            svcNote('No answer from ' + u + '. ' +
+                    'Check it is running, that it is reachable over https, and that RIPPER_ORIGIN lists ' +
+                    location.origin + '. (' + ((e && e.message) || 'network error') + ')', 'bad');
+        });
+    });
+
     var linkform = document.getElementById('linkform');
     var linkurl = document.getElementById('linkurl');
     var linkgo = document.getElementById('linkgo');
@@ -2775,6 +2923,7 @@
     // Where tab sharing is not an option, the link field is the answer, so
     // put the cursor in it rather than making them go looking.
     if (!tabAudio) { try { linkurl.focus({ preventScroll: true }); } catch (e) {} }
+    svcRefresh();
     note.innerHTML = 'Only tab sharing is browser-specific — Chrome, Edge and Opera, on a desktop. ' +
         'A link, an input and a file work anywhere. Nothing you play is uploaded or recorded; a link ' +
         'that will not play on its own is fetched by the same service the SP-404 converter uses, which ' +
