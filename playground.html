@@ -4,6 +4,24 @@
     <link rel="stylesheet" href="/lucid.css">
     <link rel="stylesheet" href="/stack.css">
     <meta charset="UTF-8">
+    <!-- Content Security Policy. GitHub Pages cannot send headers, so this is a
+         <meta>, which means frame-ancestors is not available here — clickjacking
+         still needs a real header this host will not send.
+
+         What it buys: with PeerJS now served from this origin, no page loads a
+         script from anywhere else, so script-src names no external host at all.
+         An injected <script src="..."> is refused, as is a <base> that would
+         re-point every relative URL, and <object>/<embed> entirely.
+
+         What it does not buy: every page here has inline <script>, so
+         'unsafe-inline' has to stay and injected *inline* script would still run.
+         Removing it needs nonces, which need a server. connect-src and media-src
+         stay wide because the whole point of the playground and the converter is
+         fetching media the visitor names, including from their own service on
+         localhost. wss: is listed separately because an `https:` source does
+     NOT admit a wss: socket in Chrome — DrumSeek's peer connection was
+     blocked until it was added, which a page load alone never showed. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Visual Playground — LucidSoup</title>
     <meta name="description" content="Point it at a tab, a line in, or a file, and drive a WebGL visual rig with whatever is playing. Six audio-reactive scenes, a patchable modulation matrix, feedback and post. Nothing is uploaded.">
@@ -850,6 +868,41 @@
                 a[0].addEventListener('ended', function () { if (kind === 'tab') setNone('the tab stopped sharing'); });
             });
         }
+        /* iOS will not hand over a microphone while the audio session is a
+           playback one, and refuses with "AudioSession category is not
+           compatible with audio capture".
+
+           This page is what puts it there. unlock() plays a silent buffer and
+           primes the <audio> element inside the opening gesture, because
+           Safari will not start a context any other way — and that is exactly
+           what makes WebKit infer a playback session. The fix for autoplay is
+           the cause of this one.
+
+           So say what the session is for before asking. Only 'play-and-record'
+           and 'auto' permit capture; everything else ends the track. And put
+           it back afterwards, because on a phone play-and-record routes output
+           to the earpiece and makes everything quieter — which is right while
+           a microphone is open and wrong the moment it closes.
+
+           navigator.audioSession is Safari 16.4 and up. Everywhere else this
+           is all a no-op, which is correct: no other engine has the problem. */
+        var sessionWas = null;
+        function captureSession() {
+            var a = navigator.audioSession;
+            if (!a) return;
+            if (sessionWas === null) sessionWas = a.type;
+            try { a.type = 'play-and-record'; } catch (e) { /* read-only on old builds */ }
+        }
+        function releaseSession() {
+            var a = navigator.audioSession;
+            if (!a || sessionWas === null) return;
+            try { a.type = sessionWas; } catch (e) {}
+            sessionWas = null;
+        }
+        function isSessionRefusal(e) {
+            return /audiosession|category/i.test(String((e && e.message) || ''));
+        }
+
         function labelOf(track, dflt) {
             var l = track && track.label;
             return (l && l !== 'System Audio' && l.length > 1) ? l : dflt;
@@ -860,10 +913,23 @@
                 return Promise.reject(new Error('This browser has no audio input API.'));
             var c = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
             if (deviceId) c.deviceId = { exact: deviceId };
-            return navigator.mediaDevices.getUserMedia({ audio: c }).then(function (s) {
+            function took(s) {
                 var t = s.getAudioTracks()[0];
                 attachStream(s, 'input', (t && t.label) ? t.label : 'an input');
                 if (t) t.addEventListener('ended', function () { if (kind === 'input') setNone('the input went away'); });
+            }
+            captureSession();
+            return navigator.mediaDevices.getUserMedia({ audio: c }).then(took, function (e) {
+                // Some WebKit builds refuse 'play-and-record' and allow 'auto'.
+                // One retry, and only for a refusal that is about the session —
+                // a denied permission is not going to change its mind.
+                if (navigator.audioSession && isSessionRefusal(e)) {
+                    try { navigator.audioSession.type = 'auto'; } catch (ignored) {}
+                    return navigator.mediaDevices.getUserMedia({ audio: c })
+                        .then(took, function (e2) { releaseSession(); throw e2; });
+                }
+                releaseSession();
+                throw e;
             });
         }
 
@@ -1005,6 +1071,9 @@
         function attachStream(s, k, name) {
             var c = ensure();
             if (!c) throw new Error('No Web Audio in this browser.');
+            // Switching to anything that is not an input gives the session
+            // back; switching between inputs keeps it.
+            if (k !== 'input') releaseSession();
             stop();
             stream = s;
             node = c.createMediaStreamSource(s);
@@ -1016,6 +1085,9 @@
         }
 
         function setNone(why) {
+            // Whatever the reason the sound stopped, the microphone is not
+            // open any more, so the phone should go back to playing out loud.
+            releaseSession();
             stop();
             kind = 'none';
             label = why || 'no sound';
@@ -2614,9 +2686,14 @@
         }).catch(function (e) {
             if (e && e.name === 'NotAllowedError') say('Permission for the microphone was refused, so there is nothing to listen to.');
             else if (e && e.name === 'NotFoundError') say('This machine reports no audio inputs at all.');
-            else say('Could not open an input: ' + ((e && e.message) || 'the browser refused') + '.');
+            else if (isSessionRefusalMsg(e)) say('iOS is holding the audio session for playback and will not ' +
+                'open an input while it is. Reload this page and choose the input before playing anything else.');
+            else say('Could not open an input: ' + String((e && e.message) || 'the browser refused').replace(/\.*$/, '') + '.');
         });
     });
+    function isSessionRefusalMsg(e) {
+        return /audiosession|category/i.test(String((e && e.message) || ''));
+    }
     deviceSel.addEventListener('change', function () {
         Ears.fromInput(deviceSel.value).then(function () { say('Listening to ' + (deviceSel.selectedOptions[0] || {}).textContent + '.'); })
             .catch(function () { say('That input would not open.'); });
