@@ -200,30 +200,92 @@ function isPrivate(ip) {
            (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
   }
   const s = ip.toLowerCase();
+  // Three notations carry an IPv4 address inside an IPv6 one, and each is a
+  // way to write 127.0.0.1 that a prefix check does not recognise. Pull the
+  // v4 address out and judge it as a v4 address.
+  //   ::ffff:127.0.0.1   IPv4-mapped
+  //   64:ff9b::7f00:1    NAT64  (RFC 6052)
+  //   2002:7f00:1::      6to4   (RFC 3056)
+  const mapped = s.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return isPrivate(mapped[1]);
+  const hextets = s.split(':');
+  const fromHex = (hi, lo) => [(hi >> 8) & 255, hi & 255, (lo >> 8) & 255, lo & 255].join('.');
+  if (s.startsWith('64:ff9b:') || s.startsWith('::ffff:') || s.startsWith('2002:')) {
+    const h = hextets.filter(Boolean).map(x => parseInt(x, 16));
+    const [hi, lo] = s.startsWith('2002:') ? [h[1], h[2]] : [h[h.length - 2], h[h.length - 1]];
+    if (Number.isFinite(hi) && Number.isFinite(lo)) return isPrivate(fromHex(hi, lo));
+    return true;                                    // unparseable: refuse rather than guess
+  }
   return s === '::' || s === '::1' || s.startsWith('fe80') || s.startsWith('fc') ||
-         s.startsWith('fd') || s.startsWith('::ffff:');
+         s.startsWith('fd');
 }
 
 const PLAYLIST_TYPES = /scpls|mpegurl|xspf|ms-asf|ms-wax|pls\+xml/;
 
+const MAX_HOPS = 5;
+
 /**
- * A glance at what is on the other end, before committing to a download:
- * { endless } for media with no length, { playlist } for a .pls or .m3u,
- * {} for everything else, including anything that would not answer.
+ * Follow the redirects by hand, checking every hop.
+ *
+ * publicUrl() on its own only ever judged the address the caller typed. One
+ * 302 was enough to get past it: a public host could answer "go to
+ * http://[fdaa::3]/" and redirect:'follow' would go, because the check had
+ * already happened and was not going to happen again. The same hole let a
+ * name that resolves differently on the second lookup through.
+ *
+ * So the walk is explicit. Every hop is resolved and judged before it is
+ * fetched, and the address that comes out the far end is the one handed to
+ * yt-dlp — not the one that was typed.
+ *
+ * Returns { url, res } or { error }.
  */
-async function probeTarget(url) {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 8000);
+async function walkRedirects(raw) {
+  let current = raw;
+  for (let hop = 0; hop <= MAX_HOPS; hop++) {
+    const bad = await publicUrl(current);
+    if (bad) return { error: bad };
+
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 8000);
+    let r;
+    try {
+      // A ranged GET rather than HEAD. The headers are all this needs and
+      // they arrive immediately; the body is dropped. HEAD looks tidier and
+      // is not dependable — a server that streams forever may simply never
+      // finish answering one, which is the exact case being tested for.
+      r = await fetch(current, {
+        method: 'GET', redirect: 'manual', signal: ac.signal,
+        headers: { range: 'bytes=0-1' }
+      });
+      try { await r.body?.cancel(); } catch {}
+    } catch {
+      // Did not answer, or is not HTTP at all. The address itself has been
+      // checked, which is what this function is for; yt-dlp can report why
+      // it could not be fetched.
+      return { url: current, res: null };
+    } finally {
+      clearTimeout(timer);
+      ac.abort();
+    }
+
+    if (r.status >= 300 && r.status < 400 && r.headers.get('location')) {
+      try { current = new URL(r.headers.get('location'), current).toString(); }
+      catch { return { error: 'That link redirects somewhere unreadable.' }; }
+      continue;
+    }
+    return { url: current, res: r };
+  }
+  return { error: 'That link redirects more than ' + MAX_HOPS + ' times.' };
+}
+
+/**
+ * What the far end turned out to be: { endless } for media with no length,
+ * { playlist } for a .pls or .m3u, {} for everything else — including
+ * anything that would not answer.
+ */
+function readTarget(r) {
+  if (!r) return {};
   try {
-    // A ranged GET rather than HEAD. The headers are all this needs and they
-    // arrive immediately; the body is dropped. HEAD looks tidier and is not
-    // dependable — a server that streams forever may simply never finish
-    // answering one, which is the exact case being tested for.
-    const r = await fetch(url, {
-      method: 'GET', redirect: 'follow', signal: ac.signal,
-      headers: { range: 'bytes=0-1' }
-    });
-    try { await r.body?.cancel(); } catch {}
     const type = (r.headers.get('content-type') || '').toLowerCase().split(';')[0].trim();
     const len = r.headers.get('content-length');
     const icy = r.headers.get('icy-name') || r.headers.get('icy-br');
@@ -238,10 +300,7 @@ async function probeTarget(url) {
     if (/^(audio|video)\//.test(type)) return { endless: type };
     return {};                                      // html, json, anything else: not ours to judge
   } catch {
-    return {};                                      // refused or timed out: carry on regardless
-  } finally {
-    clearTimeout(timer);
-    ac.abort();                                     // never leave the body running
+    return {};                                      // unreadable headers: carry on regardless
   }
 }
 
@@ -270,8 +329,11 @@ async function rip(req, res, u) {
   const fmt = FORMATS[want];
   if (!fmt) return json(res, 400, { error: `format must be one of ${Object.keys(FORMATS).join(', ')}` });
 
-  const bad = await publicUrl(target);
-  if (bad) return json(res, 400, { error: bad });
+  const walked = await walkRedirects(target);
+  if (walked.error) return json(res, 400, { error: walked.error });
+  // Every hop above was checked; this is the address that was actually
+  // reached, and it is what gets downloaded.
+  const safeTarget = walked.url;
 
   // An endless stream has no duration for the filter below to catch and no
   // end for the download to reach, so it would sit here burning a slot until
@@ -279,7 +341,7 @@ async function rip(req, res, u) {
   // served with no length is a stream. A YouTube watch page answers text/html
   // and is not caught by this; a plain .mp3 answers with a length and is not
   // either.
-  const seen = await probeTarget(target);
+  const seen = readTarget(walked.res);
   if (seen.endless) {
     return json(res, 400, { error: 'That looks like a live stream: it is ' + seen.endless +
       ' with no length, so there is no end to download. Paste it into the page instead ' +
@@ -310,7 +372,11 @@ async function rip(req, res, u) {
                   '-o', path.join(dir, 'a.%(ext)s')];
     if (fmt.convert) args.push('-x', '--audio-format', want);
     if (want === 'mp3') args.push('--audio-quality', '0');
-    args.push(target);                       // left off once, and every rip 400'd
+    // The walked address, not the typed one: yt-dlp starts from a host that
+    // has been resolved and judged. yt-dlp follows its own redirects from
+    // there and has no flag to stop it, so this narrows the hole rather than
+    // closing it — see ripper/README.md.
+    args.push(safeTarget);                   // left off once, and every rip 400'd
     const got = await run(YTDLP, args, { timeoutMs: TIMEOUT * 1000 });
     if (got.code !== 0) {
       const timedOut = /timed out after/.test(got.err);
@@ -373,7 +439,7 @@ const firstLine = s => String(s || '').split('\n').map(x => x.trim())
   .filter(x => x && !/^\[/.test(x)).pop() || '';
 const safeName = s => String(s).replace(/[^\w \-.]+/g, '_').slice(0, 60).trim() || 'audio';
 
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
   res.__origin = matchOrigin(req);
   if (req.method === 'OPTIONS') { res.writeHead(204, cors(res)); return res.end(); }
@@ -399,5 +465,13 @@ http.createServer(async (req, res) => {
       ', or run your own copy \u2014 it is one file in the site\u2019s repository.' });
   }
   return rip(req, res, u);
-}).listen(PORT, () => console.log(`ripper on :${PORT}  token ${TOKEN ? 'required' : 'NOT set'}` +
+});
+
+// Importing this file normally starts the server. The SSRF tests need the
+// functions without the socket, so they set RIPPER_NO_LISTEN and import it.
+if (!process.env.RIPPER_NO_LISTEN) server.listen(PORT, () => console.log(`ripper on :${PORT}  token ${TOKEN ? 'required' : 'NOT set'}` +
     (ALLOW_PRIVATE ? '  PRIVATE ADDRESSES ALLOWED — development only' : '')));
+
+
+// Exported for ripper/ssrf.test.mjs. Nothing else imports this module.
+export { isPrivate, publicUrl, walkRedirects, MAX_HOPS };

@@ -220,6 +220,41 @@ else that is only reachable from where the service runs. It holds nothing
 between requests: each rip lands in a temporary directory that is deleted when
 the response ends.
 
+**Every hop is checked, not just the first.** Checking only the address that
+was typed is the usual way this guard is got around: a perfectly public host
+answers `302 Location: http://[fdaa::3]/`, and a client that follows redirects
+goes there, because the check already happened and is not going to happen
+again. So the redirects are walked here by hand — each hop resolved and judged
+before it is fetched, at most five of them — and the address that comes out the
+far end is the one handed to `yt-dlp`.
+
+Three spellings of an address get the same treatment, because each hides an
+IPv4 address inside something that does not look like one:
+
+| notation | example | is really |
+|---|---|---|
+| IPv4-mapped | `::ffff:127.0.0.1` | `127.0.0.1` |
+| NAT64 (RFC 6052) | `64:ff9b::a9fe:a9fe` | `169.254.169.254` |
+| 6to4 (RFC 3056) | `2002:7f00:1::` | `127.0.0.1` |
+
+`ripper/ssrf.test.mjs` covers all of it — the notations, the walk, and a
+redirect chain that is refused at its second hop having been allowed at its
+first. It needs nothing installed:
+
+```sh
+node ripper/ssrf.test.mjs
+```
+
+### What this does not close
+
+`yt-dlp` does its own name resolution and follows its own redirects, and has
+no option to restrict either. The walk means it starts from an address that
+has been resolved and judged, but a server at that address can still redirect
+it somewhere else. Closing that properly needs the restriction at the network
+layer rather than in this file — an egress rule on the machine, refusing
+private destinations outright. If you are running this where it can see
+anything worth reaching, do that as well as this.
+
 Keep `yt-dlp` current. Sites change what they serve, and an old yt-dlp is the
 usual reason a link stops working:
 
