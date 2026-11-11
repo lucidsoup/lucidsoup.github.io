@@ -65,6 +65,22 @@
        The edge is tinted rather than grey because a neutral hairline on a
        violet-black ground reads as a seam; a violet one reads as the thing
        catching the light around it. */
+    /* ===== ink =====
+       Measured, not chosen. Against this page (#05040f) and against a pane
+       sitting on it, white text needs alpha >= .449 to clear 4.5:1 and >= .336
+       to clear 3:1 at large sizes. Everything below sits above those floors
+       with room to spare, and --lucid-ink-faint IS the floor: there is no
+       dimmer step, because a dimmer step would fail.
+
+       The same measurement is why labels are a lifted violet rather than the
+       accent at 75% opacity. #9b7bff is 6.2:1 and fine; the moment it was
+       faded to rgba(139,108,245,.75) it fell to 3.4:1, which is where most of
+       this site's contrast failures came from. Fading ink is the bug. */
+    --lucid-ink:       rgba(255, 255, 255, .93);   /* 18.9:1 — body copy     */
+    --lucid-ink-dim:   rgba(255, 255, 255, .74);   /*  11.4:1 — secondary    */
+    --lucid-ink-faint: rgba(255, 255, 255, .54);   /*   5.6:1 — the floor    */
+    --lucid-ink-label: #b49cff;                    /*   8.5:1 — small caps   */
+
     --lucid-pane:        rgba(255, 255, 255, .028);
     --lucid-pane-edge:   rgba(155, 123, 255, .16);
     --lucid-pane-lit:    rgba(155, 123, 255, .42);
@@ -210,4 +226,209 @@ body[data-lucid-no-broth]::after { content: none; }
 
 @media (prefers-reduced-motion: reduce) {
     body::after { animation: none; }
+}
+
+
+/* =======================================================================
+   Shared accessibility layer
+   Loaded by every page, so these are the guarantees the whole site makes
+   rather than promises each page has to keep on its own.
+   ======================================================================= */
+
+/* ----- focus you can actually see -------------------------------------
+   Ten rules across this site set `outline: none` on :focus, which is how
+   the audit found 56 controls that changed nothing at all when focused.
+   Rather than hunt each one down and risk the next one reintroducing it,
+   the ring is drawn with box-shadow — which `outline: none` cannot remove —
+   and marked important, because lucid.css loads before every page's own
+   <style> block and would otherwise lose the cascade on its own site.
+
+   Two rings, light inside dark, so it stays visible on the acid green of a
+   panel edge and on the near-black of the page alike. :focus-visible, so it
+   appears for a keyboard and not for a mouse. */
+:focus-visible {
+    outline: 2px solid var(--lucid-focal, #6fe3e8) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px rgba(4, 4, 10, .92),
+                0 0 0 5px var(--lucid-focal, #6fe3e8),
+                0 0 18px rgba(111, 227, 232, .55) !important;
+    border-radius: inherit;
+}
+/* A canvas or a scroll container takes focus programmatically; ringing it
+   is noise, not information. */
+canvas:focus-visible, [tabindex="-1"]:focus-visible { box-shadow: none !important; outline: none !important; }
+
+/* ----- said, not drawn ------------------------------------------------
+   For a heading or a label that a screen reader needs and the design does
+   not. Not display:none and not visibility:hidden — both of those take it
+   out of the accessibility tree too, which defeats the point. */
+.lucid-sr {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+/* ----- the way past the chrome ----------------------------------------
+   Injected by lucid.js into every page, so a keyboard does not have to walk
+   the whole stack bar to reach the content. Off-screen until focused. */
+.lucid-skip {
+    position: fixed;
+    top: 0; left: 50%;
+    transform: translate(-50%, -140%);
+    z-index: 2147483001;                /* over the chrome, which is ...000 */
+    padding: 10px 18px;
+    background: #05040f;
+    color: var(--lucid-focal, #6fe3e8);
+    border: 1px solid var(--lucid-focal, #6fe3e8);
+    border-radius: 0 0 var(--lucid-radius, 3px) var(--lucid-radius, 3px);
+    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace);
+    font-size: 12px;
+    letter-spacing: var(--lucid-track, .18em);
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: transform .14s ease;
+}
+.lucid-skip:focus { transform: translate(-50%, 0); }
+
+/* ----- for anyone who has asked the OS to calm things down -------------
+   A blanket, on purpose. The audit found animation still running under
+   prefers-reduced-motion on three pages — including a scanline overlay
+   cycling at 0.1s, which is a flicker fast enough to be a seizure risk, not
+   a style choice. Catching those one at a time means missing the next one,
+   so everything stops unless it is explicitly marked as carrying meaning. */
+@media (prefers-reduced-motion: reduce) {
+    *:not([data-lucid-keep-motion]),
+    *:not([data-lucid-keep-motion])::before,
+    *:not([data-lucid-keep-motion])::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        scroll-behavior: auto !important;
+    }
+    html { scroll-behavior: auto !important; }
+}
+
+/* ----- when the OS asks for more contrast ------------------------------ */
+@media (prefers-contrast: more) {
+    :root {
+        --lucid-ink:       #ffffff;
+        --lucid-ink-dim:   rgba(255, 255, 255, .88);
+        --lucid-ink-faint: rgba(255, 255, 255, .76);
+        --lucid-ink-label: #d7caff;
+        --lucid-pane-edge: rgba(180, 156, 255, .55);
+    }
+    body::after { opacity: .22; }      /* the broth stops competing */
+}
+/* Some people turn transparency off at the OS; glass is the first thing to go. */
+@media (prefers-reduced-transparency: reduce) {
+    :root { --lucid-pane: rgba(16, 14, 30, .96); }
+    body::after { opacity: .25; }
+}
+
+
+/* =======================================================================
+   The liquid, part two: making the whole site feel like it is in the bowl
+   rather than only the two pages the backdrop happens to show on.
+
+   Every colour used here is one of the palette's full-strength accents,
+   each of which was measured against the pane and clears AA on its own:
+   #9b7bff 6.2:1, #d44fb0 5.2:1, #8ae04b 12.0:1, #6fe3e8 12.9:1. Nothing in
+   this section fades ink to get an effect, which is the mistake that put 43
+   text colours below the floor in the first place. Everything that moves is
+   caught by the prefers-reduced-motion blanket above.
+   ======================================================================= */
+
+/* ----- things you can actually hit ------------------------------------
+   A slider painted as a 6px bar is a 6px target, and the audit found 99 of
+   them across the site. The padding grows the box the pointer is tested
+   against; background-clip keeps the paint inside the original content box,
+   so the bar still looks like a hairline and is three times easier to grab.
+   content-box is needed because most of these pages set `height` on the
+   input and a global `* { box-sizing: border-box }` would eat the padding.
+
+   Checkboxes get a smaller bump: most of them sit inside a <label>, which is
+   the real target and is already comfortably bigger than the box. */
+input[type="range"] {
+    box-sizing: content-box;
+    padding-block: 9px;
+    background-clip: content-box;
+}
+input[type="checkbox"], input[type="radio"] { min-width: 18px; min-height: 18px; }
+select { min-height: 24px; }
+
+/* ----- type that will not sit still -----------------------------------
+   Several pages already paint their headings with a clipped gradient. This
+   puts the gradient in motion: three times the width, slid slowly across,
+   so the colour crawls through the letterforms. The text itself never
+   changes position or size — only which part of the ramp each letter is
+   standing in — so it stays as readable as a static heading, which an
+   animated heading usually is not. */
+.lucid-liquid-type,
+.panel h2, .card h1 {
+    background: linear-gradient(100deg,
+        var(--lucid-accent,   #9b7bff), var(--lucid-accent-3, #d44fb0),
+        var(--lucid-accent-2, #8ae04b), var(--lucid-focal,    #6fe3e8),
+        var(--lucid-accent,   #9b7bff)) 0 0 / 300% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    animation: lucid-flow 18s linear infinite;
+}
+@keyframes lucid-flow { to { background-position: 300% 0; } }
+/* Clipped text has no colour of its own, so a forced-colours mode would
+   render it invisible. Hand it back. */
+@media (forced-colors: active) {
+    .lucid-liquid-type, .panel h2, .card h1 {
+        -webkit-text-fill-color: currentColor; color: CanvasText; animation: none;
+    }
+}
+
+/* ----- panes that are wet ---------------------------------------------
+   The edge drifts through the palette and a slow sheen crosses the surface.
+   Both are on the border and the background, never on the text, so the copy
+   inside a panel reads at exactly the ratio it was measured at. */
+.lucid-liquid-pane,
+.panel, .about, .contact {
+    position: relative;
+    animation: lucid-edge 24s ease-in-out infinite;
+}
+@keyframes lucid-edge {
+    0%, 100% { border-color: rgba(155, 123, 255, .16); }
+    33%      { border-color: rgba(212,  79, 176, .17); }
+    66%      { border-color: rgba(111, 227, 232, .15); }
+}
+.lucid-liquid-pane::after,
+.panel::after, .about::after, .contact::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+    opacity: .5;
+    background: linear-gradient(115deg, transparent 38%,
+                rgba(180, 156, 255, .09) 48%, rgba(111, 227, 232, .07) 54%,
+                transparent 64%) 0 0 / 280% 100%;
+    animation: lucid-sheen 19s linear infinite;
+}
+/* The sheen is a child, so everything else in the panel has to be above it. */
+.lucid-liquid-pane > *, .panel > *, .about > *, .contact > * { position: relative; z-index: 1; }
+@keyframes lucid-sheen { to { background-position: 280% 0; } }
+
+/* ----- links with a meniscus ------------------------------------------
+   The underline grows out from where the pointer is rather than appearing
+   all at once, which is the closest a line can get to surface tension.
+   Underline, not colour alone, so the link is still identifiable to anyone
+   who cannot pick it out by hue. */
+a:not(.lucid-return):not(.lucid-skip):not(.lucid-index):not([class*="btn"]) {
+    text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+    text-underline-offset: .22em;
+    text-decoration-thickness: from-font;
+    transition: text-decoration-color .18s ease, text-shadow .18s ease;
+}
+a:not(.lucid-return):not(.lucid-skip):not(.lucid-index):not([class*="btn"]):hover {
+    text-decoration-color: currentColor;
+    text-shadow: 0 0 14px color-mix(in srgb, currentColor 55%, transparent);
 }

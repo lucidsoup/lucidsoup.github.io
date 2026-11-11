@@ -256,14 +256,21 @@
     white-space: nowrap;
     padding: 3px 9px 4px;
     border-radius: 999px;
-    background: rgba(9, 4, 20, .62);
-    border: 1px solid rgba(155,123,255,.18);
+    /* The pill is the only thing between this text and a live WebGL scene,
+       and the scene is not always dark — against the brightest lilac the
+       broth renders, the sub-label below was coming out at 3.1:1. There is
+       no way to measure text over a canvas from the DOM, so the pill is made
+       opaque enough that the worst case still clears AA: at .86 the name is
+       11.7:1 and the sub-label 7.5:1 even over the brightest frame. */
+    background: rgba(9, 4, 20, .86);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    border: 1px solid rgba(155,123,255,.30);
     transition: color .2s ease, background .2s ease, border-color .2s ease, opacity .35s ease;
 }
 .bit-label small {
     display: block; margin-top: 1px;
     font-size: 8.5px; letter-spacing: .12em;
-    color: rgba(155,123,255,.9);
+    color: #b49cff;
     text-transform: none;
 }
 /* Near the top of its orbit the label would hang over the rim, so it swaps to

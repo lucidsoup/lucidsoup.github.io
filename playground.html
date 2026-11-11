@@ -114,7 +114,7 @@
         #meters i.hot { background: var(--lucid-accent-2, #8ae04b); }
         #readout {
             font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
-            font-size: 10px; letter-spacing: .12em; color: rgba(255,255,255,.4);
+            font-size: 10px; letter-spacing: .12em; color: var(--lucid-ink-faint);
             white-space: nowrap;
         }
         #readout b { color: rgba(255,255,255,.78); font-weight: normal; }
@@ -182,7 +182,7 @@
         #dock-head span {
             font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
             font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
-            color: rgba(255,255,255,.42);
+            color: var(--lucid-ink-faint);
         }
         #dock-scroll {
             flex: 1; overflow-y: auto; overscroll-behavior: contain;
@@ -197,7 +197,7 @@
         .group { margin-bottom: 18px; }
         .group > h2 {
             font-size: .62rem; letter-spacing: .22em; text-transform: uppercase;
-            color: rgba(155,123,255,.72); font-weight: bold;
+            color: var(--lucid-ink-label); font-weight: bold;
             margin-bottom: .7rem; padding-bottom: .4rem;
             border-bottom: 1px solid rgba(255,255,255,.07);
         }
@@ -234,7 +234,7 @@
         .row.armed .row-top label { color: var(--lucid-warn, #ffd34d); }
         .row-top .cc {
             font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
-            font-size: 8px; letter-spacing: .06em; color: rgba(138,224,75,.75); margin-left: 5px;
+            font-size: 8px; letter-spacing: .06em; color: #8ae04b; margin-left: 5px;
         }
         .scene-btn {
             padding: 9px 4px; border-radius: 4px; cursor: pointer;
@@ -250,7 +250,7 @@
         }
         .scene-btn small {
             display: block; margin-top: 3px; font-size: 8px; letter-spacing: .1em;
-            color: rgba(255,255,255,.3); text-transform: none;
+            color: var(--lucid-ink-faint); text-transform: none;
         }
 
         /* A row is: name, value, slider — and, where the control can be
@@ -265,7 +265,7 @@
         .row-top label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.52); }
         .row-top output {
             font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
-            font-size: 10px; color: rgba(255,255,255,.4);
+            font-size: 10px; color: var(--lucid-ink-faint);
         }
         input[type=range] {
             -webkit-appearance: none; appearance: none; width: 100%; height: 18px;
@@ -303,7 +303,7 @@
         .mod input[type=range]::-moz-range-thumb {
             width: 9px; height: 9px; background: var(--lucid-accent-3, #d44fb0);
         }
-        .mod.off select { color: rgba(255,255,255,.3); }
+        .mod.off select { color: var(--lucid-ink-faint); }
         .mod.off input[type=range] { opacity: .3; pointer-events: none; }
 
         .toggles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
@@ -315,7 +315,7 @@
         }
         .tog:hover { color: #fff; border-color: rgba(155,123,255,.5); }
         .tog.on { color: #04040a; background: var(--lucid-accent-2, #8ae04b); border-color: var(--lucid-accent-2, #8ae04b); }
-        .hint { font-size: 10px; line-height: 1.6; color: rgba(255,255,255,.34); margin-top: .6rem; }
+        .hint { font-size: 10px; line-height: 1.6; color: var(--lucid-ink-faint); margin-top: .6rem; }
         .hint kbd {
             font-family: var(--lucid-mono, ui-monospace, Menlo, monospace); font-size: 9px;
             padding: 1px 4px; border-radius: 3px; border: 1px solid rgba(255,255,255,.16);
@@ -363,12 +363,12 @@
         .src:disabled { opacity: .42; cursor: not-allowed; }
         .src .n {
             font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
-            font-size: .62rem; letter-spacing: .1em; color: rgba(155,123,255,.75);
+            font-size: .62rem; letter-spacing: .1em; color: var(--lucid-ink-label);
             padding-top: .25rem;
         }
         .src .t { display: block; font-size: .97rem; }
         .src .d { display: block; font-size: .8rem; line-height: 1.55; color: rgba(255,255,255,.5); margin-top: .22rem; }
-        .src .d em { color: rgba(212,79,176,.85); font-style: normal; }
+        .src .d em { color: #d44fb0; font-style: normal; }
         /* The link row holds a field, so it is not itself a button and must
            not light up like one. */
         .src-form { cursor: default; }
@@ -379,7 +379,7 @@
             border-radius: 8px; background: rgba(0,0,0,.35); color: #fff;
             border: 1px solid rgba(255,255,255,.16);
         }
-        #linkform input::placeholder { color: rgba(255,255,255,.3); }
+        #linkform input::placeholder { color: var(--lucid-ink-faint); }
         #linkform input:focus { outline: none; border-color: rgba(155,123,255,.75); }
         #linkform button {
             flex: none; font: inherit; font-size: .8rem; letter-spacing: .08em;
@@ -390,7 +390,7 @@
         }
         #linkform button:hover { border-color: rgba(138,224,75,.8); }
         #linkform button:disabled { opacity: .5; cursor: progress; }
-        .svcline { margin-top: .6rem; font-size: .76rem; color: rgba(255,255,255,.44); }
+        .svcline { margin-top: .6rem; font-size: .76rem; color: var(--lucid-ink-faint); }
         .svcline button {
             font: inherit; font-size: .76rem; background: none; border: 0; padding: 0 0 0 .4rem;
             color: var(--lucid-accent, #9b7bff); cursor: pointer; text-decoration: underline;
@@ -411,14 +411,14 @@
         }
         .svcbtns button:hover { border-color: rgba(155,123,255,.7); }
         #svcsay { margin-top: .5rem; margin-bottom: 0; }
-        #svcsay.good { color: rgba(138,224,75,.85); }
-        #svcsay.bad { color: rgba(212,79,176,.85); }
+        #svcsay.good { color: #8ae04b; }
+        #svcsay.bad { color: #d44fb0; }
         /* Below about 360px the two will not sit side by side; let the button
            take its own line rather than pushing out of the card. */
         @media (max-width: 400px) { #linkform button { flex: 1 1 100%; } }
         .card footer {
             margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,.08);
-            font-size: .78rem; line-height: 1.6; color: rgba(255,255,255,.4);
+            font-size: .78rem; line-height: 1.6; color: var(--lucid-ink-faint);
         }
         #gate-err {
             margin-top: 1rem; padding: .8rem 1rem; border-radius: 9px;
@@ -660,7 +660,7 @@
     </div>
 </div>
 
-<input type="file" id="filepick" accept="audio/*,video/*" hidden>
+<input type="file" id="filepick" accept="audio/*,video/*" hidden aria-label="Choose an audio or video file">
 
 <script>
 (function () {

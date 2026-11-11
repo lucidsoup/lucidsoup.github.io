@@ -297,13 +297,13 @@ html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
 #ls-hex {
     right: 16px; top: 50%; transform: translateY(-50%);
     text-align: right; line-height: 1.75; font-size: 9px; letter-spacing: .14em;
-    color: rgba(155,123,255,.30);
+    color: var(--lucid-ink-label);
 }
 #ls-scale {
     left: 16px; top: 50%; transform: translateY(-50%);
     line-height: 2.1; font-size: 9px; letter-spacing: .14em;
 }
-#ls-scale div { color: rgba(155,123,255,.28); white-space: nowrap; }
+#ls-scale div { color: var(--lucid-ink-label); white-space: nowrap; }
 #ls-scale div.at { color: var(--ls-hot); }
 #ls-scale div.at::before { content: '─ '; }
 
@@ -320,7 +320,7 @@ html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
     font-size: 15px; letter-spacing: .16em; color: var(--lucid-ink, #e8e8f0);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-#ls-sel .w { display: block; margin-top: 5px; color: rgba(155,123,255,.5); letter-spacing: .14em; }
+#ls-sel .w { display: block; margin-top: 5px; color: var(--lucid-ink-label); letter-spacing: .14em; }
 #ls-keys { text-align: right; line-height: 1.9; white-space: nowrap; }
 #ls-keys kbd {
     font: inherit; color: var(--ls-lit);

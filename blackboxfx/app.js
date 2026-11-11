@@ -333,7 +333,12 @@ function renderChain() {
 
     const knobs = P.knobNames(b, st.model).map((label, slot) => {
       const addr = P.knobAddr(b, slot);
-      const input = el("input", { type: "range", min: 0, max: 100, value: st.knobs[slot] });
+      // The wrapping <label> cannot name this. A label associates with the
+      // first labelable element it contains, and the <output> below is one,
+      // so the label bound to the readout and left the slider anonymous —
+      // twenty-two of them, announced as just "slider". Name it outright.
+      const input = el("input", { type: "range", min: 0, max: 100, value: st.knobs[slot],
+                                  ariaLabel: `${b.name} ${label}` });
       const out = el("output", { textContent: st.knobs[slot] });
       input.oninput = () => {
         if (!app.synced) return;
