@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
     <link rel="stylesheet" href="/lucid.css">
     <link rel="stylesheet" href="/stack.css">
 <meta charset="UTF-8">
@@ -314,7 +316,7 @@
     .exit-chip[data-i]::before {
         content: attr(data-i);
         position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
-        font-size: 8.5px; letter-spacing: .1em; color: rgba(155, 123, 255,.65);
+        font-size: 8.5px; letter-spacing: .1em; color: var(--lucid-ink-label);
     }
     #stack-open {
         margin-left: auto;
@@ -376,8 +378,15 @@
     }
 </style>
 </head>
-<body data-lucid-no-return>
+<body data-lucid-no-return data-lucid-no-broth>
 
+<!-- The gallery is a 3D room with no text in it, so the page's heading and
+     its landmark both have to be stated rather than drawn. The h1 is for a
+     screen reader and for the document outline; sighted visitors get the
+     room. -->
+<h1 class="lucid-sr">The Gallery</h1>
+
+<main id="main" tabindex="-1">
 <div id="stage" aria-label="Gallery">
     <div id="camera"><div id="lens"><div id="room"></div></div></div>
 </div>
@@ -2040,6 +2049,7 @@ window.lucidGallery = {
 })();
 </script>
 <script src="/lucid.js" defer></script>
+</main>
 <script src="/stack.js" defer></script>
 </body>
 </html>

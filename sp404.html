@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
     <link rel="stylesheet" href="/lucid.css">
     <link rel="stylesheet" href="/stack.css">
     <meta charset="UTF-8">
@@ -35,15 +37,19 @@
             -webkit-text-fill-color: transparent;
         }
         .tagline { color: rgba(255,255,255,.6); font-size: .95rem; margin-top: .75rem; }
-        .tagline strong { color: rgba(139, 108, 245,.85); font-weight: normal; }
+        .tagline strong { color: var(--lucid-ink-label); font-weight: normal; }
 
         .panel {
-            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
-            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+            background: var(--lucid-pane, rgba(255,255,255,.03));
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.08));
+            border-radius: var(--lucid-pane-radius, 12px);
+            box-shadow: var(--lucid-pane-glow);
+            -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+            padding: 1.5rem; margin-bottom: 1.5rem;
         }
         .panel h2 {
             font-size: .72rem; text-transform: uppercase; letter-spacing: .18em;
-            color: rgba(139, 108, 245,.75); font-weight: bold; margin-bottom: 1.1rem;
+            color: var(--lucid-ink-label); font-weight: bold; margin-bottom: 1.1rem;
         }
 
         /* ---- model picker ---- */
@@ -62,7 +68,7 @@
         }
         .model-name { font-weight: bold; font-size: 1rem; }
         .model-spec { font-size: .76rem; color: rgba(255,255,255,.5); margin-top: .3rem; line-height: 1.5; }
-        .model-spec code { color: rgba(138, 224, 75,.8); font-size: .95em; }
+        .model-spec code { color: #8ae04b; font-size: .95em; }
 
         /* ---- dropzone ---- */
         #drop, #stDrop {
@@ -72,7 +78,7 @@
         }
         #drop:hover, #drop.over, #stDrop:hover, #stDrop.over { border-color: rgba(139, 108, 245,.7); background: rgba(139, 108, 245,.04); }
         #drop .big, #stDrop .big { font-size: 1.05rem; margin-bottom: .4rem; }
-        #drop .small, #stDrop .small { font-size: .8rem; color: rgba(255,255,255,.45); }
+        #drop .small, #stDrop .small { font-size: .8rem; color: var(--lucid-ink-faint); }
         .from-video {
             display: inline-block; margin-left: .5rem; padding: .1rem .4rem;
             border: 1px solid rgba(139, 108, 245,.35); border-radius: 999px;
@@ -85,7 +91,7 @@
         .opt { display: flex; align-items: flex-start; gap: .6rem; }
         .opt input[type=checkbox] { margin-top: .32rem; accent-color: var(--lucid-accent, #8b6cf5); width: 15px; height: 15px; flex: none; }
         .opt-label { font-size: .85rem; }
-        .opt-help { font-size: .72rem; color: rgba(255,255,255,.4); line-height: 1.45; }
+        .opt-help { font-size: .72rem; color: var(--lucid-ink-faint); line-height: 1.45; }
         .field { display: flex; align-items: center; gap: .55rem; font-size: .85rem; }
         select, input[type=file] { font-family: inherit; }
         select {
@@ -98,7 +104,7 @@
         .files { width: 100%; border-collapse: collapse; font-size: .84rem; }
         .files th {
             text-align: left; font-size: .64rem; text-transform: uppercase; letter-spacing: .13em;
-            color: rgba(255,255,255,.4); font-weight: bold;
+            color: var(--lucid-ink-faint); font-weight: bold;
             padding: 0 .6rem .55rem; border-bottom: 1px solid rgba(255,255,255,.1);
         }
         .files td { padding: .55rem .6rem; border-bottom: 1px solid rgba(255,255,255,.05); vertical-align: middle; }
@@ -107,8 +113,8 @@
         .pad.over { color: #ff3b6b; }
         .fname { word-break: break-word; }
         .dest { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-                font-size: .76rem; color: rgba(139, 108, 245,.75); white-space: nowrap; }
-        .meta { color: rgba(255,255,255,.45); font-size: .76rem; white-space: nowrap; }
+                font-size: .76rem; color: var(--lucid-ink-label); white-space: nowrap; }
+        .meta { color: var(--lucid-ink-faint); font-size: .76rem; white-space: nowrap; }
         .err { color: #ff3b6b; font-size: .76rem; }
         .row-btn {
             background: none; border: 1px solid rgba(255,255,255,.18); color: rgba(255,255,255,.75);
@@ -127,7 +133,7 @@
         .row-btn.wide:hover:not(:disabled) { background: rgba(139, 108, 245,.12); color: #fff; }
         .row-btn.wide.on { background: rgba(139, 108, 245,.22); color: #fff;
                            border-color: rgba(139, 108, 245,.8); }
-        .build-note { margin-top: .7rem; font-size: .76rem; color: rgba(255,255,255,.42); }
+        .build-note { margin-top: .7rem; font-size: .76rem; color: var(--lucid-ink-faint); }
         .from-web { margin-top: 1.1rem; }
         .fw-row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin-bottom: .45rem; }
         .fw-row input[type=url] {
@@ -137,7 +143,7 @@
             font-family: inherit; font-size: .84rem; padding: .55rem .7rem;
         }
         .fw-row input[type=url]:focus { outline: none; border-color: rgba(139, 108, 245,.7); }
-        .fw-help { font-size: .74rem; color: rgba(255,255,255,.4); line-height: 1.5; margin: 0 0 .9rem; }
+        .fw-help { font-size: .74rem; color: var(--lucid-ink-faint); line-height: 1.5; margin: 0 0 .9rem; }
         /* Answers about a link belong beside the link box. They used to go to
            the status line in panel 3, which on a phone is several screens
            further down, so pressing Fetch looked like it did nothing at all. */
@@ -150,11 +156,11 @@
         .fw-note.bad { border-color: rgba(255, 59, 107,.45); background: rgba(255, 59, 107,.08); }
         .svc { margin: 0 0 .9rem; }
         .svc > summary {
-            cursor: pointer; font-size: .74rem; color: rgba(255,255,255,.45);
+            cursor: pointer; font-size: .74rem; color: var(--lucid-ink-faint);
             list-style: none; padding: .2rem 0;
         }
         .svc > summary::-webkit-details-marker { display: none; }
-        .svc > summary::before { content: '\25b8  '; color: rgba(139, 108, 245,.8); }
+        .svc > summary::before { content: '\25b8  '; color: var(--lucid-ink-label); }
         .svc[open] > summary::before { content: '\25be  '; }
         .svc > summary:hover { color: rgba(255,255,255,.75); }
         .svc .fw-row { margin-top: .6rem; }
@@ -219,7 +225,7 @@
         .note strong { color: rgba(255,196,0,.95); }
         .note code, .steps code {
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            font-size: .92em; color: rgba(139, 108, 245,.8);
+            font-size: .92em; color: var(--lucid-ink-label);
         }
         .steps { font-size: .84rem; color: rgba(255,255,255,.65); line-height: 1.8; padding-left: 1.2rem; }
         .steps li { margin-bottom: .2rem; }
@@ -257,7 +263,7 @@
         .pick-btn:hover { border-color: rgba(139, 108, 245,.7); color: #fff; }
 
         .hidden { display: none !important; }
-        footer { text-align: center; font-size: .75rem; color: rgba(255,255,255,.3); margin-top: 3rem; }
+        footer { text-align: center; font-size: .75rem; color: var(--lucid-ink-faint); margin-top: 3rem; }
 
         @media (max-width: 620px) {
             .wrap { padding: 1.75rem 1rem 3.5rem; }
@@ -328,7 +334,7 @@
                 play (MP4, MOV, WebM, MKV, AVI&hellip;) has its audio stripped out; plus SP-404MKII
                 <code>.SMP</code> from a project export</div>
             <input type="file" id="picker" multiple class="hidden"
-                   accept="audio/*,video/*,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.opus,.smp,.SMP,.mp4,.m4v,.mov,.webm,.mkv,.avi,.wmv,.flv,.ogv,.3gp,.3g2,.mpg,.mpeg,.ts,.m2ts,.mts,.asf,.f4v,.vob">
+                   accept="audio/*,video/*,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.opus,.smp,.SMP,.mp4,.m4v,.mov,.webm,.mkv,.avi,.wmv,.flv,.ogv,.3gp,.3g2,.mpg,.mpeg,.ts,.m2ts,.mts,.asf,.f4v,.vob" aria-label="Choose audio or video files">
         </div>
         <div id="fileWrap" class="hidden" style="margin-top:1.25rem; overflow-x:auto;">
             <table class="files">
@@ -383,11 +389,11 @@
             <div class="field">
                 <label for="startBank">Start at</label>
                 <select id="startBank"></select>
-                <select id="startPad"></select>
+                <select id="startPad" aria-label="Starting pad"></select>
             </div>
             <div class="field">
                 <label for="padInfoIn" style="cursor:pointer;">
-                    Existing <code style="color:rgba(139, 108, 245,.8)">PAD_INFO.BIN</code>
+                    Existing <code style="color: var(--lucid-ink-label)">PAD_INFO.BIN</code>
                 </label>
                 <input type="file" id="padInfoIn" accept=".bin,.BIN" style="font-size:.78rem; max-width:200px;">
             </div>
@@ -432,13 +438,13 @@
                     (MP4, MOV, WebM, MKV, AVI&hellip;). Audio files are fine too; they come back out
                     as WAV. Nothing is uploaded.</div>
                 <input type="file" id="stPicker" multiple class="hidden"
-                       accept="video/*,audio/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.wmv,.flv,.ogv,.3gp,.3g2,.mpg,.mpeg,.ts,.m2ts,.mts,.asf,.f4v,.vob,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.opus">
+                       accept="video/*,audio/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.wmv,.flv,.ogv,.3gp,.3g2,.mpg,.mpeg,.ts,.m2ts,.mts,.asf,.f4v,.vob,.wav,.mp3,.aif,.aiff,.m4a,.flac,.ogg,.opus" aria-label="Choose an SP-404 project export">
             </div>
 
             <div class="from-web">
                 <div class="fw-row">
                     <input type="url" id="stUrl" placeholder="…or paste a link to a media file"
-                           autocomplete="off" spellcheck="false">
+                           autocomplete="off" spellcheck="false" aria-label="Paste a link to audio or video">
                     <button type="button" class="pick-btn" id="stFetch">Fetch</button>
                 </div>
                 <p class="fw-note hidden" id="stUrlNote"></p>
@@ -446,9 +452,9 @@
                     <summary id="stSvcSummary">Audio service &mdash; for the links a browser cannot read</summary>
                     <div class="fw-row">
                         <input type="url" id="stSvcUrl" placeholder="https://your-ripper.fly.dev"
-                               autocomplete="off" spellcheck="false">
+                               autocomplete="off" spellcheck="false" aria-label="Your own audio service address">
                         <input type="password" id="stSvcKey" class="key" placeholder="key, if you set one"
-                               autocomplete="off">
+                               autocomplete="off" aria-label="Your own audio service key">
                         <button type="button" class="pick-btn" id="stSvcCheck">Check</button>
                     </div>
                     <p class="fw-help" style="margin:.6rem 0 0;">
@@ -599,7 +605,7 @@
             <h2>1 · Card files</h2>
             <div id="exDrop" style="border:2px dashed rgba(255,255,255,.16); border-radius:12px; padding:2.2rem 1.5rem; text-align:center;">
                 <div style="font-size:1.05rem; margin-bottom:.4rem;">Drop your card's sample folder here</div>
-                <div style="font-size:.8rem; color:rgba(255,255,255,.45);">
+                <div style="font-size:.8rem; color: var(--lucid-ink-faint);">
                     SP-404SX / A: <code>ROLAND/SP-404SX/SMPL</code> &nbsp;&middot;&nbsp;
                     SP-404MKII: the <code>EXPORT SAMPLE</code> folder, or <code>SMPL</code> from an exported project (<code>.SMP</code>)
                 </div>

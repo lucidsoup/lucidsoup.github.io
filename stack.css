@@ -297,13 +297,13 @@ html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
 #ls-hex {
     right: 16px; top: 50%; transform: translateY(-50%);
     text-align: right; line-height: 1.75; font-size: 9px; letter-spacing: .14em;
-    color: rgba(155,123,255,.30);
+    color: var(--lucid-ink-label);
 }
 #ls-scale {
     left: 16px; top: 50%; transform: translateY(-50%);
     line-height: 2.1; font-size: 9px; letter-spacing: .14em;
 }
-#ls-scale div { color: rgba(155,123,255,.28); white-space: nowrap; }
+#ls-scale div { color: var(--lucid-ink-label); white-space: nowrap; }
 #ls-scale div.at { color: var(--ls-hot); }
 #ls-scale div.at::before { content: '─ '; }
 
@@ -320,7 +320,7 @@ html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
     font-size: 15px; letter-spacing: .16em; color: var(--lucid-ink, #e8e8f0);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-#ls-sel .w { display: block; margin-top: 5px; color: rgba(155,123,255,.5); letter-spacing: .14em; }
+#ls-sel .w { display: block; margin-top: 5px; color: var(--lucid-ink-label); letter-spacing: .14em; }
 #ls-keys { text-align: right; line-height: 1.9; white-space: nowrap; }
 #ls-keys kbd {
     font: inherit; color: var(--ls-lit);
@@ -380,7 +380,12 @@ html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
 
 /* ===== the trigger, injected beside the way back ===== */
 .lucid-chrome {
-    position: fixed; top: 12px; right: 12px; z-index: 2147483000;
+    /* Installed to a home screen the page starts at the top of the glass,
+       under the clock and the notch, so the corner comes in by the safe
+       area. Zero in a browser and on every desktop. */
+    position: fixed; z-index: 2147483000;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
     display: flex; align-items: center; gap: 8px;
 }
 .lucid-chrome .lucid-return { position: static; top: auto; right: auto; }
@@ -424,7 +429,11 @@ html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
        top bar; the title is the one thing here nobody needs told. */
     #ls-title { display: none; }
     #ls-top { padding-right: 92px; }
-    .lucid-chrome { top: 8px; right: 8px; gap: 6px; }
+    .lucid-chrome {
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        right: calc(8px + env(safe-area-inset-right, 0px));
+        gap: 6px;
+    }
     .lucid-index { font-size: 9px; padding: 7px 10px; }
 }
 @media (max-width: 420px) {

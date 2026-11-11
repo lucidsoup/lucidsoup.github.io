@@ -8,7 +8,7 @@
   --accent: #7ce0c3;
   --accent-ink: #0d1f1a;
   --warn: #f0b45c;
-  --off: #59606e;
+  --off: #8d94a4;        /* was #59606e, which was 2.46:1 on the panel */
   --radius: 10px;
   color-scheme: dark;
 }

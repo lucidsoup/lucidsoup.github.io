@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
     <link rel="stylesheet" href="/lucid.css">
     <link rel="stylesheet" href="/stack.css">
     <meta charset="UTF-8">
@@ -31,15 +33,19 @@
             -webkit-text-fill-color: transparent;
         }
         .tagline { color: rgba(255,255,255,.6); font-size: .95rem; margin-top: .75rem; }
-        .tagline strong { color: rgba(139, 108, 245,.85); font-weight: normal; }
+        .tagline strong { color: var(--lucid-ink-label); font-weight: normal; }
 
         .panel {
-            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
-            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+            background: var(--lucid-pane, rgba(255,255,255,.03));
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.08));
+            border-radius: var(--lucid-pane-radius, 12px);
+            box-shadow: var(--lucid-pane-glow);
+            -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+            padding: 1.5rem; margin-bottom: 1.5rem;
         }
         .panel h2 {
             font-size: .72rem; text-transform: uppercase; letter-spacing: .18em;
-            color: rgba(139, 108, 245,.75); font-weight: bold; margin-bottom: 1.1rem;
+            color: var(--lucid-ink-label); font-weight: bold; margin-bottom: 1.1rem;
         }
         .panel p + p, .panel ul + p, .panel table + p { margin-top: .9rem; }
         .panel p, .panel li { font-size: .95rem; color: rgba(255,255,255,.82); }
@@ -47,7 +53,7 @@
         .panel li + li { margin-top: .45rem; }
         code {
             font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .88em;
-            color: rgba(138, 224, 75,.88);
+            color: #8ae04b;
         }
 
         /* ---- the catch, said first and said plainly ---- */
@@ -55,7 +61,7 @@
             border-color: rgba(212, 79, 176,.3);
             background: linear-gradient(135deg, rgba(212, 79, 176,.07), rgba(139, 108, 245,.04));
         }
-        .catch h2 { color: rgba(212, 79, 176,.85); }
+        .catch h2 { color: #d44fb0; }
         .catch .big { font-size: 1.08rem; color: #fff; }
 
         /* ---- commands ---- */
@@ -68,7 +74,7 @@
             font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86rem;
             line-height: 1.75; color: rgba(255,255,255,.9); white-space: pre;
         }
-        .cmd .p { color: rgba(255,255,255,.35); user-select: none; }
+        .cmd .p { color: var(--lucid-ink-faint); user-select: none; }
         .copy {
             position: absolute; top: .6rem; right: .6rem; cursor: pointer;
             font: inherit; font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
@@ -84,7 +90,7 @@
             background: linear-gradient(135deg, rgba(139, 108, 245,.22), rgba(212, 79, 176,.14));
         }
         .open:hover { border-color: rgba(139, 108, 245,.95); }
-        .after { font-size: .82rem; color: rgba(255,255,255,.45); margin-top: .6rem; }
+        .after { font-size: .82rem; color: var(--lucid-ink-faint); margin-top: .6rem; }
 
         /* ---- the screenshot ---- */
         figure { margin: 0; }
@@ -92,17 +98,17 @@
             display: block; width: 100%; height: auto; border-radius: 10px;
             border: 1px solid rgba(255,255,255,.1);
         }
-        figcaption { font-size: .8rem; color: rgba(255,255,255,.45); margin-top: .7rem; }
+        figcaption { font-size: .8rem; color: var(--lucid-ink-faint); margin-top: .7rem; }
 
         /* ---- formats ---- */
         table { width: 100%; border-collapse: collapse; margin-top: .4rem; }
         th, td { text-align: left; padding: .65rem .6rem; vertical-align: top; font-size: .9rem; }
         th { font-size: .68rem; text-transform: uppercase; letter-spacing: .12em;
-             color: rgba(255,255,255,.4); font-weight: bold; }
+             color: var(--lucid-ink-faint); font-weight: bold; }
         tbody tr { border-top: 1px solid rgba(255,255,255,.07); }
         td:first-child { white-space: nowrap; font-weight: bold; }
         .yes { color: rgba(138, 224, 75,.9); }
-        .no  { color: rgba(255,255,255,.4); }
+        .no  { color: var(--lucid-ink-faint); }
     </style>
 </head>
 <body>

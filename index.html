@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
     <link rel="stylesheet" href="/lucid.css">
     <link rel="stylesheet" href="/stack.css">
     <link rel="stylesheet" href="/soup.css">
@@ -127,6 +129,9 @@
         .hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: transparent; position: relative; overflow: hidden; }
         .hero-content { z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
         .logo-container { position: relative; font-size: 4rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; font-family: 'Orbitron', monospace; }
+        /* It is an h1 now, so the browser's own heading size and margin have
+           to go before the clamp below can do its job. */
+        .logo-text { font-size: inherit; font-weight: inherit; margin: 0; }
         .logo-text { position: relative; color: #fff; text-shadow: 0 0 10px var(--lucid-accent, #8b6cf5), 0 0 20px var(--lucid-accent, #8b6cf5), 0 0 30px var(--lucid-accent, #8b6cf5); animation: wave 2s ease-in-out infinite, glitch .3s linear infinite; }
         .logo-text::before, .logo-text::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         .logo-text::before { color: #ff0040; animation: glitch-red .4s linear infinite; clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%); }
@@ -149,7 +154,7 @@
            box's placeholder style; it has its own now that the box is gone. */
         .card-empty {
             position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; color: rgba(255,255,255,.18);
+            font-size: 1.5rem; color: var(--lucid-ink-faint);
             background: linear-gradient(135deg, rgba(212, 79, 176,.07), rgba(139, 108, 245,.05));
         }
 
@@ -196,7 +201,14 @@
            and the Stack puts on its plates. Decoration that agrees with the
            rest of the site reads as one hand; decoration that doesn't reads as
            a template. */
-        .about { background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.06); border-radius: 20px; padding: 3rem; margin: 3rem auto 0; max-width: 1060px; }
+        .about {
+            background: var(--lucid-pane, rgba(255,255,255,.02));
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.06));
+            border-radius: var(--lucid-pane-radius, 20px);
+            box-shadow: var(--lucid-pane-glow);
+            -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+            padding: 3rem; margin: 3rem auto 0; max-width: 1060px;
+        }
         .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 62ch; margin: 0 auto 1.1rem; text-align: center; }
         .about p.quiet { font-size: 1rem; color: rgba(255,255,255,.58); margin-bottom: 0; }
         .about p strong { color: #fff; font-weight: 400; }
@@ -244,7 +256,7 @@
             display: block; margin-top: auto; padding-top: .7rem;
             border-top: 1px solid rgba(255,255,255,.07);
             font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
-            font-size: .68rem; letter-spacing: .04em; color: rgba(255,255,255,.4);
+            font-size: .68rem; letter-spacing: .04em; color: var(--lucid-ink-faint);
         }
 
         /* The materials, named rather than branded: a row per kind so the list
@@ -253,7 +265,7 @@
         .mat { display: flex; flex-wrap: wrap; align-items: baseline; gap: .55rem; margin: 0; }
         .mat dt {
             flex: 0 0 7.5rem; font-size: .64rem; letter-spacing: .2em; text-transform: uppercase;
-            color: rgba(255,255,255,.34); padding-top: .35rem;
+            color: var(--lucid-ink-faint); padding-top: .35rem;
         }
         .skills { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 14rem; margin: 0; }
 
@@ -262,14 +274,14 @@
             grid-column: 1 / -1;
             text-align: center;
             padding: 3rem;
-            color: rgba(255,255,255,.4);
+            color: var(--lucid-ink-faint);
             font-size: 0.9rem;
         }
         .pane-empty {
             grid-column: 1 / -1;
             text-align: center;
             padding: 3rem;
-            color: rgba(255,255,255,.4);
+            color: var(--lucid-ink-faint);
             font-size: 0.9rem;
             border: 1px dashed rgba(255,255,255,.1);
             border-radius: 12px;
@@ -287,7 +299,7 @@
         .shader-lib-intro code {
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
             font-size: 0.85em;
-            color: rgba(139, 108, 245,.75);
+            color: var(--lucid-ink-label);
         }
         .shader-lib-grid {
             display: grid;
@@ -298,7 +310,7 @@
             grid-column: 1 / -1;
             text-align: center;
             padding: 3rem;
-            color: rgba(255,255,255,.4);
+            color: var(--lucid-ink-faint);
             font-size: 0.9rem;
         }
         .shader-lib-empty { border: 1px dashed rgba(255,255,255,.1); border-radius: 12px; }
@@ -348,7 +360,7 @@
             padding: 1rem;
             font-size: 0.75rem;
             line-height: 1.5;
-            color: rgba(255,255,255,.45);
+            color: var(--lucid-ink-faint);
         }
         .shader-card-note.error { color: rgba(255,90,130,.9); }
         .shader-card-body {
@@ -372,12 +384,12 @@
         .shader-card-use {
             font-size: 0.75rem;
             line-height: 1.5;
-            color: rgba(255,255,255,.45);
+            color: var(--lucid-ink-faint);
         }
         .shader-card-use span {
             text-transform: uppercase;
             letter-spacing: 0.15em;
-            color: rgba(139, 108, 245,.7);
+            color: var(--lucid-ink-label);
             font-weight: bold;
         }
         .shader-card-actions {
@@ -431,7 +443,14 @@
             color: rgba(255,255,255,.82); font-size: .82rem; font-weight: 400; line-height: 1.4;
         }
 
-        .contact { text-align: center; background: linear-gradient(45deg, rgba(139, 108, 245,.05), rgba(212, 79, 176,.05)); border-radius: 20px; padding: 3rem; }
+        .contact {
+            text-align: center; padding: 3rem;
+            background: linear-gradient(135deg, rgba(155,123,255,.07), rgba(212,79,176,.05) 45%, rgba(138,224,75,.05));
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.06));
+            border-radius: var(--lucid-pane-radius, 20px);
+            box-shadow: var(--lucid-pane-glow);
+            -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+        }
         .contact-links { display: flex; justify-content: center; gap: 2rem; margin-top: 2rem; }
         .contact-link { padding: 1rem 2rem; background: rgba(255,255,255,.1); border-radius: 30px; color: #fff; text-decoration: none; transition: all .3s ease; border: 1px solid rgba(255,255,255,.2); }
         .contact-link:hover { background: rgba(139, 108, 245,.2); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(139, 108, 245,.2); }
@@ -463,7 +482,7 @@
         .brief { margin: 2.25rem auto 0; max-width: 46rem; text-align: left; }
         .brief > p {
             font-size: .68rem; letter-spacing: .2em; text-transform: uppercase;
-            color: rgba(255,255,255,.34); margin: 0 0 .9rem; text-align: center;
+            color: var(--lucid-ink-faint); margin: 0 0 .9rem; text-align: center;
         }
         .brief ol {
             list-style: none; counter-reset: brief; margin: 0; padding: 0;
@@ -480,7 +499,7 @@
             content: counter(brief, decimal-leading-zero);
             position: absolute; left: .9rem; top: .82rem;
             font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
-            font-size: .62rem; letter-spacing: .1em; color: rgba(155, 123, 255,.7);
+            font-size: .62rem; letter-spacing: .1em; color: var(--lucid-ink-label);
         }
         .elsewhere {
             margin-top: 2.25rem; padding-top: 1.5rem;
@@ -488,7 +507,7 @@
         }
         .elsewhere > p {
             font-size: .68rem; letter-spacing: .2em; text-transform: uppercase;
-            color: rgba(255,255,255,.34); margin: 0 0 1rem;
+            color: var(--lucid-ink-faint); margin: 0 0 1rem;
         }
         .elsewhere .contact-links { margin-top: 0; gap: 1rem; }
         .elsewhere .contact-link { padding: .7rem 1.3rem; font-size: .88rem; background: rgba(255,255,255,.055); }
@@ -879,10 +898,11 @@
             </ul>
         </nav>
 
+        <main id="main" tabindex="-1">
         <section class="hero" id="home">
             <div class="hero-content">
                 <div class="logo-container">
-                    <div class="logo-text" data-text="LucidSoup">LucidSoup</div>
+                    <h1 class="logo-text" data-text="LucidSoup">LucidSoup</h1>
                 </div>
                 <p>VISUAL ART · PROJECTION MAPPING · LIVE VISUALS</p>
 
@@ -1147,6 +1167,7 @@
                 </div>
             </div>
         </section>
+        </main>
     </div>
 
     <!-- Visual control panel -->
@@ -1183,7 +1204,7 @@
                 Feedback
                 <span id="feedback-value">50%</span>
             </div>
-            <input type="range" min="0" max="100" value="50" class="control-slider" id="feedback-slider">
+            <input type="range" min="0" max="100" value="50" class="control-slider" id="feedback-slider" aria-label="Feedback">
         </div>
 
         <div class="control-group">
@@ -1191,7 +1212,7 @@
                 Zoom
                 <span id="zoom-value">1.00</span>
             </div>
-            <input type="range" min="80" max="130" value="100" step="1" class="control-slider" id="zoom-slider">
+            <input type="range" min="80" max="130" value="100" step="1" class="control-slider" id="zoom-slider" aria-label="Zoom">
         </div>
 
         <div class="control-group">
@@ -1199,7 +1220,7 @@
                 Rotation
                 <span id="rotation-value">0°</span>
             </div>
-            <input type="range" min="-180" max="180" value="0" step="1" class="control-slider" id="rotation-slider">
+            <input type="range" min="-180" max="180" value="0" step="1" class="control-slider" id="rotation-slider" aria-label="Rotation">
         </div>
 
         <div class="control-group">
@@ -1207,7 +1228,7 @@
                 Offset X
                 <span id="offsetx-value">0.00</span>
             </div>
-            <input type="range" min="-50" max="50" value="0" step="1" class="control-slider" id="offsetx-slider">
+            <input type="range" min="-50" max="50" value="0" step="1" class="control-slider" id="offsetx-slider" aria-label="Offset X">
         </div>
 
         <div class="control-group">
@@ -1215,7 +1236,7 @@
                 Offset Y
                 <span id="offsety-value">0.00</span>
             </div>
-            <input type="range" min="-50" max="50" value="0" step="1" class="control-slider" id="offsety-slider">
+            <input type="range" min="-50" max="50" value="0" step="1" class="control-slider" id="offsety-slider" aria-label="Offset Y">
         </div>
 
         <div class="control-group">
@@ -1223,7 +1244,7 @@
                 Spin Rate
                 <span id="spin-value">0.00</span>
             </div>
-            <input type="range" min="-100" max="100" value="0" step="1" class="control-slider" id="spin-slider">
+            <input type="range" min="-100" max="100" value="0" step="1" class="control-slider" id="spin-slider" aria-label="Spin Rate">
         </div>
 
         <div class="control-group">
@@ -1231,7 +1252,7 @@
                 Hue Shift
                 <span id="hue-value">0°</span>
             </div>
-            <input type="range" min="0" max="360" value="0" step="1" class="control-slider" id="hue-slider">
+            <input type="range" min="0" max="360" value="0" step="1" class="control-slider" id="hue-slider" aria-label="Hue Shift">
         </div>
 
         <div class="control-group">
@@ -1239,7 +1260,7 @@
                 Audio React
                 <span id="audio-react-value">50%</span>
             </div>
-            <input type="range" min="0" max="100" value="50" class="control-slider" id="audio-react-slider">
+            <input type="range" min="0" max="100" value="50" class="control-slider" id="audio-react-slider" aria-label="Audio React">
         </div>
 
         <div class="control-group">
@@ -1247,7 +1268,7 @@
                 Camera Mix
                 <span id="camera-mix-value">0%</span>
             </div>
-            <input type="range" min="0" max="100" value="0" class="control-slider" id="camera-mix-slider">
+            <input type="range" min="0" max="100" value="0" class="control-slider" id="camera-mix-slider" aria-label="Camera Mix">
         </div>
 
         <!-- ===== LAYER MIX SECTION ===== -->
@@ -1255,7 +1276,7 @@
             <div style="color:#ff00ff; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
                 Layer Mix
             </div>
-            <div style="font-size: 9px; color: rgba(255,255,255,0.4); margin-bottom: 10px; line-height: 1.4;">
+            <div style="font-size: 9px; color: var(--lucid-ink-faint); margin-bottom: 10px; line-height: 1.4;">
                 Mix the live website (page) with the visuals — opacity, blend modes, filters.
             </div>
         </div>
@@ -1265,7 +1286,7 @@
                 Page Opacity
                 <span id="page-opacity-value">100%</span>
             </div>
-            <input type="range" min="0" max="100" value="100" class="control-slider" id="page-opacity-slider">
+            <input type="range" min="0" max="100" value="100" class="control-slider" id="page-opacity-slider" aria-label="Page Opacity">
         </div>
 
         <div class="control-group">
@@ -1273,7 +1294,7 @@
                 Visuals Opacity
                 <span id="visuals-opacity-value">60%</span>
             </div>
-            <input type="range" min="0" max="100" value="60" class="control-slider" id="visuals-opacity-slider">
+            <input type="range" min="0" max="100" value="60" class="control-slider" id="visuals-opacity-slider" aria-label="Visuals Opacity">
         </div>
 
         <div class="control-group">
@@ -1303,7 +1324,7 @@
                 Page Hue
                 <span id="page-hue-value">0°</span>
             </div>
-            <input type="range" min="0" max="360" value="0" class="control-slider" id="page-hue-slider">
+            <input type="range" min="0" max="360" value="0" class="control-slider" id="page-hue-slider" aria-label="Page Hue">
         </div>
 
         <div class="control-group">
@@ -1311,7 +1332,7 @@
                 Page Invert
                 <span id="page-invert-value">0%</span>
             </div>
-            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-invert-slider">
+            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-invert-slider" aria-label="Page Invert">
         </div>
 
         <div class="control-group">
@@ -1319,7 +1340,7 @@
                 Page Saturation
                 <span id="page-sat-value">100%</span>
             </div>
-            <input type="range" min="0" max="300" value="100" class="control-slider" id="page-sat-slider">
+            <input type="range" min="0" max="300" value="100" class="control-slider" id="page-sat-slider" aria-label="Page Saturation">
         </div>
 
         <div class="control-group">
@@ -1327,7 +1348,7 @@
                 Page Contrast
                 <span id="page-contrast-value">100%</span>
             </div>
-            <input type="range" min="0" max="300" value="100" class="control-slider" id="page-contrast-slider">
+            <input type="range" min="0" max="300" value="100" class="control-slider" id="page-contrast-slider" aria-label="Page Contrast">
         </div>
 
         <div class="control-group">
@@ -1335,7 +1356,7 @@
                 Page Blur
                 <span id="page-blur-value">0px</span>
             </div>
-            <input type="range" min="0" max="40" value="0" class="control-slider" id="page-blur-slider">
+            <input type="range" min="0" max="40" value="0" class="control-slider" id="page-blur-slider" aria-label="Page Blur">
         </div>
 
         <div class="control-group">
@@ -1343,7 +1364,7 @@
                 Page Displace (audio)
                 <span id="page-displace-value">0%</span>
             </div>
-            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-displace-slider">
+            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-displace-slider" aria-label="Page Displace (audio)">
         </div>
 
         <div class="control-group">
@@ -1351,10 +1372,10 @@
                 Page Scale (bass-react)
                 <span id="page-scale-value">0%</span>
             </div>
-            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-scale-slider">
+            <input type="range" min="0" max="100" value="0" class="control-slider" id="page-scale-slider" aria-label="Page Scale (bass-react)">
         </div>
 
-        <button class="toggle-btn" id="reset-layer-btn" style="background: rgba(212, 79, 176,0.1); border-color: rgba(212, 79, 176,0.3); color: rgba(212, 79, 176,0.8); margin-top: 4px;">Reset Layer</button>
+        <button class="toggle-btn" id="reset-layer-btn" style="background: rgba(212, 79, 176,0.1); border-color: rgba(212, 79, 176,0.3); color: #d44fb0; margin-top: 4px;">Reset Layer</button>
 
         <div style="border-top: 1px solid rgba(139, 108, 245,0.2); margin: 14px 0 10px; padding-top: 4px;"></div>
 
