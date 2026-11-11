@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
     <link rel="stylesheet" href="/lucid.css">
     <link rel="stylesheet" href="/stack.css">
     <link rel="stylesheet" href="/soup.css">
@@ -196,7 +198,14 @@
            and the Stack puts on its plates. Decoration that agrees with the
            rest of the site reads as one hand; decoration that doesn't reads as
            a template. */
-        .about { background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.06); border-radius: 20px; padding: 3rem; margin: 3rem auto 0; max-width: 1060px; }
+        .about {
+            background: var(--lucid-pane, rgba(255,255,255,.02));
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.06));
+            border-radius: var(--lucid-pane-radius, 20px);
+            box-shadow: var(--lucid-pane-glow);
+            -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+            padding: 3rem; margin: 3rem auto 0; max-width: 1060px;
+        }
         .about p { font-size: 1.1rem; line-height: 1.8; color: rgba(255,255,255,.8); max-width: 62ch; margin: 0 auto 1.1rem; text-align: center; }
         .about p.quiet { font-size: 1rem; color: rgba(255,255,255,.58); margin-bottom: 0; }
         .about p strong { color: #fff; font-weight: 400; }
@@ -431,7 +440,14 @@
             color: rgba(255,255,255,.82); font-size: .82rem; font-weight: 400; line-height: 1.4;
         }
 
-        .contact { text-align: center; background: linear-gradient(45deg, rgba(139, 108, 245,.05), rgba(212, 79, 176,.05)); border-radius: 20px; padding: 3rem; }
+        .contact {
+            text-align: center; padding: 3rem;
+            background: linear-gradient(135deg, rgba(155,123,255,.07), rgba(212,79,176,.05) 45%, rgba(138,224,75,.05));
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.06));
+            border-radius: var(--lucid-pane-radius, 20px);
+            box-shadow: var(--lucid-pane-glow);
+            -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+        }
         .contact-links { display: flex; justify-content: center; gap: 2rem; margin-top: 2rem; }
         .contact-link { padding: 1rem 2rem; background: rgba(255,255,255,.1); border-radius: 30px; color: #fff; text-decoration: none; transition: all .3s ease; border: 1px solid rgba(255,255,255,.2); }
         .contact-link:hover { background: rgba(139, 108, 245,.2); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(139, 108, 245,.2); }
@@ -857,7 +873,7 @@
         }
     </style>
 </head>
-<body data-lucid-no-return>
+<body data-lucid-no-return data-lucid-no-broth>
     <!-- Audio-reactive WebGL canvas -->
     <canvas id="visual-canvas"></canvas>
 

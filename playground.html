@@ -9,6 +9,21 @@
     <meta name="description" content="Point it at a tab, a line in, or a file, and drive a WebGL visual rig with whatever is playing. Six audio-reactive scenes, a patchable modulation matrix, feedback and post. Nothing is uploaded.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+
+    <!-- Add to Home Screen. In standalone there is no browser chrome at all,
+         which is what you want pointed at a projector: no address bar eating
+         the top of the frame and nothing to tap by accident. black-translucent
+         puts the page under the status bar, so everything fixed to the top
+         has to respect env(safe-area-inset-top) — see #hud and lucid.css. -->
+    <link rel="manifest" href="/playground.webmanifest">
+    <meta name="theme-color" content="#04040a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Playground">
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/soup-192.png">
     <style>
         /* ===================================================================
            Visual Playground
@@ -318,8 +333,12 @@
         #gate.gone { display: none; }
         .card {
             width: min(620px, 100%); margin: auto;
-            border: 1px solid rgba(255,255,255,.1); border-radius: 16px;
-            background: rgba(8,8,16,.92); padding: 1.9rem 1.7rem;
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.1));
+            border-radius: var(--lucid-pane-radius, 16px);
+            box-shadow: var(--lucid-pane-glow);
+            /* Still mostly opaque: this one sits over a live render, and the
+               gate has to be readable against whatever is playing. */
+            background: rgba(8,8,16,.9); padding: 1.9rem 1.7rem;
         }
         .card h1 {
             font-family: 'Orbitron', monospace; font-weight: 900;
@@ -447,7 +466,7 @@
         }
     </style>
 </head>
-<body>
+<body data-lucid-no-broth>
 
 <canvas id="stage"></canvas>
 

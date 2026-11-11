@@ -1,0 +1,290 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="A bowl of soup with eyes and a lolling tongue">
+<title>LucidSoup</title>
+<!-- Master artwork. The PNGs beside this file are rasterised from it by
+     tools/icons.mjs; edit this, re-run that, never hand-edit a PNG.
+
+     Built so it survives being shrunk: the silhouette is three big shapes
+     (bowl, eyes, tongue) that still read at 32px, and everything finer —
+     the swirl in the broth, the vessels in the tongue, the second
+     catchlight — is detail that may dissolve without taking the character
+     with it. -->
+<defs>
+  <radialGradient id="bg" cx="50%" cy="38%" r="72%">
+    <stop offset="0"   stop-color="#2a1256"/>
+    <stop offset=".55" stop-color="#140a2e"/>
+    <stop offset="1"   stop-color="#05040f"/>
+  </radialGradient>
+
+  <!-- The broth. Acid green at the lip where the light lands, falling
+       through teal to a deep sick cyan in the shadow under the near rim. -->
+  <radialGradient id="broth" cx="42%" cy="28%" r="78%">
+    <stop offset="0"   stop-color="#e2ff8c"/>
+    <stop offset=".3"  stop-color="#8ae04b"/>
+    <stop offset=".62" stop-color="#2fae8e"/>
+    <stop offset="1"   stop-color="#0a4150"/>
+  </radialGradient>
+
+  <!-- The head is the same broth stood up, so it is lit from the same place
+       and reads as made of the liquid rather than sitting in it. -->
+  <radialGradient id="goo" cx="34%" cy="20%" r="88%">
+    <stop offset="0"   stop-color="#f2ffb4"/>
+    <stop offset=".22" stop-color="#a8f05e"/>
+    <stop offset=".5"  stop-color="#43c08c"/>
+    <stop offset=".78" stop-color="#15808a"/>
+    <stop offset="1"   stop-color="#07394d"/>
+  </radialGradient>
+  <!-- Darker cut of the same material, for eyelids and the shadowed drips:
+       a lid has to be the colour of the face or it reads as a sticker. -->
+  <linearGradient id="lid" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0"   stop-color="#6fcf62"/>
+    <stop offset="1"   stop-color="#1b8a7e"/>
+  </linearGradient>
+
+  <linearGradient id="bowl" x1="12%" y1="0%" x2="88%" y2="100%">
+    <stop offset="0"   stop-color="#b79bff"/>
+    <stop offset=".34" stop-color="#7d55e8"/>
+    <stop offset=".72" stop-color="#4a239c"/>
+    <stop offset="1"   stop-color="#23104f"/>
+  </linearGradient>
+  <linearGradient id="rim" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0"   stop-color="#d9caff"/>
+    <stop offset=".45" stop-color="#9b7bff"/>
+    <stop offset="1"   stop-color="#5e34b8"/>
+  </linearGradient>
+
+  <!-- Tongue: pale pink where it catches light at the fat of the curl,
+       magenta through the body, oxblood where it goes into the mouth. -->
+  <linearGradient id="tongue" x1="26%" y1="0%" x2="62%" y2="100%">
+    <stop offset="0"   stop-color="#5e0b33"/>
+    <stop offset=".16" stop-color="#a82068"/>
+    <stop offset=".42" stop-color="#ef5fa8"/>
+    <stop offset=".62" stop-color="#ff8cc4"/>
+    <stop offset=".84" stop-color="#cf3b92"/>
+    <stop offset="1"   stop-color="#9c1f66"/>
+  </linearGradient>
+  <linearGradient id="curl" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0"   stop-color="#ffc8e4"/>
+    <stop offset="1"   stop-color="#ff87c2"/>
+  </linearGradient>
+
+  <radialGradient id="sclera" cx="38%" cy="28%" r="82%">
+    <stop offset="0"   stop-color="#ffffff"/>
+    <stop offset=".6"  stop-color="#f4eeff"/>
+    <stop offset=".88" stop-color="#d2c1ec"/>
+    <stop offset="1"   stop-color="#a289c7"/>
+  </radialGradient>
+  <!-- Magenta at the limbus into cyan at the pupil. A single-hue iris is
+       what makes most cartoon eyes read as plastic. -->
+  <radialGradient id="iris" cx="42%" cy="34%" r="74%">
+    <stop offset="0"   stop-color="#b6fbff"/>
+    <stop offset=".26" stop-color="#4fd3f5"/>
+    <stop offset=".58" stop-color="#6d3ce0"/>
+    <stop offset=".86" stop-color="#c33fb0"/>
+    <stop offset="1"   stop-color="#2a0a52"/>
+  </radialGradient>
+
+  <!-- One blur reused at three radii by three filters, because a stack of
+       bespoke filters is the expensive part of rendering an SVG this size. -->
+  <filter id="soft"   x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="9"/></filter>
+  <filter id="softer" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="20"/></filter>
+  <filter id="tight"  x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2"/></filter>
+
+  <!-- Lumpy, not round. A circle reads as a logo; the bulge over the right
+       brow and the slump on the left are what make it read as something
+       soft that has just surfaced. -->
+  <path id="headpath" d="M252 122 C302 116 344 138 362 176 C374 200 380 206 376 234
+                         C372 268 358 296 332 312 C306 328 288 334 252 334
+                         C214 334 176 320 157 296 C134 268 130 230 141 195
+                         C156 148 202 128 252 122 Z"/>
+  <!-- Longer than it is wide, and leaning, so it lolls rather than hangs.
+       The silhouette's lowest edge is where the curl goes, so it is drawn
+       here once and reused by the fill, the clip and the outline. -->
+  <path id="tonguepath" d="M238 262 C219 288 212 328 220 360
+                           C229 392 251 414 279 416
+                           C309 418 332 400 337 372
+                           C341 346 331 326 317 316
+                           C305 308 296 286 293 262 Z"/>
+
+  <clipPath id="headclip"><use href="#headpath"/></clipPath>
+  <clipPath id="tongueclip"><use href="#tonguepath"/></clipPath>
+  <clipPath id="brothclip"><ellipse cx="256" cy="332" rx="176" ry="48"/></clipPath>
+</defs>
+
+<rect width="512" height="512" fill="url(#bg)"/>
+
+<!-- Psychedelic ground: three fields of colour turning against each other,
+     the same hues the site's own background uses, kept well under the art
+     so the character stays the subject. -->
+<g filter="url(#softer)" opacity=".62">
+  <circle cx="150" cy="130" r="118" fill="#8e4bff"/>
+  <circle cx="372" cy="150" r="104" fill="#d44fb0"/>
+  <circle cx="256" cy="430" r="126" fill="#1f7f8c"/>
+</g>
+<g fill="none" stroke="#b79bff" opacity=".13">
+  <ellipse cx="256" cy="236" rx="206" ry="206" stroke-width="2"/>
+  <ellipse cx="256" cy="236" rx="166" ry="172" stroke-width="2"/>
+  <ellipse cx="256" cy="236" rx="126" ry="138" stroke-width="2"/>
+</g>
+
+<!-- Steam, drawn as two curling noodles rather than wisps: it is the only
+     part of the drawing that says hot, and a wisp vanishes when shrunk. -->
+<g fill="none" stroke-linecap="round" opacity=".72">
+  <path d="M188 146 C168 114 198 96 184 66 C174 44 192 32 208 34" stroke="#6fe3e8" stroke-width="9"/>
+  <path d="M326 140 C348 110 320 90 336 62 C346 44 330 30 314 32" stroke="#d44fb0" stroke-width="9"/>
+</g>
+
+<!-- ===== bowl ===== -->
+<ellipse cx="256" cy="452" rx="150" ry="26" fill="#04030c" opacity=".55" filter="url(#soft)"/>
+<path d="M70 330 C70 330 86 448 130 470 C168 489 344 489 382 470 C426 448 442 330 442 330 Z" fill="url(#bowl)"/>
+<!-- Specular band down the left of the cup, and a cooler bounce on the
+     right, so the bowl reads as a glazed solid and not a flat wedge. -->
+<path d="M96 338 C104 408 122 448 148 464 C128 462 110 450 100 436 C84 414 76 372 74 338 Z" fill="#e4d8ff" opacity=".42"/>
+<path d="M418 338 C412 400 396 442 374 460 C398 450 414 428 424 398 C432 374 436 350 438 338 Z" fill="#6fe3e8" opacity=".2"/>
+<ellipse cx="256" cy="332" rx="188" ry="54" fill="none" stroke="url(#rim)" stroke-width="13"/>
+<ellipse cx="256" cy="330" rx="188" ry="54" fill="none" stroke="#f0e8ff" stroke-width="3.5" opacity=".5"/>
+
+<!-- ===== broth in the bowl ===== -->
+<ellipse cx="256" cy="332" rx="176" ry="48" fill="url(#broth)"/>
+<g clip-path="url(#brothclip)">
+  <!-- A vortex, because still liquid in a bowl with a face in it is the one
+       detail that would make the whole thing read as a photograph of a prop. -->
+  <g fill="none" stroke="#06343f" opacity=".32" stroke-linecap="round">
+    <path d="M140 338 C172 308 262 304 322 322 C368 336 356 356 318 360" stroke-width="7"/>
+    <path d="M172 354 C212 334 284 332 320 346"                          stroke-width="5"/>
+  </g>
+  <path d="M144 328 C178 300 266 296 326 314" fill="none" stroke="#e8ff9e" opacity=".45" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="256" cy="358" rx="170" ry="30" fill="#063542" opacity=".35"/>
+  <!-- Noodles. Two of them, surfacing, because a soup with a face still has
+       to be a soup. -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M104 336 C126 322 152 330 162 346" stroke="#8a6a18" stroke-width="13" opacity=".55"/>
+    <path d="M104 336 C126 322 152 330 162 346" stroke="#ffe9a8" stroke-width="9"/>
+    <path d="M110 331 C128 322 146 328 155 338"  stroke="#fffbe6" stroke-width="3" opacity=".75"/>
+    <path d="M370 346 C390 330 414 334 422 348" stroke="#8a6a18" stroke-width="12" opacity=".5"/>
+    <path d="M370 346 C390 330 414 334 422 348" stroke="#ffe9a8" stroke-width="8"/>
+  </g>
+  <circle cx="186" cy="356" r="10" fill="#dcff8e" opacity=".75"/>
+  <circle cx="186" cy="356" r="4.5" fill="#f6ffd8" opacity=".9"/>
+  <circle cx="378" cy="324" r="7" fill="#bdf07a" opacity=".65"/>
+  <circle cx="402" cy="336" r="4.5" fill="#e4ffa6" opacity=".55"/>
+</g>
+
+<!-- ===== the head ===== -->
+<use href="#headpath" fill="url(#goo)"/>
+<g clip-path="url(#headclip)">
+  <!-- Rim light along the top left, shadow pooling at the waterline. -->
+  <use href="#headpath" fill="none" stroke="#f6ffc8" stroke-width="18" opacity=".38" filter="url(#tight)"/>
+  <path d="M376 234 C372 268 358 296 332 312 C306 328 288 334 252 334"
+        fill="none" stroke="#ff7ad0" stroke-width="15" opacity=".5" filter="url(#tight)"/>
+  <path d="M141 195 C130 230 134 268 157 296" fill="none"
+        stroke="#6fe3e8" stroke-width="13" opacity=".35" filter="url(#tight)"/>
+  <ellipse cx="256" cy="340" rx="150" ry="36" fill="#06343f" opacity=".45" filter="url(#soft)"/>
+  <!-- Subsurface: light getting into the goo and coming back out brighter. -->
+  <ellipse cx="200" cy="178" rx="68" ry="44" fill="#f4ffb6" opacity=".32" filter="url(#soft)"/>
+  <!-- A psychedelic turn inside the goo, so the head is visibly the same
+       stuff as the broth and not a green balloon. -->
+  <g fill="none" stroke="#0b5f73" opacity=".3" stroke-linecap="round">
+    <path d="M146 252 C194 212 288 210 344 246" stroke-width="12"/>
+    <path d="M158 288 C206 258 294 258 346 286" stroke-width="8"/>
+    <path d="M168 316 C208 296 300 296 340 314" stroke-width="6"/>
+  </g>
+  <g fill="none" stroke="#e4ffa8" opacity=".26" stroke-linecap="round">
+    <path d="M148 243 C196 203 290 201 346 237" stroke-width="5"/>
+    <path d="M160 280 C208 250 296 250 348 278" stroke-width="3.5"/>
+  </g>
+  <!-- Two brow ridges of lifted goo. These give the face an expression at
+       any size, which eyebrows made of thin strokes would not. -->
+  <path d="M158 182 C182 154 222 148 248 164 C216 160 184 170 158 182 Z" fill="#0d5f68" opacity=".5"/>
+  <path d="M358 176 C338 148 304 142 282 156 C312 156 338 166 358 176 Z" fill="#0d5f68" opacity=".5"/>
+</g>
+
+<!-- Goo pulling up off the surface as it rises, and drips sliding back down:
+     the join, so the head is part of the soup instead of balanced on it. -->
+<g fill="url(#goo)">
+  <path d="M150 296 C136 316 139 336 152 344 C141 327 143 311 154 299 Z"/>
+  <path d="M362 294 C376 314 373 336 360 344 C371 327 369 311 358 297 Z"/>
+  <path d="M196 326 C198 346 194 360 186 364 C178 368 172 360 174 350 C177 340 190 336 196 326 Z"/>
+  <path d="M322 322 C326 342 323 356 315 360 C307 364 300 356 303 347 C306 338 317 333 322 322 Z"/>
+</g>
+
+<!-- ===== eyes =====
+     Mismatched in size and height on purpose. Two identical circles at the
+     same y read as a machine; four pixels of difference read as a creature.
+     The lid is a shape of the same goo laid over the top of the ball, not a
+     shadow across it — a straight shaded edge is what makes cartoon eyes
+     look half asleep. -->
+<g>
+  <!-- left -->
+  <ellipse cx="212" cy="224" rx="46" ry="48" fill="#07202c" opacity=".5" filter="url(#tight)"/>
+  <circle cx="212" cy="222" r="45" fill="url(#sclera)"/>
+  <circle cx="218" cy="210" r="26" fill="url(#iris)"/>
+  <circle cx="218" cy="210" r="26" fill="none" stroke="#120634" stroke-width="3.5" opacity=".85"/>
+  <circle cx="218" cy="210" r="12" fill="#07011c"/>
+  <path d="M174 206 A45 45 0 0 1 252 200 C224 182 190 188 174 206 Z" fill="url(#lid)"/>
+  <path d="M174 206 A45 45 0 0 1 252 200" fill="none" stroke="#0f5a5e" stroke-width="4" opacity=".7"/>
+  <circle cx="212" cy="222" r="45" fill="none" stroke="#123240" stroke-width="3.5" opacity=".6"/>
+  <circle cx="208" cy="198" r="9" fill="#ffffff" opacity=".96"/>
+  <circle cx="231" cy="228" r="4.5" fill="#bdf4ff" opacity=".75"/>
+  <!-- right -->
+  <ellipse cx="306" cy="218" rx="42" ry="44" fill="#07202c" opacity=".5" filter="url(#tight)"/>
+  <circle cx="306" cy="216" r="41" fill="url(#sclera)"/>
+  <circle cx="300" cy="205" r="24" fill="url(#iris)"/>
+  <circle cx="300" cy="205" r="24" fill="none" stroke="#120634" stroke-width="3.5" opacity=".85"/>
+  <circle cx="300" cy="205" r="11" fill="#07011c"/>
+  <path d="M266 202 A41 41 0 0 1 344 198 C318 180 284 184 266 202 Z" fill="url(#lid)"/>
+  <path d="M266 202 A41 41 0 0 1 344 198" fill="none" stroke="#0f5a5e" stroke-width="4" opacity=".7"/>
+  <circle cx="306" cy="216" r="41" fill="none" stroke="#123240" stroke-width="3.5" opacity=".6"/>
+  <circle cx="291" cy="194" r="8" fill="#ffffff" opacity=".96"/>
+  <circle cx="312" cy="222" r="4" fill="#bdf4ff" opacity=".75"/>
+</g>
+
+<!-- ===== mouth and tongue =====
+     The dark of the open mouth is drawn before the tongue and made wider
+     than it, so the tongue reads as coming out of a hole rather than being
+     stuck on a chin. -->
+<path d="M188 246 C204 242 214 266 232 280 C258 300 292 296 312 272 C322 260 326 248 334 246
+         C344 290 318 322 260 324 C202 326 178 292 188 246 Z" fill="#280617"/>
+<path d="M188 246 C204 242 214 266 232 280 C258 300 292 296 312 272 C322 260 326 248 334 246"
+      fill="none" stroke="#0e4e58" stroke-width="8" stroke-linecap="round" opacity=".75"/>
+
+<use href="#tonguepath" fill="url(#tongue)"/>
+<g clip-path="url(#tongueclip)">
+  <!-- Centre groove, then the vessels either side of it. The groove is what
+       makes a pink shape a tongue; the vessels are what make it wet. -->
+  <path d="M264 266 C244 296 238 342 250 374 C258 396 270 410 284 414"
+        fill="none" stroke="#7d1148" stroke-width="10" opacity=".45" stroke-linecap="round"/>
+  <g fill="none" stroke="#ffd0e8" opacity=".26" stroke-linecap="round" stroke-width="4">
+    <path d="M244 292 C231 320 230 352 242 374"/>
+    <path d="M288 288 C277 316 279 348 294 372"/>
+  </g>
+  <ellipse cx="232" cy="306" rx="16" ry="36" fill="#5e0b33" opacity=".45" filter="url(#soft)"/>
+  <!-- Soft sheen down the slope. -->
+  <path d="M292 300 C282 330 282 362 294 384" fill="none" stroke="#ffffff"
+        stroke-width="14" opacity=".32" stroke-linecap="round" filter="url(#tight)"/>
+</g>
+<!-- The curl: the tip has rolled over and what you see along the bottom lip
+     is the pale underside. This is why the tongue gradient goes dark again
+     below .84 — there has to be something for the underside to be lighter
+     than. Kept inside the silhouette so it reads as a fold and not a chin. -->
+<g clip-path="url(#tongueclip)">
+  <path d="M215 356 C225 392 249 414 279 417 C311 420 334 402 340 372
+           C332 386 312 394 278 392 C248 390 226 376 215 356 Z" fill="url(#curl)"/>
+  <path d="M217 356 C228 388 251 406 279 408 C309 410 330 394 339 372"
+        fill="none" stroke="#8c1550" stroke-width="5.5" opacity=".65" stroke-linecap="round"/>
+  <!-- Hard specular where the ribbon turns over. One of these does more for
+       the slurp than any amount of texture. -->
+  <path d="M296 398 C312 394 324 384 330 372" fill="none" stroke="#ffffff"
+        stroke-width="9" opacity=".8" stroke-linecap="round"/>
+</g>
+<use href="#tonguepath" fill="none" stroke="#5e0b33" stroke-width="5" opacity=".8"/>
+
+<!-- Drips. Off the tongue, off the head, off the near rim: the thing has
+     just taken a mouthful and is not being tidy about it. -->
+<path d="M276 428 C287 438 289 454 279 462 C267 470 253 462 254 450 C255 439 267 435 276 428 Z"
+      fill="#f07ab6" stroke="#5e0b33" stroke-width="3.5"/>
+<g fill="#8ae04b" opacity=".85">
+  <path d="M120 350 C124 372 123 390 116 396 C106 403 96 394 98 384 C101 372 114 366 120 350 Z"/>
+  <circle cx="110" cy="416" r="6.5"/>
+</g>
+<circle cx="340" cy="478" r="6" fill="#ef5fa8" opacity=".75"/>
+</svg>

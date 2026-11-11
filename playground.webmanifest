@@ -1,0 +1,16 @@
+{
+  "name": "LucidSoup Playground",
+  "short_name": "Playground",
+  "description": "Audio-reactive WebGL visuals on two decks, driven by a link, a tab, a line in or a camera.",
+  "start_url": "/playground.html",
+  "scope": "/playground.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04040a",
+  "theme_color": "#04040a",
+  "icons": [
+    { "src": "/icons/soup-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/soup-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/soup-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

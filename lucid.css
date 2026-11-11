@@ -55,6 +55,24 @@
     --lucid-radius:    3px;
     --lucid-track:     .18em;     /* the letter-spacing used on small caps */
 
+    /* ===== the liquid =====
+       The site is called a soup and was drawn like a spreadsheet: flat
+       panels, hairline grey borders, hard corners. These are the tokens
+       that make a panel read as something suspended in liquid rather than
+       ruled onto a page, and every page's own stylesheet pulls from them,
+       so the look is one decision instead of six.
+
+       The edge is tinted rather than grey because a neutral hairline on a
+       violet-black ground reads as a seam; a violet one reads as the thing
+       catching the light around it. */
+    --lucid-pane:        rgba(255, 255, 255, .028);
+    --lucid-pane-edge:   rgba(155, 123, 255, .16);
+    --lucid-pane-lit:    rgba(155, 123, 255, .42);
+    --lucid-pane-radius: 18px;
+    --lucid-pane-glow:   inset 0 1px 0 rgba(255, 255, 255, .05),
+                         inset 0 0 40px rgba(155, 123, 255, .045),
+                         0 14px 40px rgba(0, 0, 0, .34);
+
     /* How far down the page has to start to clear the fixed chrome in the
        corner. Every page that draws a title across the full width needs this
        number, and every page had been guessing at it separately — which is how
@@ -111,6 +129,85 @@
     :root { --lucid-chrome-clear: 41px; }   /* 8 top + 25 tall + 8 of air */
     .lucid-return { font-size: 9px; padding: 7px 10px; top: 8px; right: 8px; }
 }
+
+/* Installed to a home screen there is no browser chrome, so the page starts
+   at the very top of the glass — under the clock and the notch. Everything
+   pinned to a corner has to come in by the safe area or it lands beneath
+   them. Zero on every desktop, so this costs nothing anywhere else. */
+.lucid-return {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+}
+@media (max-width: 640px) {
+    .lucid-return {
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        right: calc(8px + env(safe-area-inset-right, 0px));
+    }
+}
 @media (prefers-reduced-motion: reduce) {
     .lucid-return { transition: none; }
+}
+
+
+/* ===== the broth =====
+   A slow drift of colour behind every page that does not already own its
+   background. Three soft radial fields in the artwork's own hues, rotating
+   against each other at different rates so the pattern never quite repeats
+   — which is the whole difference between a background and a backdrop.
+
+   Deliberately no blur filter. A full-screen `filter: blur(60px)` has to be
+   recomputed whenever the layer moves, and this layer is always moving; the
+   gradients are soft enough already, and animating only `transform` keeps
+   the whole thing on the compositor.
+
+   Pages that draw their own full-screen background opt out with
+   data-lucid-no-broth, because a layer nobody can see is still a layer the
+   GPU is painting. */
+body::after {
+    content: '';
+    position: fixed;
+    inset: -40vmax;
+    z-index: -1;
+    pointer-events: none;
+    opacity: .5;
+    background:
+        radial-gradient(closest-side at 28% 32%, rgba(155, 123, 255, .30), transparent 70%),
+        radial-gradient(closest-side at 74% 28%, rgba(212,  79, 176, .22), transparent 70%),
+        radial-gradient(closest-side at 54% 76%, rgba(138, 224,  75, .16), transparent 70%),
+        radial-gradient(closest-side at 16% 82%, rgba(111, 227, 232, .13), transparent 70%);
+    animation: lucid-drift 96s linear infinite;
+    will-change: transform;
+}
+body[data-lucid-no-broth]::after { content: none; }
+@keyframes lucid-drift {
+    from { transform: rotate(0deg)   scale(1);    }
+    50%  { transform: rotate(180deg) scale(1.12); }
+    to   { transform: rotate(360deg) scale(1);    }
+}
+
+/* ===== the small print, in the site's own colours =====
+   Selection, focus and scrollbars are the three bits of chrome every page
+   has and nobody styles, and leaving them at the browser default is what
+   makes an otherwise-considered page feel like a document. */
+::selection      { background: rgba(138, 224, 75, .30); color: #fff; }
+::-moz-selection { background: rgba(138, 224, 75, .30); color: #fff; }
+
+:focus-visible {
+    outline: 2px solid var(--lucid-accent-2, #8ae04b);
+    outline-offset: 2px;
+}
+
+* { scrollbar-color: rgba(155, 123, 255, .45) transparent; scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: rgba(155, 123, 255, .34);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(155, 123, 255, .6); background-clip: content-box; }
+
+@media (prefers-reduced-motion: reduce) {
+    body::after { animation: none; }
 }

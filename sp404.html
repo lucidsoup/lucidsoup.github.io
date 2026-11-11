@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
     <link rel="stylesheet" href="/lucid.css">
     <link rel="stylesheet" href="/stack.css">
     <meta charset="UTF-8">
@@ -38,8 +40,12 @@
         .tagline strong { color: rgba(139, 108, 245,.85); font-weight: normal; }
 
         .panel {
-            background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
-            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+            background: var(--lucid-pane, rgba(255,255,255,.03));
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.08));
+            border-radius: var(--lucid-pane-radius, 12px);
+            box-shadow: var(--lucid-pane-glow);
+            -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+            padding: 1.5rem; margin-bottom: 1.5rem;
         }
         .panel h2 {
             font-size: .72rem; text-transform: uppercase; letter-spacing: .18em;

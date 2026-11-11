@@ -13,3 +13,4 @@ pluginhost/clap/
 pluginhost/vst3/
 pluginhost/test/*.clap
 pluginhost/test/*.vst3
+icons/preview-*.png
