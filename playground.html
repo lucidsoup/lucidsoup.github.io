@@ -454,10 +454,18 @@
             background: linear-gradient(135deg, rgba(155,123,255,.24), rgba(212,79,176,.16));
         }
         .outs button:hover { border-color: rgba(138,224,75,.8); }
-        #devicepick { margin-top: 1rem; }
+        #devicepick { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .5rem; }
         #devicepick[hidden] { display: none; }
+        #devicepick button {
+            flex: none; font: inherit; font-size: .8rem; letter-spacing: .08em;
+            text-transform: uppercase; padding: .58rem 1.1rem; border-radius: 8px; cursor: pointer;
+            border: 1px solid rgba(155,123,255,.55); color: #fff;
+            background: linear-gradient(135deg, rgba(155,123,255,.26), rgba(212,79,176,.18));
+            transition: border-color .2s, background .2s;
+        }
+        #devicepick button:hover { border-color: rgba(138,224,75,.8); }
         #devicepick select {
-            width: 100%; font: inherit; font-size: .86rem; padding: .6rem .7rem;
+            flex: 1 1 12rem; min-width: 0; font: inherit; font-size: .86rem; padding: .6rem .7rem;
             border-radius: 8px; background: rgba(255,255,255,.05); color: #fff;
             border: 1px solid rgba(255,255,255,.14);
         }
@@ -670,6 +678,10 @@
 
         <div id="devicepick" hidden>
             <select id="device-select" aria-label="Audio input"></select>
+            <!-- The card told people to "close this card" and gave them
+                 nothing to close it with: closeGate() had no caller in the
+                 markup at all. This is that caller. -->
+            <button type="button" id="device-done">Done</button>
         </div>
 
         <div id="gate-err" hidden></div>
@@ -2681,7 +2693,7 @@
                 // Only worth showing once there is a choice to make.
                 devicePick.hidden = ds.length < 2;
                 if (ds.length < 2) closeGate();
-                else say('Listening. Pick a different input below if this is the wrong one, or close this card.');
+                else say('Listening. Pick a different input below if this is the wrong one, or press Done.');
             });
         }).catch(function (e) {
             if (e && e.name === 'NotAllowedError') say('Permission for the microphone was refused, so there is nothing to listen to.');
@@ -2694,10 +2706,13 @@
     function isSessionRefusalMsg(e) {
         return /audiosession|category/i.test(String((e && e.message) || ''));
     }
+    // Choosing from the list IS the choice, so the card goes away. The chip
+    // in the corner reopens it, which is how you get back to swap inputs.
     deviceSel.addEventListener('change', function () {
-        Ears.fromInput(deviceSel.value).then(function () { say('Listening to ' + (deviceSel.selectedOptions[0] || {}).textContent + '.'); })
+        Ears.fromInput(deviceSel.value).then(closeGate)
             .catch(function () { say('That input would not open.'); });
     });
+    document.getElementById('device-done').addEventListener('click', closeGate);
 
     document.getElementById('src-file').addEventListener('click', function () { say(''); Ears.unlock(); filepick.click(); });
     filepick.addEventListener('change', function () {
@@ -2720,6 +2735,14 @@
 
     document.getElementById('src-none').addEventListener('click', function () { Ears.none('no sound'); closeGate(); });
     document.getElementById('source-chip').addEventListener('click', openGate);
+    // A full-screen overlay that cannot be dismissed with Escape is a trap.
+    // Closing with nothing chosen is the same as picking "nothing, for now" —
+    // a real option on this card — and the chip reopens it either way.
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape' || gate.classList.contains('gone')) return;
+        if (Ears.kind === 'none') Ears.none('no sound');
+        closeGate();
+    });
 
     /* =====================================================================
        5b. The picture, and a controller to drive it with
