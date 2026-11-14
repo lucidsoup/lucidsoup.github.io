@@ -2443,6 +2443,10 @@
         gl.uniform1i(U(blitProg, 'uTex'), 0);
         gl.uniform1f(U(blitProg, 'uFade'), state.blackout ? 0 : 1);
         draw(blitProg);
+
+        // The canvas holds the finished frame at exactly this point, which is
+        // the only moment it is worth reading back.
+        if (typeof Send !== 'undefined' && Send.on) Send.push(canvas);
     }
 
     /* ---- the meters and the readout ---- */
@@ -3112,6 +3116,135 @@
 
     document.getElementById('t-full').addEventListener('click', goFull);
 
+    /* ---- sending the picture to soupsend -------------------------------
+       soupsend is a small program in soupsend/ that takes these frames and
+       publishes them as NDI, or as Spout on Windows. A browser can do neither
+       and never will: NDI is a protocol on the network with no web API, and
+       Spout is a DirectX shared texture.
+
+       It only works when this page is being served BY soupsend, from
+       127.0.0.1. That is not a limitation of the helper, it is the only
+       arrangement browsers allow: Safari refuses an http://127.0.0.1
+       subresource inside an https:// page outright, and Chrome 142 gates it
+       behind a permission prompt. Same origin and both problems vanish — so
+       soupsend serves the page, and the Send control appears only there.
+
+       The readback is a drawImage into a 2D canvas rather than gl.readPixels:
+       the scale happens on the GPU, the readback is at the smaller size, and
+       a 2D canvas is already top-left origin, so nothing has to be flipped on
+       the way out. */
+    var Send = (function () {
+        var ws = null, cv = null, c2 = null, want = false, sent = 0, dropped = 0;
+        var lastSend = 0, note = '';
+        // One buffer, reused. The first version allocated a fresh 4MB array
+        // and copied into it every frame, which is 12MB of churn per frame
+        // once getImageData's own allocation is counted — and the sends then
+        // could not keep up with a renderer running at 15fps. The server was
+        // never the problem: it takes 539 MB/s.
+        var out = null;
+        // The last pixel actually sent, so a test can prove the colours
+        // arrive the right way round rather than merely arrive.
+        var lastPx = null;
+
+        function local() {
+            return location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        }
+        function token() {
+            var m = /(^|[?&])send=([0-9a-f]{8,64})/.exec(location.search || '');
+            if (m) { try { localStorage.setItem('lucid.send.token', m[2]); } catch (e) {} return m[2]; }
+            try { return localStorage.getItem('lucid.send.token') || ''; } catch (e) { return ''; }
+        }
+        function state() {
+            if (!local()) return 'elsewhere';
+            if (!ws) return want ? 'connecting' : 'off';
+            return ws.readyState === 1 ? 'on' : 'connecting';
+        }
+        function start() {
+            var t = token();
+            if (!t) { note = 'No token. Open the address soupsend printed.'; want = false; return; }
+            want = true; sent = 0; dropped = 0; note = '';
+            try {
+                ws = new WebSocket('ws://' + location.host + '/stream?t=' + encodeURIComponent(t));
+                ws.binaryType = 'arraybuffer';
+            } catch (e) { note = 'Could not open a connection to soupsend.'; want = false; ws = null; return; }
+            ws.onopen  = function () { note = ''; paintOutFeed(); };
+            ws.onclose = function () { ws = null; if (want) note = 'soupsend closed the connection.'; want = false; paintOutFeed(); };
+            ws.onerror = function () { note = 'soupsend is not answering on this port.'; };
+        }
+        function stop() {
+            want = false;
+            if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+            paintOutFeed();
+        }
+
+        return {
+            get on() { return state() === 'on'; },
+            get state() { return state(); },
+            get note() { return note; },
+            get sent() { return sent; },
+            get dropped() { return dropped; },
+            get local() { return local(); },
+            get lastPx() { return lastPx; },
+            width: (function () {
+                try { return parseInt(localStorage.getItem('lucid.send.width'), 10) || 960; }
+                catch (e) { return 960; }
+            })(),
+            setWidth: function (px) {
+                this.width = px;
+                try { localStorage.setItem('lucid.send.width', String(px)); } catch (e) {}
+            },
+            toggle: function () { if (want || ws) stop(); else { start(); paintOutFeed(); } },
+
+            // Called at the end of every rendered frame.
+            push: function (src) {
+                if (!ws || ws.readyState !== 1 || !src) return;
+                var now = performance.now();
+                if (now - lastSend < 1000 / 30) return;        // 30 is plenty for a projector
+                // Backpressure. Without this a slow sink turns into unbounded
+                // memory in the tab rather than dropped frames.
+                if (ws.bufferedAmount > 8 * 1024 * 1024) { dropped++; return; }
+                lastSend = now;
+
+                var w = src.width, h = src.height;
+                // The readback is the expensive part — reading fewer pixels is
+                // the only lever that helps. 960 wide is a good projector feed
+                // and half the bytes of 1280.
+                var scale = Math.min(1, Send.width / w);
+                w = Math.max(2, Math.round(w * scale) & ~1);
+                h = Math.max(2, Math.round(h * scale) & ~1);
+                if (!cv) { cv = document.createElement('canvas'); c2 = cv.getContext('2d', { willReadFrequently: true }); }
+                if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+                try { c2.drawImage(src, 0, 0, w, h); } catch (e) { return; }
+                var img;
+                try { img = c2.getImageData(0, 0, w, h); } catch (e) { note = 'The frame could not be read back.'; return; }
+
+                var need = 16 + img.data.length;
+                if (!out || out.length !== need) out = new Uint8Array(need);
+                out[0] = 83; out[1] = 79; out[2] = 85; out[3] = 80;   // 'SOUP'
+                out[4] = 1; out[5] = 1;
+                out[6] = w & 255; out[7] = (w >> 8) & 255;
+                out[8] = h & 255; out[9] = (h >> 8) & 255;
+                var pts = now >>> 0;
+                out[10] = pts & 255; out[11] = (pts >>> 8) & 255;
+                out[12] = (pts >>> 16) & 255; out[13] = (pts >>> 24) & 255;
+                out.set(img.data, 16);
+                lastPx = [img.data[0], img.data[1], img.data[2], img.data[3]];
+                // send() copies, so the same buffer is safe to reuse next frame.
+                try {
+                    ws.send(out); sent++;
+                    // Keyed by timestamp and exposed for the end-to-end test,
+                    // which matches the pixel sent against the pixel that
+                    // arrived. Closing a socket discards whatever is still
+                    // buffered, so "the last one each end saw" are not the
+                    // same frame and cannot be compared directly.
+                    window.__SendPx = window.__SendPx || {};
+                    window.__SendPx[pts] = lastPx;
+                    window.__SendSent = sent;
+                } catch (e) { dropped++; }
+            },
+        };
+    })();
+
     /* ---- the out panel -------------------------------------------------
        Nothing in a browser can publish NDI or Spout, so every route out of
        here ends in something else capturing this window. That makes two
@@ -3151,16 +3284,55 @@
               'Fewer moving parts, no network, and no second encode.' },
     ];
 
+    // The readback is what costs, not the network, so the number of pixels
+    // read back is the only lever worth giving anyone.
+    function sizePick() {
+        var opts = [640, 960, 1280, 1920].map(function (w) {
+            return '<option value="' + w + '"' + (w === Send.width ? ' selected' : '') + '>' + w + ' wide</option>';
+        }).join('');
+        return '<select id="sendsize" aria-label="Send width">' + opts + '</select>';
+    }
+
+    function sendRow() {
+        var st = Send.state, body, cls, tag;
+        if (st === 'elsewhere') {
+            cls = ' off'; tag = 'needs soupsend';
+            body = 'The only route that leaves OBS out. Build <em>soupsend/</em> in this repository, ' +
+                   'run it, and open the address it prints &mdash; it serves this page itself, because ' +
+                   'a page on a public site is not allowed to reach a local program: Safari refuses it ' +
+                   'outright and Chrome asks permission. From its own address, this row becomes a button.';
+        } else if (st === 'on') {
+            cls = ' here'; tag = 'sending';
+            body = 'Sending to soupsend &mdash; <em>' + Send.sent + '</em> frames' +
+                   (Send.dropped ? ', ' + Send.dropped + ' dropped to keep up' : '') + '. ' +
+                   '<button type="button" class="tog on" id="sendbtn">Stop sending</button> ' +
+                   sizePick();
+        } else {
+            cls = ' here'; tag = st === 'connecting' ? 'connecting' : 'ready';
+            body = (Send.note ? '<em>' + Send.note + '</em> ' : '') +
+                   'soupsend is serving this page, so the frames can go straight to it. ' +
+                   '<button type="button" class="tog" id="sendbtn">Start sending</button> ' +
+                   sizePick();
+        }
+        return '<div class="outroute' + cls + '">' +
+               '<span class="nm">soupsend</span><span class="tag">' + tag + '</span>' +
+               '<span class="ds">' + body + '</span></div>';
+    }
+
     function paintRoutes() {
         var el = document.getElementById('outroutes');
         if (!el) return;
-        el.innerHTML = OUT_ROUTES.map(function (r) {
+        el.innerHTML = sendRow() + OUT_ROUTES.map(function (r) {
             return '<div class="outroute' + (r.on ? ' here' : ' off') + '">' +
                    '<span class="nm">' + r.nm + '</span>' +
                    '<span class="tag">' + r.tag + '</span>' +
                    '<span class="ds">' + (r.on ? r.ds : 'Not on this machine \u2014 ' + r.tag + '.') + '</span>' +
                    '</div>';
         }).join('');
+        var b = document.getElementById('sendbtn');
+        if (b) b.addEventListener('click', function () { Send.toggle(); paintRoutes(); });
+        var z = document.getElementById('sendsize');
+        if (z) z.addEventListener('change', function () { Send.setWidth(parseInt(this.value, 10)); });
     }
 
     function paintOutFeed() {
@@ -3201,7 +3373,7 @@
     paintOutFeed();
     // A second is plenty: these are figures you glance at while patching, not
     // something to animate.
-    setInterval(paintOutFeed, 1000);
+    setInterval(function () { paintOutFeed(); paintRoutes(); }, 1000);
     document.addEventListener('fullscreenchange', paintOutFeed);
     document.addEventListener('webkitfullscreenchange', paintOutFeed);
     document.getElementById('t-clean').addEventListener('click', function () {
