@@ -349,6 +349,20 @@
             -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
         }
         #gate.gone { display: none; }
+
+        /* Clean output. Hide panel leaves the chip, the way back and the
+           stack button on screen, which is fine for playing and wrong for
+           a capture: anything still drawn lands in the NDI frame. This takes
+           the lot, including the pointer, because a stationary cursor sitting
+           in someone's projection is the detail that gives the trick away. */
+        body.clean #dock,
+        body.clean #dock-toggle,
+        body.clean #hud,
+        body.clean .lucid-chrome,
+        body.clean .lucid-return,
+        body.clean #unblock { display: none !important; }
+        body.clean { cursor: none; }
+        body.clean #stage { cursor: none; }
         .card {
             width: min(620px, 100%); margin: auto;
             border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.1));
@@ -530,6 +544,7 @@
             <div class="toggles" id="vidpick">
                 <button type="button" class="tog on" data-vid="none">Off</button>
                 <button type="button" class="tog" data-vid="camera">Camera</button>
+                <button type="button" class="tog" data-vid="share">NDI / Spout</button>
                 <button type="button" class="tog" data-vid="tab">Shared tab</button>
                 <button type="button" class="tog" data-vid="media">File / link</button>
             </div>
@@ -567,6 +582,7 @@
             <div class="toggles">
                 <button type="button" class="tog" id="t-full">Fullscreen</button>
                 <button type="button" class="tog" id="t-hide">Hide panel</button>
+                <button type="button" class="tog" id="t-clean">Clean output</button>
                 <button type="button" class="tog" id="t-freeze">Freeze</button>
                 <button type="button" class="tog" id="t-black">Blackout</button>
                 <button type="button" class="tog" id="t-random">Randomise</button>
@@ -577,7 +593,15 @@
                 <kbd>f</kbd> fullscreen &middot; <kbd>h</kbd> hide the panel &middot;
                 <kbd>r</kbd> randomise &middot; <kbd>s</kbd> change the sound &middot;
                 <kbd>a</kbd>/<kbd>b</kbd> deck &middot; <kbd>[</kbd> <kbd>]</kbd> crossfade &middot;
-                <kbd>\</kbd> slam it across
+                <kbd>\</kbd> slam it across &middot; <kbd>c</kbd> clean output
+            </p>
+            <p class="hint" id="outnote">
+                <b>Sending this out as NDI or Spout.</b> Nothing in a browser can publish either,
+                so the last hop is a capture: turn on <b>Clean output</b> &mdash; which takes the
+                panel, the chip and the pointer off the screen, not just the panel &mdash; then in
+                OBS add a <b>Window Capture</b> of this tab and switch on its
+                <b>NDI output</b>, or the <b>Spout2</b> output plugin on Windows.
+                <a href="?clean=1" id="cleanlink">Open a clean window</a> to capture instead of this one.
             </p>
         </div>
     </div>
@@ -2739,7 +2763,11 @@
     // Closing with nothing chosen is the same as picking "nothing, for now" —
     // a real option on this card — and the chip reopens it either way.
     document.addEventListener('keydown', function (e) {
-        if (e.key !== 'Escape' || gate.classList.contains('gone')) return;
+        if (e.key !== 'Escape') return;
+        // In clean output there is nothing else on screen to dismiss, and no
+        // visible control to turn it off with, so Escape has to be the way out.
+        if (document.body.classList.contains('clean')) { setClean(false); return; }
+        if (gate.classList.contains('gone')) return;
         if (Ears.kind === 'none') Ears.none('no sound');
         closeGate();
     });
@@ -2750,11 +2778,82 @@
     var camsel = document.getElementById('camsel');
     var vidnote = document.getElementById('vidnote');
 
+    /* NDI and Spout.
+
+       Neither exists in a browser and neither can. NDI is a protocol on the
+       network with no web API, and Spout is a DirectX shared texture — a
+       Windows GPU handle, which a sandboxed tab has no business holding. Any
+       page claiming otherwise has a native program behind it.
+
+       What does work, on the machine you already have: every one of those
+       worlds can present itself as a webcam, and a webcam is something this
+       page can open. NDI Tools ships NDI Virtual Input; OBS turns a Spout or
+       Syphon sender into its Virtual Camera. So this tile is the camera path
+       with the right device found for you, which is the only part that was
+       actually hard — the useful device is never the first one, and on most
+       machines it is called something you would not guess.
+
+       Ranked rather than matched, because a rig can have several: a real NDI
+       input beats OBS's catch-all, which beats anything merely "virtual". */
+    function rankShare(ds) {
+        return ds.map(function (d) {
+            var n = d.label || '';
+            var score = /\bndi\b/i.test(n)                         ? 4
+                      : /\b(spout|syphon)\b/i.test(n)              ? 4
+                      : /\bobs\b/i.test(n)                         ? 3
+                      : /(virtual|camtwist|vmix|resolume|e2esoft)/i.test(n) ? 2 : 0;
+            return { d: d, score: score };
+        }).filter(function (x) { return x.score > 0; })
+          .sort(function (a, b) { return b.score - a.score; });
+    }
+
+    /* enumerateDevices hands back empty labels until the page has been
+       granted a camera once, and without labels there is nothing to rank on.
+       So: ask, stop the tracks immediately, then look. The throwaway stream
+       is the price of knowing what the devices are called. */
+    function nameDevices() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve([]);
+        return navigator.mediaDevices.getUserMedia({ video: true }).then(function (st) {
+            st.getTracks().forEach(function (t) { t.stop(); });
+        }).catch(function () { /* refused: fall through and rank what we can */ })
+          .then(function () { return Vid.devices(); });
+    }
+
+    function fillCams(ds, chosenId) {
+        camsel.innerHTML = '';
+        ds.forEach(function (d, i) {
+            var o = document.createElement('option');
+            o.value = d.deviceId; o.textContent = d.label || ('Camera ' + (i + 1));
+            camsel.appendChild(o);
+        });
+        if (chosenId) camsel.value = chosenId;
+    }
+
+    var SHARE_SETUP =
+        '<b>Nothing here is sending yet.</b> NDI and Spout cannot reach a browser directly — ' +
+        'they need one bridge, set up once, and then this tile finds it every time:<br>' +
+        '&middot; <b>NDI</b> &mdash; install NDI Tools and run <b>NDI Virtual Input</b>, then pick your source in it.<br>' +
+        '&middot; <b>Spout</b> (Windows) or <b>Syphon</b> (Mac) &mdash; add it as a source in OBS, then ' +
+        '<b>Start Virtual Camera</b>.<br>' +
+        'Either way it turns up here as a camera, and this tile will pick it.';
+
+    // The share tile opens a camera, so Vid.kind says 'camera' for both of
+    // them and the kind alone cannot say which button to light.
+    var vidPick = null;
+    // markVid() is Vid.onchange and rewrites the note on every change, which
+    // wiped the share tile's message as soon as it was set. This is the note
+    // the share flow owns; anything else the user does clears it.
+    var vidMsg = null;
     function markVid() {
         [].forEach.call(document.querySelectorAll('#vidpick button'), function (b) {
-            b.classList.toggle('on', b.dataset.vid === Vid.kind);
+            var k = b.dataset.vid, on;
+            if (k === 'share')       on = Vid.kind === 'camera' && vidPick === 'share';
+            else if (k === 'camera') on = Vid.kind === 'camera' && vidPick !== 'share';
+            else                     on = k === Vid.kind;
+            b.classList.toggle('on', on);
         });
         camsel.hidden = Vid.kind !== 'camera' || camsel.options.length < 2;
+        if (vidMsg) { vidnote.innerHTML = vidMsg; return; }
         var using = state.scene === 'video' || state.scene === 'vidkaleido' ||
                     state.sceneB === 'video' || state.sceneB === 'vidkaleido';
         if (Vid.broken) {
@@ -2773,7 +2872,33 @@
     [].forEach.call(document.querySelectorAll('#vidpick button'), function (b) {
         b.addEventListener('click', function () {
             var k = b.dataset.vid;
-            if (k === 'camera') {
+            vidPick = k;
+            vidMsg = null;
+            if (k === 'share') {
+                vidnote.textContent = 'Looking for an NDI or Spout bridge…';
+                nameDevices().then(function (ds) {
+                    var hit = rankShare(ds)[0];
+                    if (!hit) {
+                        fillCams(ds, null);
+                        vidPick = null;
+                        vidMsg = SHARE_SETUP;
+                        markVid();
+                        return;
+                    }
+                    return Vid.camera(hit.d.deviceId).then(function () {
+                        fillCams(ds, hit.d.deviceId);
+                        vidMsg = 'Taking <b>' + esc(hit.d.label) + '</b>. ' +
+                                 'Put <b>Video</b> or <b>Mirror</b> on a deck to see it.';
+                        markVid();
+                    });
+                }).catch(function (e) {
+                    vidPick = null;
+                    vidMsg = (e && e.name === 'NotAllowedError')
+                        ? 'Camera access was refused, and a bridge arrives as a camera.'
+                        : 'That bridge would not open: ' + esc(String((e && e.message) || 'unavailable')) + '.';
+                    markVid();
+                });
+            } else if (k === 'camera') {
                 Vid.camera(camsel.value || null).then(function () {
                     return Vid.devices().then(function (ds) {
                         camsel.innerHTML = '';
@@ -2798,7 +2923,10 @@
             }
         });
     });
-    camsel.addEventListener('change', function () { Vid.camera(camsel.value).catch(function () {}); });
+    camsel.addEventListener('change', function () {
+        vidMsg = null;
+        Vid.camera(camsel.value).catch(function () {});
+    });
 
     /* MIDI.
 
@@ -2928,6 +3056,24 @@
     document.getElementById('t-hide').addEventListener('click', function () { setDock(!dock.classList.contains('shut')); });
 
     document.getElementById('t-full').addEventListener('click', goFull);
+
+    /* Clean output. "Hide panel" was never meant for a camera pointed at the
+       screen: it leaves the source chip, the way back and the stack button
+       drawn, and every one of them lands in the captured frame. This takes
+       all of it, and the pointer with it.
+
+       Also reachable as ?clean=1, so a second window can be opened straight
+       into it and captured while this one stays usable. */
+    function setClean(on) {
+        document.body.classList.toggle('clean', on);
+        document.getElementById('t-clean').classList.toggle('on', on);
+    }
+    document.getElementById('t-clean').addEventListener('click', function () {
+        setClean(!document.body.classList.contains('clean'));
+    });
+    try {
+        if (/(^|[?&])clean=1(&|$)/.test(location.search)) setClean(true);
+    } catch (e) {}
     function goFull() {
         var el = document.documentElement;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
@@ -3001,6 +3147,7 @@
             case 'h': setDock(!dock.classList.contains('shut')); break;
             case 'r': randomise(); break;
             case 's': openGate(); break;
+            case 'c': setClean(!document.body.classList.contains('clean')); break;
         }
     });
 
