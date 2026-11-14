@@ -239,6 +239,49 @@
         .scene-btn.on-a::after { content: 'A'; color: var(--lucid-accent, #9b7bff); }
         .scene-btn.on-b::after { content: 'B'; color: var(--lucid-accent-3, #d44fb0); }
         .scene-btn.on-a.on-b::after { content: 'AB'; color: var(--lucid-accent-2, #8ae04b); }
+        /* The out panel. Deliberately plain rows: this is a patch list, and
+           the useful thing about a patch list is that you can see the state at
+           a glance rather than read it. */
+        .outfeed {
+            display: flex; flex-wrap: wrap; gap: .4rem .9rem;
+            font-size: .78rem; color: var(--lucid-ink-dim);
+            padding: .55rem .7rem; margin-bottom: .6rem;
+            border: 1px solid var(--lucid-pane-edge, rgba(155,123,255,.16));
+            border-radius: 8px; background: rgba(255,255,255,.02);
+        }
+        .outfeed b { color: var(--lucid-ink); font-weight: normal; }
+        .outfeed .warn { color: var(--lucid-accent-3, #d44fb0); }
+        .outfeed .good { color: var(--lucid-accent-2, #8ae04b); }
+
+        .outroutes { display: grid; gap: .4rem; }
+        .outroute {
+            display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .1rem .6rem;
+            align-items: baseline;
+            padding: .5rem .7rem; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.015);
+        }
+        .outroute.here { border-color: rgba(138,224,75,.42); background: rgba(138,224,75,.05); }
+        .outroute .nm {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+            color: var(--lucid-ink-label, #b49cff);
+        }
+        .outroute.off .nm { color: var(--lucid-ink-faint); }
+        /* Full width on its own row. Sharing a column with the name meant a
+           long one like "Straight capture" squeezed the text into a gutter,
+           and the dock is only ~280px to begin with. */
+        .outroute .ds { grid-column: 1 / -1; margin-top: .3rem; font-size: .78rem; color: var(--lucid-ink-dim); line-height: 1.5; }
+        .outroute .ds em { color: var(--lucid-ink); font-style: normal; }
+        .outroute .tag {
+            grid-row: 1; grid-column: 2; justify-self: end;
+            font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
+            color: var(--lucid-ink-faint);
+        }
+        /* A 14px-tall link is a 14px-tall target. It sits in a row of text,
+           which WCAG lets off, but it is the one control in this panel and
+           it costs nothing to make it a comfortable one. */
+        #cleanlink { white-space: nowrap; display: inline-block; padding: .32rem 0; }
+
         #camsel, #midisel {
             width: 100%; margin-top: 7px; font: inherit; font-size: 10px; padding: 5px 6px;
             border-radius: 4px; background: rgba(255,255,255,.05); color: rgba(255,255,255,.75);
@@ -595,13 +638,19 @@
                 <kbd>a</kbd>/<kbd>b</kbd> deck &middot; <kbd>[</kbd> <kbd>]</kbd> crossfade &middot;
                 <kbd>\</kbd> slam it across &middot; <kbd>c</kbd> clean output
             </p>
+        </div>
+
+        <div class="group">
+            <h2>Out</h2>
+            <!-- A VJ app shows you its output connections. This one could not:
+                 the whole out story was a paragraph of prose buried under the
+                 toggles, so there was no way to see what was leaving, at what
+                 size, or whether the frame was clean enough to send. -->
+            <div id="outfeed" class="outfeed"></div>
+            <div id="outroutes" class="outroutes"></div>
             <p class="hint" id="outnote">
-                <b>Sending this out as NDI or Spout.</b> Nothing in a browser can publish either,
-                so the last hop is a capture: turn on <b>Clean output</b> &mdash; which takes the
-                panel, the chip and the pointer off the screen, not just the panel &mdash; then in
-                OBS add a <b>Window Capture</b> of this tab and switch on its
-                <b>NDI output</b>, or the <b>Spout2</b> output plugin on Windows.
-                <a href="?clean=1" id="cleanlink">Open a clean window</a> to capture instead of this one.
+                Nothing in a browser can publish NDI or Spout, so the last hop is always a
+                capture. These are the ways out of here.
             </p>
         </div>
     </div>
@@ -2266,6 +2315,9 @@
     function U(pr, n) { return (pr && pr.u && pr.u[n]) || null; }
 
     var sceneTime = 0, last = 0, fps = 0, fpsAcc = 0, fpsN = 0;
+    // The out panel shows the same number the readout does, rather than its
+    // own worse guess at it.
+    var lastFps = 0;
     var fftBytes = new Uint8Array(256), waveBytes = new Uint8Array(512);
 
     function drawDeck(into, sceneId, hueOffset) {
@@ -2418,6 +2470,7 @@
         if (Ears.bpm) bits.push('<b>' + Ears.bpm + '</b> bpm');
         if (Ears.rate) bits.push((Ears.rate / 1000).toFixed(1) + 'k');
         bits.push('<b>' + fps + '</b> fps');
+        lastFps = fps;
         readout.innerHTML = bits.join(' &middot; ');
     }
 
@@ -3057,6 +3110,70 @@
 
     document.getElementById('t-full').addEventListener('click', goFull);
 
+    /* ---- the out panel -------------------------------------------------
+       Nothing in a browser can publish NDI or Spout, so every route out of
+       here ends in something else capturing this window. That makes two
+       things worth showing, and neither was visible before: what is actually
+       leaving — size and rate, which is what the receiving end gets — and
+       whether the frame is clean enough to send, because a captured window
+       with the control panel still in it is the mistake you notice on the
+       projector and not before.
+
+       Spout is DirectX and Syphon is Metal, so each is offered only where it
+       exists rather than listed and then explained away. */
+    function outPlatform() {
+        var pf = (navigator.userAgentData && navigator.userAgentData.platform) || '';
+        var ua = navigator.userAgent || '';
+        if (/win/i.test(pf) || /Windows/i.test(ua)) return 'win';
+        if (/mac/i.test(pf) || /Mac OS X|Macintosh/i.test(ua)) return 'mac';
+        return 'other';
+    }
+    var OUT_PLAT = outPlatform();
+
+    var OUT_ROUTES = [
+        { nm: 'NDI', on: true, tag: 'any machine',
+          ds: 'OBS &rarr; <em>Window Capture</em> of this tab &rarr; Tools &rarr; <em>NDI Output</em>. ' +
+              'Anything on the network takes it from there \u2014 Resolume, a second machine, a projector box.' },
+        { nm: 'Spout', on: OUT_PLAT === 'win', tag: 'Windows only',
+          ds: 'OBS with the <em>Spout2</em> plugin &rarr; Tools &rarr; <em>Spout Output</em>. ' +
+              'Never touches the network, so it is the one to use with Resolume or TouchDesigner ' +
+              'on this same machine.' },
+        { nm: 'Syphon', on: OUT_PLAT === 'mac', tag: 'macOS only',
+          ds: 'OBS with <em>Syphon Output</em>. The same idea as Spout on the other operating ' +
+              'system \u2014 a texture handed between apps without leaving the GPU.' },
+        { nm: 'Straight capture', on: true, tag: 'no OBS',
+          ds: 'Resolume, TouchDesigner and VDMX can take a window or a display directly. ' +
+              'Fewer moving parts, no network, and no second encode.' },
+    ];
+
+    function paintRoutes() {
+        var el = document.getElementById('outroutes');
+        if (!el) return;
+        el.innerHTML = OUT_ROUTES.map(function (r) {
+            return '<div class="outroute' + (r.on ? ' here' : ' off') + '">' +
+                   '<span class="nm">' + r.nm + '</span>' +
+                   '<span class="tag">' + r.tag + '</span>' +
+                   '<span class="ds">' + (r.on ? r.ds : 'Not on this machine \u2014 ' + r.tag + '.') + '</span>' +
+                   '</div>';
+        }).join('');
+    }
+
+    function paintOutFeed() {
+        var el = document.getElementById('outfeed');
+        if (!el) return;
+        var cv = document.getElementById('stage');
+        var w = (cv && cv.width) || 0, h = (cv && cv.height) || 0;
+        var clean = document.body.classList.contains('clean');
+        var full = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        el.innerHTML =
+            '<span>leaving at <b>' + w + '&times;' + h + '</b></span>' +
+            '<span><b>' + lastFps + '</b> fps</span>' +
+            '<span class="' + (clean ? 'good' : 'warn') + '">' +
+                (clean ? 'frame is clean' : 'panel is still in the frame') + '</span>' +
+            '<span>' + (full ? 'fullscreen' : 'windowed') + '</span>' +
+            '<span><a href="?clean=1" id="cleanlink" target="_blank" rel="noopener">open a clean window</a></span>';
+    }
+
     /* Clean output. "Hide panel" was never meant for a camera pointed at the
        screen: it leaves the source chip, the way back and the stack button
        drawn, and every one of them lands in the captured frame. This takes
@@ -3067,7 +3184,15 @@
     function setClean(on) {
         document.body.classList.toggle('clean', on);
         document.getElementById('t-clean').classList.toggle('on', on);
+        paintOutFeed();
     }
+    paintRoutes();
+    paintOutFeed();
+    // A second is plenty: these are figures you glance at while patching, not
+    // something to animate.
+    setInterval(paintOutFeed, 1000);
+    document.addEventListener('fullscreenchange', paintOutFeed);
+    document.addEventListener('webkitfullscreenchange', paintOutFeed);
     document.getElementById('t-clean').addEventListener('click', function () {
         setClean(!document.body.classList.contains('clean'));
     });
