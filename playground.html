@@ -649,8 +649,10 @@
             <div id="outfeed" class="outfeed"></div>
             <div id="outroutes" class="outroutes"></div>
             <p class="hint" id="outnote">
-                Nothing in a browser can publish NDI or Spout, so the last hop is always a
-                capture. These are the ways out of here.
+                <b>Nothing appears on the network until one of these is actually running.</b>
+                A browser cannot publish NDI or Spout, so the picture only leaves this machine
+                once something else is capturing the window and sending it. Pick a route below
+                and set it up; this panel lists them, it does not start them.
             </p>
         </div>
     </div>
@@ -3132,8 +3134,11 @@
 
     var OUT_ROUTES = [
         { nm: 'NDI', on: true, tag: 'any machine',
-          ds: 'OBS &rarr; <em>Window Capture</em> of this tab &rarr; Tools &rarr; <em>NDI Output</em>. ' +
-              'Anything on the network takes it from there \u2014 Resolume, a second machine, a projector box.' },
+          ds: 'Install <em>DistroAV</em> (it was obs-ndi) into OBS, add a <em>Window Capture</em> of ' +
+              'this tab, then Tools &rarr; <em>NDI Output Settings</em> &rarr; tick <em>Main Output</em>. ' +
+              'Only then does a source appear for Resolume to find. If it does not: NDI finds machines ' +
+              'by multicast, which plenty of networks drop \u2014 add the sending machine by hand in ' +
+              '<em>NDI Access Manager</em>, and check the firewall is not holding OBS.' },
         { nm: 'Spout', on: OUT_PLAT === 'win', tag: 'Windows only',
           ds: 'OBS with the <em>Spout2</em> plugin &rarr; Tools &rarr; <em>Spout Output</em>. ' +
               'Never touches the network, so it is the one to use with Resolume or TouchDesigner ' +
@@ -3165,11 +3170,17 @@
         var w = (cv && cv.width) || 0, h = (cv && cv.height) || 0;
         var clean = document.body.classList.contains('clean');
         var full = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        // "Leaving at 1280x1000, 15 fps" read as a live feed and it is not
+        // one: this page publishes nothing, and there is no way for it to
+        // know whether anything is capturing the window — being captured has
+        // no API. So it states what this window IS, and says plainly that
+        // nothing is carrying it, because the alternative is someone hunting
+        // a source in Resolume that was never being sent.
         el.innerHTML =
-            '<span>leaving at <b>' + w + '&times;' + h + '</b></span>' +
-            '<span><b>' + lastFps + '</b> fps</span>' +
+            '<span class="warn">this page sends nothing by itself</span>' +
+            '<span>window is <b>' + w + '&times;' + h + '</b> at <b>' + lastFps + '</b> fps</span>' +
             '<span class="' + (clean ? 'good' : 'warn') + '">' +
-                (clean ? 'frame is clean' : 'panel is still in the frame') + '</span>' +
+                (clean ? 'frame is clean to capture' : 'panel would be captured too') + '</span>' +
             '<span>' + (full ? 'fullscreen' : 'windowed') + '</span>' +
             '<span><a href="?clean=1" id="cleanlink" target="_blank" rel="noopener">open a clean window</a></span>';
     }
