@@ -239,6 +239,49 @@
         .scene-btn.on-a::after { content: 'A'; color: var(--lucid-accent, #9b7bff); }
         .scene-btn.on-b::after { content: 'B'; color: var(--lucid-accent-3, #d44fb0); }
         .scene-btn.on-a.on-b::after { content: 'AB'; color: var(--lucid-accent-2, #8ae04b); }
+        /* The out panel. Deliberately plain rows: this is a patch list, and
+           the useful thing about a patch list is that you can see the state at
+           a glance rather than read it. */
+        .outfeed {
+            display: flex; flex-wrap: wrap; gap: .4rem .9rem;
+            font-size: .78rem; color: var(--lucid-ink-dim);
+            padding: .55rem .7rem; margin-bottom: .6rem;
+            border: 1px solid var(--lucid-pane-edge, rgba(155,123,255,.16));
+            border-radius: 8px; background: rgba(255,255,255,.02);
+        }
+        .outfeed b { color: var(--lucid-ink); font-weight: normal; }
+        .outfeed .warn { color: var(--lucid-accent-3, #d44fb0); }
+        .outfeed .good { color: var(--lucid-accent-2, #8ae04b); }
+
+        .outroutes { display: grid; gap: .4rem; }
+        .outroute {
+            display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .1rem .6rem;
+            align-items: baseline;
+            padding: .5rem .7rem; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.015);
+        }
+        .outroute.here { border-color: rgba(138,224,75,.42); background: rgba(138,224,75,.05); }
+        .outroute .nm {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+            color: var(--lucid-ink-label, #b49cff);
+        }
+        .outroute.off .nm { color: var(--lucid-ink-faint); }
+        /* Full width on its own row. Sharing a column with the name meant a
+           long one like "Straight capture" squeezed the text into a gutter,
+           and the dock is only ~280px to begin with. */
+        .outroute .ds { grid-column: 1 / -1; margin-top: .3rem; font-size: .78rem; color: var(--lucid-ink-dim); line-height: 1.5; }
+        .outroute .ds em { color: var(--lucid-ink); font-style: normal; }
+        .outroute .tag {
+            grid-row: 1; grid-column: 2; justify-self: end;
+            font-size: .66rem; letter-spacing: .1em; text-transform: uppercase;
+            color: var(--lucid-ink-faint);
+        }
+        /* A 14px-tall link is a 14px-tall target. It sits in a row of text,
+           which WCAG lets off, but it is the one control in this panel and
+           it costs nothing to make it a comfortable one. */
+        #cleanlink { white-space: nowrap; display: inline-block; padding: .32rem 0; }
+
         #camsel, #midisel {
             width: 100%; margin-top: 7px; font: inherit; font-size: 10px; padding: 5px 6px;
             border-radius: 4px; background: rgba(255,255,255,.05); color: rgba(255,255,255,.75);
@@ -349,6 +392,20 @@
             -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
         }
         #gate.gone { display: none; }
+
+        /* Clean output. Hide panel leaves the chip, the way back and the
+           stack button on screen, which is fine for playing and wrong for
+           a capture: anything still drawn lands in the NDI frame. This takes
+           the lot, including the pointer, because a stationary cursor sitting
+           in someone's projection is the detail that gives the trick away. */
+        body.clean #dock,
+        body.clean #dock-toggle,
+        body.clean #hud,
+        body.clean .lucid-chrome,
+        body.clean .lucid-return,
+        body.clean #unblock { display: none !important; }
+        body.clean { cursor: none; }
+        body.clean #stage { cursor: none; }
         .card {
             width: min(620px, 100%); margin: auto;
             border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.1));
@@ -530,6 +587,7 @@
             <div class="toggles" id="vidpick">
                 <button type="button" class="tog on" data-vid="none">Off</button>
                 <button type="button" class="tog" data-vid="camera">Camera</button>
+                <button type="button" class="tog" data-vid="share">NDI / Spout</button>
                 <button type="button" class="tog" data-vid="tab">Shared tab</button>
                 <button type="button" class="tog" data-vid="media">File / link</button>
             </div>
@@ -567,6 +625,7 @@
             <div class="toggles">
                 <button type="button" class="tog" id="t-full">Fullscreen</button>
                 <button type="button" class="tog" id="t-hide">Hide panel</button>
+                <button type="button" class="tog" id="t-clean">Clean output</button>
                 <button type="button" class="tog" id="t-freeze">Freeze</button>
                 <button type="button" class="tog" id="t-black">Blackout</button>
                 <button type="button" class="tog" id="t-random">Randomise</button>
@@ -577,7 +636,23 @@
                 <kbd>f</kbd> fullscreen &middot; <kbd>h</kbd> hide the panel &middot;
                 <kbd>r</kbd> randomise &middot; <kbd>s</kbd> change the sound &middot;
                 <kbd>a</kbd>/<kbd>b</kbd> deck &middot; <kbd>[</kbd> <kbd>]</kbd> crossfade &middot;
-                <kbd>\</kbd> slam it across
+                <kbd>\</kbd> slam it across &middot; <kbd>c</kbd> clean output
+            </p>
+        </div>
+
+        <div class="group">
+            <h2>Out</h2>
+            <!-- A VJ app shows you its output connections. This one could not:
+                 the whole out story was a paragraph of prose buried under the
+                 toggles, so there was no way to see what was leaving, at what
+                 size, or whether the frame was clean enough to send. -->
+            <div id="outfeed" class="outfeed"></div>
+            <div id="outroutes" class="outroutes"></div>
+            <p class="hint" id="outnote">
+                <b>Nothing appears on the network until one of these is actually running.</b>
+                A browser cannot publish NDI or Spout, so the picture only leaves this machine
+                once something else is capturing the window and sending it. Pick a route below
+                and set it up; this panel lists them, it does not start them.
             </p>
         </div>
     </div>
@@ -2242,6 +2317,9 @@
     function U(pr, n) { return (pr && pr.u && pr.u[n]) || null; }
 
     var sceneTime = 0, last = 0, fps = 0, fpsAcc = 0, fpsN = 0;
+    // The out panel shows the same number the readout does, rather than its
+    // own worse guess at it.
+    var lastFps = 0;
     var fftBytes = new Uint8Array(256), waveBytes = new Uint8Array(512);
 
     function drawDeck(into, sceneId, hueOffset) {
@@ -2365,6 +2443,10 @@
         gl.uniform1i(U(blitProg, 'uTex'), 0);
         gl.uniform1f(U(blitProg, 'uFade'), state.blackout ? 0 : 1);
         draw(blitProg);
+
+        // The canvas holds the finished frame at exactly this point, which is
+        // the only moment it is worth reading back.
+        if (typeof Send !== 'undefined' && Send.on) Send.push(canvas);
     }
 
     /* ---- the meters and the readout ---- */
@@ -2394,6 +2476,7 @@
         if (Ears.bpm) bits.push('<b>' + Ears.bpm + '</b> bpm');
         if (Ears.rate) bits.push((Ears.rate / 1000).toFixed(1) + 'k');
         bits.push('<b>' + fps + '</b> fps');
+        lastFps = fps;
         readout.innerHTML = bits.join(' &middot; ');
     }
 
@@ -2739,7 +2822,11 @@
     // Closing with nothing chosen is the same as picking "nothing, for now" —
     // a real option on this card — and the chip reopens it either way.
     document.addEventListener('keydown', function (e) {
-        if (e.key !== 'Escape' || gate.classList.contains('gone')) return;
+        if (e.key !== 'Escape') return;
+        // In clean output there is nothing else on screen to dismiss, and no
+        // visible control to turn it off with, so Escape has to be the way out.
+        if (document.body.classList.contains('clean')) { setClean(false); return; }
+        if (gate.classList.contains('gone')) return;
         if (Ears.kind === 'none') Ears.none('no sound');
         closeGate();
     });
@@ -2750,11 +2837,82 @@
     var camsel = document.getElementById('camsel');
     var vidnote = document.getElementById('vidnote');
 
+    /* NDI and Spout.
+
+       Neither exists in a browser and neither can. NDI is a protocol on the
+       network with no web API, and Spout is a DirectX shared texture — a
+       Windows GPU handle, which a sandboxed tab has no business holding. Any
+       page claiming otherwise has a native program behind it.
+
+       What does work, on the machine you already have: every one of those
+       worlds can present itself as a webcam, and a webcam is something this
+       page can open. NDI Tools ships NDI Virtual Input; OBS turns a Spout or
+       Syphon sender into its Virtual Camera. So this tile is the camera path
+       with the right device found for you, which is the only part that was
+       actually hard — the useful device is never the first one, and on most
+       machines it is called something you would not guess.
+
+       Ranked rather than matched, because a rig can have several: a real NDI
+       input beats OBS's catch-all, which beats anything merely "virtual". */
+    function rankShare(ds) {
+        return ds.map(function (d) {
+            var n = d.label || '';
+            var score = /\bndi\b/i.test(n)                         ? 4
+                      : /\b(spout|syphon)\b/i.test(n)              ? 4
+                      : /\bobs\b/i.test(n)                         ? 3
+                      : /(virtual|camtwist|vmix|resolume|e2esoft)/i.test(n) ? 2 : 0;
+            return { d: d, score: score };
+        }).filter(function (x) { return x.score > 0; })
+          .sort(function (a, b) { return b.score - a.score; });
+    }
+
+    /* enumerateDevices hands back empty labels until the page has been
+       granted a camera once, and without labels there is nothing to rank on.
+       So: ask, stop the tracks immediately, then look. The throwaway stream
+       is the price of knowing what the devices are called. */
+    function nameDevices() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve([]);
+        return navigator.mediaDevices.getUserMedia({ video: true }).then(function (st) {
+            st.getTracks().forEach(function (t) { t.stop(); });
+        }).catch(function () { /* refused: fall through and rank what we can */ })
+          .then(function () { return Vid.devices(); });
+    }
+
+    function fillCams(ds, chosenId) {
+        camsel.innerHTML = '';
+        ds.forEach(function (d, i) {
+            var o = document.createElement('option');
+            o.value = d.deviceId; o.textContent = d.label || ('Camera ' + (i + 1));
+            camsel.appendChild(o);
+        });
+        if (chosenId) camsel.value = chosenId;
+    }
+
+    var SHARE_SETUP =
+        '<b>Nothing here is sending yet.</b> NDI and Spout cannot reach a browser directly — ' +
+        'they need one bridge, set up once, and then this tile finds it every time:<br>' +
+        '&middot; <b>NDI</b> &mdash; install NDI Tools and run <b>NDI Virtual Input</b>, then pick your source in it.<br>' +
+        '&middot; <b>Spout</b> (Windows) or <b>Syphon</b> (Mac) &mdash; add it as a source in OBS, then ' +
+        '<b>Start Virtual Camera</b>.<br>' +
+        'Either way it turns up here as a camera, and this tile will pick it.';
+
+    // The share tile opens a camera, so Vid.kind says 'camera' for both of
+    // them and the kind alone cannot say which button to light.
+    var vidPick = null;
+    // markVid() is Vid.onchange and rewrites the note on every change, which
+    // wiped the share tile's message as soon as it was set. This is the note
+    // the share flow owns; anything else the user does clears it.
+    var vidMsg = null;
     function markVid() {
         [].forEach.call(document.querySelectorAll('#vidpick button'), function (b) {
-            b.classList.toggle('on', b.dataset.vid === Vid.kind);
+            var k = b.dataset.vid, on;
+            if (k === 'share')       on = Vid.kind === 'camera' && vidPick === 'share';
+            else if (k === 'camera') on = Vid.kind === 'camera' && vidPick !== 'share';
+            else                     on = k === Vid.kind;
+            b.classList.toggle('on', on);
         });
         camsel.hidden = Vid.kind !== 'camera' || camsel.options.length < 2;
+        if (vidMsg) { vidnote.innerHTML = vidMsg; return; }
         var using = state.scene === 'video' || state.scene === 'vidkaleido' ||
                     state.sceneB === 'video' || state.sceneB === 'vidkaleido';
         if (Vid.broken) {
@@ -2773,7 +2931,33 @@
     [].forEach.call(document.querySelectorAll('#vidpick button'), function (b) {
         b.addEventListener('click', function () {
             var k = b.dataset.vid;
-            if (k === 'camera') {
+            vidPick = k;
+            vidMsg = null;
+            if (k === 'share') {
+                vidnote.textContent = 'Looking for an NDI or Spout bridge…';
+                nameDevices().then(function (ds) {
+                    var hit = rankShare(ds)[0];
+                    if (!hit) {
+                        fillCams(ds, null);
+                        vidPick = null;
+                        vidMsg = SHARE_SETUP;
+                        markVid();
+                        return;
+                    }
+                    return Vid.camera(hit.d.deviceId).then(function () {
+                        fillCams(ds, hit.d.deviceId);
+                        vidMsg = 'Taking <b>' + esc(hit.d.label) + '</b>. ' +
+                                 'Put <b>Video</b> or <b>Mirror</b> on a deck to see it.';
+                        markVid();
+                    });
+                }).catch(function (e) {
+                    vidPick = null;
+                    vidMsg = (e && e.name === 'NotAllowedError')
+                        ? 'Camera access was refused, and a bridge arrives as a camera.'
+                        : 'That bridge would not open: ' + esc(String((e && e.message) || 'unavailable')) + '.';
+                    markVid();
+                });
+            } else if (k === 'camera') {
                 Vid.camera(camsel.value || null).then(function () {
                     return Vid.devices().then(function (ds) {
                         camsel.innerHTML = '';
@@ -2798,7 +2982,10 @@
             }
         });
     });
-    camsel.addEventListener('change', function () { Vid.camera(camsel.value).catch(function () {}); });
+    camsel.addEventListener('change', function () {
+        vidMsg = null;
+        Vid.camera(camsel.value).catch(function () {});
+    });
 
     /* MIDI.
 
@@ -2928,6 +3115,273 @@
     document.getElementById('t-hide').addEventListener('click', function () { setDock(!dock.classList.contains('shut')); });
 
     document.getElementById('t-full').addEventListener('click', goFull);
+
+    /* ---- sending the picture to soupsend -------------------------------
+       soupsend is a small program in soupsend/ that takes these frames and
+       publishes them as NDI, or as Spout on Windows. A browser can do neither
+       and never will: NDI is a protocol on the network with no web API, and
+       Spout is a DirectX shared texture.
+
+       It only works when this page is being served BY soupsend, from
+       127.0.0.1. That is not a limitation of the helper, it is the only
+       arrangement browsers allow: Safari refuses an http://127.0.0.1
+       subresource inside an https:// page outright, and Chrome 142 gates it
+       behind a permission prompt. Same origin and both problems vanish — so
+       soupsend serves the page, and the Send control appears only there.
+
+       The readback is a drawImage into a 2D canvas rather than gl.readPixels:
+       the scale happens on the GPU, the readback is at the smaller size, and
+       a 2D canvas is already top-left origin, so nothing has to be flipped on
+       the way out. */
+    var Send = (function () {
+        var ws = null, cv = null, c2 = null, want = false, sent = 0, dropped = 0;
+        var lastSend = 0, note = '';
+        // One buffer, reused. The first version allocated a fresh 4MB array
+        // and copied into it every frame, which is 12MB of churn per frame
+        // once getImageData's own allocation is counted — and the sends then
+        // could not keep up with a renderer running at 15fps. The server was
+        // never the problem: it takes 539 MB/s.
+        var out = null;
+        // The last pixel actually sent, so a test can prove the colours
+        // arrive the right way round rather than merely arrive.
+        var lastPx = null;
+
+        function local() {
+            return location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        }
+        function token() {
+            var m = /(^|[?&])send=([0-9a-f]{8,64})/.exec(location.search || '');
+            if (m) { try { localStorage.setItem('lucid.send.token', m[2]); } catch (e) {} return m[2]; }
+            try { return localStorage.getItem('lucid.send.token') || ''; } catch (e) { return ''; }
+        }
+        function state() {
+            if (!local()) return 'elsewhere';
+            if (!ws) return want ? 'connecting' : 'off';
+            return ws.readyState === 1 ? 'on' : 'connecting';
+        }
+        function start() {
+            var t = token();
+            if (!t) { note = 'No token. Open the address soupsend printed.'; want = false; return; }
+            want = true; sent = 0; dropped = 0; note = '';
+            try {
+                ws = new WebSocket('ws://' + location.host + '/stream?t=' + encodeURIComponent(t));
+                ws.binaryType = 'arraybuffer';
+            } catch (e) { note = 'Could not open a connection to soupsend.'; want = false; ws = null; return; }
+            ws.onopen  = function () { note = ''; paintOutFeed(); };
+            ws.onclose = function () { ws = null; if (want) note = 'soupsend closed the connection.'; want = false; paintOutFeed(); };
+            ws.onerror = function () { note = 'soupsend is not answering on this port.'; };
+        }
+        function stop() {
+            want = false;
+            if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+            paintOutFeed();
+        }
+
+        return {
+            get on() { return state() === 'on'; },
+            get state() { return state(); },
+            get note() { return note; },
+            get sent() { return sent; },
+            get dropped() { return dropped; },
+            get local() { return local(); },
+            get lastPx() { return lastPx; },
+            width: (function () {
+                try { return parseInt(localStorage.getItem('lucid.send.width'), 10) || 960; }
+                catch (e) { return 960; }
+            })(),
+            setWidth: function (px) {
+                this.width = px;
+                try { localStorage.setItem('lucid.send.width', String(px)); } catch (e) {}
+            },
+            toggle: function () { if (want || ws) stop(); else { start(); paintOutFeed(); } },
+
+            // Called at the end of every rendered frame.
+            push: function (src) {
+                if (!ws || ws.readyState !== 1 || !src) return;
+                var now = performance.now();
+                if (now - lastSend < 1000 / 30) return;        // 30 is plenty for a projector
+                // Backpressure. Without this a slow sink turns into unbounded
+                // memory in the tab rather than dropped frames.
+                if (ws.bufferedAmount > 8 * 1024 * 1024) { dropped++; return; }
+                lastSend = now;
+
+                var w = src.width, h = src.height;
+                // The readback is the expensive part — reading fewer pixels is
+                // the only lever that helps. 960 wide is a good projector feed
+                // and half the bytes of 1280.
+                var scale = Math.min(1, Send.width / w);
+                w = Math.max(2, Math.round(w * scale) & ~1);
+                h = Math.max(2, Math.round(h * scale) & ~1);
+                if (!cv) { cv = document.createElement('canvas'); c2 = cv.getContext('2d', { willReadFrequently: true }); }
+                if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+                try { c2.drawImage(src, 0, 0, w, h); } catch (e) { return; }
+                var img;
+                try { img = c2.getImageData(0, 0, w, h); } catch (e) { note = 'The frame could not be read back.'; return; }
+
+                var need = 16 + img.data.length;
+                if (!out || out.length !== need) out = new Uint8Array(need);
+                out[0] = 83; out[1] = 79; out[2] = 85; out[3] = 80;   // 'SOUP'
+                out[4] = 1; out[5] = 1;
+                out[6] = w & 255; out[7] = (w >> 8) & 255;
+                out[8] = h & 255; out[9] = (h >> 8) & 255;
+                var pts = now >>> 0;
+                out[10] = pts & 255; out[11] = (pts >>> 8) & 255;
+                out[12] = (pts >>> 16) & 255; out[13] = (pts >>> 24) & 255;
+                out.set(img.data, 16);
+                lastPx = [img.data[0], img.data[1], img.data[2], img.data[3]];
+                // send() copies, so the same buffer is safe to reuse next frame.
+                try {
+                    ws.send(out); sent++;
+                    // Keyed by timestamp and exposed for the end-to-end test,
+                    // which matches the pixel sent against the pixel that
+                    // arrived. Closing a socket discards whatever is still
+                    // buffered, so "the last one each end saw" are not the
+                    // same frame and cannot be compared directly.
+                    window.__SendPx = window.__SendPx || {};
+                    window.__SendPx[pts] = lastPx;
+                    window.__SendSent = sent;
+                } catch (e) { dropped++; }
+            },
+        };
+    })();
+
+    /* ---- the out panel -------------------------------------------------
+       Nothing in a browser can publish NDI or Spout, so every route out of
+       here ends in something else capturing this window. That makes two
+       things worth showing, and neither was visible before: what is actually
+       leaving — size and rate, which is what the receiving end gets — and
+       whether the frame is clean enough to send, because a captured window
+       with the control panel still in it is the mistake you notice on the
+       projector and not before.
+
+       Spout is DirectX and Syphon is Metal, so each is offered only where it
+       exists rather than listed and then explained away. */
+    function outPlatform() {
+        var pf = (navigator.userAgentData && navigator.userAgentData.platform) || '';
+        var ua = navigator.userAgent || '';
+        if (/win/i.test(pf) || /Windows/i.test(ua)) return 'win';
+        if (/mac/i.test(pf) || /Mac OS X|Macintosh/i.test(ua)) return 'mac';
+        return 'other';
+    }
+    var OUT_PLAT = outPlatform();
+
+    var OUT_ROUTES = [
+        { nm: 'NDI', on: true, tag: 'any machine',
+          ds: 'Install <em>DistroAV</em> (it was obs-ndi) into OBS, add a <em>Window Capture</em> of ' +
+              'this tab, then Tools &rarr; <em>NDI Output Settings</em> &rarr; tick <em>Main Output</em>. ' +
+              'Only then does a source appear for Resolume to find. If it does not: NDI finds machines ' +
+              'by multicast, which plenty of networks drop \u2014 add the sending machine by hand in ' +
+              '<em>NDI Access Manager</em>, and check the firewall is not holding OBS.' },
+        { nm: 'Spout', on: OUT_PLAT === 'win', tag: 'Windows only',
+          ds: 'OBS with the <em>Spout2</em> plugin &rarr; Tools &rarr; <em>Spout Output</em>. ' +
+              'Never touches the network, so it is the one to use with Resolume or TouchDesigner ' +
+              'on this same machine.' },
+        { nm: 'Syphon', on: OUT_PLAT === 'mac', tag: 'macOS only',
+          ds: 'OBS with <em>Syphon Output</em>. The same idea as Spout on the other operating ' +
+              'system \u2014 a texture handed between apps without leaving the GPU.' },
+        { nm: 'Straight capture', on: true, tag: 'no OBS',
+          ds: 'Resolume, TouchDesigner and VDMX can take a window or a display directly. ' +
+              'Fewer moving parts, no network, and no second encode.' },
+    ];
+
+    // The readback is what costs, not the network, so the number of pixels
+    // read back is the only lever worth giving anyone.
+    function sizePick() {
+        var opts = [640, 960, 1280, 1920].map(function (w) {
+            return '<option value="' + w + '"' + (w === Send.width ? ' selected' : '') + '>' + w + ' wide</option>';
+        }).join('');
+        return '<select id="sendsize" aria-label="Send width">' + opts + '</select>';
+    }
+
+    function sendRow() {
+        var st = Send.state, body, cls, tag;
+        if (st === 'elsewhere') {
+            cls = ' off'; tag = 'needs soupsend';
+            body = 'The only route that leaves OBS out. Build <em>soupsend/</em> in this repository, ' +
+                   'run it, and open the address it prints &mdash; it serves this page itself, because ' +
+                   'a page on a public site is not allowed to reach a local program: Safari refuses it ' +
+                   'outright and Chrome asks permission. From its own address, this row becomes a button.';
+        } else if (st === 'on') {
+            cls = ' here'; tag = 'sending';
+            body = 'Sending to soupsend &mdash; <em>' + Send.sent + '</em> frames' +
+                   (Send.dropped ? ', ' + Send.dropped + ' dropped to keep up' : '') + '. ' +
+                   '<button type="button" class="tog on" id="sendbtn">Stop sending</button> ' +
+                   sizePick();
+        } else {
+            cls = ' here'; tag = st === 'connecting' ? 'connecting' : 'ready';
+            body = (Send.note ? '<em>' + Send.note + '</em> ' : '') +
+                   'soupsend is serving this page, so the frames can go straight to it. ' +
+                   '<button type="button" class="tog" id="sendbtn">Start sending</button> ' +
+                   sizePick();
+        }
+        return '<div class="outroute' + cls + '">' +
+               '<span class="nm">soupsend</span><span class="tag">' + tag + '</span>' +
+               '<span class="ds">' + body + '</span></div>';
+    }
+
+    function paintRoutes() {
+        var el = document.getElementById('outroutes');
+        if (!el) return;
+        el.innerHTML = sendRow() + OUT_ROUTES.map(function (r) {
+            return '<div class="outroute' + (r.on ? ' here' : ' off') + '">' +
+                   '<span class="nm">' + r.nm + '</span>' +
+                   '<span class="tag">' + r.tag + '</span>' +
+                   '<span class="ds">' + (r.on ? r.ds : 'Not on this machine \u2014 ' + r.tag + '.') + '</span>' +
+                   '</div>';
+        }).join('');
+        var b = document.getElementById('sendbtn');
+        if (b) b.addEventListener('click', function () { Send.toggle(); paintRoutes(); });
+        var z = document.getElementById('sendsize');
+        if (z) z.addEventListener('change', function () { Send.setWidth(parseInt(this.value, 10)); });
+    }
+
+    function paintOutFeed() {
+        var el = document.getElementById('outfeed');
+        if (!el) return;
+        var cv = document.getElementById('stage');
+        var w = (cv && cv.width) || 0, h = (cv && cv.height) || 0;
+        var clean = document.body.classList.contains('clean');
+        var full = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        // "Leaving at 1280x1000, 15 fps" read as a live feed and it is not
+        // one: this page publishes nothing, and there is no way for it to
+        // know whether anything is capturing the window — being captured has
+        // no API. So it states what this window IS, and says plainly that
+        // nothing is carrying it, because the alternative is someone hunting
+        // a source in Resolume that was never being sent.
+        el.innerHTML =
+            '<span class="warn">this page sends nothing by itself</span>' +
+            '<span>window is <b>' + w + '&times;' + h + '</b> at <b>' + lastFps + '</b> fps</span>' +
+            '<span class="' + (clean ? 'good' : 'warn') + '">' +
+                (clean ? 'frame is clean to capture' : 'panel would be captured too') + '</span>' +
+            '<span>' + (full ? 'fullscreen' : 'windowed') + '</span>' +
+            '<span><a href="?clean=1" id="cleanlink" target="_blank" rel="noopener">open a clean window</a></span>';
+    }
+
+    /* Clean output. "Hide panel" was never meant for a camera pointed at the
+       screen: it leaves the source chip, the way back and the stack button
+       drawn, and every one of them lands in the captured frame. This takes
+       all of it, and the pointer with it.
+
+       Also reachable as ?clean=1, so a second window can be opened straight
+       into it and captured while this one stays usable. */
+    function setClean(on) {
+        document.body.classList.toggle('clean', on);
+        document.getElementById('t-clean').classList.toggle('on', on);
+        paintOutFeed();
+    }
+    paintRoutes();
+    paintOutFeed();
+    // A second is plenty: these are figures you glance at while patching, not
+    // something to animate.
+    setInterval(function () { paintOutFeed(); paintRoutes(); }, 1000);
+    document.addEventListener('fullscreenchange', paintOutFeed);
+    document.addEventListener('webkitfullscreenchange', paintOutFeed);
+    document.getElementById('t-clean').addEventListener('click', function () {
+        setClean(!document.body.classList.contains('clean'));
+    });
+    try {
+        if (/(^|[?&])clean=1(&|$)/.test(location.search)) setClean(true);
+    } catch (e) {}
     function goFull() {
         var el = document.documentElement;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
@@ -3001,6 +3455,7 @@
             case 'h': setDock(!dock.classList.contains('shut')); break;
             case 'r': randomise(); break;
             case 's': openGate(); break;
+            case 'c': setClean(!document.body.classList.contains('clean')); break;
         }
     });
 
