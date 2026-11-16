@@ -14,3 +14,5 @@ pluginhost/vst3/
 pluginhost/test/*.clap
 pluginhost/test/*.vst3
 icons/preview-*.png
+soupsend/*.o
+soupsend/soupsend
