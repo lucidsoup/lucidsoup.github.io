@@ -28,7 +28,22 @@ make                       # the test sink — builds anywhere, needs nothing
 ./soupsend --sink test --name /tmp/frames
 ```
 
-It prints the one address to open. The token is in it; without the token the
+It prints the one address to open.
+
+**The playground is baked into the binary.** `make` runs `embed.py`, which
+bakes `playground.html` and its eight local assets in, so the binary is the
+whole thing: copy it anywhere, run it, open the address, and the page is
+there with the Send control already on it. A server with nothing to serve is
+not a bridge anyone can use.
+
+The baked copy is generated at build time and never committed, because a
+checked-in copy of `playground.html` would drift from the real one within a
+week. `--root DIR` serves from disk instead, which is what you want while
+editing the page:
+
+```sh
+./soupsend --root ..       # serve the checkout, not the baked copy
+``` The token is in it; without the token the
 WebSocket is refused, and only loopback is ever listened on.
 
 ### NDI
@@ -55,7 +70,8 @@ soupsend.exe --sink spout --name "LucidSoup"
 
 Be clear-eyed about this before trusting it on a show.
 
-**Verified, on Linux, end to end:** the page is served, the WebSocket upgrades
+**Verified, on Linux, end to end:** the page is served from the binary with
+no checkout present, the WebSocket upgrades
 (handshake checked against RFC 6455's own worked example), frames arrive whole
 at the size asked for, and **the pixel the page sends is the pixel that
 arrives** — matched by timestamp, so channel order and orientation are proven

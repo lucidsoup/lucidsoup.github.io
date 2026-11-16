@@ -35,6 +35,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "embedded.h"
 #include "sha1.h"
 #include "sink.h"
 
@@ -45,7 +46,9 @@
 
 static int   port = 7788;
 static char  token[49];
-static char  root[1024] = "..";          // the repo, so it serves the real page
+// Empty means serve the copy baked into this binary. --root points it at a
+// directory instead, which is what you want while editing the page.
+static char  root[1024] = "";
 static Sink *sink = NULL;
 static volatile sig_atomic_t stop_now = 0;
 
@@ -55,11 +58,6 @@ static void say(const char *f, ...) {
     va_end(a);
 }
 static void on_sig(int s) { (void)s; stop_now = 1; }
-
-static uint64_t now_ms(void) {
-    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-}
 
 static void gen_token(void) {
     uint8_t raw[24];
@@ -180,8 +178,29 @@ static int origin_ok(const char *head) {
 static void serve_file(int fd, const char *path) {
     // No climbing out of the served directory, however the path is spelled.
     if (strstr(path, "..")) { http_text(fd, 403, "Forbidden", "No."); return; }
+    const char *want = (!strcmp(path, "/")) ? "/playground.html" : path;
+
+    // The baked-in copy, unless --root said to read from disk. One binary and
+    // one command is the point: a server with nothing to serve is not a
+    // bridge anyone can actually use.
+    if (!root[0]) {
+        for (int i = 0; i < embedded_n; i++) {
+            if (strcmp(embedded[i].path, want)) continue;
+            char h[512];
+            int n = snprintf(h, sizeof h,
+                "HTTP/1.1 200 OK\r\nContent-Type: %s\r\nContent-Length: %u\r\n"
+                "Cache-Control: no-store\r\nConnection: close\r\n\r\n",
+                embedded[i].mime, embedded[i].len);
+            send_all(fd, h, (size_t)n);
+            send_all(fd, embedded[i].data, embedded[i].len);
+            return;
+        }
+        http_text(fd, 404, "Not Found", "Not baked into this build.");
+        return;
+    }
+
     char full[2048];
-    snprintf(full, sizeof full, "%s%s", root, (!strcmp(path, "/")) ? "/playground.html" : path);
+    snprintf(full, sizeof full, "%s%s", root, want);
     FILE *f = fopen(full, "rb");
     if (!f) { http_text(fd, 404, "Not Found", "Not here."); return; }
     struct stat st;
@@ -382,7 +401,8 @@ int main(int argc, char **argv) {
                    "  --sink ndi|spout|test   where the frames go (default test)\n"
                    "  --name NAME             the name it is published under\n"
                    "  --port N                listen on 127.0.0.1:N (default 7788)\n"
-                   "  --root DIR              directory to serve the page from (default ..)\n"
+                   "  --root DIR              serve from a directory instead of the copy\n"
+                   "                          baked into this binary\n"
                    "  --token TOK             use this token instead of a fresh random one\n");
             return !strcmp(argv[i], "--help") ? 0 : 1;
         }
