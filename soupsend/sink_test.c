@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+#include "plat.h"
 
 typedef struct {
     char     dir[512];
@@ -20,10 +20,8 @@ typedef struct {
     uint8_t  first_px[4], centre_px[4];
 } Test;
 
-static uint64_t ms(void) {
-    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-}
+// plat.h, so this does not drag winpthreads in on Windows.
+static uint64_t ms(void) { return (uint64_t)plat_ms(); }
 
 static int t_open(Sink *s, int w, int h, int fps) {
     Test *t = s->priv;

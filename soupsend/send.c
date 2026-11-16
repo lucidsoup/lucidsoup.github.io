@@ -21,19 +21,15 @@
 // Build: make
 // Run:   ./soupsend --sink ndi --name "LucidSoup"
 #define _GNU_SOURCE
-#include <arpa/inet.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <poll.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
+
+#include "plat.h"      // the sockets, and the places Windows differs
 
 #include "embedded.h"
 #include "sha1.h"
@@ -61,12 +57,8 @@ static void on_sig(int s) { (void)s; stop_now = 1; }
 
 static void gen_token(void) {
     uint8_t raw[24];
-    FILE *f = fopen("/dev/urandom", "rb");
-    if (!f || fread(raw, 1, sizeof raw, f) != sizeof raw) {
-        // Never silently fall back to something guessable.
-        say("cannot read /dev/urandom"); exit(1);
-    }
-    fclose(f);
+    // Never silently fall back to something guessable.
+    if (!plat_random(raw, sizeof raw)) { say("no source of randomness"); exit(1); }
     for (int i = 0; i < 24; i++) snprintf(token + i * 2, 3, "%02x", raw[i]);
     token[48] = 0;
 }
@@ -74,7 +66,7 @@ static void gen_token(void) {
 /* ---------------- connections ---------------- */
 
 typedef struct {
-    int      fd;
+    sock_t   fd;
     int      ws;                 // 0 while still HTTP, 1 once upgraded
     uint8_t *buf;
     size_t   len, cap;
@@ -91,11 +83,11 @@ typedef struct {
 static Conn conns[MAX_CONNS];
 
 static void conn_drop(Conn *c) {
-    if (c->fd >= 0) close(c->fd);
+    if (sock_valid(c->fd)) sock_close(c->fd);
     free(c->buf);
     free(c->msg);
     memset(c, 0, sizeof *c);
-    c->fd = -1;
+    c->fd = SOCK_BAD;
 }
 
 static int buf_room(Conn *c, size_t need) {
@@ -111,10 +103,10 @@ static int buf_room(Conn *c, size_t need) {
     return 1;
 }
 
-static void send_all(int fd, const void *p, size_t n) {
+static void send_all(sock_t fd, const void *p, size_t n) {
     const uint8_t *b = p;
     while (n) {
-        ssize_t w = send(fd, b, n, MSG_NOSIGNAL);
+        rwret_t w = send(fd, (const char *)b, (int)n, SEND_FLAGS);
         if (w <= 0) return;
         b += w; n -= (size_t)w;
     }
@@ -136,7 +128,7 @@ static const char *mime_of(const char *path) {
     return "application/octet-stream";
 }
 
-static void http_text(int fd, int code, const char *status, const char *body) {
+static void http_text(sock_t fd, int code, const char *status, const char *body) {
     char h[512];
     int n = snprintf(h, sizeof h,
         "HTTP/1.1 %d %s\r\nContent-Type: text/plain; charset=utf-8\r\n"
@@ -175,7 +167,7 @@ static int origin_ok(const char *head) {
     return !strcmp(o, a) || !strcmp(o, b);
 }
 
-static void serve_file(int fd, const char *path) {
+static void serve_file(sock_t fd, const char *path) {
     // No climbing out of the served directory, however the path is spelled.
     if (strstr(path, "..")) { http_text(fd, 403, "Forbidden", "No."); return; }
     const char *want = (!strcmp(path, "/")) ? "/playground.html" : path;
@@ -333,7 +325,7 @@ static long ws_one(Conn *c, uint8_t *p, size_t n) {
 
 static void conn_readable(Conn *c) {
     if (!buf_room(c, 65536)) { conn_drop(c); return; }
-    ssize_t r = recv(c->fd, c->buf + c->len, c->cap - c->len, 0);
+    rwret_t r = recv(c->fd, (char *)(c->buf + c->len), (int)(c->cap - c->len), 0);
     if (r <= 0) {
         if (c->ws) say("the page stopped sending after %llu frames", (unsigned long long)c->frames);
         conn_drop(c);
@@ -415,43 +407,48 @@ int main(int argc, char **argv) {
     else { say("no sink called '%s'", want); return 1; }
     if (!sink) { say("%s", why ? why : "that sink is not in this build"); return 1; }
 
-    signal(SIGPIPE, SIG_IGN);
+    if (!plat_start()) { say("could not start sockets"); return 1; }
+#ifdef SIGPIPE
+    signal(SIGPIPE, SIG_IGN);     // absent on Windows; nothing to suppress
+#endif
     signal(SIGINT, on_sig);
     signal(SIGTERM, on_sig);
 
-    int srv = socket(AF_INET, SOCK_STREAM, 0);
+    sock_t srv = socket(AF_INET, SOCK_STREAM, 0);
     int one = 1;
-    setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+    setsockopt(srv, SOL_SOCKET, SO_REUSEADDR, (const char *)&one, sizeof one);
     struct sockaddr_in addr = {0};
     addr.sin_family = AF_INET;
     addr.sin_port = htons((uint16_t)port);
     // Loopback only, always. There is no flag to change this: a program that
     // publishes your screen has no business accepting strangers.
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    if (bind(srv, (struct sockaddr *)&addr, sizeof addr) < 0) {
+    if (bind(srv, (struct sockaddr *)&addr, sizeof addr) != 0) {
         say("cannot listen on 127.0.0.1:%d — %s", port, strerror(errno)); return 1;
     }
     listen(srv, 8);
-    for (int i = 0; i < MAX_CONNS; i++) conns[i].fd = -1;
+    for (int i = 0; i < MAX_CONNS; i++) conns[i].fd = SOCK_BAD;
 
     printf("\n  sink: %s\n\n  Open this, and only this:\n\n    http://127.0.0.1:%d/playground.html?send=%s\n\n",
            sink->name, port, token);
     fflush(stdout);
 
     while (!stop_now) {
-        struct pollfd pfd[MAX_CONNS + 1];
+        plat_pollfd pfd[MAX_CONNS + 1];
         int n = 0;
         pfd[n].fd = srv; pfd[n].events = POLLIN; n++;
         int map[MAX_CONNS];
         for (int i = 0; i < MAX_CONNS; i++)
-            if (conns[i].fd >= 0) { map[n - 1] = i; pfd[n].fd = conns[i].fd; pfd[n].events = POLLIN; n++; }
-        if (poll(pfd, (nfds_t)n, 500) < 0) { if (errno == EINTR) continue; break; }
+            if (sock_valid(conns[i].fd)) { map[n - 1] = i; pfd[n].fd = conns[i].fd; pfd[n].events = POLLIN; n++; }
+        if (plat_poll(pfd, (plat_nfds_t)n, 500) < 0) { if (errno == EINTR) continue; break; }
         if (pfd[0].revents & POLLIN) {
-            int fd = accept(srv, NULL, NULL);
-            if (fd >= 0) {
+            sock_t fd = accept(srv, NULL, NULL);
+            if (sock_valid(fd)) {
                 int slot = -1;
-                for (int i = 0; i < MAX_CONNS; i++) if (conns[i].fd < 0) { slot = i; break; }
-                if (slot < 0) close(fd);
+                // sock_valid, not < 0: SOCKET is unsigned on Windows, so the old
+                // test was always false and no free slot was ever found.
+                for (int i = 0; i < MAX_CONNS; i++) if (!sock_valid(conns[i].fd)) { slot = i; break; }
+                if (slot < 0) sock_close(fd);
                 else { memset(&conns[slot], 0, sizeof conns[slot]); conns[slot].fd = fd; }
             }
         }
@@ -461,6 +458,7 @@ int main(int argc, char **argv) {
 
     say("stopping");
     if (sink->w) sink->close(sink);
-    close(srv);
+    sock_close(srv);
+    plat_stop();
     return 0;
 }

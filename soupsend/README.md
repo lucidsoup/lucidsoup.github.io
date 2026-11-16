@@ -57,19 +57,36 @@ make ndi NDI_SDK="/path/to/NDI SDK"
 ./soupsend --sink ndi --name "LucidSoup"
 ```
 
-### Spout — Windows only, and not finished
+### Windows
 
-`sink_spout.cpp` compiles. The program around it does not, yet.
+`send.c` was POSIX sockets, so none of this built on Windows at all — which
+made the Spout sink useless however well it compiled. It is ported now.
+`plat.h` holds every difference in one file: Winsock for the sockets,
+`WSAPoll` for `poll`, `BCryptGenRandom` for `/dev/urandom`, `GetTickCount64`
+for the clock, and `SOCKET` for the file descriptor. `send.c` still reads
+like the POSIX program it is.
 
-`send.c` is POSIX sockets — `arpa/inet.h`, `sys/socket.h`, `poll.h`,
-`unistd.h` — and Windows has none of them. An earlier version of this README
-gave a `cl` command line as though it would work; it cannot, and that was
-wrong of it. What is missing is a Winsock port of `send.c`: `WSAStartup`,
-`closesocket`, `WSAPoll`, and something other than `/dev/urandom` for the
-token. It is maybe thirty lines behind `#ifdef _WIN32`, and nobody has
-written them.
+Cross-build from Linux, which is how it is checked:
 
-The sink itself is verified against the real headers — see below.
+```sh
+make windows          # needs mingw-w64; produces soupsend.exe, test sink
+```
+
+### Spout
+
+On Windows, with the Spout SDK:
+
+```
+cl /std:c++17 /EHsc /DHAVE_SPOUT send.c sha1.c sink_test.c sink_none.c ^
+   embedded.c sink_spout.cpp ^
+   /I path\to\Spout2\SPOUTSDK\SpoutDirectX\SpoutDX ^
+   SpoutDX.lib d3d11.lib dxgi.lib ws2_32.lib bcrypt.lib
+soupsend.exe --sink spout --name "LucidSoup"
+```
+
+`SpoutDX.lib` is the part that cannot be checked from here: only Spout's
+headers were available, not a built library. The sink compiles against those
+headers; linking it is the first thing to try.
 
 ## What has actually been tested, and what has not
 
@@ -102,6 +119,14 @@ against Spout's own `SpoutDX.h`, and every call it makes —
 `OpenDirectX11`, `SetSenderName`, `SendImage`, `ReleaseSender`,
 `CloseDirectX11` — matches the signature the real header declares. The only
 warnings are MSVC `#pragma comment(lib, …)` lines inside Spout's headers.
+
+**The Windows host builds and links.** `make windows` produces a real
+PE32+ executable with the test sink. That cross-build immediately earned its
+keep: the free-slot search still read `conns[i].fd < 0`, and `SOCKET` is
+unsigned on Windows, so the test was always false — no free slot would ever
+have been found and every connection after the first would have been
+dropped. A Linux build cannot see that bug, because there a descriptor
+really is a signed int.
 
 **Neither sink has ever been run.** Compiling is not working. The NDI build
 could not be executed where it was built — the sandbox there declines to run

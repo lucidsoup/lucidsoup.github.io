@@ -9,7 +9,10 @@
 #                     .so symlink unless you run its own installer:
 #                     https://ndi.video/for-developers/ndi-sdk/
 #                     make ndi NDI_SDK=/path/to/NDI\ SDK
-#   make spout        Windows only, and not from here. See README.md.
+#   make windows      cross-build soupsend.exe with mingw-w64, test sink only.
+#                     Proves the host builds for Windows; the Spout sink
+#                     needs Spout's own library as well — see README.md.
+#   make spout        on Windows itself. See README.md.
 #
 # The test sink is not a stub: it is how the transport is checked without
 # either SDK present, and it is worth keeping for exactly that.
@@ -51,10 +54,18 @@ ndi: $(OBJ) sink_ndi.o sink_none.o
 	 echo "$(CC) ... -o soupsend $^ $$so"; \
 	 $(CC) $(CFLAGS) -o soupsend $^ "$$so" -Wl,-rpath,"$(NDI_LIB)" $(LDFLAGS)
 
+# Cross-build for Windows. Winsock and bcrypt replace sockets and
+# /dev/urandom; see plat.h.
+WINCC ?= x86_64-w64-mingw32-gcc
+windows: embedded.c
+	$(WINCC) -std=gnu11 -O2 -Wall -Wextra -o soupsend.exe \
+	  send.c sha1.c sink_test.c sink_none.c embedded.c -lws2_32 -lbcrypt
+	@echo "built soupsend.exe (test sink; add Spout on Windows itself)"
+
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o soupsend embedded.c
+	rm -f *.o soupsend soupsend.exe embedded.c
 
-.PHONY: all ndi clean
+.PHONY: all ndi windows clean
