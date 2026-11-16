@@ -57,39 +57,72 @@ make ndi NDI_SDK="/path/to/NDI SDK"
 ./soupsend --sink ndi --name "LucidSoup"
 ```
 
-### Spout — Windows only
+### Spout — Windows only, and not finished
 
-```
-cl /std:c++17 /EHsc /DHAVE_SPOUT send.c sha1.c sink_test.c sink_spout.cpp ^
-   /I path\to\Spout2\SPOUTSDK\SpoutDirectX\SpoutDX ^
-   SpoutDX.lib d3d11.lib dxgi.lib ws2_32.lib
-soupsend.exe --sink spout --name "LucidSoup"
-```
+`sink_spout.cpp` compiles. The program around it does not, yet.
+
+`send.c` is POSIX sockets — `arpa/inet.h`, `sys/socket.h`, `poll.h`,
+`unistd.h` — and Windows has none of them. An earlier version of this README
+gave a `cl` command line as though it would work; it cannot, and that was
+wrong of it. What is missing is a Winsock port of `send.c`: `WSAStartup`,
+`closesocket`, `WSAPoll`, and something other than `/dev/urandom` for the
+token. It is maybe thirty lines behind `#ifdef _WIN32`, and nobody has
+written them.
+
+The sink itself is verified against the real headers — see below.
 
 ## What has actually been tested, and what has not
 
 Be clear-eyed about this before trusting it on a show.
 
-**Verified, on Linux, end to end:** the page is served from the binary with
-no checkout present, the WebSocket upgrades
-(handshake checked against RFC 6455's own worked example), frames arrive whole
-at the size asked for, and **the pixel the page sends is the pixel that
-arrives** — matched by timestamp, so channel order and orientation are proven
-rather than assumed. A wrong token is refused; another site's origin is
-refused; only loopback is bound. The server sustains **539 MB/s — 138 fps at
-1280×800** against a synthetic client.
+**The transport, end to end, on Linux.** The page is served from the binary
+with no checkout present, the WebSocket upgrades (handshake checked against
+RFC 6455's own worked example), frames arrive whole at the size asked for,
+and **the pixel the page sends is the pixel that arrives** — matched by
+timestamp, so channel order and orientation are proven rather than assumed.
+A wrong token is refused; another site's origin is refused; only loopback is
+bound. The server sustains **539 MB/s — 138 fps at 1280×800** against a
+synthetic client.
 
-**Not verified:** `sink_ndi.c` and `sink_spout.cpp` have **never been through a
-compiler**. The SDK could not be downloaded and Spout cannot exist on Linux.
-The shape is right and the calls come from each SDK's own headers, but expect
-to fix something the first time you build either, and please send back what.
+**Both sinks compile against the real SDKs.**
 
-**Not measurable here:** the frame rate the page can actually manage. The
+`sink_ndi.c` compiles and *links* — `make ndi` against NDI SDK v6 for Linux
+produces a working binary, with `libndi.so.6` and its Avahi/mDNS stack all
+resolving. Two bugs in this Makefile only showed up when that was first
+attempted for real:
+
+- the SDK unpacks to a directory called `NDI SDK for Linux`, and the
+  unquoted `-I$(NDI_INC)` turned it into three arguments, two of which the
+  compiler tried to link;
+- the `ndi` target did not include `sink_none.o`, so the "Spout is not in
+  this build" stub went missing and `sink_spout_new` was undefined at link.
+
+`sink_spout.cpp` compiles to a Windows object with `x86_64-w64-mingw32-g++`
+against Spout's own `SpoutDX.h`, and every call it makes —
+`OpenDirectX11`, `SetSenderName`, `SendImage`, `ReleaseSender`,
+`CloseDirectX11` — matches the signature the real header declares. The only
+warnings are MSVC `#pragma comment(lib, …)` lines inside Spout's headers.
+
+**Neither sink has ever been run.** Compiling is not working. The NDI build
+could not be executed where it was built — the sandbox there declines to run
+a binary linked against a 27 MB closed-source library downloaded minutes
+earlier, which is a reasonable thing for it to decline. So: the NDI path is
+known to build and link, and is **not** known to put a frame on the network.
+The Spout path cannot run at all until `send.c` is ported.
+
+If you are the first person to run either, the interesting moments are
+`NDIlib_send_create` returning non-NULL and a receiver actually finding the
+source. Please send back whatever happens.
+
+**Not measurable here: the frame rate the page can really manage.** The
 bottleneck is the canvas readback, and this was developed in a container with
 software OpenGL where the renderer itself runs at about 15 fps. The numbers
-you get on a real GPU will be different and no claim is made about them. If it
-is slow, lower the send width in the Out panel — fewer pixels read back is the
-only lever that matters.
+you get on a real GPU will be different and no claim is made about them. If
+it is slow, lower the send width in the Out panel.
+
+**The NDI SDK is licensed.** It is not committed here and must not be: get it
+from Vizrt yourself and accept their agreement, which is yours to accept and
+not this repository's to bundle.
 
 ## The wire format
 
