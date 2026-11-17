@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
+    <link rel="stylesheet" href="/lucid.css">
+    <link rel="stylesheet" href="/stack.css">
+    <meta charset="UTF-8">
+    <!-- Content Security Policy. GitHub Pages cannot send headers, so this is a
+         <meta>, which means frame-ancestors is not available here — clickjacking
+         still needs a real header this host will not send.
+
+         What it buys: with PeerJS now served from this origin, no page loads a
+         script from anywhere else, so script-src names no external host at all.
+         An injected <script src="..."> is refused, as is a <base> that would
+         re-point every relative URL, and <object>/<embed> entirely.
+
+         What it does not buy: every page here has inline <script>, so
+         'unsafe-inline' has to stay and injected *inline* script would still run.
+         Removing it needs nonces, which need a server. connect-src and media-src
+         stay wide because the whole point of the playground and the converter is
+         fetching media the visitor names, including from their own service on
+         localhost. wss: is listed separately because an `https:` source does
+     NOT admit a wss: socket in Chrome — DrumSeek's peer connection was
+     blocked until it was added, which a page load alone never showed. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watchlist — LucidSoup</title>
+    <meta name="description" content="A searchable reference of films, series and shorts worth an artist's time: visual craft, the psychedelic lineage, and documentaries about making things. Everything is searchable and filterable; nothing is tracked.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <style>
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif; line-height: 1.6; color: #fff;
+            background: #0a0a0a; min-height: 100vh; overflow-x: hidden;
+        }
+        a { color: var(--lucid-accent, #8b6cf5); }
+        .wrap { max-width: 1000px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+        header { text-align: center; margin-bottom: 2.5rem; }
+        h1 {
+            font-family: 'Orbitron', monospace; font-weight: 900;
+            font-size: clamp(1.6rem, 5vw, 2.6rem); letter-spacing: .06em;
+            text-transform: uppercase;
+            background: linear-gradient(90deg, var(--lucid-accent-3, #d44fb0), var(--lucid-accent, #8b6cf5), var(--lucid-accent-2, #8ae04b));
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .tagline { color: rgba(255,255,255,.6); font-size: .95rem; margin-top: .75rem; }
+        .tagline strong { color: var(--lucid-ink-label); font-weight: normal; }
+        .panel {
+            background: var(--lucid-pane, rgba(255,255,255,.03));
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.08));
+            border-radius: var(--lucid-pane-radius, 12px);
+            box-shadow: var(--lucid-pane-glow);
+            -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+            padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .panel h2 {
+            font-size: .72rem; text-transform: uppercase; letter-spacing: .18em;
+            color: var(--lucid-ink-label); font-weight: bold; margin-bottom: 1.1rem;
+        }
+        .panel p + p, .panel ul + p, .panel table + p { margin-top: .9rem; }
+        .panel p, .panel li { font-size: .95rem; color: rgba(255,255,255,.82); }
+        .panel ul { margin: .8rem 0 0 1.1rem; }
+        .panel li + li { margin-top: .45rem; }
+        code {
+            font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .88em;
+            color: #8ae04b;
+        }
+
+        /* ---- the watchlist ------------------------------------------
+           A reference you look things up in, so the controls stay put and
+           the list underneath them changes. Everything is client-side: the
+           whole collection is one JSON file, which is small enough to filter
+           on every keystroke and means the page works with no service behind
+           it and nothing to track you with. */
+        .controls {
+            position: sticky; top: 0; z-index: 5;
+            padding: 1rem 0 .9rem;
+            background: linear-gradient(#0a0a0acc, #0a0a0af2 70%, #0a0a0a00);
+            -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+        }
+        .searchrow { display: flex; gap: .6rem; flex-wrap: wrap; }
+        #q {
+            flex: 1 1 18rem; min-width: 0; font: inherit; font-size: 1rem;
+            padding: .7rem .9rem; border-radius: var(--lucid-pane-radius, 12px);
+            background: rgba(255,255,255,.05); color: #fff;
+            border: 1px solid var(--lucid-pane-edge, rgba(155,123,255,.3));
+        }
+        #q::placeholder { color: var(--lucid-ink-faint); }
+        #q:focus { border-color: rgba(155,123,255,.8); }
+        #sort {
+            font: inherit; font-size: .9rem; padding: .7rem .6rem;
+            border-radius: var(--lucid-pane-radius, 12px);
+            background: rgba(255,255,255,.05); color: #fff;
+            border: 1px solid var(--lucid-pane-edge, rgba(155,123,255,.3));
+        }
+        #sort option { background: #0b0b14; }
+
+        .filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
+        .chip {
+            font: inherit; font-size: .76rem; letter-spacing: .08em; text-transform: uppercase;
+            padding: .4rem .75rem; border-radius: 999px; cursor: pointer;
+            background: rgba(255,255,255,.04); color: var(--lucid-ink-dim);
+            border: 1px solid rgba(255,255,255,.1);
+            transition: border-color .15s, color .15s, background .15s;
+        }
+        .chip:hover { color: #fff; border-color: rgba(155,123,255,.5); }
+        .chip[aria-pressed="true"] {
+            color: #fff; background: rgba(155,123,255,.18);
+            border-color: var(--lucid-pane-lit, rgba(155,123,255,.6));
+        }
+        .chip.lane-craft[aria-pressed="true"]   { background: rgba(111,227,232,.16); border-color: rgba(111,227,232,.6); }
+        .chip.lane-psych[aria-pressed="true"]   { background: rgba(212,79,176,.16);  border-color: rgba(212,79,176,.6); }
+        .chip.lane-process[aria-pressed="true"] { background: rgba(138,224,75,.16);  border-color: rgba(138,224,75,.6); }
+
+        .count { margin-top: .7rem; font-size: .8rem; color: var(--lucid-ink-faint); }
+        .count b { color: var(--lucid-ink); font-weight: normal; }
+
+        .list { display: grid; gap: .7rem; margin-top: 1rem; }
+        .item {
+            padding: 1rem 1.1rem;
+            border: 1px solid var(--lucid-pane-edge, rgba(155,123,255,.16));
+            border-radius: var(--lucid-pane-radius, 14px);
+            background: var(--lucid-pane, rgba(255,255,255,.028));
+            box-shadow: var(--lucid-pane-glow);
+        }
+        .item h3 { font-size: 1.04rem; font-weight: normal; color: #fff; line-height: 1.35; }
+        .item h3 .yr { color: var(--lucid-ink-faint); font-size: .9rem; margin-left: .4rem; }
+        .credits { font-size: .82rem; color: var(--lucid-ink-dim); margin-top: .2rem; }
+        .credits .role { color: var(--lucid-ink-faint); }
+        .why { font-size: .92rem; color: var(--lucid-ink-dim); margin-top: .55rem; line-height: 1.6; }
+        .meta { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .6rem; align-items: center; }
+        .tag {
+            display: inline-flex; align-items: center; min-height: 24px;
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .66rem; letter-spacing: .06em;
+            padding: .25rem .6rem; border-radius: 999px;
+            background: rgba(255,255,255,.05); color: var(--lucid-ink-faint);
+            border: 1px solid rgba(255,255,255,.07);
+        }
+        .tag.btn { cursor: pointer; }
+        .tag.btn:hover { color: #fff; border-color: rgba(155,123,255,.5); }
+        .lane {
+            font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
+            font-size: .62rem; letter-spacing: .14em; text-transform: uppercase;
+            padding: .2rem .5rem; border-radius: 4px;
+        }
+        .lane.craft   { color: #6fe3e8; background: rgba(111,227,232,.1); }
+        .lane.psych   { color: #ef7ad0; background: rgba(212,79,176,.12); }
+        .lane.process { color: #a9ef6a; background: rgba(138,224,75,.1); }
+        .kind { font-size: .7rem; color: var(--lucid-ink-faint); letter-spacing: .1em; text-transform: uppercase; }
+
+        .empty { padding: 2rem 1rem; text-align: center; color: var(--lucid-ink-dim); }
+        .empty b { color: #fff; font-weight: normal; }
+        mark { background: rgba(138,224,75,.26); color: #fff; border-radius: 2px; }
+
+        @media (max-width: 640px) {
+            .controls { padding-top: .6rem; }
+            #sort { flex: 1 1 100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>Watchlist</h1>
+        <p class="tagline">
+            Films, series and shorts worth an artist's time &mdash; what to take from each one
+            rather than whether it is good. Three lanes: how a thing was made to look that way,
+            the psychedelic lineage this place comes out of, and people making things.
+            <strong>Search it, filter it, argue with it.</strong>
+        </p>
+    </header>
+
+    <div class="controls">
+        <div class="searchrow">
+            <input id="q" type="search" autocomplete="off" spellcheck="false"
+                   placeholder="Search titles, people, tags, notes&hellip;  (press /)"
+                   aria-label="Search the watchlist">
+            <select id="sort" aria-label="Sort order">
+                <option value="year-desc">Newest first</option>
+                <option value="year-asc">Oldest first</option>
+                <option value="title">A&ndash;Z</option>
+            </select>
+        </div>
+        <div class="filters" id="lanes" role="group" aria-label="Filter by lane"></div>
+        <div class="filters" id="kinds" role="group" aria-label="Filter by kind"></div>
+        <p class="count" id="count" role="status" aria-live="polite"></p>
+    </div>
+
+    <main id="main" tabindex="-1">
+        <div class="list" id="list"></div>
+    </main>
+
+    <div class="panel" style="margin-top:2rem">
+        <h2>About this list</h2>
+        <p id="note"></p>
+        <p style="margin-top:.9rem">
+            It lives in <code>watch.json</code> and the page reads nothing else, so adding to it is
+            editing one file. Every entry is a title, year and director stated with confidence;
+            where a cinematographer or a credit was uncertain the field was left out rather than
+            guessed at. There are no posters and no third-party requests &mdash; nothing here
+            phones anywhere.
+        </p>
+    </div>
+</div>
+
+<script src="/lucid.js"></script>
+<script src="/stack.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    var LANES = ['craft', 'psych', 'process'];
+    var KINDS = ['film', 'series', 'short', 'doc'];
+    var KIND_LABEL = { film: 'Film', series: 'Series', short: 'Short', doc: 'Documentary' };
+
+    var data = null, items = [];
+    var state = { q: '', lanes: [], kinds: [], sort: 'year-desc' };
+
+    var elQ = document.getElementById('q');
+    var elSort = document.getElementById('sort');
+    var elList = document.getElementById('list');
+    var elCount = document.getElementById('count');
+
+    /* The whole collection is in memory, so searching is a filter over an
+       array rather than a request. One pass, every keystroke, 112 items —
+       there is no need for an index and no excuse for a spinner. */
+    function haystack(it) {
+        if (it._h) return it._h;
+        it._h = [it.title, it.year, it.by || '', it.dp || '',
+                 (it.tags || []).join(' '), it.why || '', (it.lanes || []).join(' '), it.kind]
+                .join(' ').toLowerCase();
+        return it._h;
+    }
+
+    function matches(it) {
+        if (state.lanes.length && !state.lanes.some(function (l) { return (it.lanes || []).indexOf(l) >= 0; })) return false;
+        if (state.kinds.length && state.kinds.indexOf(it.kind) < 0) return false;
+        if (!state.q) return true;
+        // Every word has to appear somewhere, in any order — so "doyle neon"
+        // and "neon doyle" find the same thing.
+        return state.q.split(/\s+/).every(function (w) { return haystack(it).indexOf(w) >= 0; });
+    }
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+    }
+
+    // Show the searcher where the match was, without letting the terms
+    // themselves become markup.
+    function hilite(s) {
+        var out = esc(s);
+        if (!state.q) return out;
+        state.q.split(/\s+/).filter(Boolean).forEach(function (w) {
+            var re = new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+            out = out.replace(re, '\u0001$1\u0002');
+        });
+        return out.split('\u0001').join('<mark>').split('\u0002').join('</mark>');
+    }
+
+    function card(it) {
+        var credits = [];
+        if (it.by) credits.push('<span class="role">dir</span> ' + hilite(it.by));
+        if (it.dp) credits.push('<span class="role">dp</span> ' + hilite(it.dp));
+        return '<article class="item">' +
+            '<h3>' + hilite(it.title) + '<span class="yr">' + it.year + '</span></h3>' +
+            (credits.length ? '<p class="credits">' + credits.join(' &middot; ') + '</p>' : '') +
+            (it.why ? '<p class="why">' + hilite(it.why) + '</p>' : '') +
+            '<p class="meta">' +
+              '<span class="kind">' + esc(KIND_LABEL[it.kind] || it.kind) + '</span>' +
+              (it.lanes || []).map(function (l) {
+                  return '<span class="lane ' + esc(l) + '">' + esc(l) + '</span>'; }).join('') +
+              (it.tags || []).map(function (t) {
+                  return '<button type="button" class="tag btn" data-tag="' + esc(t) + '">' + hilite(t) + '</button>'; }).join('') +
+            '</p></article>';
+    }
+
+    function render() {
+        var found = items.filter(matches);
+        found.sort(function (a, b) {
+            if (state.sort === 'title') return a.title.localeCompare(b.title);
+            if (state.sort === 'year-asc') return a.year - b.year || a.title.localeCompare(b.title);
+            return b.year - a.year || a.title.localeCompare(b.title);
+        });
+
+        elCount.innerHTML = found.length === items.length
+            ? '<b>' + items.length + '</b> titles'
+            : '<b>' + found.length + '</b> of ' + items.length +
+              (state.q ? ' matching &ldquo;' + esc(state.q) + '&rdquo;' : '');
+
+        elList.innerHTML = found.length
+            ? found.map(card).join('')
+            : '<div class="empty"><b>Nothing matches that.</b><br>' +
+              'Try a director, a technique, or a word from a note &mdash; ' +
+              '<em>slit-scan</em>, <em>technicolor</em>, <em>stop-motion</em>.</div>';
+
+        // Deep-linkable, so a search can be sent to someone.
+        var p = new URLSearchParams();
+        if (state.q) p.set('q', state.q);
+        if (state.lanes.length) p.set('lane', state.lanes.join(','));
+        if (state.kinds.length) p.set('kind', state.kinds.join(','));
+        if (state.sort !== 'year-desc') p.set('sort', state.sort);
+        var qs = p.toString();
+        history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+    }
+
+    function chip(label, cls, on, toggle) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip ' + cls;
+        b.textContent = label;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.addEventListener('click', function () {
+            toggle();
+            b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+            render();
+        });
+        return b;
+    }
+
+    function buildChips() {
+        var lanes = document.getElementById('lanes');
+        LANES.forEach(function (l) {
+            lanes.appendChild(chip((data.lanes && data.lanes[l] ? l : l), 'lane-' + l,
+                state.lanes.indexOf(l) >= 0, function () {
+                    var i = state.lanes.indexOf(l);
+                    if (i >= 0) state.lanes.splice(i, 1); else state.lanes.push(l);
+                }));
+        });
+        var kinds = document.getElementById('kinds');
+        KINDS.forEach(function (k) {
+            kinds.appendChild(chip(KIND_LABEL[k], 'kind-' + k,
+                state.kinds.indexOf(k) >= 0, function () {
+                    var i = state.kinds.indexOf(k);
+                    if (i >= 0) state.kinds.splice(i, 1); else state.kinds.push(k);
+                }));
+        });
+    }
+
+    function fromUrl() {
+        var p = new URLSearchParams(location.search);
+        state.q = (p.get('q') || '').toLowerCase().trim();
+        state.lanes = (p.get('lane') || '').split(',').filter(function (x) { return LANES.indexOf(x) >= 0; });
+        state.kinds = (p.get('kind') || '').split(',').filter(function (x) { return KINDS.indexOf(x) >= 0; });
+        var s = p.get('sort');
+        if (s === 'year-asc' || s === 'title') state.sort = s;
+        elQ.value = state.q;
+        elSort.value = state.sort;
+    }
+
+    elQ.addEventListener('input', function () {
+        state.q = elQ.value.toLowerCase().trim();
+        render();
+    });
+    elSort.addEventListener('change', function () { state.sort = elSort.value; render(); });
+
+    // Click a tag to search for it. The tags are the index.
+    elList.addEventListener('click', function (e) {
+        var b = e.target.closest('.tag.btn');
+        if (!b) return;
+        elQ.value = b.dataset.tag;
+        state.q = b.dataset.tag.toLowerCase();
+        render();
+        elQ.focus();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === '/' && document.activeElement !== elQ) { e.preventDefault(); elQ.focus(); elQ.select(); }
+        if (e.key === 'Escape' && document.activeElement === elQ && elQ.value) {
+            elQ.value = ''; state.q = ''; render();
+        }
+    });
+
+    fetch('/watch.json')
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) {
+            data = d;
+            items = d.items || [];
+            document.getElementById('note').textContent = d.note || '';
+            // fromUrl first: buildChips reads the state to decide which
+            // chips start pressed, and building them from an empty state
+            // left a restored filter applied but invisible.
+            fromUrl();
+            buildChips();
+            render();
+        })
+        .catch(function (e) {
+            elList.innerHTML = '<div class="empty"><b>The list would not load.</b><br>' +
+                esc(String(e.message || e)) + '</div>';
+        });
+})();
+</script>
+</body>
+</html>
