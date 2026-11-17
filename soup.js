@@ -76,6 +76,7 @@
         { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'ring',   d: 70, ring: 1, a: .69 },
         { id: 'playground',     label: 'Playground', sub: 'audio \u2192 visuals', href: 'playground.html', shape: 'scope', d: 72, ring: 1, a: .89 },
 
+        { id: 'watch',          label: 'Watchlist',  sub: 'what to watch', href: 'watch.html',     shape: 'reel',   d: 68, ring: 2, a: .72 },
         { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'spiral', d: 74, ring: 2, a: .17 },
         { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'star', d: 58, ring: 2, a: .42 },
         { id: 'about',          label: 'About',      sub: '',              hash: 'about',          shape: 'pea',    d: 56, ring: 2, a: .67 },
@@ -94,6 +95,18 @@
             return svg('<g stroke="#0e0820" stroke-width="5" opacity=".75">' +
                 '<path d="M26 6v88M50 6v88M74 6v88M6 26h88M6 50h88M6 74h88"/></g>',
                 'linear-gradient(145deg,#ffb347,#d4603a)');
+        },
+        // A film reel: the watchlist. Sprocket holes rather than a play
+        // triangle, because a triangle reads as "press this" and this is a
+        // list of things to go and find.
+        reel: function () {
+            return svg('<circle cx="50" cy="50" r="38" fill="none" stroke="#0e0820" stroke-width="7" opacity=".8"/>' +
+                '<circle cx="50" cy="50" r="9" fill="#0e0820" opacity=".8"/>' +
+                '<g fill="#0e0820" opacity=".7">' +
+                '<circle cx="50" cy="26" r="7"/><circle cx="71" cy="38" r="7"/>' +
+                '<circle cx="71" cy="62" r="7"/><circle cx="50" cy="74" r="7"/>' +
+                '<circle cx="29" cy="62" r="7"/><circle cx="29" cy="38" r="7"/></g>',
+                'linear-gradient(145deg,#ffd27a,#d44fb0)');
         },
         cube: function () {
             return svg('<g fill="none" stroke="#f6ecff" stroke-width="4" stroke-linejoin="round" opacity=".9">' +

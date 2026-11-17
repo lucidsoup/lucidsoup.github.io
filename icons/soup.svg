@@ -1,45 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="A bowl of soup with eyes and a lolling tongue">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="The SynthSoup cat above a bowl of soup">
 <title>LucidSoup</title>
-<!-- Master artwork. The PNGs beside this file are rasterised from it by
-     tools/icons.mjs; edit this, re-run that, never hand-edit a PNG.
+<!-- The cat is the real logo, not a redrawing of it.
 
-     Built so it survives being shrunk: the silhouette is three big shapes
-     (bowl, eyes, tongue) that still read at 32px, and everything finer —
-     the swirl in the broth, the vessels in the tongue, the second
-     catchlight — is detail that may dissolve without taking the character
-     with it. -->
+     It is lifted pixel-for-pixel out of synthsoup/assets/soup-cat.gif, which
+     is a 240x240 screen capture of the synth's display: frame 0, cropped to
+     the head at x130 y78, the screen background keyed out, and the two rows
+     of the filter-cutoff line that cross the muzzle (y138-139, #ff55d5)
+     repaired from the rows either side so the tongue carries through. The
+     body and the tail were cropped away because the cat in the GIF is
+     holding a bowl of its own and this icon already has one.
+
+     Embedded rather than referenced because an SVG used as a favicon does
+     not load external images. Scaled by exactly 4 and rendered pixelated:
+     it is pixel art and should look like pixel art, not like pixel art
+     someone tried to smooth. 4x rather than 3x because a browser tab renders
+     this at 16-32px, where the extra size is the difference between a face
+     and a smudge — it was checked at both.
+
+     The bowl below it is vector, and stays vector.
+
+     Regenerate the cat with tools/extract-cat.py, then the PNGs with
+     tools/icons.mjs. -->
 <defs>
   <radialGradient id="bg" cx="50%" cy="38%" r="72%">
     <stop offset="0"   stop-color="#2a1256"/>
     <stop offset=".55" stop-color="#140a2e"/>
     <stop offset="1"   stop-color="#05040f"/>
   </radialGradient>
-
-  <!-- The broth. Acid green at the lip where the light lands, falling
-       through teal to a deep sick cyan in the shadow under the near rim. -->
   <radialGradient id="broth" cx="42%" cy="28%" r="78%">
     <stop offset="0"   stop-color="#e2ff8c"/>
     <stop offset=".3"  stop-color="#8ae04b"/>
     <stop offset=".62" stop-color="#2fae8e"/>
     <stop offset="1"   stop-color="#0a4150"/>
   </radialGradient>
-
-  <!-- The head is the same broth stood up, so it is lit from the same place
-       and reads as made of the liquid rather than sitting in it. -->
-  <radialGradient id="goo" cx="34%" cy="20%" r="88%">
-    <stop offset="0"   stop-color="#f2ffb4"/>
-    <stop offset=".22" stop-color="#a8f05e"/>
-    <stop offset=".5"  stop-color="#43c08c"/>
-    <stop offset=".78" stop-color="#15808a"/>
-    <stop offset="1"   stop-color="#07394d"/>
-  </radialGradient>
-  <!-- Darker cut of the same material, for eyelids and the shadowed drips:
-       a lid has to be the colour of the face or it reads as a sticker. -->
-  <linearGradient id="lid" x1="0%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0"   stop-color="#6fcf62"/>
-    <stop offset="1"   stop-color="#1b8a7e"/>
-  </linearGradient>
-
   <linearGradient id="bowl" x1="12%" y1="0%" x2="88%" y2="100%">
     <stop offset="0"   stop-color="#b79bff"/>
     <stop offset=".34" stop-color="#7d55e8"/>
@@ -51,70 +44,13 @@
     <stop offset=".45" stop-color="#9b7bff"/>
     <stop offset="1"   stop-color="#5e34b8"/>
   </linearGradient>
-
-  <!-- Tongue: pale pink where it catches light at the fat of the curl,
-       magenta through the body, oxblood where it goes into the mouth. -->
-  <linearGradient id="tongue" x1="26%" y1="0%" x2="62%" y2="100%">
-    <stop offset="0"   stop-color="#5e0b33"/>
-    <stop offset=".16" stop-color="#a82068"/>
-    <stop offset=".42" stop-color="#ef5fa8"/>
-    <stop offset=".62" stop-color="#ff8cc4"/>
-    <stop offset=".84" stop-color="#cf3b92"/>
-    <stop offset="1"   stop-color="#9c1f66"/>
-  </linearGradient>
-  <linearGradient id="curl" x1="0%" y1="0%" x2="0%" y2="100%">
-    <stop offset="0"   stop-color="#ffc8e4"/>
-    <stop offset="1"   stop-color="#ff87c2"/>
-  </linearGradient>
-
-  <radialGradient id="sclera" cx="38%" cy="28%" r="82%">
-    <stop offset="0"   stop-color="#ffffff"/>
-    <stop offset=".6"  stop-color="#f4eeff"/>
-    <stop offset=".88" stop-color="#d2c1ec"/>
-    <stop offset="1"   stop-color="#a289c7"/>
-  </radialGradient>
-  <!-- Magenta at the limbus into cyan at the pupil. A single-hue iris is
-       what makes most cartoon eyes read as plastic. -->
-  <radialGradient id="iris" cx="42%" cy="34%" r="74%">
-    <stop offset="0"   stop-color="#b6fbff"/>
-    <stop offset=".26" stop-color="#4fd3f5"/>
-    <stop offset=".58" stop-color="#6d3ce0"/>
-    <stop offset=".86" stop-color="#c33fb0"/>
-    <stop offset="1"   stop-color="#2a0a52"/>
-  </radialGradient>
-
-  <!-- One blur reused at three radii by three filters, because a stack of
-       bespoke filters is the expensive part of rendering an SVG this size. -->
   <filter id="soft"   x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="9"/></filter>
   <filter id="softer" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="20"/></filter>
-  <filter id="tight"  x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2"/></filter>
-
-  <!-- Lumpy, not round. A circle reads as a logo; the bulge over the right
-       brow and the slump on the left are what make it read as something
-       soft that has just surfaced. -->
-  <path id="headpath" d="M252 122 C302 116 344 138 362 176 C374 200 380 206 376 234
-                         C372 268 358 296 332 312 C306 328 288 334 252 334
-                         C214 334 176 320 157 296 C134 268 130 230 141 195
-                         C156 148 202 128 252 122 Z"/>
-  <!-- Longer than it is wide, and leaning, so it lolls rather than hangs.
-       The silhouette's lowest edge is where the curl goes, so it is drawn
-       here once and reused by the fill, the clip and the outline. -->
-  <path id="tonguepath" d="M238 262 C219 288 212 328 220 360
-                           C229 392 251 414 279 416
-                           C309 418 332 400 337 372
-                           C341 346 331 326 317 316
-                           C305 308 296 286 293 262 Z"/>
-
-  <clipPath id="headclip"><use href="#headpath"/></clipPath>
-  <clipPath id="tongueclip"><use href="#tonguepath"/></clipPath>
-  <clipPath id="brothclip"><ellipse cx="256" cy="332" rx="176" ry="48"/></clipPath>
+  <clipPath id="brothclip"><ellipse cx="256" cy="374" rx="176" ry="48"/></clipPath>
 </defs>
 
 <rect width="512" height="512" fill="url(#bg)"/>
 
-<!-- Psychedelic ground: three fields of colour turning against each other,
-     the same hues the site's own background uses, kept well under the art
-     so the character stays the subject. -->
 <g filter="url(#softer)" opacity=".62">
   <circle cx="150" cy="130" r="118" fill="#8e4bff"/>
   <circle cx="372" cy="150" r="104" fill="#d44fb0"/>
@@ -126,165 +62,35 @@
   <ellipse cx="256" cy="236" rx="126" ry="138" stroke-width="2"/>
 </g>
 
-<!-- Steam, drawn as two curling noodles rather than wisps: it is the only
-     part of the drawing that says hot, and a wisp vanishes when shrunk. -->
-<g fill="none" stroke-linecap="round" opacity=".72">
-  <path d="M188 146 C168 114 198 96 184 66 C174 44 192 32 208 34" stroke="#6fe3e8" stroke-width="9"/>
-  <path d="M326 140 C348 110 320 90 336 62 C346 44 330 30 314 32" stroke="#d44fb0" stroke-width="9"/>
-</g>
+<!-- a glow under the cat, so it belongs to the scene rather than sitting on it -->
+<ellipse cx="256" cy="176" rx="220" ry="136" fill="#b021f6" opacity=".22" filter="url(#softer)"/>
+
+<image x="46" y="40" width="420" height="272"
+       style="image-rendering: pixelated; image-rendering: crisp-edges"
+       href="data:image/png;base64,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"/>
 
 <!-- ===== bowl ===== -->
-<ellipse cx="256" cy="452" rx="150" ry="26" fill="#04030c" opacity=".55" filter="url(#soft)"/>
-<path d="M70 330 C70 330 86 448 130 470 C168 489 344 489 382 470 C426 448 442 330 442 330 Z" fill="url(#bowl)"/>
-<!-- Specular band down the left of the cup, and a cooler bounce on the
-     right, so the bowl reads as a glazed solid and not a flat wedge. -->
-<path d="M96 338 C104 408 122 448 148 464 C128 462 110 450 100 436 C84 414 76 372 74 338 Z" fill="#e4d8ff" opacity=".42"/>
-<path d="M418 338 C412 400 396 442 374 460 C398 450 414 428 424 398 C432 374 436 350 438 338 Z" fill="#6fe3e8" opacity=".2"/>
-<ellipse cx="256" cy="332" rx="188" ry="54" fill="none" stroke="url(#rim)" stroke-width="13"/>
-<ellipse cx="256" cy="330" rx="188" ry="54" fill="none" stroke="#f0e8ff" stroke-width="3.5" opacity=".5"/>
-
-<!-- ===== broth in the bowl ===== -->
-<ellipse cx="256" cy="332" rx="176" ry="48" fill="url(#broth)"/>
+<ellipse cx="256" cy="494" rx="150" ry="26" fill="#04030c" opacity=".55" filter="url(#soft)"/>
+<path d="M70 372 C70 372 86 490 130 512 C168 531 344 531 382 512 C426 490 442 372 442 372 Z" fill="url(#bowl)"/>
+<path d="M96 380 C104 450 122 490 148 506 C128 504 110 492 100 478 C84 456 76 414 74 380 Z" fill="#e4d8ff" opacity=".42"/>
+<path d="M418 380 C412 442 396 484 374 502 C398 492 414 470 424 440 C432 416 436 392 438 380 Z" fill="#6fe3e8" opacity=".2"/>
+<ellipse cx="256" cy="374" rx="188" ry="54" fill="none" stroke="url(#rim)" stroke-width="13"/>
+<ellipse cx="256" cy="372" rx="188" ry="54" fill="none" stroke="#f0e8ff" stroke-width="3.5" opacity=".5"/>
+<ellipse cx="256" cy="374" rx="176" ry="48" fill="url(#broth)"/>
 <g clip-path="url(#brothclip)">
-  <!-- A vortex, because still liquid in a bowl with a face in it is the one
-       detail that would make the whole thing read as a photograph of a prop. -->
   <g fill="none" stroke="#06343f" opacity=".32" stroke-linecap="round">
-    <path d="M140 338 C172 308 262 304 322 322 C368 336 356 356 318 360" stroke-width="7"/>
-    <path d="M172 354 C212 334 284 332 320 346"                          stroke-width="5"/>
+    <path d="M140 380 C172 350 262 346 322 364 C368 378 356 398 318 402" stroke-width="7"/>
+    <path d="M172 396 C212 376 284 374 320 388" stroke-width="5"/>
   </g>
-  <path d="M144 328 C178 300 266 296 326 314" fill="none" stroke="#e8ff9e" opacity=".45" stroke-width="4" stroke-linecap="round"/>
-  <ellipse cx="256" cy="358" rx="170" ry="30" fill="#063542" opacity=".35"/>
-  <!-- Noodles. Two of them, surfacing, because a soup with a face still has
-       to be a soup. -->
+  <path d="M144 370 C178 342 266 338 326 356" fill="none" stroke="#e8ff9e" opacity=".45" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="256" cy="400" rx="170" ry="30" fill="#063542" opacity=".35"/>
   <g fill="none" stroke-linecap="round">
-    <path d="M104 336 C126 322 152 330 162 346" stroke="#8a6a18" stroke-width="13" opacity=".55"/>
-    <path d="M104 336 C126 322 152 330 162 346" stroke="#ffe9a8" stroke-width="9"/>
-    <path d="M110 331 C128 322 146 328 155 338"  stroke="#fffbe6" stroke-width="3" opacity=".75"/>
-    <path d="M370 346 C390 330 414 334 422 348" stroke="#8a6a18" stroke-width="12" opacity=".5"/>
-    <path d="M370 346 C390 330 414 334 422 348" stroke="#ffe9a8" stroke-width="8"/>
+    <path d="M104 378 C126 364 152 372 162 388" stroke="#8a6a18" stroke-width="13" opacity=".55"/>
+    <path d="M104 378 C126 364 152 372 162 388" stroke="#ffe9a8" stroke-width="9"/>
+    <path d="M370 388 C390 372 414 376 422 390" stroke="#8a6a18" stroke-width="12" opacity=".5"/>
+    <path d="M370 388 C390 372 414 376 422 390" stroke="#ffe9a8" stroke-width="8"/>
   </g>
-  <circle cx="186" cy="356" r="10" fill="#dcff8e" opacity=".75"/>
-  <circle cx="186" cy="356" r="4.5" fill="#f6ffd8" opacity=".9"/>
-  <circle cx="378" cy="324" r="7" fill="#bdf07a" opacity=".65"/>
-  <circle cx="402" cy="336" r="4.5" fill="#e4ffa6" opacity=".55"/>
+  <circle cx="200" cy="398" r="9" fill="#dcff8e" opacity=".75"/>
+  <circle cx="378" cy="366" r="7" fill="#bdf07a" opacity=".65"/>
 </g>
-
-<!-- ===== the head ===== -->
-<use href="#headpath" fill="url(#goo)"/>
-<g clip-path="url(#headclip)">
-  <!-- Rim light along the top left, shadow pooling at the waterline. -->
-  <use href="#headpath" fill="none" stroke="#f6ffc8" stroke-width="18" opacity=".38" filter="url(#tight)"/>
-  <path d="M376 234 C372 268 358 296 332 312 C306 328 288 334 252 334"
-        fill="none" stroke="#ff7ad0" stroke-width="15" opacity=".5" filter="url(#tight)"/>
-  <path d="M141 195 C130 230 134 268 157 296" fill="none"
-        stroke="#6fe3e8" stroke-width="13" opacity=".35" filter="url(#tight)"/>
-  <ellipse cx="256" cy="340" rx="150" ry="36" fill="#06343f" opacity=".45" filter="url(#soft)"/>
-  <!-- Subsurface: light getting into the goo and coming back out brighter. -->
-  <ellipse cx="200" cy="178" rx="68" ry="44" fill="#f4ffb6" opacity=".32" filter="url(#soft)"/>
-  <!-- A psychedelic turn inside the goo, so the head is visibly the same
-       stuff as the broth and not a green balloon. -->
-  <g fill="none" stroke="#0b5f73" opacity=".3" stroke-linecap="round">
-    <path d="M146 252 C194 212 288 210 344 246" stroke-width="12"/>
-    <path d="M158 288 C206 258 294 258 346 286" stroke-width="8"/>
-    <path d="M168 316 C208 296 300 296 340 314" stroke-width="6"/>
-  </g>
-  <g fill="none" stroke="#e4ffa8" opacity=".26" stroke-linecap="round">
-    <path d="M148 243 C196 203 290 201 346 237" stroke-width="5"/>
-    <path d="M160 280 C208 250 296 250 348 278" stroke-width="3.5"/>
-  </g>
-  <!-- Two brow ridges of lifted goo. These give the face an expression at
-       any size, which eyebrows made of thin strokes would not. -->
-  <path d="M158 182 C182 154 222 148 248 164 C216 160 184 170 158 182 Z" fill="#0d5f68" opacity=".5"/>
-  <path d="M358 176 C338 148 304 142 282 156 C312 156 338 166 358 176 Z" fill="#0d5f68" opacity=".5"/>
-</g>
-
-<!-- Goo pulling up off the surface as it rises, and drips sliding back down:
-     the join, so the head is part of the soup instead of balanced on it. -->
-<g fill="url(#goo)">
-  <path d="M150 296 C136 316 139 336 152 344 C141 327 143 311 154 299 Z"/>
-  <path d="M362 294 C376 314 373 336 360 344 C371 327 369 311 358 297 Z"/>
-  <path d="M196 326 C198 346 194 360 186 364 C178 368 172 360 174 350 C177 340 190 336 196 326 Z"/>
-  <path d="M322 322 C326 342 323 356 315 360 C307 364 300 356 303 347 C306 338 317 333 322 322 Z"/>
-</g>
-
-<!-- ===== eyes =====
-     Mismatched in size and height on purpose. Two identical circles at the
-     same y read as a machine; four pixels of difference read as a creature.
-     The lid is a shape of the same goo laid over the top of the ball, not a
-     shadow across it — a straight shaded edge is what makes cartoon eyes
-     look half asleep. -->
-<g>
-  <!-- left -->
-  <ellipse cx="212" cy="224" rx="46" ry="48" fill="#07202c" opacity=".5" filter="url(#tight)"/>
-  <circle cx="212" cy="222" r="45" fill="url(#sclera)"/>
-  <circle cx="218" cy="210" r="26" fill="url(#iris)"/>
-  <circle cx="218" cy="210" r="26" fill="none" stroke="#120634" stroke-width="3.5" opacity=".85"/>
-  <circle cx="218" cy="210" r="12" fill="#07011c"/>
-  <path d="M174 206 A45 45 0 0 1 252 200 C224 182 190 188 174 206 Z" fill="url(#lid)"/>
-  <path d="M174 206 A45 45 0 0 1 252 200" fill="none" stroke="#0f5a5e" stroke-width="4" opacity=".7"/>
-  <circle cx="212" cy="222" r="45" fill="none" stroke="#123240" stroke-width="3.5" opacity=".6"/>
-  <circle cx="208" cy="198" r="9" fill="#ffffff" opacity=".96"/>
-  <circle cx="231" cy="228" r="4.5" fill="#bdf4ff" opacity=".75"/>
-  <!-- right -->
-  <ellipse cx="306" cy="218" rx="42" ry="44" fill="#07202c" opacity=".5" filter="url(#tight)"/>
-  <circle cx="306" cy="216" r="41" fill="url(#sclera)"/>
-  <circle cx="300" cy="205" r="24" fill="url(#iris)"/>
-  <circle cx="300" cy="205" r="24" fill="none" stroke="#120634" stroke-width="3.5" opacity=".85"/>
-  <circle cx="300" cy="205" r="11" fill="#07011c"/>
-  <path d="M266 202 A41 41 0 0 1 344 198 C318 180 284 184 266 202 Z" fill="url(#lid)"/>
-  <path d="M266 202 A41 41 0 0 1 344 198" fill="none" stroke="#0f5a5e" stroke-width="4" opacity=".7"/>
-  <circle cx="306" cy="216" r="41" fill="none" stroke="#123240" stroke-width="3.5" opacity=".6"/>
-  <circle cx="291" cy="194" r="8" fill="#ffffff" opacity=".96"/>
-  <circle cx="312" cy="222" r="4" fill="#bdf4ff" opacity=".75"/>
-</g>
-
-<!-- ===== mouth and tongue =====
-     The dark of the open mouth is drawn before the tongue and made wider
-     than it, so the tongue reads as coming out of a hole rather than being
-     stuck on a chin. -->
-<path d="M188 246 C204 242 214 266 232 280 C258 300 292 296 312 272 C322 260 326 248 334 246
-         C344 290 318 322 260 324 C202 326 178 292 188 246 Z" fill="#280617"/>
-<path d="M188 246 C204 242 214 266 232 280 C258 300 292 296 312 272 C322 260 326 248 334 246"
-      fill="none" stroke="#0e4e58" stroke-width="8" stroke-linecap="round" opacity=".75"/>
-
-<use href="#tonguepath" fill="url(#tongue)"/>
-<g clip-path="url(#tongueclip)">
-  <!-- Centre groove, then the vessels either side of it. The groove is what
-       makes a pink shape a tongue; the vessels are what make it wet. -->
-  <path d="M264 266 C244 296 238 342 250 374 C258 396 270 410 284 414"
-        fill="none" stroke="#7d1148" stroke-width="10" opacity=".45" stroke-linecap="round"/>
-  <g fill="none" stroke="#ffd0e8" opacity=".26" stroke-linecap="round" stroke-width="4">
-    <path d="M244 292 C231 320 230 352 242 374"/>
-    <path d="M288 288 C277 316 279 348 294 372"/>
-  </g>
-  <ellipse cx="232" cy="306" rx="16" ry="36" fill="#5e0b33" opacity=".45" filter="url(#soft)"/>
-  <!-- Soft sheen down the slope. -->
-  <path d="M292 300 C282 330 282 362 294 384" fill="none" stroke="#ffffff"
-        stroke-width="14" opacity=".32" stroke-linecap="round" filter="url(#tight)"/>
-</g>
-<!-- The curl: the tip has rolled over and what you see along the bottom lip
-     is the pale underside. This is why the tongue gradient goes dark again
-     below .84 — there has to be something for the underside to be lighter
-     than. Kept inside the silhouette so it reads as a fold and not a chin. -->
-<g clip-path="url(#tongueclip)">
-  <path d="M215 356 C225 392 249 414 279 417 C311 420 334 402 340 372
-           C332 386 312 394 278 392 C248 390 226 376 215 356 Z" fill="url(#curl)"/>
-  <path d="M217 356 C228 388 251 406 279 408 C309 410 330 394 339 372"
-        fill="none" stroke="#8c1550" stroke-width="5.5" opacity=".65" stroke-linecap="round"/>
-  <!-- Hard specular where the ribbon turns over. One of these does more for
-       the slurp than any amount of texture. -->
-  <path d="M296 398 C312 394 324 384 330 372" fill="none" stroke="#ffffff"
-        stroke-width="9" opacity=".8" stroke-linecap="round"/>
-</g>
-<use href="#tonguepath" fill="none" stroke="#5e0b33" stroke-width="5" opacity=".8"/>
-
-<!-- Drips. Off the tongue, off the head, off the near rim: the thing has
-     just taken a mouthful and is not being tidy about it. -->
-<path d="M276 428 C287 438 289 454 279 462 C267 470 253 462 254 450 C255 439 267 435 276 428 Z"
-      fill="#f07ab6" stroke="#5e0b33" stroke-width="3.5"/>
-<g fill="#8ae04b" opacity=".85">
-  <path d="M120 350 C124 372 123 390 116 396 C106 403 96 394 98 384 C101 372 114 366 120 350 Z"/>
-  <circle cx="110" cy="416" r="6.5"/>
-</g>
-<circle cx="340" cy="478" r="6" fill="#ef5fa8" opacity=".75"/>
 </svg>
