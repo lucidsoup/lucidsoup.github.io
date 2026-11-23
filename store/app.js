@@ -543,7 +543,7 @@ function policies() {
     terms: ["Terms", [
       P(`By buying or downloading from ${who} you agree to these terms and the License. Prices are in USD; the price you pay is the one shown at checkout.`),
       P("Each order's download link allows a limited number of downloads. If you run out, email us and we'll reset it."),
-      P("Plugins, tools and firmware are provided as-is: check the requirements in each item's lab data before buying. Firmware marked untested on hardware is installed at your own risk. Our liability is limited to the amount you paid."),
+      P("Plugins, tools and firmware are provided as-is: check the requirements in each item's lab data before buying. Back up your device and follow each item's install steps before flashing firmware. Our liability is limited to the amount you paid."),
     ]],
     contact: ["Contact", [
       P("Questions, download problems, or license questions? Email ", contact(), ". We answer within 1–2 business days."),
