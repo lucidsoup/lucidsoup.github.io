@@ -36,7 +36,7 @@
         { key: 'surface',     name: 'Surface',     note: 'the bowl, and the long way round' },
         { key: 'works',       name: 'Works',       note: 'what there is to look at' },
         { key: 'instruments', name: 'Instruments', note: 'things that run' },
-        { key: 'trade',       name: 'Trade',       note: 'ask and write' }
+        { key: 'trade',       name: 'Trade',       note: 'buy, ask and write' }
     ];
 
     var NODES = [
@@ -56,6 +56,7 @@
         { t: 2, name: 'Visual Playground', tag: 'live', href: '/playground.html',      g: 'core' },
 
         { t: 2, name: 'Watchlist',        tag: 'text',  href: '/watch.html',           g: 'frame' },
+        { t: 3, name: 'Soup Lab \u2014 Store', tag: 'shop', href: '/store/',          g: 'core' },
         { t: 3, name: 'About',            tag: 'text',  href: '/index.html#about',   g: 'frame' },
         { t: 3, name: 'Contact',          tag: 'text',  href: '/index.html#contact', g: 'frame' }
     ];
