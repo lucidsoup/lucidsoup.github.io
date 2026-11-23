@@ -274,6 +274,19 @@
     100% { transform: scale(1.85); opacity: 0; border-width: .5px; }
 }
 .bit-shape svg { width: 100%; height: 100%; display: block; }
+
+/* Cut to a vegetable (soup.js sets the mask from the piece's silhouette). The
+   round shadow and wet edge belong to a disc, so a vegetable gets a shadow
+   that follows its outline instead, and the gloss stops being a circle. */
+.bit-shape.veg {
+    border-radius: 0; box-shadow: none;
+    -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.bit-disc:has(.veg) { filter: drop-shadow(0 8px 9px rgba(0, 0, 0, .45)); }
+.bit-shape.veg::after { border-radius: 0; }
+.bit-veg { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.bit-veg svg { width: 100%; height: 100%; display: block; }
 .bit-shape video, .bit-shape canvas, .bit-shape img {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: cover; display: block;
