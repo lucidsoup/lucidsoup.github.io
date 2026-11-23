@@ -378,38 +378,9 @@ html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
 .ls-flash.on { animation: lsFlash .3s linear 1; }
 @keyframes lsFlash { from { opacity: 1; } to { opacity: 0; } }
 
-/* ===== the trigger, injected beside the way back ===== */
-.lucid-chrome {
-    /* Installed to a home screen the page starts at the top of the glass,
-       under the clock and the notch, so the corner comes in by the safe
-       area. Zero in a browser and on every desktop. */
-    position: fixed; z-index: 2147483000;
-    top: calc(12px + env(safe-area-inset-top, 0px));
-    right: calc(12px + env(safe-area-inset-right, 0px));
-    display: flex; align-items: center; gap: 8px;
-}
-.lucid-chrome .lucid-return { position: static; top: auto; right: auto; }
-.lucid-index {
-    display: inline-flex; align-items: center; gap: 7px;
-    padding: 8px 12px; line-height: 1;
-    border: 1px solid rgba(155, 123, 255, .40); border-radius: var(--lucid-radius, 3px);
-    background: rgba(5, 5, 10, .82);
-    color: var(--lucid-accent, #9b7bff);
-    font-family: var(--lucid-mono, ui-monospace, Menlo, monospace);
-    font-size: 10px; letter-spacing: var(--lucid-track, .18em); text-transform: uppercase;
-    cursor: pointer; opacity: .78;
-    transition: opacity .2s, border-color .2s, background .2s, color .2s;
-}
-.lucid-index:hover, .lucid-index:focus-visible {
-    opacity: 1; color: var(--lucid-accent-2, #8ae04b);
-    border-color: rgba(138, 224, 75, .8); background: rgba(138, 224, 75, .14); outline: none;
-}
-/* Three stacked rules: the tower, small enough to be a glyph. */
-.lucid-index::before {
-    content: ''; width: 10px; height: 8px;
-    border-top: 1px solid currentColor; border-bottom: 1px solid currentColor;
-    box-shadow: 0 -3px 0 -2px currentColor;
-}
+/* The corner itself — the way back and the menu button — belongs to
+   lucid.css now, which every page that loads this file also loads. It used
+   to be defined here as well, for a button this file no longer injects. */
 
 /* ===== phones ===== */
 @media (max-width: 640px) {
@@ -429,12 +400,6 @@ html.lucid-stack-open, body.lucid-stack-open { overflow: hidden; }
        top bar; the title is the one thing here nobody needs told. */
     #ls-title { display: none; }
     #ls-top { padding-right: 92px; }
-    .lucid-chrome {
-        top: calc(8px + env(safe-area-inset-top, 0px));
-        right: calc(8px + env(safe-area-inset-right, 0px));
-        gap: 6px;
-    }
-    .lucid-index { font-size: 9px; padding: 7px 10px; }
 }
 @media (max-width: 420px) {
     #ls-scale { display: none; }

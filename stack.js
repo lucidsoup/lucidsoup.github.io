@@ -534,28 +534,11 @@
         if (!driftRaf) driftRaf = requestAnimationFrame(loop);
     }
 
-    /* ---------------- the trigger beside the way back ---------------- */
-    function chrome() {
-        if (document.querySelector('.lucid-index')) return;
-        var ret = document.querySelector('.lucid-return');
-        if (!ret) return;
-        var wrap = el('div', 'lucid-chrome');
-        ret.parentNode.insertBefore(wrap, ret);
-        // If stack.css did not load the wrapper is not positioned, the link
-        // would come out of its corner and the tower would have no styling to
-        // show anyway. Better to leave the page exactly as it was.
-        if (getComputedStyle(wrap).position !== 'fixed') {
-            wrap.parentNode.removeChild(wrap);
-            return;
-        }
-        wrap.appendChild(ret);
-        var b = el('button', 'lucid-index');
-        b.type = 'button';
-        b.textContent = 'index';
-        b.setAttribute('aria-label', 'Open the index');
-        b.addEventListener('click', function () { api.toggle(b); });
-        wrap.appendChild(b);
-    }
+    /* The corner used to carry an `index` button that opened this tower
+       directly, which made the tower the site's index. It is not: it is the
+       scenic route, and the plain menu lucid.js puts in that corner now
+       offers it as one line among the pages. Opening it is still one click
+       from anywhere — it is just no longer the only way to find anything. */
 
     /* The overlay is opaque. Whatever the host page is drawing behind it is
        work nobody can see, and on the gallery that is a WebGL room per frame,
@@ -610,20 +593,25 @@
     window.lucidStack = api;
 
     /* A shortcut that does not collide with the gallery's verbs (which are all
-       single letters) or with anything a browser owns. */
+       single letters) or with anything a browser owns.
+
+       It used to be backtick *or* slash. Slash is the web's search key, and
+       the watchlist binds it to its own search box: both listeners are on
+       document and preventDefault does not stop the other one, so pressing
+       it there focused the search field and threw the tower up over it at
+       the same time. Slash belongs to the page. WCAG 2.1.4 is the general
+       form of the same point — a single printing character claimed for the
+       whole document is a trap for anyone driving by voice — and backtick,
+       which no page here types, is the one that stays. */
     document.addEventListener('keydown', function (e) {
         if (e.metaKey || e.ctrlKey || e.altKey) return;
         var t = e.target;
         if (t && /^(input|textarea|select)$/i.test(t.tagName || '')) return;
         if (t && t.isContentEditable) return;
-        if (e.key === '`' || (e.key === '/' && !api.isOpen())) { e.preventDefault(); api.toggle(); }
+        if (e.key === '`') { e.preventDefault(); api.toggle(); }
     });
 
     function start() {
-        chrome();
-        // The trigger is injected by lucid.js on the same event; if this ran
-        // first, try again once the frame has settled.
-        if (!document.querySelector('.lucid-index')) requestAnimationFrame(chrome);
         fetch('/rooms.json').then(function (r) { return r.ok ? r.json() : null; })
             .catch(function () { return null; })
             .then(function (d) {

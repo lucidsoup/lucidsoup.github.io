@@ -232,6 +232,34 @@
     50%      { transform: translateY(2.6px); }
 }
 .bit-shape svg { width: 100%; height: 100%; display: block; }
+
+/* An ingredient is its own outline. The circle, the disc gradient and the
+   round gloss all belong to the live slots; on a bay leaf they are a plate
+   the leaf is served on, which is exactly the thing that made these read as
+   app icons rather than as food.
+
+   The shadow goes on the SVG rather than on the box, because drop-shadow()
+   follows the alpha channel: the shadow of the leaf is leaf-shaped, and it is
+   the cheapest honest way to put something *in* a liquid rather than over it. */
+.bit-shape.is-drawn {
+    background: none;
+    border-radius: 0;
+    overflow: visible;
+    box-shadow: none;
+}
+.bit-shape.is-drawn::after { content: none; }
+/* The submersion is painted inside the SVG, per ingredient, at that
+   ingredient's own depth — a straight band across the box would cut the
+   stalks off an enoki bundle at the same height as a pea. */
+.bit-shape.is-drawn .bit-water { display: none; }
+.bit-shape.is-drawn svg {
+    overflow: visible;
+    filter: drop-shadow(0 5px 6px rgba(6, 2, 16, .55))
+            drop-shadow(0 1px 1px rgba(10, 4, 24, .45));
+}
+/* The live slots keep the round treatment: a round thing in soup is a slice,
+   and a slice is allowed to be a window. */
+.bit-shape.is-live { border-radius: 50%; overflow: hidden; }
 .bit-shape video, .bit-shape canvas, .bit-shape img {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: cover; display: block;
