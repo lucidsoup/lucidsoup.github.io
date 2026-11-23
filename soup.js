@@ -175,13 +175,20 @@
                 '<circle cx="30" cy="36" r="5" fill="#d9ffb8" opacity=".75"/>',
                 'linear-gradient(145deg,#a7f06a,#3f7a28)');
         },
-        // A flask with neon soup in it: the Soup Lab store.
+        // The Soup Lab store: a glass flask of neon soup that sloshes,
+        // bubbles and shifts colour (motion lives in soup.css, .flask-*).
         flask: function () {
-            return svg('<path d="M40 14h20M43 14v22L22 76a8 8 0 0 0 7 11h42a8 8 0 0 0 7-11L57 36V14" fill="none" ' +
+            return svg('<defs><clipPath id="flask-in"><path d="M45 16v22L25 76a7 7 0 0 0 6 10h38a7 7 0 0 0 6-10L55 38V16z"/></clipPath></defs>' +
+                '<g clip-path="url(#flask-in)">' +
+                '<path class="flask-soup" d="M10 60q10-6 20 0t20 0 20 0 20 0 20 0V100H10z" fill="#aaff00"/>' +
+                '<path class="flask-soup flask-soup2" d="M0 64q10-6 20 0t20 0 20 0 20 0 20 0V100H0z" fill="#00ffd5" opacity=".55"/>' +
+                '<circle class="flask-bub" cx="44" cy="84" r="3.6" fill="#fdf6ff"/>' +
+                '<circle class="flask-bub flask-bub2" cx="56" cy="86" r="2.6" fill="#fdf6ff"/>' +
+                '<circle class="flask-bub flask-bub3" cx="50" cy="88" r="2" fill="#fdf6ff"/></g>' +
+                '<path d="M40 14h20M45 14v24L25 76a7 7 0 0 0 6 10h38a7 7 0 0 0 6-10L55 38V14" fill="none" ' +
                 'stroke="#f0e6ff" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>' +
-                '<path d="M30 62h40l7 14a6 6 0 0 1-5 8H28a6 6 0 0 1-5-8z" fill="#aaff00" opacity=".9"/>' +
-                '<circle cx="44" cy="70" r="4" fill="#fdf6ff" opacity=".8"/><circle cx="56" cy="76" r="3" fill="#fdf6ff" opacity=".7"/>',
-                'linear-gradient(145deg,#ff00e6,#00b8a0)');
+                '<circle class="flask-bub flask-pop" cx="50" cy="12" r="2.4" fill="#ff00e6"/>',
+                'linear-gradient(145deg,#ff00e6,#00b8a0)').replace('<svg ', '<svg class="flask-svg" ');
         },
         leaf: function () {
             return svg('<path d="M18 80C18 40 46 16 84 16c0 40-26 64-66 64z" fill="#2f7a3a"/>' +
