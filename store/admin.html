@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<!-- Same policy as public/_headers, for hosts that can't send headers (GitHub Pages). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https://wbfqhrhanhevdlnspezy.supabase.co; base-uri 'none'; form-action 'self'; object-src 'none'">
+<meta name="robots" content="noindex, nofollow">
+<title>Control Room — Soup Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚗️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Rubik+Wet+Paint&display=swap">
+<script src="config.js" defer></script>
+<script src="admin.js" defer></script>
+<style>
+:root {
+  --void: #05010c;
+  --panel: #0d0820;
+  --panel-2: #140d2b;
+  --line: rgba(160, 255, 240, 0.14);
+  --line-2: rgba(160, 255, 240, 0.28);
+  --a: #ff00e6;
+  --b: #00ffd5;
+  --c: #aaff00;
+  --amber: #ffb000;
+  --danger: #ff2255;
+  --text: #ebe8ff;
+  --dim: #8d86b8;
+  --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  --drip: "Rubik Wet Paint", "IBM Plex Mono", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background-color: var(--void);
+  background-image: linear-gradient(rgba(0, 255, 213, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 213, .06) 1px, transparent 1px);
+  background-size: 32px 32px;
+  color: var(--text); font: 14px/1.5 var(--mono); min-height: 100vh;
+}
+a { color: var(--b); }
+button, input, select, textarea { font: inherit; color: inherit; }
+input, select, textarea {
+  width: 100%; background: #07040f; border: 1px solid var(--line-2); border-radius: 6px; padding: 8px 10px; min-width: 0;
+}
+textarea { min-height: 140px; resize: vertical; }
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--b); outline-offset: 1px; }
+button {
+  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: 8px 14px; cursor: pointer;
+}
+button:hover { border-color: var(--b); }
+button.go { background: var(--b); color: #05010c; border-color: var(--b); font-weight: 600; }
+button.go:hover { filter: brightness(1.1); }
+button.warn { color: var(--danger); border-color: rgba(255, 34, 85, .5); }
+button.ghost { background: none; border-color: transparent; color: var(--dim); text-decoration: underline; padding: 4px 6px; }
+button:disabled { opacity: .5; cursor: wait; }
+label { display: block; font-size: 12px; color: var(--dim); }
+label > span { display: block; margin-bottom: 4px; letter-spacing: .04em; text-transform: uppercase; }
+small.hint { display: block; color: var(--dim); font-size: 12px; margin-top: 4px; }
+
+header.top {
+  display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--line);
+  background: rgba(5, 1, 12, .92); position: sticky; top: 0; z-index: 5; flex-wrap: wrap;
+}
+header.top h1 {
+  font: 26px/1 var(--drip); margin: 0 0 -5px; padding: 4px 2px 9px; letter-spacing: 1px;
+  background: linear-gradient(90deg, var(--a), var(--b), var(--c), var(--a)); background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-fill-color: transparent; will-change: background-position;
+  filter: drop-shadow(0 0 10px rgba(255, 0, 230, .45));
+  animation: flow 9s linear infinite;
+}
+@keyframes flow { to { background-position: 300% 0; } }
+/* A neon bar under the header that keeps dripping. */
+.drip-bar {
+  position: absolute; left: 0; right: 0; bottom: -3px; height: 3px; pointer-events: none;
+  background: linear-gradient(90deg, var(--a), var(--b), var(--c), var(--a)); background-size: 300% 100%;
+  animation: flow 9s linear infinite;
+}
+.drip-bar i {
+  position: absolute; top: 2px; left: var(--x); width: 7px; height: 9px; border-radius: 0 0 7px 7px;
+  background: var(--c2, var(--b)); transform-origin: 50% 0;
+  animation: ooze var(--t, 4s) cubic-bezier(.55, 0, .75, .4) var(--d, 0s) infinite;
+}
+@keyframes ooze {
+  0% { transform: scaleY(.3); opacity: 1; }
+  55% { transform: scaleY(1.6); opacity: 1; }
+  70% { transform: translateY(26px) scale(.8, 1.1); opacity: .9; }
+  100% { transform: translateY(64px) scale(.5); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+header.top .who { margin-left: auto; color: var(--dim); font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+nav.tabs { display: flex; gap: 6px; }
+nav.tabs button[aria-pressed="true"] { border-color: var(--b); color: var(--b); }
+
+main { max-width: 1240px; margin: 0 auto; padding: 20px 16px 80px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+.gate { max-width: 420px; margin: 8vh auto 0; display: grid; gap: 14px; }
+.gate h2 { margin: 0; font: 30px/1.1 var(--drip); color: var(--b); }
+.gate p { margin: 0; color: var(--dim); }
+
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+.list { position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow: auto; padding: 12px; }
+.list .grp { margin: 14px 4px 6px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.list button.item {
+  display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; width: 100%; text-align: left;
+  background: none; border-color: transparent; padding: 7px 8px;
+}
+.list button.item[aria-current="true"] { background: var(--panel-2); border-color: var(--b); }
+.sym { font-weight: 600; color: var(--b); border: 1px solid var(--line-2); border-radius: 4px; text-align: center; padding: 2px 0; font-size: 12px; }
+.pill { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 7px; border-radius: 99px; border: 1px solid; white-space: nowrap; }
+.pill.active { color: var(--c); }
+.pill.soon { color: var(--amber); }
+.pill.hidden, .pill.draft { color: var(--dim); }
+.list .new { width: 100%; margin-bottom: 4px; }
+
+.editor { display: grid; gap: 18px; }
+.editor h2 { margin: 0; font: 28px/1.1 var(--drip); color: var(--a); overflow-wrap: anywhere; }
+.row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.row.wide { grid-template-columns: 2fr 1fr 1fr; }
+.status { display: flex; flex-wrap: wrap; gap: 6px; }
+.status button[aria-pressed="true"] { border-color: var(--b); background: rgba(0, 255, 213, .12); color: var(--b); }
+.status-help { color: var(--dim); font-size: 12px; margin-top: 6px; }
+.money { position: relative; }
+.money::before { content: "$"; position: absolute; left: 10px; top: 9px; color: var(--dim); }
+.money input { padding-left: 22px; }
+fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin: 0; display: grid; gap: 10px; min-width: 0; }
+legend { padding: 0 6px; color: var(--b); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.kv { display: grid; grid-template-columns: 1fr 2fr auto; gap: 8px; }
+.files { width: 100%; border-collapse: collapse; }
+.files td, .files th { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+.files th { font-size: 11px; color: var(--dim); font-weight: 400; text-transform: uppercase; letter-spacing: .08em; }
+.files td.n { color: var(--dim); white-space: nowrap; font-size: 12px; }
+.drop {
+  border: 2px dashed var(--line-2); border-radius: 8px; padding: 18px; text-align: center; color: var(--dim); cursor: pointer;
+}
+.drop.over { border-color: var(--b); color: var(--b); background: rgba(0, 255, 213, .06); }
+.bar { height: 6px; background: #07040f; border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+.bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--a), var(--b)); transition: width .2s; }
+.thumbs { display: flex; flex-wrap: wrap; gap: 10px; }
+.thumbs figure { margin: 0; position: relative; }
+.thumbs img { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); display: block; }
+.thumbs button { position: absolute; top: 4px; right: 4px; padding: 0 7px; background: rgba(5, 1, 12, .85); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; position: sticky; bottom: 0; padding: 12px 0; background: linear-gradient(transparent, var(--void) 30%); }
+.dirty { color: var(--amber); font-size: 12px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--b);
+  padding: 10px 16px; border-radius: 8px; z-index: 20; max-width: calc(100vw - 32px);
+}
+.toast.err { border-color: var(--danger); color: #ffd0da; }
+.copy { display: flex; gap: 8px; }
+.team li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.team ul { list-style: none; padding: 0; margin: 0; }
+.team .meta { color: var(--dim); font-size: 12px; }
+.team-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .list { position: static; max-height: 300px; }
+  .row.wide { grid-template-columns: 1fr; }
+  .kv { grid-template-columns: 1fr; }
+  .files th:nth-child(3), .files td:nth-child(3) { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Control Room</h1>
+  <nav class="tabs" id="tabs" hidden>
+    <button data-tab="items" aria-pressed="true">Items</button>
+    <button data-tab="team" aria-pressed="false">Team</button>
+  </nav>
+  <div class="who" id="who"></div>
+  <div class="drip-bar" aria-hidden="true">
+    <i style="--x:8%;--t:4.2s"></i><i style="--x:23%;--t:5.5s;--d:1.3s;--c2:#ff00e6"></i><i style="--x:41%;--t:3.8s;--d:2.1s;--c2:#aaff00"></i>
+    <i style="--x:58%;--t:6s;--d:.6s"></i><i style="--x:74%;--t:4.6s;--d:2.8s;--c2:#ff00e6"></i><i style="--x:91%;--t:5.1s;--d:1.7s;--c2:#aaff00"></i>
+  </div>
+</header>
+<main id="app"><p style="color:var(--dim)">Loading…</p></main>
+</body>
+</html>
