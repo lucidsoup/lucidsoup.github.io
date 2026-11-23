@@ -455,7 +455,7 @@
         broth.appendChild(el('div', 'bowl-sheen'));
         bowl.appendChild(broth);
 
-        bowl.appendChild(el('div', 'steam', '<i></i><i></i><i></i>'));
+        bowl.appendChild(el('div', 'steam', '<i></i><i></i><i></i><i></i><i></i>'));
 
         var bits = el('div', 'bits');
         BITS.forEach(function (b, i) {
@@ -465,14 +465,22 @@
             btn.setAttribute('aria-label', b.label + (b.sub ? ' — ' + b.sub : ''));
 
             var float = el('div', 'bit-float');
-            float.style.setProperty('--dur', (6.2 + (i % 5) * 1.3).toFixed(1) + 's');
-            float.style.setProperty('--delay', (-i * 0.83).toFixed(2) + 's');
-            float.style.setProperty('--dx', (3 + (i % 4) * 2) + 'px');
+            // Heave (up and down) and roll (tilt) run on separate clocks whose
+            // ratio is never a whole number, so the motion never visibly
+            // repeats: that is most of what makes a floating thing look real.
+            var heave = 3.3 + ((i * 0.61) % 2.3), roll = 5.2 + ((i * 0.83) % 3.1);
+            float.style.setProperty('--heave', heave.toFixed(2) + 's');
+            float.style.setProperty('--roll', roll.toFixed(2) + 's');
+            float.style.setProperty('--delay', (-i * 0.77).toFixed(2) + 's');
+            float.style.setProperty('--dx', (2 + (i % 4) * 1.5) + 'px');
 
             float.appendChild(el('div', 'bit-label',
                 esc(b.label) + (b.sub ? '<small>' + esc(b.sub) + '</small>' : '')));
 
             var disc = el('div', 'bit-disc');
+            // Rings spreading out from the piece as it bobs; under the piece,
+            // so only the part beyond its edge shows.
+            disc.appendChild(el('div', 'bit-wave', '<i></i><i></i>'));
             var shape = el('div', 'bit-shape');
             // Sized against the bowl rather than the screen: `d` is the piece's
             // diameter when the bowl is at its full 880, and shrinks with it.
@@ -550,6 +558,9 @@
 
     var phase = RINGS.map(function () { return 0; });
     var flow = 1, flowTo = 1, swirlRaf = 0, lastT = 0;
+    // Liquid time: advances with the flow, so when the bowl is held still the
+    // drift below holds still too and what you reach for stays put.
+    var drift = 0;
     var box = { w: 0, h: 0 };
 
     function measure() {
@@ -572,7 +583,13 @@
         flow += (flowTo - flow) * Math.min(1, dt * 6);
         if (Math.abs(flowTo - flow) < 0.002) flow = flowTo;
 
-        for (var k = 0; k < RINGS.length; k++) phase[k] += dt * flow / RINGS[k].secs;
+        drift += dt * flow;
+        // Real liquid in a round vessel never turns at one steady rate: each
+        // ring's current swells and slackens over a minute or so, out of step
+        // with the others, so the rings slide past each other.
+        for (var k = 0; k < RINGS.length; k++) {
+            phase[k] += dt * flow / RINGS[k].secs * (1 + 0.24 * Math.sin(drift * 0.091 + k * 2.1) + 0.1 * Math.sin(drift * 0.23 + k));
+        }
 
         var want = (ptr.on && !still) ? 1 : 0;
         ptr.glow += (want - ptr.glow) * Math.min(1, dt * 4);
@@ -583,9 +600,15 @@
             var e = bitEls[i];
             if (!e || e.classList.contains('chosen')) continue;
             var b = BITS[i], R = RINGS[b.ring];
-            var th = (b.a + phase[b.ring]) * Math.PI * 2;
-            var x = 0.5 + R.r * Math.cos(th);
-            var y = 0.5 + R.r * Math.sin(th);
+            // Each piece also wanders a little off its ring: it drifts in and
+            // out and slips ahead or behind, on two slow waves of its own. The
+            // outer ring only ever drifts inward, so nothing rides up the rim.
+            var w1 = Math.sin(drift * (0.17 + (i % 5) * 0.031) + i * 1.7);
+            var w2 = Math.sin(drift * (0.11 + (i % 3) * 0.043) + i * 2.3);
+            var rr = R.r * (b.ring === RINGS.length - 1 ? 1 - 0.045 * (0.5 + 0.5 * w1) : 1 + 0.05 * w1);
+            var th = (b.a + phase[b.ring] + 0.009 * w2) * Math.PI * 2;
+            var x = 0.5 + rr * Math.cos(th);
+            var y = 0.5 + rr * Math.sin(th);
             // Depth. The bowl is squashed hard by the perspective, so two
             // pieces passing are only tens of pixels apart vertically and a
             // subtle size difference read as a collision rather than as one
