@@ -79,6 +79,7 @@
         { id: 'watch',          label: 'Watchlist',  sub: 'what to watch', href: 'watch.html',     shape: 'reel',   d: 68, ring: 2, a: .72 },
         { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'spiral', d: 74, ring: 2, a: .17 },
         { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'star', d: 58, ring: 2, a: .42 },
+        { id: 'store',          label: 'Soup Lab',   sub: 'store',         href: 'store/',         shape: 'flask',  d: 66, ring: 2, a: .04 },
         { id: 'about',          label: 'About',      sub: '',              hash: 'about',          shape: 'pea',    d: 56, ring: 2, a: .67 },
         { id: 'contact',        label: 'Contact',    sub: '',              hash: 'contact',        shape: 'leaf',   d: 56, ring: 2, a: .92 }
     ];
@@ -173,6 +174,14 @@
                 '<circle cx="52" cy="66" r="17" fill="#5aa832"/>' +
                 '<circle cx="30" cy="36" r="5" fill="#d9ffb8" opacity=".75"/>',
                 'linear-gradient(145deg,#a7f06a,#3f7a28)');
+        },
+        // A flask with neon soup in it: the Soup Lab store.
+        flask: function () {
+            return svg('<path d="M40 14h20M43 14v22L22 76a8 8 0 0 0 7 11h42a8 8 0 0 0 7-11L57 36V14" fill="none" ' +
+                'stroke="#f0e6ff" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>' +
+                '<path d="M30 62h40l7 14a6 6 0 0 1-5 8H28a6 6 0 0 1-5-8z" fill="#aaff00" opacity=".9"/>' +
+                '<circle cx="44" cy="70" r="4" fill="#fdf6ff" opacity=".8"/><circle cx="56" cy="76" r="3" fill="#fdf6ff" opacity=".7"/>',
+                'linear-gradient(145deg,#ff00e6,#00b8a0)');
         },
         leaf: function () {
             return svg('<path d="M18 80C18 40 46 16 84 16c0 40-26 64-66 64z" fill="#2f7a3a"/>' +
