@@ -1,0 +1,6 @@
+{
+  "base": "",
+  "currency": "usd",
+  "chargeMode": "destination",
+  "platformFeePercent": 0
+}

@@ -150,6 +150,14 @@
            contested on a desktop browser, so the thing you need in order to
            pay by hand is on the card either way. */
         .seller .handle { color: var(--lucid-accent-2, #8ae04b); }
+        .shop-item-button.pay {
+            border-color: rgba(138,224,75,.6); background: rgba(138,224,75,.16); color: #d9ffb8;
+        }
+        .shop-item-button.pay:hover { background: rgba(138,224,75,.28); }
+        .buyerr {
+            font-family: var(--lucid-mono); font-size: 11px; margin-top: 8px;
+            color: var(--lucid-accent-3, #d44fb0);
+        }
         .nopay {
             font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .08em;
             text-transform: uppercase; color: var(--lucid-accent-3, #d44fb0);
@@ -293,11 +301,10 @@
 
         <p class="truth pay">
             <strong>Each thing here is sold by whoever made it, and pays them directly.</strong>
-            The PAY button opens Venmo with that seller&rsquo;s handle, the amount and a note already
-            filled in. Their handle is written on the card as well, because Venmo&rsquo;s prefilled
-            links are reliable when a phone hands them to the app and patchy in a desktop browser
-            &mdash; so you can always just pay the handle. Nothing is processed here: this site is
-            static, there is no checkout and no escrow, and nobody is holding your money at any point.
+            Checkout is Stripe&rsquo;s own hosted page &mdash; no card detail ever reaches this site
+            &mdash; and the artist&rsquo;s share goes to their account at the moment you pay rather
+            than being passed on later. You get a download link that works for a few days and a
+            handful of goes; if you lose it, write and it will be reissued.
         </p>
 
         <div class="filters" role="group" aria-label="Filter by kind">
@@ -590,24 +597,62 @@
             return m ? m[0] : '';
         }
 
-        /* Where the money goes. Each item carries its own seller, so a page
-           that lists several people's work pays each of them rather than
-           funnelling everything to whoever owns the domain. */
-        function venmoHref(item) {
-            var u = item.seller && item.seller.venmo;
-            if (!u) return '';
-            var amt = amountOf(item.price);
-            return 'https://venmo.com/' + encodeURIComponent(String(u).replace(/^@/, '')) +
-                '?txn=pay' + (amt ? '&amount=' + amt : '') +
-                '&note=' + encodeURIComponent((item.title || 'Purchase') + ' — lucidsoup.com');
+        /* The checkout. This page's whole job is to say which item was
+           pressed; it does not know, send or get to choose the price. The
+           worker reads that out of this same items.json and builds the
+           Stripe session, which is the only arrangement in which a buyer
+           cannot name their own amount.
+
+           With no worker configured the shop still works: BUY falls back to
+           whatever checkoutValue the item carries, which is what it did
+           before any of this existed. */
+        var CHECKOUT = { base: '', artists: {}, ready: false };
+
+        function payable(item) {
+            var a = CHECKOUT.artists[item.artistId];
+            return !!(CHECKOUT.base && a && a.payable && amountOf(item.price));
+        }
+
+        function say(btn, msg) {
+            var card = btn.closest('.shop-item');
+            var p = card.querySelector('.buyerr');
+            if (!p) {
+                p = document.createElement('p');
+                p.className = 'buyerr';
+                p.setAttribute('role', 'alert');
+                card.querySelector('.shop-item-body').appendChild(p);
+            }
+            p.textContent = msg;
+        }
+
+        function buy(btn, item) {
+            var was = btn.textContent;
+            btn.textContent = 'Opening\u2026';
+            btn.setAttribute('aria-busy', 'true');
+            fetch(CHECKOUT.base + '/checkout', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ item: item.id })
+            }).then(function (r) {
+                return r.json().then(function (j) { return { ok: r.ok, j: j }; });
+            }).then(function (res) {
+                if (res.ok && res.j.url) { location.href = res.j.url; return; }
+                btn.textContent = was;
+                btn.removeAttribute('aria-busy');
+                say(btn, (res.j && res.j.error) || 'That could not be started.');
+            }).catch(function () {
+                btn.textContent = was;
+                btn.removeAttribute('aria-busy');
+                say(btn, 'The checkout could not be reached.');
+            });
         }
 
         function cardFor(item) {
-            var pay = venmoHref(item);
-            var checkoutHref = pay ? pay : (item.checkoutType === 'email'
+            var buyable = payable(item);
+            var checkoutHref = item.checkoutType === 'email'
                 ? 'mailto:' + item.checkoutValue + '?subject=' + encodeURIComponent('Inquiry: ' + (item.title || ''))
-                : (item.checkoutValue || '#'));
-            var isExt = !!pay || (item.checkoutType !== 'email' && /^https?:/.test(item.checkoutValue || ''));
+                : (item.checkoutValue || '#');
+            var isExt = item.checkoutType !== 'email' && /^https?:/.test(item.checkoutValue || '');
             // A real screenshot wins; otherwise the drawn face of the tool;
             // otherwise, for something with neither, the word it had before.
             var imageEl = item.image
@@ -619,6 +664,7 @@
             if (item.format) meta.push(esc(item.format));
             if (item.platforms) meta.push(esc(item.platforms));
 
+            var artist = CHECKOUT.artists[item.artistId] || null;
             var art = document.createElement('article');
             art.className = 'shop-item' + (item.available === false ? ' sold-out' : '');
             art.dataset.kind = item.kind || '';
@@ -636,14 +682,13 @@
                     // focusable but shows nothing on focus is an audit failure.
                     (item.available === false
                         ? '<p class="nobuild">No build published yet &mdash; source only.</p>' : '') +
-                    (item.seller && item.seller.name
-                        ? '<p class="seller">by ' + esc(item.seller.name) +
-                          (pay ? ' &middot; pays <span class="handle">@' +
-                                 esc(String(item.seller.venmo).replace(/^@/, '')) + '</span>' : '') +
-                          '</p>'
+                    (artist
+                        ? '<p class="seller">by ' + esc(artist.name) +
+                          (buyable ? ' &middot; <span class="handle">paid directly</span>' : '') + '</p>'
                         : '') +
-                    (item.price && !pay && item.seller && item.seller.name
-                        ? '<p class="nopay">Priced, but this seller has not added a Venmo yet.</p>' : '') +
+                    (item.price && !buyable && artist && CHECKOUT.base && !artist.payable
+                        ? '<p class="nopay">' + esc(artist.name) +
+                          ' has not finished setting up payouts.</p>' : '') +
                     '<div class="shop-item-footer">' +
                         (item.price
                             ? '<div class="shop-item-price">' + esc(item.price) + '</div>'
@@ -651,10 +696,13 @@
                         '<div class="demo-row" style="gap:8px;margin:0">' +
                         (item.demo ? '<button class="try" type="button" data-demo="' + esc(item.demo) +
                             '" aria-expanded="false">Try it</button>' : '') +
-                        '<a class="shop-item-button" href="' + esc(checkoutHref) + '"' +
-                            (isExt ? ' target="_blank" rel="noopener"' : '') + '>' +
-                            esc(pay ? 'PAY' : (item.buttonText || (item.checkoutType === 'email' ? 'INQUIRE' : 'BUY'))) +
-                        '</a>' +
+                        (buyable
+                            ? '<button class="shop-item-button pay" type="button">BUY ' +
+                              esc(item.price) + '</button>'
+                            : '<a class="shop-item-button" href="' + esc(checkoutHref) + '"' +
+                              (isExt ? ' target="_blank" rel="noopener"' : '') + '>' +
+                              esc(item.buttonText || (item.checkoutType === 'email' ? 'INQUIRE' : 'BUY')) +
+                              '</a>') +
                         '</div>' +
                     '</div>' +
                 '</div>';
@@ -738,6 +786,8 @@
                 var card = cardFor(item);
                 var t = card.querySelector('.try');
                 if (t) t.addEventListener('click', function () { openFor(t, item); });
+                var b = card.querySelector('.shop-item-button.pay');
+                if (b) b.addEventListener('click', function () { buy(b, item); });
                 grid.appendChild(card);
             });
             if (!shown) {
@@ -755,11 +805,39 @@
             });
         });
 
-        fetch('items.json?t=' + Date.now())
-            .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('items.json ' + r.status)); })
-            .then(function (data) {
+        /* Three files, and the shop renders whatever arrives. The catalogue
+           is the only one it cannot do without: no checkout config means no
+           BUY buttons but still a browsable shop with working demos, which
+           is the state this page shipped in and the one it falls back to if
+           the worker is ever down. */
+        Promise.all([
+            fetch('items.json?t=' + Date.now())
+                .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('items.json ' + r.status)); }),
+            fetch('artists.json?t=' + Date.now()).then(function (r) { return r.ok ? r.json() : { artists: [] }; })
+                .catch(function () { return { artists: [] }; }),
+            fetch('checkout.json?t=' + Date.now()).then(function (r) { return r.ok ? r.json() : {}; })
+                .catch(function () { return {}; })
+        ])
+            .then(function (all) {
+                var data = all[0], roster = all[1], cfg = all[2];
                 ALL = Array.isArray(data) ? data : (data.items || []);
-                render();
+                (roster.artists || []).forEach(function (a) { CHECKOUT.artists[a.id] = a; });
+                CHECKOUT.base = String(cfg.base || '').replace(/\/+$/, '');
+                if (!CHECKOUT.base) { render(); return; }
+                // Ask the worker who can actually be paid right now. The
+                // roster in the repo says who exists; only Stripe knows who
+                // has finished onboarding, and a BUY button that fails at
+                // the till is worse than no BUY button.
+                return fetch(CHECKOUT.base + '/config')
+                    .then(function (r) { return r.json(); })
+                    .then(function (live) {
+                        (live.artists || []).forEach(function (a) {
+                            CHECKOUT.artists[a.id] = Object.assign({}, CHECKOUT.artists[a.id], a);
+                        });
+                        CHECKOUT.ready = true;
+                    })
+                    .catch(function () { CHECKOUT.base = ''; })
+                    .then(render);
             })
             .catch(function (err) {
                 grid.innerHTML = '<div class="shop-empty">The catalogue could not be loaded (' +
