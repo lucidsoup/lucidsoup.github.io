@@ -1,0 +1,125 @@
+/* ===== the simulations =====
+   Everything demos.js builds: the drawer, the control rack, the source
+   picker, the canvas, the transport, the keyboard, and the few pieces that
+   belong to one simulation each (the OSC log, the file lab).
+
+   These rules were inline in a page that no longer exists. They are a file
+   now because two different pages mount the simulations — the Soup Lab store
+   and the plugin pages — and the styling has to be the same in both.
+
+   Every colour is a var(--lucid-*) with a literal fallback, so this works on
+   a page that loads lucid.css and on one that does not. The store page is its
+   own design system and loads neither. */
+
+/* ===== the simulation drawer ===== */
+.demo {
+    grid-column: 1 / -1;
+    border: 1px solid rgba(138,224,75,.4);
+    border-radius: var(--lucid-pane-radius, 16px);
+    background: rgba(8,14,6,.72);
+    padding: 16px 18px 18px;
+}
+/* A .demo-* rule that sets `display` beats the browser's own [hidden] rule
+   — same specificity, author sheet wins — so `el.hidden = true` inside a
+   simulation did nothing and Snap to C's "Save WAV" link showed before there
+   was anything to save. Scoped to the simulation so it cannot surprise a
+   host page. */
+.demo [hidden] { display: none !important; }
+.demo-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.demo-bar h3 { font-size: 1.05rem; }
+.demo-bar h3 small {
+    display: block; font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 10px;
+    letter-spacing: .18em; text-transform: uppercase; font-weight: 400;
+    color: var(--lucid-accent-2, #8ae04b);
+}
+.demo-close {
+    min-height: 40px; padding: 8px 14px; cursor: pointer; border-radius: 4px;
+    border: 1px solid rgba(155,123,255,.4); background: rgba(10,8,20,.8);
+    color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+}
+.demo-blurb { font-size: .9rem; color: var(--lucid-ink-dim, rgba(255,255,255,.74)); margin-bottom: 10px; }
+.demo-rack {
+    display: grid; gap: 10px 18px; margin: 12px 0;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+.demo-ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+.demo-label {
+    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--lucid-ink-label, #b49cff);
+}
+.demo-val {
+    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 11px;
+    color: var(--lucid-ink-dim, rgba(255,255,255,.74)); text-align: right;
+}
+.demo-ctl input[type="range"] { grid-column: 1 / -1; width: 100%; }
+.demo-ctl select, .demo-select {
+    grid-column: 1 / -1; min-height: 40px; padding: 6px 10px; border-radius: 4px;
+    background: rgba(6,4,14,.9); color: var(--lucid-ink, rgba(255,255,255,.93));
+    border: 1px solid rgba(155,123,255,.4); font: inherit; font-size: .88rem;
+}
+.demo-switch {
+    grid-column: 1 / -1; min-height: 40px; padding: 8px 12px; cursor: pointer;
+    border-radius: 4px; border: 1px solid rgba(155,123,255,.4);
+    background: rgba(10,8,20,.8); color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+}
+.demo-switch[aria-pressed="true"] {
+    border-color: var(--lucid-accent-2, #8ae04b); background: rgba(138,224,75,.16); color: #d9ffb8;
+}
+.demo-source { margin: 10px 0; }
+.demo-source h4, .demo-unlike summary {
+    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 10px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--lucid-ink-label, #b49cff); font-weight: 400;
+}
+.demo-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 6px; }
+.demo-row .demo-select { grid-column: auto; min-width: 200px; flex: 0 1 auto; }
+.demo-filelab {
+    display: inline-flex; align-items: center; min-height: 40px; padding: 8px 14px;
+    border-radius: 4px; cursor: pointer; border: 1px dashed rgba(155,123,255,.5);
+    color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+}
+.demo-note { font-size: .82rem; color: var(--lucid-ink-faint, rgba(255,255,255,.54)); margin-top: 6px; }
+.demo-canvas {
+    width: 100%; height: 230px; display: block; margin: 12px 0;
+    border: 1px solid rgba(155,123,255,.26); border-radius: 8px; background: #07050f;
+}
+.demo-transport { margin-top: 10px; }
+.demo-play {
+    min-height: 44px; padding: 10px 26px; cursor: pointer; border-radius: 4px;
+    border: 1px solid var(--lucid-accent-2, #8ae04b); background: rgba(138,224,75,.18);
+    color: #d9ffb8; font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 12px;
+    letter-spacing: .18em; text-transform: uppercase;
+}
+.demo-act {
+    min-height: 40px; padding: 8px 16px; cursor: pointer; border-radius: 4px;
+    border: 1px solid rgba(155,123,255,.5); background: rgba(155,123,255,.14);
+    color: #d7c9ff; font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 11px;
+    letter-spacing: .14em; text-transform: uppercase;
+}
+.demo-act:disabled { opacity: .4; cursor: default; }
+.demo-play[aria-pressed="true"] { background: rgba(212,79,176,.22); border-color: #d44fb0; color: #ffd6f0; }
+.demo-keys { display: flex; gap: 2px; margin: 12px 0; height: 92px; }
+.demo-key {
+    flex: 1; min-width: 0; cursor: pointer; border-radius: 0 0 5px 5px;
+    border: 1px solid rgba(0,0,0,.6); background: linear-gradient(#f3ecff, #cfc2e8);
+}
+.demo-key.black { background: linear-gradient(#3a2d55, #150f26); height: 60%; flex: .7; }
+.demo-key.on { background: linear-gradient(#8ae04b, #4e8b2c); }
+.demo-unlike { margin-top: 14px; }
+.demo-unlike summary { cursor: pointer; min-height: 32px; }
+.demo-unlike ul { margin: 8px 0 0 1.1rem; }
+.demo-unlike li { font-size: .86rem; color: var(--lucid-ink-dim, rgba(255,255,255,.74)); margin-bottom: 4px; }
+.demo-none { color: var(--lucid-ink-faint, rgba(255,255,255,.54)); font-size: .9rem; }
+/* OSC Link's output is its messages, so the messages are the screen. */
+.osc-log {
+    margin: 12px 0; height: 230px; overflow: hidden;
+    border: 1px solid rgba(155,123,255,.26); border-radius: 8px;
+    background: #07050f; padding: 8px 10px;
+    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace); font-size: 11.5px; line-height: 1.65;
+}
+.osc-line { color: var(--lucid-ink-dim, rgba(255,255,255,.74)); white-space: pre; }
+.osc-line:first-child { color: var(--lucid-accent-2, #8ae04b); }
+.demo-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+

@@ -567,7 +567,25 @@
         return wrap;
     }
 
-    window.lucidDemos = { register: register, mount: mount, has: function (id) { return !!DEFS[id]; } };
+    /* A product in a shop is named by a person — "Loop Repeat", "Snap to C",
+       "SpectraEye" — and every demo's id here is already that title with the
+       spaces and punctuation taken out. So normalising both ends is the whole
+       mapping, and a product renamed in the catalogue keeps its simulation,
+       which a hand-written table of slugs would not. Returns null rather than
+       guessing: a page with no match shows no simulation at all, instead of
+       offering the wrong one. */
+    function find(name) {
+        var k = String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return DEFS[k] ? k : null;
+    }
+
+    window.lucidDemos = {
+        register: register,
+        mount: mount,
+        find: find,
+        has: function (id) { return !!DEFS[id]; },
+        titleOf: function (id) { return DEFS[id] ? DEFS[id].title : null; }
+    };
 })();
 
 /* ===========================================================================

@@ -221,34 +221,6 @@
             color: #ff10f0;
         }
 
-        .me-panel {
-            border: 1px solid rgba(0,255,255,.3); border-radius: 8px;
-            padding: 1rem 1.2rem 1.2rem; margin-bottom: 1.4rem;
-            background: rgba(0,255,255,.04);
-        }
-        .me-panel h2 { font-size: .95rem; letter-spacing: .18em; text-transform: uppercase; color: #00ffff; margin-bottom: .5rem; }
-        .me-note { font-size: .82rem; opacity: .8; margin-bottom: .9rem; line-height: 1.6; }
-        .me-status { font-size: .78rem; margin: .7rem 0; min-height: 1.2em; font-family: ui-monospace, monospace; }
-        .me-status.ok { color: #7CFC00; }
-        .me-status.warn { color: #ff9d3c; }
-        .seller-area { border-color: rgba(0,255,255,.25) !important; }
-        .artist-row {
-            display: grid; gap: .5rem; align-items: end; margin-top: .7rem;
-            grid-template-columns: 1.1fr 1.4fr .7fr auto auto;
-            padding-top: .7rem; border-top: 1px solid rgba(255,255,255,.08);
-        }
-        .artist-row .state { font-family: ui-monospace, monospace; font-size: .72rem; line-height: 1.4; }
-        .artist-row .state.ok { color: #7CFC00; }
-        .artist-row .state.warn { color: #ff9d3c; }
-        .ledger {
-            margin-top: .9rem; padding: .8rem; border-radius: 6px;
-            background: rgba(0,0,0,.5); font-family: ui-monospace, monospace;
-            font-size: .76rem; line-height: 1.7; white-space: pre-wrap; color: #cfe;
-        }
-        @media (max-width: 760px) { .artist-row { grid-template-columns: 1fr; } }
-        .pay-note { font-size: .74rem; margin-top: .5rem; font-family: ui-monospace, monospace; line-height: 1.5; word-break: break-all; }
-        .pay-note.ok { color: #7CFC00; }
-        .pay-note.warn { color: #ff9d3c; }
         .admin-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -461,35 +433,7 @@
             .admin-controls { width: 100%; }
             .admin-controls .admin-btn { flex: 1; min-width: 0; font-size: 0.7rem; padding: 0.5rem 0.6rem; }
             .admin-main { padding: 1rem; }
-            .me-panel {
-            border: 1px solid rgba(0,255,255,.3); border-radius: 8px;
-            padding: 1rem 1.2rem 1.2rem; margin-bottom: 1.4rem;
-            background: rgba(0,255,255,.04);
-        }
-        .me-panel h2 { font-size: .95rem; letter-spacing: .18em; text-transform: uppercase; color: #00ffff; margin-bottom: .5rem; }
-        .me-note { font-size: .82rem; opacity: .8; margin-bottom: .9rem; line-height: 1.6; }
-        .me-status { font-size: .78rem; margin: .7rem 0; min-height: 1.2em; font-family: ui-monospace, monospace; }
-        .me-status.ok { color: #7CFC00; }
-        .me-status.warn { color: #ff9d3c; }
-        .seller-area { border-color: rgba(0,255,255,.25) !important; }
-        .artist-row {
-            display: grid; gap: .5rem; align-items: end; margin-top: .7rem;
-            grid-template-columns: 1.1fr 1.4fr .7fr auto auto;
-            padding-top: .7rem; border-top: 1px solid rgba(255,255,255,.08);
-        }
-        .artist-row .state { font-family: ui-monospace, monospace; font-size: .72rem; line-height: 1.4; }
-        .artist-row .state.ok { color: #7CFC00; }
-        .artist-row .state.warn { color: #ff9d3c; }
-        .ledger {
-            margin-top: .9rem; padding: .8rem; border-radius: 6px;
-            background: rgba(0,0,0,.5); font-family: ui-monospace, monospace;
-            font-size: .76rem; line-height: 1.7; white-space: pre-wrap; color: #cfe;
-        }
-        @media (max-width: 760px) { .artist-row { grid-template-columns: 1fr; } }
-        .pay-note { font-size: .74rem; margin-top: .5rem; font-family: ui-monospace, monospace; line-height: 1.5; word-break: break-all; }
-        .pay-note.ok { color: #7CFC00; }
-        .pay-note.warn { color: #ff9d3c; }
-        .admin-grid { grid-template-columns: 1fr; }
+            .admin-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -529,62 +473,10 @@
 
     <div class="admin-main">
         <div class="admin-help">
-            <strong>The storefront is live again, at <a href="/store.html">/store.html</a>.</strong> What you
-            edit here is what a visitor sees: that page reads this same <code>items.json</code>, and the bowl, the
-            menu and the Stack all route to it. Fields this editor does not show &mdash; <code>kind</code>,
-            <code>format</code>, <code>platforms</code>, <code>demo</code> &mdash; are carried through untouched, so
-            editing a plugin here will not strip the line that tells the store which simulation to open.
-            <br><br>
-            <strong>Two things to know about ids.</strong> Any id that is all digits gets renumbered on export, so the
-            plugins use word ids (<code>mindbloom</code>, <code>hydra</code>) and are safe. And <strong>prices are
-            deliberately empty</strong>: every plugin card says &ldquo;price not set&rdquo; until you put one here.
-            <br><br>
-            <strong>Getting paid.</strong> Checkout is real now: Stripe&rsquo;s own hosted page, with each artist&rsquo;s
-            share going to <em>their</em> Stripe account at the moment of the sale rather than passing through anyone.
-            Each item names an artist; each artist sets up their own payouts through Stripe&rsquo;s onboarding under
-            <em>Artists &amp; payouts</em> below. Their bank details never touch this page or the repository.
-            <br><br>
-            This needs the checkout worker deployed &mdash; see <code>checkout/README.md</code>. Until
-            <code>checkout.json</code> has a <code>base</code>, the store falls back to plain links and shows no BUY
-            buttons, which is a working shop and not a broken one. The price still comes from the price field, but it
-            is now read by the worker rather than sent by the browser, because a price the browser sends is a price
-            the buyer picks.
+            <strong>This is not the shop.</strong> The shop a visitor sees is the Soup Lab, at <a href="/store/">/store/</a>, and it keeps its catalogue in a database &mdash; you edit it in the <a href="/store/admin.html">Control Room</a>, which is also where uploads and prices live. Nothing reads <code>items.json</code> but this page, so what you edit here is seen by nobody. It is kept because it is the only editor that works with no database and no sign-in, and because the file is still in the repository.
             <br><br>
             <strong>How it works:</strong> Edit any field below — changes save automatically to your browser as you type. When you're done, click <strong>SAVE / EXPORT JSON</strong> to download an updated <code>items.json</code>, then upload that file to the root of your repository.
         </div>
-        <!-- The roster, and getting each artist paid. -->
-        <section class="me-panel" aria-labelledby="pay-head" id="payouts">
-            <h2 id="pay-head">Artists &amp; payouts</h2>
-            <p class="me-note">
-                Each artist sets up their own Stripe account through Stripe&rsquo;s own onboarding —
-                their bank details never come near this page or this repository. Once Stripe says an
-                account can take charges, their items get a real BUY button and their share of every
-                sale lands in <strong>their</strong> account at the moment it is paid.
-            </p>
-
-            <div class="field-row">
-                <div class="field">
-                    <label class="field-label" for="me-id">You are</label>
-                    <select id="me-id"></select>
-                </div>
-                <div class="field">
-                    <label class="field-label" for="pay-token">Checkout admin token</label>
-                    <input id="pay-token" type="password" placeholder="the ADMIN_TOKEN secret"
-                           autocomplete="off">
-                </div>
-            </div>
-            <p class="me-status" id="me-status" role="status"></p>
-
-            <div id="artist-rows"></div>
-            <div class="field-row" style="margin-top:.8rem">
-                <button class="admin-btn" id="artist-add" type="button">+ Add artist</button>
-                <button class="admin-btn" id="pay-refresh" type="button">Check payout status</button>
-                <button class="admin-btn" id="pay-ledger" type="button">What everyone is owed</button>
-            </div>
-            <pre class="ledger" id="ledger" hidden></pre>
-            <p class="me-note" id="artists-note"></p>
-        </section>
-
         <div class="admin-grid" id="admin-grid"></div>
     </div>
 </div>
@@ -599,15 +491,6 @@ const STORAGE_PW_HASH = "admin_pw_hash";   // sha-256 of password
 const STORAGE_AUTHED  = "admin_authed";    // session flag
 const STORAGE_ITEMS   = "admin_items_draft"; // local edits before save
 const STORAGE_DIRTY   = "admin_items_dirty";
-/* Who is using this browser. There is no server here, so "each admin" means
-   each browser that has been let in: this is stored locally, it is not an
-   account, and it proves nothing about who you are. What it does is stop
-   everyone's uploads defaulting to one person's Venmo. */
-const STORAGE_ME      = "admin_me";
-/* The admin token for the checkout worker. In this browser only — it is what
-   authorises onboarding an artist and reading the ledger, so it is a password
-   and not a setting, and it must never end up in a committed file. */
-const STORAGE_ADMIN_TOKEN = "admin_pay_token";
 
 // ===== Password handling =====
 // Real security needs a backend, but for a personal site, this is a reasonable
@@ -637,44 +520,6 @@ async function checkPassword(input) {
 
 // ===== State =====
 let items = [];
-
-let artists = [];
-let checkoutCfg = {};
-
-function me() {
-    try {
-        const raw = localStorage.getItem(STORAGE_ME);
-        if (raw) {
-            const v = JSON.parse(raw);
-            return { id: v.id || "" };
-        }
-    } catch (e) {}
-    return { id: "" };
-}
-function setMe(v) {
-    try { localStorage.setItem(STORAGE_ME, JSON.stringify(v)); } catch (e) {}
-}
-function adminToken() {
-    try { return localStorage.getItem(STORAGE_ADMIN_TOKEN) || ""; } catch (e) { return ""; }
-}
-function setAdminToken(t) {
-    try { localStorage.setItem(STORAGE_ADMIN_TOKEN, t); } catch (e) {}
-}
-
-/* Talking to the checkout worker. Everything here needs the admin token,
-   which is kept in this browser and never written into any file that gets
-   committed. */
-async function payApi(path, init = {}) {
-    const base = String(checkoutCfg.base || "").replace(/\/+$/, "");
-    if (!base) throw new Error("No checkout worker configured — set base in checkout.json.");
-    const res = await fetch(base + path, {
-        ...init,
-        headers: { "content-type": "application/json", "x-admin-token": adminToken(), ...(init.headers || {}) },
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || ("checkout " + res.status));
-    return body;
-}
 let dirty = false;
 let saveTimer = null;
 
@@ -713,212 +558,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function showAdmin() {
     document.getElementById("login-screen").style.display = "none";
     document.getElementById("admin-view").classList.add("active");
-    await loadArtists();
-    wireMe();
     await loadItems();
     renderAll();
     updateStatus();
-}
-
-/* The artists panel: who is on the roster, who can actually be paid, and
-   what each of them is owed.
-
-   artists.json is edited here and exported alongside items.json. The Stripe
-   side of it is not in any file — the account id lives in the worker's store,
-   and whether that account can take charges is asked of Stripe rather than
-   remembered, because "they said they finished onboarding" and "Stripe will
-   send them money" are not the same sentence. */
-async function loadArtists() {
-    try {
-        const r = await fetch("artists.json?t=" + Date.now());
-        const d = await r.json();
-        artists = d.artists || [];
-    } catch (e) { artists = []; }
-    try {
-        const r = await fetch("checkout.json?t=" + Date.now());
-        checkoutCfg = await r.json();
-    } catch (e) { checkoutCfg = {}; }
-}
-
-function wireMe() {
-    const idEl = document.getElementById("me-id");
-    const tokenEl = document.getElementById("pay-token");
-    const statusEl = document.getElementById("me-status");
-    if (!idEl || idEl.dataset.wired) return;
-    idEl.dataset.wired = "1";
-
-    tokenEl.value = adminToken();
-    tokenEl.addEventListener("input", () => setAdminToken(tokenEl.value.trim()));
-
-    /* Two separate facts, and both matter: who you are, and whether there is
-       a checkout to be paid through. Showing only the second one meant you
-       could not tell who you were signed in as until the worker existed. */
-    function paintStatus() {
-        const a = artists.find(x => x.id === me().id);
-        const who = a
-            ? "Signed in as " + (a.name || a.id) + ". New items you add are theirs."
-            : "Pick who you are, so what you add is credited to the right person.";
-        const base = String(checkoutCfg.base || "");
-        const where = base
-            ? ""
-            : " — no checkout worker configured yet, so the store shows plain links and no BUY " +
-              "buttons. Set base in checkout.json once it is deployed.";
-        statusEl.className = (a && base) ? "me-status ok" : "me-status warn";
-        statusEl.textContent = who + where;
-    }
-
-    idEl.addEventListener("change", () => { setMe({ id: idEl.value }); paintStatus(); });
-
-    document.getElementById("artist-add").addEventListener("click", () => {
-        const name = prompt("Artist name?");
-        if (!name) return;
-        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ||
-                   ("artist" + (artists.length + 1));
-        if (artists.some(a => a.id === id)) { alert("There is already an artist with that id."); return; }
-        artists.push({ id, name, email: "", country: "US" });
-        markDirty();
-        renderArtists();
-    });
-
-    document.getElementById("pay-refresh").addEventListener("click", refreshPayouts);
-    document.getElementById("pay-ledger").addEventListener("click", showLedger);
-
-    renderArtists();
-    paintStatus();
-}
-
-function renderArtists() {
-    const host = document.getElementById("artist-rows");
-    const idEl = document.getElementById("me-id");
-    if (!host) return;
-    host.innerHTML = "";
-
-    idEl.innerHTML = '<option value="">— pick —</option>' +
-        artists.map(a => `<option value="${a.id}">${a.name || a.id}</option>`).join("");
-    idEl.value = me().id;
-
-    artists.forEach((a, i) => {
-        const row = document.createElement("div");
-        row.className = "artist-row";
-
-        const name = document.createElement("div");
-        name.className = "field";
-        name.innerHTML = '<div class="field-label">Name</div>';
-        const nameIn = document.createElement("input");
-        nameIn.type = "text"; nameIn.value = a.name || "";
-        nameIn.addEventListener("input", () => { a.name = nameIn.value; markDirty(); renderAll(); });
-        name.appendChild(nameIn);
-
-        const email = document.createElement("div");
-        email.className = "field";
-        email.innerHTML = '<div class="field-label">Email (for Stripe onboarding)</div>';
-        const emailIn = document.createElement("input");
-        emailIn.type = "email"; emailIn.value = a.email || "";
-        emailIn.addEventListener("input", () => { a.email = emailIn.value.trim(); markDirty(); });
-        email.appendChild(emailIn);
-
-        const country = document.createElement("div");
-        country.className = "field";
-        country.innerHTML = '<div class="field-label">Country</div>';
-        const cIn = document.createElement("input");
-        cIn.type = "text"; cIn.value = a.country || "US"; cIn.maxLength = 2;
-        cIn.addEventListener("input", () => { a.country = cIn.value.toUpperCase().slice(0, 2); markDirty(); });
-        country.appendChild(cIn);
-
-        const state = document.createElement("div");
-        state.className = "state " + (a.payable ? "ok" : "warn");
-        state.textContent = a.payable ? "payable" : (a.stripeStarted ? "onboarding unfinished" : "not set up");
-
-        const act = document.createElement("div");
-        const btn = document.createElement("button");
-        btn.className = "admin-btn";
-        btn.type = "button";
-        btn.textContent = a.payable ? "Re-check" : "Set up payouts";
-        btn.addEventListener("click", () => onboard(a, state));
-        act.appendChild(btn);
-
-        const del = document.createElement("button");
-        del.className = "admin-btn danger";
-        del.type = "button";
-        del.textContent = "✕";
-        del.title = "Remove from the roster";
-        del.addEventListener("click", () => {
-            const used = items.filter(it => it.artistId === a.id).length;
-            if (used && !confirm(used + " item(s) are theirs. Remove anyway? They will have no artist.")) return;
-            artists.splice(i, 1);
-            markDirty();
-            renderAll();
-        });
-        act.appendChild(del);
-
-        row.appendChild(name); row.appendChild(email); row.appendChild(country);
-        row.appendChild(state); row.appendChild(act);
-        host.appendChild(row);
-    });
-
-    document.getElementById("artists-note").textContent = artists.length
-        ? "Exporting writes artists.json as well as items.json; both go in the repository root."
-        : "No artists yet. Add one, then set up their payouts.";
-}
-
-/* Send an artist to Stripe. We never see their bank details; the worker asks
-   Stripe for a one-time onboarding link and the artist fills it in there. */
-async function onboard(a, stateEl) {
-    try {
-        stateEl.className = "state";
-        stateEl.textContent = "asking Stripe…";
-        const r = await payApi("/onboard", { method: "POST", body: JSON.stringify({ artist: a.id }) });
-        a.stripeStarted = true;
-        window.open(r.url, "_blank", "noopener");
-        stateEl.className = "state warn";
-        stateEl.textContent = "onboarding opened";
-    } catch (e) {
-        stateEl.className = "state warn";
-        stateEl.textContent = e.message;
-    }
-}
-
-async function refreshPayouts() {
-    const note = document.getElementById("artists-note");
-    try {
-        for (const a of artists) {
-            try {
-                const r = await payApi("/artist/" + encodeURIComponent(a.id));
-                a.payable = !!r.chargesEnabled;
-                a.stripeStarted = !!r.onboarded;
-                a.due = r.requirementsDue || [];
-            } catch (e) { a.payable = false; }
-        }
-        renderArtists();
-        note.textContent = "Checked with Stripe just now. " +
-            artists.filter(a => a.payable).length + " of " + artists.length + " can be paid.";
-    } catch (e) {
-        note.textContent = e.message;
-    }
-}
-
-async function showLedger() {
-    const pre = document.getElementById("ledger");
-    pre.hidden = false;
-    pre.textContent = "asking…";
-    try {
-        const r = await payApi("/ledger");
-        const money = (c) => "$" + (c / 100).toFixed(2);
-        const lines = Object.entries(r.artists).map(([id, v]) => {
-            const a = artists.find(x => x.id === id);
-            return (a ? a.name || id : id).padEnd(16) +
-                String(v.sales).padStart(4) + " sales   " +
-                money(v.grossCents).padStart(10) + " gross   " +
-                money(v.artistCents).padStart(10) + " theirs   " +
-                money(v.feeCents).padStart(9) + " fee";
-        });
-        pre.textContent = lines.length
-            ? lines.join("\n") + "\n\n" + r.orders + " orders on record.\n" +
-              "Stripe is the truth about money — reconcile there before paying anyone."
-            : "No sales yet.";
-    } catch (e) {
-        pre.textContent = e.message;
-    }
 }
 
 // ===== Items loading =====
@@ -993,7 +635,6 @@ function updateStatus() {
 
 // ===== Render =====
 function renderAll() {
-    if (document.getElementById("artist-rows")) renderArtists();
     const grid = document.getElementById("admin-grid");
     grid.innerHTML = "";
     items.forEach((item, idx) => grid.appendChild(itemCard(item, idx)));
@@ -1079,56 +720,6 @@ function itemCard(item, idx) {
     row.appendChild(fieldInput("Price",       "price", item, "price"));
     row.appendChild(fieldInput("Button Text", "buttonText", item));
     body.appendChild(row);
-
-    // ===== Who gets paid =====
-    // The payout details live on the artist, once, in artists.json — an item
-    // just says whose it is. Before this each item carried its own copy,
-    // which meant changing somebody's Venmo meant finding every item they
-    // had ever uploaded.
-    const sellerBox = document.createElement("div");
-    sellerBox.className = "checkout-area seller-area";
-    const sellerHead = document.createElement("div");
-    sellerHead.className = "field-label";
-    sellerHead.textContent = "Who gets paid for this";
-    sellerBox.appendChild(sellerHead);
-
-    const pick = document.createElement("select");
-    function paintPick() {
-        pick.innerHTML = '<option value="">— nobody —</option>' +
-            artists.map(a => `<option value="${a.id}">${a.name || a.id}</option>`).join("");
-        pick.value = item.artistId || "";
-    }
-    paintPick();
-    const payNote = document.createElement("div");
-    payNote.className = "pay-note";
-    function paintPayNote() {
-        const a = artists.find(x => x.id === item.artistId);
-        const amt = (String(item.price || "").replace(/,/g, "").match(/\d+(?:\.\d{1,2})?/) || [""])[0];
-        if (!a) {
-            payNote.className = "pay-note warn";
-            payNote.textContent = "No artist set, so this cannot be sold through the checkout.";
-        } else if (!a.payable) {
-            payNote.className = "pay-note warn";
-            payNote.textContent = (a.name || a.id) + " has not finished Stripe onboarding, " +
-                "so the store will show this without a BUY button. Fix it under Artists.";
-        } else if (!amt) {
-            payNote.className = "pay-note warn";
-            payNote.textContent = "No number in the price, so there is nothing to charge.";
-        } else {
-            payNote.className = "pay-note ok";
-            payNote.textContent = "Sells for " + item.price + " — " + (a.name || a.id) +
-                " is paid their share by Stripe at the moment of the sale.";
-        }
-    }
-    pick.addEventListener("change", () => {
-        item.artistId = pick.value;
-        markDirty();
-        paintPayNote();
-    });
-    sellerBox.appendChild(pick);
-    paintPayNote();
-    sellerBox.appendChild(payNote);
-    body.appendChild(sellerBox);
 
     // Checkout
     const checkout = document.createElement("div");
@@ -1218,24 +809,6 @@ function fieldInput(label, prop, item, cls) {
     return f;
 }
 
-/* The same thing, one level down, for the seller each item carries. */
-function fieldSub(label, obj, prop, placeholder, oninput) {
-    const f = document.createElement("div");
-    f.className = "field";
-    f.innerHTML = `<div class="field-label">${label}</div>`;
-    const inp = document.createElement("input");
-    inp.type = "text";
-    inp.value = obj[prop] || "";
-    inp.placeholder = placeholder || label;
-    inp.addEventListener("input", () => {
-        obj[prop] = inp.value.trim();
-        markDirty();
-        if (oninput) oninput();
-    });
-    f.appendChild(inp);
-    return f;
-}
-
 function fieldTextarea(label, prop, item) {
     const f = document.createElement("div");
     f.className = "field";
@@ -1267,9 +840,6 @@ function addItem() {
         checkoutValue: "",
         buttonText: "BUY",
         available: true,
-        // Stamped with whoever is signed in here, so an upload is paid to the
-        // person who made it without them having to remember to set it.
-        artistId: me().id || "",
     });
     markDirty();
     renderAll();
@@ -1320,26 +890,6 @@ function exportItems() {
     // Re-sequence IDs cleanly
     items.forEach((it, i) => { if (!it.id || /^\d+$/.test(it.id)) it.id = String(i + 1).padStart(2, "0"); });
 
-    /* Two files now, because the roster is its own list. The Stripe side of
-       an artist — their account id, whether they are payable — is deliberately
-       NOT written out: it lives in the worker, is asked of Stripe, and has no
-       business in a file that gets committed to a public repository. */
-    function download(name, obj) {
-        const blob = new Blob([JSON.stringify(obj, null, 2) + "\n"], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
-    }
-    download("artists.json", {
-        artists: artists.map(a => ({
-            id: a.id, name: a.name || "", email: a.email || "",
-            country: a.country || "US", note: a.note || "",
-        })),
-    });
     const data = { items };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);

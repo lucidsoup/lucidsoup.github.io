@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<!-- Same policy as public/_headers, for hosts that can't send headers (GitHub Pages). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' https:; connect-src 'self' https://wbfqhrhanhevdlnspezy.supabase.co; base-uri 'none'; form-action 'self'; object-src 'none'">
+<title>Soup Lab — LucidSoup Drops</title>
+<meta name="description" content="Plugins, instruments and strange devices from the LucidSoup lab. Instant download.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Rubik+Wet+Paint&display=swap">
+<!-- The rest of the site's chrome: the way back and the menu. Only the chrome,
+     not lucid.css — this page is its own design system. -->
+<link rel="stylesheet" href="/lucid-chrome.css?v=20261125a">
+<script src="/lucid.js?v=20261125a" defer></script>
+<!-- The simulations: the real signal path of every plugin, in Web Audio,
+     in this page. Mounted on demand from the specimen sheet. -->
+<link rel="stylesheet" href="/demos.css?v=20261125a">
+<script src="/demos.js?v=20261125a" defer></script>
+<script src="config.js" defer></script>
+<script src="app.js" defer></script>
+<style>
+:root {
+  --void: #05010c;
+  --panel: rgba(10, 5, 22, 0.88);
+  --paper: #0b0716;
+  --line: rgba(160, 255, 240, 0.12);
+  --grid: rgba(0, 255, 213, 0.05);
+  --grid-bold: rgba(0, 255, 213, 0.10);
+  --neon-a: #ff00e6;
+  --neon-b: #00ffd5;
+  --neon-c: #aaff00;
+  --neon-d: #7b2bff;
+  --amber: #ffb000;
+  --danger: #ff2255;
+  --text: #ebe8ff;
+  --dim: #8d86b8;
+  --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  --drip: "Rubik Wet Paint", "IBM Plex Mono", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background-color: var(--void);
+  background-image:
+    linear-gradient(var(--grid-bold) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-bold) 1px, transparent 1px),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+  color: var(--text);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+/* the soup itself: slow psychedelic colour fields under the blueprint grid */
+body::before {
+  content: ""; position: fixed; inset: -25%; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(38% 32% at 18% 22%, rgba(255, 0, 230, 0.20), transparent 70%),
+    radial-gradient(42% 38% at 82% 28%, rgba(0, 255, 213, 0.15), transparent 70%),
+    radial-gradient(48% 42% at 55% 88%, rgba(123, 43, 255, 0.24), transparent 70%),
+    radial-gradient(30% 26% at 70% 60%, rgba(170, 255, 0, 0.08), transparent 70%);
+  animation: soup 34s ease-in-out infinite alternate;
+}
+@keyframes soup {
+  0% { transform: rotate(0) scale(1); filter: hue-rotate(0deg); }
+  100% { transform: rotate(14deg) scale(1.12); filter: hue-rotate(70deg); }
+}
+a { color: var(--neon-b); }
+button { font: inherit; color: inherit; cursor: pointer; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+
+/* ---------- console header with dripping underside ---------- */
+header {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(5, 1, 12, 0.82);
+  backdrop-filter: blur(10px);
+}
+/* The rest of the site's chrome — the way back and the menu — is mounted
+   into this bar rather than pinned over it (data-lucid-chrome-slot in
+   lucid.js), so the row carries five controls instead of two and has to be
+   allowed to give. Without the wrap it ran 62px off the side of a 320px
+   phone. */
+header .wrap { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 60px; padding-top: 6px; padding-bottom: 6px; }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); white-space: nowrap; }
+.logo b {
+  font-family: var(--drip); font-weight: 400; font-size: 26px; letter-spacing: 1px;
+  /* Gradient text only paints inside the box: leave room for the drips below the baseline. */
+  display: inline-block; line-height: 1; padding: 4px 2px 9px; margin-bottom: -5px;
+  background: linear-gradient(90deg, var(--neon-a), var(--neon-b), var(--neon-c), var(--neon-a));
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-fill-color: transparent; will-change: background-position; /* Safari repaints the gradient */
+  animation: flow 9s linear infinite;
+}
+.logo small { font-size: 10px; color: var(--dim); letter-spacing: 2px; text-transform: uppercase; }
+@keyframes flow { to { background-position: 300% 0; } }
+header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.drips { position: absolute; left: 0; right: 0; top: 100%; height: 46px; width: 100%; pointer-events: none; }
+.drips .drop { animation: drip var(--t, 5s) cubic-bezier(.55, 0, .75, .4) var(--d, 0s) infinite; transform-box: fill-box; transform-origin: 50% 0; }
+@keyframes drip {
+  0% { transform: translateY(-8px) scaleY(.6); opacity: 1; }
+  55% { transform: translateY(6px) scaleY(1.5); opacity: 1; }
+  80% { transform: translateY(30px) scaleY(1); opacity: .9; }
+  100% { transform: translateY(44px) scaleY(.8); opacity: 0; }
+}
+
+.btn {
+  border: 1px solid var(--line); border-radius: 4px;
+  background: rgba(14, 7, 30, 0.85); padding: 9px 14px; font-size: 13px;
+  transition: border-color .12s, box-shadow .12s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover, .btn:focus-visible { border-color: var(--neon-b); box-shadow: 0 0 14px rgba(0, 255, 213, .4); outline: none; }
+.btn.primary { background: linear-gradient(90deg, var(--neon-a), var(--neon-d)); border: 0; color: #fff; font-weight: 600; }
+.btn.primary:hover { box-shadow: 0 0 22px rgba(255, 0, 230, .6); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.badge { background: var(--neon-a); color: #000; border-radius: 99px; font-size: 11px; font-weight: 600; min-width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0 5px; }
+.badge[data-n="0"] { display: none; }
+
+.banner { margin: 56px 0 0; padding: 12px 14px; border: 1px dashed; font-size: 13px; }
+.banner + .banner { margin-top: 10px; }
+.banner.ok { border-color: var(--neon-c); background: rgba(170, 255, 0, .07); }
+.banner.info { border-color: var(--neon-d); background: rgba(123, 43, 255, .12); }
+
+/* ---------- hero: the apparatus ---------- */
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 24px; align-items: center; padding: 64px 0 26px; }
+@media (max-width: 820px) { .hero { grid-template-columns: 1fr; padding-top: 58px; } }
+.kicker { font-size: 11px; letter-spacing: 3px; color: var(--neon-b); text-transform: uppercase; }
+.kicker::before { content: "◉ "; color: var(--neon-a); animation: blink 1.6s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.hero h1 {
+  font-family: var(--drip); font-weight: 400; font-size: clamp(56px, 11vw, 124px); line-height: .9; margin: 10px 0 0;
+  padding: .04em .04em .2em; /* room for the drips on p, a and b */
+  background: linear-gradient(170deg, var(--neon-c) 0%, var(--neon-b) 25%, var(--neon-a) 50%, var(--neon-d) 75%, var(--neon-c) 100%);
+  background-size: 100% 300%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-fill-color: transparent; will-change: background-position, filter;
+  filter: drop-shadow(0 0 18px rgba(255, 0, 230, .35));
+  /* The colours pour down through the letters (works everywhere) while the hue drifts. */
+  animation: pour 7s linear infinite, hue 12s linear infinite;
+}
+@keyframes pour { to { background-position: 0 300%; } }
+@keyframes hue { to { filter: drop-shadow(0 0 18px rgba(255, 0, 230, .35)) hue-rotate(360deg); } }
+.hero p { color: #c9c5ea; max-width: 54ch; line-height: 1.6; font-size: 14px; margin: 0; }
+.readouts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 20px; max-width: 520px; }
+.readout { border: 1px solid var(--line); background: rgba(0, 0, 0, .45); padding: 8px 10px; }
+.readout span { display: block; font-size: 9.5px; letter-spacing: 1.5px; color: var(--dim); text-transform: uppercase; }
+.readout b { font-size: 20px; color: var(--neon-c); font-weight: 600; font-variant-numeric: tabular-nums; }
+.apparatus { width: 100%; max-width: 520px; justify-self: center; overflow: visible; }
+.apparatus .tick { stroke: rgba(160, 255, 240, .35); stroke-width: 1; }
+.apparatus text { font-family: var(--mono); font-size: 8px; fill: var(--dim); letter-spacing: 1px; }
+.apparatus .glass { fill: rgba(160, 255, 240, .05); stroke: rgba(200, 255, 250, .55); stroke-width: 2; }
+.apparatus .gear { fill: #120a26; stroke: var(--neon-b); stroke-width: 1.4; }
+.apparatus .gear.alt { stroke: var(--neon-a); }
+.apparatus .gear.acid { stroke: var(--neon-c); }
+.apparatus .liquid { animation: liquid 10s linear infinite; }
+@keyframes liquid { to { filter: hue-rotate(360deg); } }
+.apparatus .bubble { animation: rise var(--t, 3s) ease-in var(--d, 0s) infinite; transform-box: fill-box; }
+@keyframes rise { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: .9; } 100% { transform: translateY(-120px) scale(1.2); opacity: 0; } }
+.apparatus .fall { animation: fall 1.9s cubic-bezier(.6, 0, .9, .5) var(--d, 0s) infinite; transform-box: fill-box; transform-origin: 50% 0; }
+@keyframes fall { 0% { transform: translateY(0) scaleY(.7); opacity: 0; } 15% { opacity: 1; } 85% { transform: translateY(78px) scaleY(1.4); opacity: 1; } 100% { transform: translateY(84px) scaleY(.4); opacity: 0; } }
+
+/* ---------- periodic table of soup ---------- */
+.table-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 34px 0 10px; }
+.table-head h2 { margin: 0; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--neon-b); font-weight: 600; }
+.ruler { height: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+  background:
+    repeating-linear-gradient(90deg, rgba(160, 255, 240, .45) 0 1px, transparent 1px 80px) bottom / 100% 14px no-repeat,
+    repeating-linear-gradient(90deg, rgba(160, 255, 240, .25) 0 1px, transparent 1px 16px) bottom / 100% 6px no-repeat; }
+.legend { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+.chip { border: 1px solid var(--line); background: rgba(0, 0, 0, .4); padding: 6px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 7px; border-radius: 2px; }
+.chip i { width: 9px; height: 9px; background: var(--c, var(--text)); display: inline-block; box-shadow: 0 0 8px var(--c, transparent); }
+.chip[aria-pressed="true"] { border-color: var(--c, var(--neon-b)); color: #fff; box-shadow: inset 0 0 0 1px var(--c, var(--neon-b)); }
+#table { display: flex; flex-wrap: wrap; gap: 6px 34px; align-items: flex-start; }
+.group { margin-bottom: 18px; max-width: 100%; }
+.group h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; font-weight: 600; color: var(--c); display: flex; align-items: center; gap: 8px; }
+.group h3::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--c), transparent); opacity: .5; }
+.elements { display: grid; grid-template-columns: repeat(var(--n, 3), 168px); gap: 14px; }
+.cell { position: relative; transform: rotate(var(--tilt, 0deg)); transition: transform .25s cubic-bezier(.2, .9, .3, 1.3); }
+.cell:hover, .cell:focus-within { transform: rotate(0); z-index: 2; }
+.el {
+  position: relative; width: 100%; aspect-ratio: 1 / 1.08; text-align: left; padding: 10px 11px; border: 1px solid var(--c); border-radius: 2px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 16%, transparent), rgba(5, 1, 12, .92) 62%);
+  display: grid; grid-template-rows: auto 1fr auto auto;
+  transition: transform .25s cubic-bezier(.2, .9, .3, 1.3), box-shadow .2s;
+}
+.el:hover, .el:focus-visible { transform: translateY(-4px) scale(1.03); box-shadow: 0 0 26px color-mix(in srgb, var(--c) 55%, transparent); outline: none; z-index: 2; }
+/* registration crosshairs: the precise part of the chaos */
+.el::before, .el::after { content: "+"; position: absolute; font-size: 11px; line-height: 1; color: var(--c); opacity: .7; }
+.el::before { top: -7px; left: -5px; }
+.el::after { bottom: -7px; right: -5px; }
+.el-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+.el-top b { color: var(--c); font-weight: 600; }
+.el-sym { font-family: var(--drip); font-size: clamp(50px, 7vw, 66px); line-height: 1; align-self: center; color: var(--c); text-shadow: 0 0 22px color-mix(in srgb, var(--c) 70%, transparent); }
+.el-name { font-size: 14px; font-weight: 600; color: #fff; }
+.el-sub { font-size: 10.5px; color: var(--dim); display: flex; justify-content: space-between; gap: 6px; margin-top: 2px; }
+.stamp { position: absolute; right: 8px; top: 40%; transform: rotate(-12deg); font-size: 10px; letter-spacing: 2px; font-weight: 600; color: var(--amber); border: 1.5px solid var(--amber); padding: 2px 6px; background: rgba(5, 1, 12, .7); }
+/* drips that creep from the bottom edge on hover */
+.goo { position: absolute; left: 22%; bottom: -1px; width: 10px; height: 0; background: var(--c); border-radius: 0 0 6px 6px; transition: height .5s cubic-bezier(.5, 0, .3, 1); opacity: .85; pointer-events: none; }
+.goo + .goo { left: 64%; width: 7px; transition-delay: .08s; }
+.el:hover .goo, .el:focus-visible .goo { height: 18px; }
+.el:hover .goo + .goo, .el:focus-visible .goo + .goo { height: 11px; }
+.play {
+  position: absolute; top: 30px; left: 10px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--c);
+  background: rgba(0, 0, 0, .7); color: var(--c); font-size: 11px; display: grid; place-items: center; z-index: 3;
+}
+.play[aria-pressed="true"] { background: var(--c); color: #000; }
+.empty { color: var(--dim); padding: 40px 0; text-align: center; }
+
+/* ---------- dialogs: lab reports ---------- */
+dialog {
+  border: 1px solid var(--line); border-radius: 2px; background-color: var(--paper); color: var(--text); padding: 0;
+  width: min(920px, calc(100vw - 24px)); max-height: calc(100vh - 32px);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(3px); }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--paper); z-index: 1; }
+.dlg-head h2 { margin: 0; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: 600; }
+.dlg-body { padding: 16px; }
+.x { background: none; border: 0; font-size: 22px; line-height: 1; padding: 4px 8px; }
+.sheet { display: grid; grid-template-columns: 300px 1fr; gap: 22px; }
+@media (max-width: 720px) { .sheet { grid-template-columns: 1fr; } }
+.big { border: 1px solid var(--c); aspect-ratio: 1; display: grid; place-items: center; position: relative;
+  background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--c) 28%, transparent), transparent 65%); }
+.big span { font-family: var(--drip); font-size: 128px; color: var(--c); text-shadow: 0 0 30px var(--c); }
+.big small { position: absolute; top: 8px; left: 10px; font-size: 11px; color: var(--dim); }
+.big em { position: absolute; top: 8px; right: 10px; font-size: 11px; color: var(--c); font-style: normal; }
+.sheet img { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--line); margin-top: 10px; display: block; }
+.sheet audio { width: 100%; margin-top: 10px; }
+.sheet h3 { margin: 0 0 4px; font-size: 24px; }
+.tagline { color: #c9c5ea; margin: 0 0 10px; font-size: 13px; }
+.price { font-weight: 600; color: var(--neon-b); font-size: 22px; }
+.price.free { color: var(--neon-c); }
+.labdata { width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0; }
+.labdata caption, .cap { text-align: left; font-size: 10px; letter-spacing: 2px; color: var(--dim); padding-bottom: 4px; text-transform: uppercase; }
+.labdata th, .labdata td { text-align: left; vertical-align: top; padding: 5px 8px; border: 1px solid var(--line); }
+.labdata th { color: var(--c, var(--neon-b)); font-weight: 600; width: 34%; background: rgba(0, 0, 0, .35); }
+.fmts { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+.fmt { font-size: 10.5px; border: 1px solid var(--line); padding: 1px 6px; color: var(--dim); }
+.buy { display: flex; gap: 10px; align-items: center; margin: 14px 0; flex-wrap: wrap; }
+.notice { border: 1px dashed var(--amber); color: var(--amber); padding: 10px 12px; font-size: 12.5px; margin: 12px 0; }
+.files { list-style: none; padding: 0; margin: 6px 0 12px; display: grid; gap: 6px; font-size: 12.5px; }
+.files li { display: flex; justify-content: space-between; gap: 10px; border: 1px solid var(--line); padding: 7px 10px; background: rgba(0, 0, 0, .3); }
+.sz { color: var(--dim); white-space: nowrap; }
+.desc { white-space: pre-line; color: #c9c5ea; font-size: 13px; line-height: 1.65; }
+.small { font-size: 12px; color: var(--dim); }
+form.free, form.track { display: grid; gap: 8px; margin: 14px 0; }
+label.chk { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--dim); }
+input { font: inherit; color: var(--text); background: #0f0820; border: 1px solid var(--line); border-radius: 2px; padding: 10px 12px; }
+input:focus { outline: none; border-color: var(--neon-b); }
+label.chk input { margin-top: 2px; }
+
+/* cart */
+#cart { margin: 0 0 0 auto; height: 100vh; max-height: 100vh; width: min(420px, 100vw); border-width: 0 0 0 1px; }
+.line { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.line .sym { width: 52px; height: 52px; border: 1px solid var(--c); display: grid; place-items: center; font-family: var(--drip); font-size: 24px; color: var(--c); }
+.line .t { font-size: 13px; }
+.rm { background: none; border: 0; color: var(--dim); font-size: 12px; padding: 0; text-decoration: underline; }
+.total { display: flex; justify-content: space-between; font-weight: 600; margin: 16px 0; font-size: 16px; }
+.err { color: var(--danger); font-size: 13px; min-height: 1.2em; }
+.dl { display: grid; gap: 8px; margin: 8px 0 18px; }
+.dl a.btn { justify-content: space-between; }
+.dl h3 { margin: 6px 0 0; font-size: 15px; }
+.policy h3 { color: var(--neon-b); font-size: 13px; margin: 18px 0 6px; }
+.policy p { font-size: 13px; line-height: 1.65; color: #c9c5ea; }
+
+footer { border-top: 1px solid var(--line); padding: 22px 0 40px; font-size: 12px; color: var(--dim); margin-top: 30px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+/* A word that does something is still something a thumb has to hit. These
+   were 15px of underlined text — under half a target — and the menu's own
+   rows next to them are 40. */
+footer button { background: none; border: 0; color: var(--dim); padding: 0 2px; min-height: 44px; text-decoration: underline; }
+footer button:hover { color: var(--text); }
+footer .copy { margin-left: auto; }
+/* Icon-only sooner than the rest of the page changes: the bar fills up
+   first. */
+@media (max-width: 700px) { header nav .lbl { display: none; } }
+@media (max-width: 520px) {
+  .logo small { display: none; }
+  .readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .group { width: 100%; }
+  .elements { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .el { padding: 8px 9px; }
+  .el-name { font-size: 13px; }
+  footer .copy { margin-left: 0; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .cell { transform: none; }
+  .drips { display: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="logo" href="./" id="logo"><b>Soup Lab</b><small id="brand">LucidSoup Drops</small></a>
+    <nav data-lucid-chrome-slot aria-label="Store">
+      <button class="btn" id="btn-library" title="My downloads">⬇ <span class="lbl">My downloads</span></button>
+      <button class="btn" id="btn-cart" title="Cart">🧪 <span class="lbl">Cart</span> <span class="badge" id="cart-count" data-n="0">0</span></button>
+    </nav>
+  </div>
+  <svg class="drips" id="drips" aria-hidden="true" preserveAspectRatio="none"></svg>
+</header>
+
+<main class="wrap">
+  <div id="banners"></div>
+  <section class="hero" aria-labelledby="hero-title">
+    <div>
+      <div class="kicker">LucidSoup · experimental audio laboratory</div>
+      <h1 id="hero-title">Soup Lab</h1>
+      <p id="hero-tag">Plugins, instruments and strange devices brewed in-house, each one measured, tested and catalogued in the periodic table below. Pay once, download instantly, keep forever.</p>
+      <div class="readouts" aria-label="Lab readouts">
+        <div class="readout"><span>Specimens</span><b id="r-count">—</b></div>
+        <div class="readout"><span>Classes</span><b id="r-classes">—</b></div>
+        <div class="readout"><span>Free</span><b id="r-free">—</b></div>
+        <div class="readout"><span>Tuned to</span><b>432Hz</b></div>
+      </div>
+    </div>
+    <svg class="apparatus" id="apparatus" viewBox="0 0 520 380" role="img" aria-label="A flask of bubbling psychedelic soup feeding a train of turning gears"></svg>
+  </section>
+
+  <section aria-labelledby="table-title">
+    <div class="table-head">
+      <h2 id="table-title">The Periodic Table of Soup</h2>
+      <span class="small" id="table-meta"></span>
+    </div>
+    <div class="ruler" aria-hidden="true"></div>
+    <div class="legend" id="legend" role="group" aria-label="Filter by class"></div>
+    <div id="table" aria-live="polite"><div class="empty">Calibrating instruments…</div></div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <button data-policy="license">License</button>
+    <button data-policy="refunds">Refunds</button>
+    <button data-policy="privacy">Privacy</button>
+    <button data-policy="terms">Terms</button>
+    <button data-bench>The bench</button>
+    <button data-policy="contact">Contact</button>
+    <span class="copy" id="copy"></span>
+  </div>
+</footer>
+
+<dialog id="pdp" aria-label="Specimen sheet"></dialog>
+<dialog id="cart" aria-label="Cart"></dialog>
+<dialog id="downloads" aria-label="Downloads"></dialog>
+<dialog id="library" aria-label="My downloads"></dialog>
+<dialog id="bench" aria-label="The bench: a simulation of every plugin"></dialog>
+<dialog id="policy" aria-label="Policy"></dialog>
+</body>
+</html>

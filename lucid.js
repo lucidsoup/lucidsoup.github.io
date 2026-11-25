@@ -116,7 +116,7 @@
             ['Shaders',            '/#shader-library',   'live, in the page'],
             ['The Gallery',        '/gallery.html',      'the long way round'],
             ['Watchlist',          '/watch.html',        'films worth stealing from'],
-            ['Store',              '/store.html',        'plugins, with a demo of each']
+            ['Soup Lab',            '/store/',            'the store \u2014 a demo of every plugin']
         ]],
         ['Run', [
             ['Visual Playground',  '/playground.html',   'audio → visuals'],
