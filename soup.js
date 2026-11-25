@@ -76,6 +76,7 @@
         { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'leek',   d: 80, ring: 1, a: .69 },
         { id: 'playground',     label: 'Playground', sub: 'audio \u2192 visuals', href: 'playground.html', shape: 'noodle', d: 82, ring: 1, a: .89 },
 
+        { id: 'store',          label: 'Store',      sub: 'plugins',       href: 'store.html',     shape: 'garlic',  d: 80, ring: 2, a: .02 },
         { id: 'watch',          label: 'Watchlist',  sub: 'what to watch', href: 'watch.html',     shape: 'lotus',   d: 78, ring: 2, a: .72 },
         { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'fusilli', d: 82, ring: 2, a: .17 },
         { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'anise', d: 68, ring: 2, a: .42 },
@@ -452,6 +453,47 @@
                         '<ellipse cx="27" cy="34" rx="7" ry="4.6" fill="#f2ffd8" opacity=".62" transform="rotate(-28 27 34)"/>' +
                         '<ellipse cx="63" cy="31" rx="5" ry="3.4" fill="#f2ffd8" opacity=".55" transform="rotate(-28 63 31)"/>' +
                         '<ellipse cx="48" cy="62" rx="6" ry="4" fill="#f2ffd8" opacity=".5" transform="rotate(-28 48 62)"/>'
+                };
+            });
+        },
+
+        /* Store — a bulb of garlic. One skin over a dozen separate cloves,
+           which is the honest shape for a page that is a collection. */
+        garlic: function () {
+            return ing(64, function (k) {
+                var cloves = '';
+                /* Five cloves across the front. They have to overlap and they
+                   have to be fat at the bottom, or the bulb comes out as a
+                   flower: the first version spaced them out and that is
+                   exactly what it looked like. The outer ones are narrower
+                   and start lower, which is the foreshortening. */
+                for (var i = -2; i <= 2; i++) {
+                    var x = 50 + i * 11.5;
+                    var w = 13.5 - Math.abs(i) * 2.2;
+                    var top = 30 + Math.abs(i) * 8;
+                    // Blunt tips, not points: a clove is rounded at the top and
+                    // a row of sharp ones reads as a flower, which is what the
+                    // first two attempts at this looked like.
+                    cloves += '<path d="M' + (x - 2.6) + ' ' + (top + 2) +
+                        ' Q' + x + ' ' + (top - 2.4) + ' ' + (x + 2.6) + ' ' + (top + 2) +
+                        ' C' + (x + w) + ' ' + (top + 15) + ' ' + (x + w * 1.15) + ' 70 ' + (x + w * 0.35) + ' 84' +
+                        ' Q' + x + ' 89 ' + (x - w * 0.35) + ' 84' +
+                        ' C' + (x - w * 1.15) + ' 70 ' + (x - w) + ' ' + (top + 15) + ' ' + (x - 2.6) + ' ' + (top + 2) +
+                        ' Z" fill="url(#' + k + 'c)" stroke="#c0ad92" stroke-width="1" stroke-opacity=".55"/>';
+                }
+                return {
+                    defs:
+                        grad(k + 'c', '0', '0', '1', '1', [['0', '#fffdf7'], ['.55', '#f3e9d6'], ['1', '#d3c3a7']]) +
+                        rgrad(k + 'n', '.5', '.5', '.6', [['0', '#b59b76'], ['1', '#8a7352']]),
+                    art:
+                        // The base the cloves sit in, so the bottom is a bulb
+                        // rather than five separate points.
+                        '<ellipse cx="50" cy="78" rx="34" ry="13" fill="url(#' + k + 'c)"/>' +
+                        cloves +
+                        // The neck, where the stem was cut off.
+                        '<path d="M45 32 Q50 8 55 32 Z" fill="url(#' + k + 'n)"/>' +
+                        '<ellipse cx="50" cy="31" rx="7.5" ry="3" fill="#9c845f" opacity=".85"/>' +
+                        '<ellipse cx="36" cy="56" rx="4" ry="11" fill="#ffffff" opacity=".35" transform="rotate(-9 36 56)"/>'
                 };
             });
         },

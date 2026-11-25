@@ -473,7 +473,15 @@
 
     <div class="admin-main">
         <div class="admin-help">
-            <strong>The storefront is not on the site.</strong> There is no Shop section, nothing links to one, and nothing reads <code>items.json</code> but this page &mdash; so what you edit here is the shop as it will be, not anything a visitor can see today. Putting it back means restoring the section and the grid in <code>index.html</code> and the route to it in <code>soup.js</code> and <code>stack.js</code>; all of it is in the commit that took it out.
+            <strong>The storefront is live again, at <a href="/store.html">/store.html</a>.</strong> What you
+            edit here is what a visitor sees: that page reads this same <code>items.json</code>, and the bowl, the
+            menu and the Stack all route to it. Fields this editor does not show &mdash; <code>kind</code>,
+            <code>format</code>, <code>platforms</code>, <code>demo</code> &mdash; are carried through untouched, so
+            editing a plugin here will not strip the line that tells the store which simulation to open.
+            <br><br>
+            <strong>Two things to know about ids.</strong> Any id that is all digits gets renumbered on export, so the
+            plugins use word ids (<code>mindbloom</code>, <code>hydra</code>) and are safe. And <strong>prices are
+            deliberately empty</strong>: every plugin card says &ldquo;price not set&rdquo; until you put one here.
             <br><br>
             <strong>How it works:</strong> Edit any field below — changes save automatically to your browser as you type. When you're done, click <strong>SAVE / EXPORT JSON</strong> to download an updated <code>items.json</code>, then upload that file to the root of your repository.
         </div>

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
+    <link rel="apple-touch-icon" href="/icons/soup-180.png">
+    <link rel="stylesheet" href="/lucid.css">
+    <link rel="stylesheet" href="/stack.css">
+    <meta charset="UTF-8">
+    <!-- Same policy as the rest of the site. Nothing here loads a script from
+         another origin: the simulations are one file on this host and the
+         audio they play is generated, so media-src never has to reach out. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store — LucidSoup</title>
+    <meta name="description" content="Plugins built here: synthesisers, effects racks, a Euclidean drum machine, an analyser and a sample tuner. Every one has a simulation you can play in the browser before you download anything.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* A class with a display wins over the UA's [hidden] rule on equal
+           specificity, so the file picker was showing while hidden. */
+        [hidden] { display: none !important; }
+        body {
+            font-family: 'Arial', sans-serif; line-height: 1.6;
+            color: var(--lucid-ink, rgba(255,255,255,.93));
+            background: #0a0a0a; min-height: 100vh; overflow-x: hidden;
+        }
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+        h1 {
+            font-family: 'Orbitron', monospace; font-size: clamp(2rem, 7vw, 3.4rem);
+            letter-spacing: .06em; text-transform: uppercase; text-align: center;
+            margin-bottom: .6rem;
+        }
+        .lede {
+            text-align: center; max-width: 60ch; margin: 0 auto 1.1rem;
+            color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+        }
+
+        /* The one thing a visitor has to understand before they press
+           anything, so it is not in a footnote. */
+        .truth {
+            max-width: 68ch; margin: 0 auto 2.4rem; padding: 14px 18px;
+            border: 1px solid rgba(155,123,255,.3);
+            border-left: 3px solid var(--lucid-accent-3, #d44fb0);
+            border-radius: 4px; background: rgba(155,123,255,.07);
+            font-size: .94rem; color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+        }
+        .truth strong { color: var(--lucid-ink, rgba(255,255,255,.93)); }
+
+        .filters { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 1.6rem; }
+        .chip {
+            display: inline-flex; align-items: center; min-height: 36px;
+            padding: 6px 14px; border-radius: 999px; cursor: pointer;
+            border: 1px solid rgba(155,123,255,.34); background: rgba(10,8,20,.7);
+            color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+            font-family: var(--lucid-mono); font-size: 11px; letter-spacing: .14em;
+            text-transform: uppercase;
+        }
+        .chip[aria-pressed="true"] {
+            border-color: var(--lucid-accent-2, #8ae04b); color: #d9ffb8;
+            background: rgba(138,224,75,.14);
+        }
+        .count { text-align: center; font-family: var(--lucid-mono); font-size: 12px;
+                 color: var(--lucid-ink-faint, rgba(255,255,255,.54)); margin-bottom: 1.4rem; }
+
+        /* ===== SHOP =====
+           The grid and the card keep the class names and the shape the shop
+           had before it was taken off the site, because admin.html calls
+           itself a mirror of the storefront and that only stays true if the
+           storefront it mirrors is the same one. */
+        .shop-grid {
+            display: grid; gap: 18px;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        }
+        .shop-loading, .shop-empty {
+            grid-column: 1 / -1; text-align: center; padding: 2rem;
+            color: var(--lucid-ink-faint, rgba(255,255,255,.54));
+            font-family: var(--lucid-mono); font-size: 13px;
+        }
+        .shop-item {
+            display: flex; flex-direction: column;
+            border: 1px solid var(--lucid-pane-edge, rgba(255,255,255,.1));
+            border-radius: var(--lucid-pane-radius, 16px);
+            background: var(--lucid-pane, rgba(18,14,32,.72));
+            overflow: hidden;
+            transition: border-color .2s ease, transform .2s ease;
+        }
+        .shop-item:hover { border-color: rgba(155,123,255,.5); transform: translateY(-2px); }
+        .shop-item.sold-out { opacity: .72; }
+        .shop-item-image {
+            position: relative; aspect-ratio: 16 / 7; display: flex;
+            align-items: center; justify-content: center;
+            background: radial-gradient(70% 90% at 30% 20%, rgba(155,123,255,.3), rgba(8,5,16,.9));
+            border-bottom: 1px solid rgba(255,255,255,.07);
+        }
+        .shop-item-image img { width: 100%; height: 100%; object-fit: cover; }
+        .shop-item-image-placeholder {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 100%;
+            font-family: var(--lucid-mono); letter-spacing: .3em; text-transform: uppercase;
+            font-size: 11px; color: rgba(214,196,255,.75);
+        }
+        .shop-item-body { display: flex; flex-direction: column; flex: 1; padding: 14px 16px 16px; gap: 6px; }
+        .shop-item-subtitle {
+            font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .2em;
+            text-transform: uppercase; color: var(--lucid-ink-label, #b49cff);
+        }
+        .shop-item-title { font-size: 1.22rem; font-weight: 700; line-height: 1.2; }
+        .shop-item-description {
+            font-size: .9rem; color: var(--lucid-ink-dim, rgba(255,255,255,.74)); flex: 1;
+        }
+        .meta {
+            display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px;
+        }
+        .meta span {
+            font-family: var(--lucid-mono); font-size: 9.5px; letter-spacing: .1em;
+            padding: 3px 7px; border-radius: 3px;
+            border: 1px solid rgba(155,123,255,.26);
+            color: var(--lucid-ink-faint, rgba(255,255,255,.54));
+        }
+        .shop-item-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; margin-top: 10px; flex-wrap: wrap;
+        }
+        .shop-item-price {
+            font-family: var(--lucid-mono); font-size: 13px;
+            color: var(--lucid-accent-2, #8ae04b);
+        }
+        .shop-item-price.tbd { color: var(--lucid-ink-faint, rgba(255,255,255,.54)); font-size: 11px; }
+        .shop-item-button, .try {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-height: 40px; padding: 8px 16px; border-radius: 4px; cursor: pointer;
+            font-family: var(--lucid-mono); font-size: 11px; letter-spacing: .16em;
+            text-transform: uppercase; text-decoration: none; border: 1px solid;
+        }
+        .shop-item-button {
+            border-color: rgba(155,123,255,.5); background: rgba(155,123,255,.14);
+            color: #d7c9ff;
+        }
+        .shop-item-button:hover { background: rgba(155,123,255,.26); }
+        .nobuild {
+            font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .1em;
+            text-transform: uppercase; color: var(--lucid-accent-3, #d44fb0);
+        }
+        .try {
+            border-color: rgba(138,224,75,.55); background: rgba(138,224,75,.12);
+            color: #d9ffb8;
+        }
+        .try:hover { background: rgba(138,224,75,.24); }
+        .try[hidden] { display: none; }
+
+        /* ===== the simulation drawer ===== */
+        .demo {
+            grid-column: 1 / -1;
+            border: 1px solid rgba(138,224,75,.4);
+            border-radius: var(--lucid-pane-radius, 16px);
+            background: rgba(8,14,6,.72);
+            padding: 16px 18px 18px;
+        }
+        .demo-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+        .demo-bar h3 { font-size: 1.05rem; }
+        .demo-bar h3 small {
+            display: block; font-family: var(--lucid-mono); font-size: 10px;
+            letter-spacing: .18em; text-transform: uppercase; font-weight: 400;
+            color: var(--lucid-accent-2, #8ae04b);
+        }
+        .demo-close {
+            min-height: 40px; padding: 8px 14px; cursor: pointer; border-radius: 4px;
+            border: 1px solid rgba(155,123,255,.4); background: rgba(10,8,20,.8);
+            color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+            font-family: var(--lucid-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+        }
+        .demo-blurb { font-size: .9rem; color: var(--lucid-ink-dim, rgba(255,255,255,.74)); margin-bottom: 10px; }
+        .demo-rack {
+            display: grid; gap: 10px 18px; margin: 12px 0;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        }
+        .demo-ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+        .demo-label {
+            font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .14em;
+            text-transform: uppercase; color: var(--lucid-ink-label, #b49cff);
+        }
+        .demo-val {
+            font-family: var(--lucid-mono); font-size: 11px;
+            color: var(--lucid-ink-dim, rgba(255,255,255,.74)); text-align: right;
+        }
+        .demo-ctl input[type="range"] { grid-column: 1 / -1; width: 100%; }
+        .demo-ctl select, .demo-select {
+            grid-column: 1 / -1; min-height: 40px; padding: 6px 10px; border-radius: 4px;
+            background: rgba(6,4,14,.9); color: var(--lucid-ink, rgba(255,255,255,.93));
+            border: 1px solid rgba(155,123,255,.4); font: inherit; font-size: .88rem;
+        }
+        .demo-switch {
+            grid-column: 1 / -1; min-height: 40px; padding: 8px 12px; cursor: pointer;
+            border-radius: 4px; border: 1px solid rgba(155,123,255,.4);
+            background: rgba(10,8,20,.8); color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+            font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+        }
+        .demo-switch[aria-pressed="true"] {
+            border-color: var(--lucid-accent-2, #8ae04b); background: rgba(138,224,75,.16); color: #d9ffb8;
+        }
+        .demo-source { margin: 10px 0; }
+        .demo-source h4, .demo-unlike summary {
+            font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .18em;
+            text-transform: uppercase; color: var(--lucid-ink-label, #b49cff); font-weight: 400;
+        }
+        .demo-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 6px; }
+        .demo-row .demo-select { grid-column: auto; min-width: 200px; flex: 0 1 auto; }
+        .demo-filelab {
+            display: inline-flex; align-items: center; min-height: 40px; padding: 8px 14px;
+            border-radius: 4px; cursor: pointer; border: 1px dashed rgba(155,123,255,.5);
+            color: var(--lucid-ink-dim, rgba(255,255,255,.74));
+            font-family: var(--lucid-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+        }
+        .demo-note { font-size: .82rem; color: var(--lucid-ink-faint, rgba(255,255,255,.54)); margin-top: 6px; }
+        .demo-canvas {
+            width: 100%; height: 230px; display: block; margin: 12px 0;
+            border: 1px solid rgba(155,123,255,.26); border-radius: 8px; background: #07050f;
+        }
+        .demo-transport { margin-top: 10px; }
+        .demo-play {
+            min-height: 44px; padding: 10px 26px; cursor: pointer; border-radius: 4px;
+            border: 1px solid var(--lucid-accent-2, #8ae04b); background: rgba(138,224,75,.18);
+            color: #d9ffb8; font-family: var(--lucid-mono); font-size: 12px;
+            letter-spacing: .18em; text-transform: uppercase;
+        }
+        .demo-act {
+            min-height: 40px; padding: 8px 16px; cursor: pointer; border-radius: 4px;
+            border: 1px solid rgba(155,123,255,.5); background: rgba(155,123,255,.14);
+            color: #d7c9ff; font-family: var(--lucid-mono); font-size: 11px;
+            letter-spacing: .14em; text-transform: uppercase;
+        }
+        .demo-act:disabled { opacity: .4; cursor: default; }
+        .demo-play[aria-pressed="true"] { background: rgba(212,79,176,.22); border-color: #d44fb0; color: #ffd6f0; }
+        .demo-keys { display: flex; gap: 2px; margin: 12px 0; height: 92px; }
+        .demo-key {
+            flex: 1; min-width: 0; cursor: pointer; border-radius: 0 0 5px 5px;
+            border: 1px solid rgba(0,0,0,.6); background: linear-gradient(#f3ecff, #cfc2e8);
+        }
+        .demo-key.black { background: linear-gradient(#3a2d55, #150f26); height: 60%; flex: .7; }
+        .demo-key.on { background: linear-gradient(#8ae04b, #4e8b2c); }
+        .demo-unlike { margin-top: 14px; }
+        .demo-unlike summary { cursor: pointer; min-height: 32px; }
+        .demo-unlike ul { margin: 8px 0 0 1.1rem; }
+        .demo-unlike li { font-size: .86rem; color: var(--lucid-ink-dim, rgba(255,255,255,.74)); margin-bottom: 4px; }
+        .demo-none { color: var(--lucid-ink-faint, rgba(255,255,255,.54)); font-size: .9rem; }
+        /* OSC Link's output is its messages, so the messages are the screen. */
+        .osc-log {
+            margin: 12px 0; height: 230px; overflow: hidden;
+            border: 1px solid rgba(155,123,255,.26); border-radius: 8px;
+            background: #07050f; padding: 8px 10px;
+            font-family: var(--lucid-mono); font-size: 11.5px; line-height: 1.65;
+        }
+        .osc-line { color: var(--lucid-ink-dim, rgba(255,255,255,.74)); white-space: pre; }
+        .osc-line:first-child { color: var(--lucid-accent-2, #8ae04b); }
+        .demo-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+        @media (max-width: 640px) {
+            .wrap { padding-top: calc(var(--lucid-chrome-clear, 41px) + 1rem); }
+            .shop-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main class="wrap" id="main" tabindex="-1">
+        <h1 class="lucid-liquid-type">Store</h1>
+        <p class="lede">Plugins built here. Synthesisers, effects racks, a Euclidean drum machine,
+           an analyser, a sample tuner.</p>
+
+        <p class="truth">
+            <strong>Every one of these has a simulation you can play right here, in the page.</strong>
+            It is not the plugin — a browser cannot load a VST3, and anything claiming otherwise is
+            running something else. Each simulation is a small WebAudio instrument built from that
+            plugin&rsquo;s own controls, close enough to tell you whether you want the real one. Every
+            one lists what it leaves out.
+        </p>
+
+        <div class="filters" role="group" aria-label="Filter by kind">
+            <button class="chip" type="button" data-kind="instrument" aria-pressed="false">Instruments</button>
+            <button class="chip" type="button" data-kind="effect" aria-pressed="false">Effects</button>
+            <button class="chip" type="button" data-kind="utility" aria-pressed="false">Utilities</button>
+            <button class="chip" type="button" data-kind="service" aria-pressed="false">Services</button>
+        </div>
+        <p class="count" id="count" role="status"></p>
+
+        <div id="shop-grid" class="shop-grid">
+            <div class="shop-loading">Loading&hellip;</div>
+        </div>
+    </main>
+
+    <script src="/lucid.js" defer></script>
+    <script src="/stack.js" defer></script>
+    <script>
+    /* ===== SHOP — fetches items.json and renders cards =====
+       Lifted from the version that used to live in index.html, so the data
+       contract admin.html writes against is exactly the one it was written
+       against. What is new: the kind/format/platforms line, the filter, and
+       the Try-it button that opens a simulation under the card.
+
+       Two things about items.json that are not obvious from looking at it.
+       The fields this page adds — kind, format, platforms, demo, source,
+       build — survive a round trip through admin.html, because that editor
+       loads the array and exports the array rather than rebuilding each
+       item. And every id is a word rather than a number, because admin.html
+       renumbers any id that is all digits on export, which would quietly
+       break the link between a card and the simulation it opens. */
+    (function () {
+        'use strict';
+        var grid = document.getElementById('shop-grid');
+        var countEl = document.getElementById('count');
+        if (!grid) return;
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        var ALL = [], kinds = {}, openDemo = null;
+
+        function cardFor(item) {
+            var checkoutHref = item.checkoutType === 'email'
+                ? 'mailto:' + item.checkoutValue + '?subject=' + encodeURIComponent('Inquiry: ' + (item.title || ''))
+                : (item.checkoutValue || '#');
+            var isExt = item.checkoutType !== 'email' && /^https?:/.test(item.checkoutValue || '');
+            var imageEl = item.image
+                ? '<img src="' + esc(item.image) + '" alt="" loading="lazy">'
+                : '<div class="shop-item-image-placeholder">' + esc(item.subtitle || item.kind || '') + '</div>';
+
+            var meta = [];
+            if (item.format) meta.push(esc(item.format));
+            if (item.platforms) meta.push(esc(item.platforms));
+
+            var art = document.createElement('article');
+            art.className = 'shop-item' + (item.available === false ? ' sold-out' : '');
+            art.dataset.kind = item.kind || '';
+            art.innerHTML =
+                '<div class="shop-item-image">' + imageEl + '</div>' +
+                '<div class="shop-item-body">' +
+                    (item.subtitle ? '<div class="shop-item-subtitle">' + esc(item.subtitle) + '</div>' : '') +
+                    '<h2 class="shop-item-title">' + esc(item.title || 'Untitled') + '</h2>' +
+                    (item.description ? '<p class="shop-item-description">' + esc(item.description) + '</p>' : '') +
+                    (meta.length ? '<div class="meta"><span>' + meta.join('</span><span>') + '</span></div>' : '') +
+                    // "Not available" here means there is no build published
+                    // yet — not that the link is dead. These still point at
+                    // the source, so the button stays a real, reachable link:
+                    // a disabled control that works is a lie, and one that is
+                    // focusable but shows nothing on focus is an audit failure.
+                    (item.available === false
+                        ? '<p class="nobuild">No build published yet &mdash; source only.</p>' : '') +
+                    '<div class="shop-item-footer">' +
+                        (item.price
+                            ? '<div class="shop-item-price">' + esc(item.price) + '</div>'
+                            : '<div class="shop-item-price tbd">price not set</div>') +
+                        '<div class="demo-row" style="gap:8px;margin:0">' +
+                        (item.demo ? '<button class="try" type="button" data-demo="' + esc(item.demo) +
+                            '" aria-expanded="false">Try it</button>' : '') +
+                        '<a class="shop-item-button" href="' + esc(checkoutHref) + '"' +
+                            (isExt ? ' target="_blank" rel="noopener"' : '') + '>' +
+                            esc(item.buttonText || (item.checkoutType === 'email' ? 'INQUIRE' : 'BUY')) +
+                        '</a>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            return art;
+        }
+
+        /* The simulations are one file and most visitors never open one, so
+           it is fetched the first time somebody actually presses Try it. */
+        var demosLoading = null;
+        function loadDemos() {
+            if (window.lucidDemos) return Promise.resolve(true);
+            if (demosLoading) return demosLoading;
+            demosLoading = new Promise(function (res) {
+                var s = document.createElement('script');
+                s.src = '/demos.js';
+                s.onload = function () { res(!!window.lucidDemos); };
+                s.onerror = function () { res(false); };
+                document.head.appendChild(s);
+            });
+            return demosLoading;
+        }
+
+        function closeDemo() {
+            if (!openDemo) return;
+            try { if (openDemo.handle) openDemo.handle.dispose(); } catch (e) {}
+            if (openDemo.panel.parentNode) openDemo.panel.parentNode.removeChild(openDemo.panel);
+            openDemo.btn.setAttribute('aria-expanded', 'false');
+            openDemo.btn.textContent = 'Try it';
+            openDemo = null;
+        }
+
+        function openFor(btn, item) {
+            var wasSame = openDemo && openDemo.btn === btn;
+            closeDemo();
+            if (wasSame) return;
+
+            var panel = document.createElement('section');
+            panel.className = 'demo';
+            panel.setAttribute('aria-label', item.title + ' — simulation');
+            panel.innerHTML =
+                '<div class="demo-bar"><h3>' + esc(item.title) +
+                '<small>simulation &middot; not the plugin</small></h3>' +
+                '<button class="demo-close" type="button">Close</button></div>' +
+                '<div class="demo-host"><p class="demo-none">Loading the simulation&hellip;</p></div>';
+            // Under the card it belongs to, which on a one-column phone is
+            // immediately under it and on a wide grid is the next full row.
+            btn.closest('.shop-item').after(panel);
+            btn.setAttribute('aria-expanded', 'true');
+            btn.textContent = 'Close';
+            openDemo = { btn: btn, panel: panel, handle: null };
+            panel.querySelector('.demo-close').addEventListener('click', function () {
+                closeDemo();
+                btn.focus();
+            });
+
+            loadDemos().then(function (ok) {
+                var host = panel.querySelector('.demo-host');
+                if (!ok || !window.lucidDemos) {
+                    host.innerHTML = '<p class="demo-none">The simulations could not be loaded.</p>';
+                    return;
+                }
+                if (!window.lucidDemos.has(item.demo)) {
+                    host.innerHTML = '<p class="demo-none">This one has no simulation yet. ' +
+                        'The plugin itself is unaffected.</p>';
+                    return;
+                }
+                if (openDemo) openDemo.handle = window.lucidDemos.mount(item.demo, host);
+                var first = host.querySelector('button, input, select');
+                if (first) first.focus();
+            });
+        }
+
+        function render() {
+            var on = Object.keys(kinds).filter(function (k) { return kinds[k]; });
+            closeDemo();
+            grid.innerHTML = '';
+            var shown = 0;
+            ALL.forEach(function (item) {
+                if (on.length && on.indexOf(item.kind) < 0) return;
+                shown++;
+                var card = cardFor(item);
+                var t = card.querySelector('.try');
+                if (t) t.addEventListener('click', function () { openFor(t, item); });
+                grid.appendChild(card);
+            });
+            if (!shown) {
+                grid.innerHTML = '<div class="shop-empty">Nothing of that kind. Clear the filters to see everything.</div>';
+            }
+            countEl.textContent = shown + (shown === 1 ? ' item' : ' items');
+        }
+
+        document.querySelectorAll('.chip').forEach(function (c) {
+            c.addEventListener('click', function () {
+                var k = c.dataset.kind;
+                kinds[k] = !kinds[k];
+                c.setAttribute('aria-pressed', String(!!kinds[k]));
+                render();
+            });
+        });
+
+        fetch('items.json?t=' + Date.now())
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('items.json ' + r.status)); })
+            .then(function (data) {
+                ALL = Array.isArray(data) ? data : (data.items || []);
+                render();
+            })
+            .catch(function (err) {
+                grid.innerHTML = '<div class="shop-empty">The catalogue could not be loaded (' +
+                    esc(err.message) + ').</div>';
+                countEl.textContent = '';
+            });
+    })();
+    </script>
+</body>
+</html>

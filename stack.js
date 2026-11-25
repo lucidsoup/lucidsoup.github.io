@@ -56,6 +56,7 @@
         { t: 2, name: 'Visual Playground', tag: 'live', href: '/playground.html',      g: 'core' },
 
         { t: 2, name: 'Watchlist',        tag: 'text',  href: '/watch.html',           g: 'frame' },
+        { t: 2, name: 'Store',            tag: 'text',  href: '/store.html',           g: 'frame' },
         { t: 3, name: 'About',            tag: 'text',  href: '/index.html#about',   g: 'frame' },
         { t: 3, name: 'Contact',          tag: 'text',  href: '/index.html#contact', g: 'frame' }
     ];
