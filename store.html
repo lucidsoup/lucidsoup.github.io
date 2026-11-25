@@ -46,6 +46,7 @@
             font-size: .94rem; color: var(--lucid-ink-dim, rgba(255,255,255,.74));
         }
         .truth strong { color: var(--lucid-ink, rgba(255,255,255,.93)); }
+        .truth.pay { border-left-color: var(--lucid-accent-2, #8ae04b); background: rgba(138,224,75,.06); }
 
         .filters { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 1.6rem; }
         .chip {
@@ -138,6 +139,21 @@
             color: #d7c9ff;
         }
         .shop-item-button:hover { background: rgba(155,123,255,.26); }
+        /* The tool, drawn. It fills the purple box the subtitle used to sit in. */
+        .tool { width: 100%; height: 100%; display: block; padding: 7px 9px; }
+        .seller {
+            font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .08em;
+            color: var(--lucid-ink-faint, rgba(255,255,255,.54));
+        }
+        /* The handle is written out, not only linked: Venmo's prefilled links
+           are known to work when the app picks them up on a phone and are
+           contested on a desktop browser, so the thing you need in order to
+           pay by hand is on the card either way. */
+        .seller .handle { color: var(--lucid-accent-2, #8ae04b); }
+        .nopay {
+            font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .08em;
+            text-transform: uppercase; color: var(--lucid-accent-3, #d44fb0);
+        }
         .nobuild {
             font-family: var(--lucid-mono); font-size: 10px; letter-spacing: .1em;
             text-transform: uppercase; color: var(--lucid-accent-3, #d44fb0);
@@ -275,6 +291,15 @@
             one lists what it leaves out.
         </p>
 
+        <p class="truth pay">
+            <strong>Each thing here is sold by whoever made it, and pays them directly.</strong>
+            The PAY button opens Venmo with that seller&rsquo;s handle, the amount and a note already
+            filled in. Their handle is written on the card as well, because Venmo&rsquo;s prefilled
+            links are reliable when a phone hands them to the app and patchy in a desktop browser
+            &mdash; so you can always just pay the handle. Nothing is processed here: this site is
+            static, there is no checkout and no escrow, and nobody is holding your money at any point.
+        </p>
+
         <div class="filters" role="group" aria-label="Filter by kind">
             <button class="chip" type="button" data-kind="instrument" aria-pressed="false">Instruments</button>
             <button class="chip" type="button" data-kind="effect" aria-pressed="false">Effects</button>
@@ -291,6 +316,243 @@
     <script src="/lucid.js" defer></script>
     <script src="/stack.js" defer></script>
     <script>
+    /* ===== what the tool looks like =====
+       The purple box at the top of each card used to hold one word. It holds
+       a drawing of the tool now: not a screenshot — there are none in the
+       plugin repository, and inventing one would be a lie about what you are
+       buying — but the organisation of that plugin's actual face, built from
+       its README. Euclid Rings gets rings, SpectraEye gets a spectrum,
+       BlackWidow gets its patch bay and its sequencer row.
+
+       Any item with an `image` set wins over this, so the moment a real
+       screenshot exists it goes in items.json and this stops being used for
+       that plugin. */
+    var TOOLART = (function () {
+        var P = 'rgba(214,196,255,.85)', D = 'rgba(155,123,255,.45)',
+            G = '#8ae04b', M = '#d44fb0', C = '#6fe3e8', W = 'rgba(255,255,255,.9)';
+
+        function svg(body) {
+            return '<svg class="tool" viewBox="0 0 200 88" aria-hidden="true" ' +
+                'preserveAspectRatio="xMidYMid meet">' + body + '</svg>';
+        }
+        // A row of knobs, which most of these have.
+        function knobs(n, y, x0, step, r, col) {
+            var out = '';
+            for (var i = 0; i < n; i++) {
+                var cx = x0 + i * step;
+                var a = -2.3 + (i * 1.1) % 4.6;
+                out += '<circle cx="' + cx + '" cy="' + y + '" r="' + r + '" fill="none" stroke="' +
+                    (col || P) + '" stroke-width="1.6"/>' +
+                    '<path d="M' + cx + ' ' + y + 'L' + (cx + Math.sin(a) * r * .8).toFixed(1) + ' ' +
+                    (y - Math.cos(a) * r * .8).toFixed(1) + '" stroke="' + (col || P) +
+                    '" stroke-width="1.6" stroke-linecap="round"/>';
+            }
+            return out;
+        }
+        function screen(x, y, w, h) {
+            return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
+                '" rx="3" fill="rgba(5,3,12,.75)" stroke="' + D + '"/>';
+        }
+        function steps(n, y, x0, w, h, lit) {
+            var out = '', gap = 1.6, sw = (w - gap * (n - 1)) / n;
+            for (var i = 0; i < n; i++) {
+                var on = lit.indexOf(i) >= 0;
+                out += '<rect x="' + (x0 + i * (sw + gap)).toFixed(1) + '" y="' + y + '" width="' +
+                    sw.toFixed(1) + '" height="' + h + '" rx="1" fill="' + (on ? G : 'rgba(155,123,255,.26)') + '"/>';
+            }
+            return out;
+        }
+
+        return {
+            mindbloom: svg(
+                // Six blocks in series, then the one big knob over all of them.
+                (function () { var o = '';
+                    for (var i = 0; i < 6; i++) {
+                        o += '<rect x="' + (12 + i * 26) + '" y="14" width="20" height="26" rx="3" fill="none" stroke="' + D + '"/>';
+                        o += '<circle cx="' + (22 + i * 26) + '" cy="27" r="5" fill="none" stroke="' + P + '" stroke-width="1.4"/>';
+                        if (i < 5) o += '<path d="M' + (32 + i * 26) + ' 27h6" stroke="' + D + '" stroke-width="1.2"/>';
+                    }
+                    return o; })() +
+                '<circle cx="100" cy="64" r="15" fill="none" stroke="' + M + '" stroke-width="2.4"/>' +
+                '<path d="M100 64v-11" stroke="' + M + '" stroke-width="2.4" stroke-linecap="round"/>' +
+                '<text x="100" y="84" fill="' + M + '" font-family="ui-monospace,monospace" font-size="8" ' +
+                'letter-spacing="2" text-anchor="middle">TRIP</text>'),
+
+            mischief: svg(
+                steps(16, 12, 12, 176, 10, [0, 3, 4, 7, 10, 11, 15]) +
+                steps(16, 26, 12, 176, 6, [0, 4, 8, 12]) +
+                screen(12, 38, 84, 38) +
+                // The Lorenz attractor, which is the plugin's own modulator.
+                '<path d="M20 68c14-26 26 4 34-12s14-14 22 2 10 10 14 4" fill="none" stroke="' + G +
+                '" stroke-width="1.6"/>' +
+                knobs(4, 52, 112, 23, 9, M) +
+                '<text x="152" y="76" fill="' + M + '" font-family="ui-monospace,monospace" font-size="7" ' +
+                'letter-spacing="1.5" text-anchor="middle">MADNESS</text>'),
+
+            hydra: svg(
+                knobs(3, 24, 32, 34, 11) +
+                '<text x="32" y="44" fill="' + P + '" font-family="ui-monospace,monospace" font-size="6.5" text-anchor="middle">OSC1</text>' +
+                '<text x="66" y="44" fill="' + P + '" font-family="ui-monospace,monospace" font-size="6.5" text-anchor="middle">OSC2</text>' +
+                '<text x="100" y="44" fill="' + P + '" font-family="ui-monospace,monospace" font-size="6.5" text-anchor="middle">OSC3</text>' +
+                knobs(2, 24, 142, 30, 11, C) +
+                '<text x="157" y="44" fill="' + C + '" font-family="ui-monospace,monospace" font-size="6.5" text-anchor="middle">FILTER</text>' +
+                // A keyboard strip along the bottom.
+                (function () { var o = '<rect x="10" y="56" width="180" height="24" rx="2" fill="' + W + '"/>';
+                    for (var i = 1; i < 21; i++) o += '<path d="M' + (10 + i * 9) + ' 56v24" stroke="rgba(0,0,0,.45)" stroke-width="1"/>';
+                    [1,2,4,5,6,8,9,11,12,13,15,16,18,19].forEach(function (i) {
+                        o += '<rect x="' + (10 + i * 9 - 2.6) + '" y="56" width="5.2" height="15" fill="#1a1030"/>'; });
+                    return o; })()),
+
+            blackwidow: svg(
+                // The patch bay: the thing that makes it semi-modular.
+                (function () { var o = '';
+                    for (var r = 0; r < 2; r++) for (var c = 0; c < 8; c++)
+                        o += '<circle cx="' + (18 + c * 14) + '" cy="' + (18 + r * 16) + '" r="4" fill="none" stroke="' + P + '" stroke-width="1.3"/>';
+                    o += '<path d="M18 18q30 20 56 16" fill="none" stroke="' + M + '" stroke-width="1.8"/>';
+                    o += '<path d="M46 18q22 26 60 16" fill="none" stroke="' + C + '" stroke-width="1.8"/>';
+                    return o; })() +
+                steps(16, 54, 12, 110, 9, [0, 2, 5, 8, 11, 14]) +
+                steps(16, 66, 12, 110, 5, [0, 8]) +
+                knobs(2, 60, 150, 28, 11, G)),
+
+            etherradio: svg(
+                screen(12, 10, 176, 34) +
+                // The dial, with its scale and the needle.
+                (function () { var o = '';
+                    for (var i = 0; i <= 10; i++)
+                        o += '<path d="M' + (22 + i * 16) + ' 30v' + (i % 2 ? 5 : 9) + '" stroke="' + D + '" stroke-width="1.2"/>';
+                    return o; })() +
+                '<path d="M118 14v28" stroke="' + M + '" stroke-width="2.6"/>' +
+                '<path d="M20 24h70" stroke="' + G + '" stroke-width="2" opacity=".8"/>' +
+                // Six tubes of glowing soup.
+                (function () { var o = '';
+                    for (var i = 0; i < 6; i++)
+                        o += '<rect x="' + (16 + i * 20) + '" y="52" width="13" height="26" rx="6" fill="none" stroke="' + D + '"/>' +
+                             '<rect x="' + (17.5 + i * 20) + '" y="' + (62 + (i % 3) * 4) + '" width="10" height="' + (14 - (i % 3) * 4) + '" rx="4" fill="' + G + '" opacity=".55"/>';
+                    return o; })() +
+                '<circle cx="168" cy="65" r="13" fill="none" stroke="' + P + '" stroke-width="1.6"/>'),
+
+            spectraeye: svg(
+                screen(10, 8, 180, 72) +
+                '<path d="M16 68c10-2 14-30 22-30s10 22 18 14 12-30 20-26 10 26 18 22 12-18 20-16 12 14 20 12 14-6 22-4" ' +
+                'fill="none" stroke="' + G + '" stroke-width="2"/>' +
+                '<path d="M16 72c12-4 18-22 26-22s12 16 20 10 14-20 22-18 12 18 20 16 14-10 22-8 16 8 22 6" ' +
+                'fill="none" stroke="' + C + '" stroke-width="1.2" opacity=".65"/>' +
+                '<text x="18" y="22" fill="' + M + '" font-family="ui-monospace,monospace" font-size="9">A4=432</text>'),
+
+            syrupvox: svg(
+                // A vocoder is a bank of bands, so the face is the band meters.
+                (function () { var o = '';
+                    for (var i = 0; i < 16; i++) {
+                        var h = 8 + Math.abs(Math.sin(i * 1.3)) * 40;
+                        o += '<rect x="' + (12 + i * 11.4) + '" y="' + (58 - h) + '" width="7" height="' + h.toFixed(1) +
+                             '" rx="1.5" fill="' + (i % 4 === 0 ? M : P) + '" opacity="' + (i % 4 === 0 ? '.9' : '.5') + '"/>';
+                    }
+                    return o; })() +
+                '<path d="M12 66h176" stroke="' + D + '"/>' +
+                knobs(3, 76, 40, 50, 8, C) +
+                '<text x="150" y="80" fill="' + C + '" font-family="ui-monospace,monospace" font-size="7" letter-spacing="1.5">SLOW</text>'),
+
+            euclidrings: svg(
+                (function () { var o = '', cx = 100, cy = 44;
+                    var cols = [M, G, C, '#ffd27a'];
+                    [36, 28, 20, 12].forEach(function (r, ri) {
+                        o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + D + '"/>';
+                        var hits = [4, 2, 5, 3][ri], n = 16;
+                        for (var i = 0; i < n; i++) {
+                            if ((i * hits) % n >= hits) continue;
+                            var a = (i / n) * 6.2832 - Math.PI / 2;
+                            o += '<circle cx="' + (cx + Math.cos(a) * r).toFixed(1) + '" cy="' +
+                                 (cy + Math.sin(a) * r).toFixed(1) + '" r="3" fill="' + cols[ri] + '"/>';
+                        }
+                    });
+                    o += '<path d="M' + cx + ' ' + cy + 'L' + cx + ' 8" stroke="' + W + '" stroke-width="1.4" opacity=".7"/>';
+                    return o; })()),
+
+            grainstorm: svg(
+                screen(10, 8, 180, 46) +
+                // The table: single-cycle frames, one after another.
+                (function () { var o = '';
+                    for (var i = 0; i < 30; i++) {
+                        var h = 4 + Math.abs(Math.sin(i * .55)) * 34;
+                        o += '<rect x="' + (15 + i * 5.8) + '" y="' + (31 - h / 2).toFixed(1) + '" width="3.4" height="' +
+                             h.toFixed(1) + '" rx="1" fill="' + (i === 11 ? G : P) + '" opacity="' + (i === 11 ? 1 : .45) + '"/>';
+                    }
+                    return o; })() +
+                '<text x="16" y="66" fill="' + P + '" font-family="ui-monospace,monospace" font-size="7" letter-spacing="1.4">INDEX</text>' +
+                '<rect x="16" y="70" width="110" height="5" rx="2.5" fill="rgba(155,123,255,.3)"/>' +
+                '<circle cx="54" cy="72.5" r="6" fill="' + G + '"/>' +
+                knobs(1, 70, 172, 0, 11, C)),
+
+            looprepeat: svg(
+                screen(10, 10, 180, 44) +
+                (function () { var o = '';
+                    for (var i = 0; i < 44; i++) {
+                        var h = Math.abs(Math.sin(i * .7) * Math.cos(i * .21)) * 34 + 2;
+                        var inTake = i < 11;
+                        o += '<rect x="' + (15 + i * 4).toFixed(1) + '" y="' + (32 - h / 2).toFixed(1) +
+                             '" width="2.4" height="' + h.toFixed(1) + '" fill="' + (inTake ? G : P) +
+                             '" opacity="' + (inTake ? .95 : .35) + '"/>';
+                    }
+                    return o; })() +
+                '<rect x="13" y="12" width="46" height="40" rx="2" fill="none" stroke="' + G + '" stroke-width="1.6"/>' +
+                '<path d="M62 32h24M86 32l-6-4m6 4l-6 4" stroke="' + M + '" stroke-width="1.6" fill="none"/>' +
+                '<text x="100" y="74" fill="' + M + '" font-family="ui-monospace,monospace" font-size="8" ' +
+                'letter-spacing="2" text-anchor="middle">x4</text>'),
+
+            snaptoc: svg(
+                screen(10, 10, 180, 40) +
+                (function () { var o = '';
+                    for (var i = 0; i < 50; i++) {
+                        var h = Math.abs(Math.sin(i * .42)) * 30 + 2;
+                        o += '<rect x="' + (15 + i * 3.5).toFixed(1) + '" y="' + (30 - h / 2).toFixed(1) +
+                             '" width="2" height="' + h.toFixed(1) + '" fill="' + P + '" opacity=".55"/>';
+                    }
+                    return o; })() +
+                '<text x="16" y="68" fill="' + P + '" font-family="ui-monospace,monospace" font-size="9">G2 +31</text>' +
+                '<path d="M74 64h22M96 64l-5-3.5m5 3.5l-5 3.5" stroke="' + M + '" stroke-width="1.6" fill="none"/>' +
+                '<text x="104" y="68" fill="' + G + '" font-family="ui-monospace,monospace" font-size="13" ' +
+                'font-weight="bold">C3</text>' +
+                '<text x="140" y="68" fill="' + C + '" font-family="ui-monospace,monospace" font-size="8">+4.69st</text>'),
+
+            kelp: svg(
+                // Modules with cables, and the tracker beside them.
+                (function () { var o = '';
+                    var mods = [[14, 14], [14, 48], [66, 30], [118, 16], [118, 52]];
+                    mods.forEach(function (m) {
+                        o += '<rect x="' + m[0] + '" y="' + m[1] + '" width="36" height="22" rx="3" fill="rgba(5,3,12,.7)" stroke="' + D + '"/>' +
+                             '<circle cx="' + (m[0] + 30) + '" cy="' + (m[1] + 11) + '" r="3" fill="' + G + '"/>';
+                    });
+                    o += '<path d="M50 25q14 6 16 16" fill="none" stroke="' + M + '" stroke-width="1.6"/>';
+                    o += '<path d="M50 59q10-4 16-12" fill="none" stroke="' + C + '" stroke-width="1.6"/>';
+                    o += '<path d="M102 41q10-14 16-16" fill="none" stroke="' + G + '" stroke-width="1.6"/>';
+                    return o; })() +
+                screen(160, 8, 32, 72) +
+                (function () { var o = '';
+                    for (var i = 0; i < 8; i++)
+                        o += '<rect x="164" y="' + (12 + i * 8.6) + '" width="' + (i % 3 ? 16 : 24) + '" height="4" rx="1" fill="' +
+                             (i === 2 ? G : P) + '" opacity="' + (i === 2 ? 1 : .4) + '"/>';
+                    return o; })()),
+
+            osclink: svg(
+                screen(10, 8, 180, 72) +
+                '<text x="18" y="24" fill="' + G + '" font-family="ui-monospace,monospace" font-size="9">/mpc/1/note</text>' +
+                '<text x="18" y="38" fill="' + P + '" font-family="ui-monospace,monospace" font-size="9" opacity=".7">/mpc/1/cc</text>' +
+                '<text x="18" y="52" fill="' + P + '" font-family="ui-monospace,monospace" font-size="9" opacity=".5">/mpc/1/beat</text>' +
+                '<text x="18" y="66" fill="' + P + '" font-family="ui-monospace,monospace" font-size="9" opacity=".35">/mpc/1/macro/3</text>' +
+                '<circle cx="168" cy="26" r="4" fill="' + G + '"/>' +
+                '<path d="M160 44q8-10 16 0M156 50q12-16 24 0" fill="none" stroke="' + C + '" stroke-width="1.4" opacity=".8"/>'),
+
+            commission: svg(
+                // Not a plugin: a projector throwing a shape onto a wall.
+                '<rect x="12" y="34" width="34" height="22" rx="3" fill="none" stroke="' + P + '" stroke-width="1.6"/>' +
+                '<circle cx="46" cy="45" r="6" fill="' + C + '" opacity=".8"/>' +
+                '<path d="M52 45 190 18v54z" fill="' + C + '" opacity=".13"/>' +
+                '<path d="M52 45 190 18v54z" fill="none" stroke="' + C + '" stroke-width="1" opacity=".5"/>' +
+                '<path d="M150 30q16 14 0 30M164 26q22 20 0 38" fill="none" stroke="' + M + '" stroke-width="1.6" opacity=".9"/>')
+        };
+    })();
+
     /* ===== SHOP — fetches items.json and renders cards =====
        Lifted from the version that used to live in index.html, so the data
        contract admin.html writes against is exactly the one it was written
@@ -318,14 +580,40 @@
 
         var ALL = [], kinds = {}, openDemo = null;
 
+        /* The amount to hand Venmo. Prices are free text — "From $2,500",
+           "$15" — because that is what the field has always been, so the
+           number is pulled out of whatever is written and the link simply
+           leaves the amount off when there is no number to find. Venmo then
+           asks for it, which is the right failure. */
+        function amountOf(price) {
+            var m = String(price || '').replace(/,/g, '').match(/\d+(?:\.\d{1,2})?/);
+            return m ? m[0] : '';
+        }
+
+        /* Where the money goes. Each item carries its own seller, so a page
+           that lists several people's work pays each of them rather than
+           funnelling everything to whoever owns the domain. */
+        function venmoHref(item) {
+            var u = item.seller && item.seller.venmo;
+            if (!u) return '';
+            var amt = amountOf(item.price);
+            return 'https://venmo.com/' + encodeURIComponent(String(u).replace(/^@/, '')) +
+                '?txn=pay' + (amt ? '&amount=' + amt : '') +
+                '&note=' + encodeURIComponent((item.title || 'Purchase') + ' — lucidsoup.com');
+        }
+
         function cardFor(item) {
-            var checkoutHref = item.checkoutType === 'email'
+            var pay = venmoHref(item);
+            var checkoutHref = pay ? pay : (item.checkoutType === 'email'
                 ? 'mailto:' + item.checkoutValue + '?subject=' + encodeURIComponent('Inquiry: ' + (item.title || ''))
-                : (item.checkoutValue || '#');
-            var isExt = item.checkoutType !== 'email' && /^https?:/.test(item.checkoutValue || '');
+                : (item.checkoutValue || '#'));
+            var isExt = !!pay || (item.checkoutType !== 'email' && /^https?:/.test(item.checkoutValue || ''));
+            // A real screenshot wins; otherwise the drawn face of the tool;
+            // otherwise, for something with neither, the word it had before.
             var imageEl = item.image
                 ? '<img src="' + esc(item.image) + '" alt="" loading="lazy">'
-                : '<div class="shop-item-image-placeholder">' + esc(item.subtitle || item.kind || '') + '</div>';
+                : (TOOLART[item.id] ||
+                   '<div class="shop-item-image-placeholder">' + esc(item.subtitle || item.kind || '') + '</div>');
 
             var meta = [];
             if (item.format) meta.push(esc(item.format));
@@ -348,6 +636,14 @@
                     // focusable but shows nothing on focus is an audit failure.
                     (item.available === false
                         ? '<p class="nobuild">No build published yet &mdash; source only.</p>' : '') +
+                    (item.seller && item.seller.name
+                        ? '<p class="seller">by ' + esc(item.seller.name) +
+                          (pay ? ' &middot; pays <span class="handle">@' +
+                                 esc(String(item.seller.venmo).replace(/^@/, '')) + '</span>' : '') +
+                          '</p>'
+                        : '') +
+                    (item.price && !pay && item.seller && item.seller.name
+                        ? '<p class="nopay">Priced, but this seller has not added a Venmo yet.</p>' : '') +
                     '<div class="shop-item-footer">' +
                         (item.price
                             ? '<div class="shop-item-price">' + esc(item.price) + '</div>'
@@ -357,7 +653,7 @@
                             '" aria-expanded="false">Try it</button>' : '') +
                         '<a class="shop-item-button" href="' + esc(checkoutHref) + '"' +
                             (isExt ? ' target="_blank" rel="noopener"' : '') + '>' +
-                            esc(item.buttonText || (item.checkoutType === 'email' ? 'INQUIRE' : 'BUY')) +
+                            esc(pay ? 'PAY' : (item.buttonText || (item.checkoutType === 'email' ? 'INQUIRE' : 'BUY'))) +
                         '</a>' +
                         '</div>' +
                     '</div>' +

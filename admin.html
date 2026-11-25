@@ -221,6 +221,20 @@
             color: #ff10f0;
         }
 
+        .me-panel {
+            border: 1px solid rgba(0,255,255,.3); border-radius: 8px;
+            padding: 1rem 1.2rem 1.2rem; margin-bottom: 1.4rem;
+            background: rgba(0,255,255,.04);
+        }
+        .me-panel h2 { font-size: .95rem; letter-spacing: .18em; text-transform: uppercase; color: #00ffff; margin-bottom: .5rem; }
+        .me-note { font-size: .82rem; opacity: .8; margin-bottom: .9rem; line-height: 1.6; }
+        .me-status { font-size: .78rem; margin: .7rem 0; min-height: 1.2em; font-family: ui-monospace, monospace; }
+        .me-status.ok { color: #7CFC00; }
+        .me-status.warn { color: #ff9d3c; }
+        .seller-area { border-color: rgba(0,255,255,.25) !important; }
+        .pay-note { font-size: .74rem; margin-top: .5rem; font-family: ui-monospace, monospace; line-height: 1.5; word-break: break-all; }
+        .pay-note.ok { color: #7CFC00; }
+        .pay-note.warn { color: #ff9d3c; }
         .admin-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -433,7 +447,21 @@
             .admin-controls { width: 100%; }
             .admin-controls .admin-btn { flex: 1; min-width: 0; font-size: 0.7rem; padding: 0.5rem 0.6rem; }
             .admin-main { padding: 1rem; }
-            .admin-grid { grid-template-columns: 1fr; }
+            .me-panel {
+            border: 1px solid rgba(0,255,255,.3); border-radius: 8px;
+            padding: 1rem 1.2rem 1.2rem; margin-bottom: 1.4rem;
+            background: rgba(0,255,255,.04);
+        }
+        .me-panel h2 { font-size: .95rem; letter-spacing: .18em; text-transform: uppercase; color: #00ffff; margin-bottom: .5rem; }
+        .me-note { font-size: .82rem; opacity: .8; margin-bottom: .9rem; line-height: 1.6; }
+        .me-status { font-size: .78rem; margin: .7rem 0; min-height: 1.2em; font-family: ui-monospace, monospace; }
+        .me-status.ok { color: #7CFC00; }
+        .me-status.warn { color: #ff9d3c; }
+        .seller-area { border-color: rgba(0,255,255,.25) !important; }
+        .pay-note { font-size: .74rem; margin-top: .5rem; font-family: ui-monospace, monospace; line-height: 1.5; word-break: break-all; }
+        .pay-note.ok { color: #7CFC00; }
+        .pay-note.warn { color: #ff9d3c; }
+        .admin-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -483,8 +511,42 @@
             plugins use word ids (<code>mindbloom</code>, <code>hydra</code>) and are safe. And <strong>prices are
             deliberately empty</strong>: every plugin card says &ldquo;price not set&rdquo; until you put one here.
             <br><br>
+            <strong>Getting paid.</strong> Each item names its own seller and its own Venmo, so a page listing several
+            people&rsquo;s work pays each of them. Set yours in <em>You</em> below and anything you add is stamped with
+            it. The store&rsquo;s PAY button opens
+            <code>venmo.com/&lt;you&gt;?txn=pay&amp;amount=&hellip;</code> with the amount taken from the price field,
+            and prints your handle on the card as well &mdash; those prefilled links are reliable when a phone hands
+            them to the Venmo app and patchy in a desktop browser, so the handle has to be readable either way.
+            Nothing is processed here: this is a static site with no checkout, no escrow and no way to verify a
+            payment happened.
+            <br><br>
             <strong>How it works:</strong> Edit any field below — changes save automatically to your browser as you type. When you're done, click <strong>SAVE / EXPORT JSON</strong> to download an updated <code>items.json</code>, then upload that file to the root of your repository.
         </div>
+        <!-- Who is uploading. Each person who uses this page sets their own
+             Venmo here once; everything they add from then on is paid to
+             them. It lives in this browser only. -->
+        <section class="me-panel" aria-labelledby="me-head">
+            <h2 id="me-head">You</h2>
+            <p class="me-note">
+                Set your name and your Venmo once. Everything you add after that is stamped as yours
+                and its PAY button goes to you. This is stored in <strong>this browser only</strong> —
+                it is not an account and it does not prove who you are. Anyone who can edit
+                <code>items.json</code> can change who gets paid, so treat the file as the record.
+            </p>
+            <div class="field-row">
+                <div class="field">
+                    <label class="field-label" for="me-name">Your name</label>
+                    <input id="me-name" type="text" placeholder="Shown on the card as “by …”">
+                </div>
+                <div class="field">
+                    <label class="field-label" for="me-venmo">Your Venmo</label>
+                    <input id="me-venmo" type="text" placeholder="username (no @)">
+                </div>
+            </div>
+            <p class="me-status" id="me-status" role="status"></p>
+            <button class="admin-btn" id="me-apply" type="button">Apply to my items</button>
+        </section>
+
         <div class="admin-grid" id="admin-grid"></div>
     </div>
 </div>
@@ -499,6 +561,11 @@ const STORAGE_PW_HASH = "admin_pw_hash";   // sha-256 of password
 const STORAGE_AUTHED  = "admin_authed";    // session flag
 const STORAGE_ITEMS   = "admin_items_draft"; // local edits before save
 const STORAGE_DIRTY   = "admin_items_dirty";
+/* Who is using this browser. There is no server here, so "each admin" means
+   each browser that has been let in: this is stored locally, it is not an
+   account, and it proves nothing about who you are. What it does is stop
+   everyone's uploads defaulting to one person's Venmo. */
+const STORAGE_ME      = "admin_me";
 
 // ===== Password handling =====
 // Real security needs a backend, but for a personal site, this is a reasonable
@@ -528,6 +595,20 @@ async function checkPassword(input) {
 
 // ===== State =====
 let items = [];
+
+function me() {
+    try {
+        const raw = localStorage.getItem(STORAGE_ME);
+        if (raw) {
+            const v = JSON.parse(raw);
+            return { name: v.name || "", venmo: (v.venmo || "").replace(/^@/, "") };
+        }
+    } catch (e) {}
+    return { name: "", venmo: "" };
+}
+function setMe(v) {
+    try { localStorage.setItem(STORAGE_ME, JSON.stringify(v)); } catch (e) {}
+}
 let dirty = false;
 let saveTimer = null;
 
@@ -566,9 +647,75 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function showAdmin() {
     document.getElementById("login-screen").style.display = "none";
     document.getElementById("admin-view").classList.add("active");
+    wireMe();
     await loadItems();
     renderAll();
     updateStatus();
+}
+
+/* The "You" panel. Setting a name and a Venmo here is what makes an upload
+   yours; Apply stamps them onto the items that are already yours (matched by
+   name) or, if nothing matches, onto the ones with no seller at all. It never
+   silently takes over somebody else's item. */
+function wireMe() {
+    const nameEl = document.getElementById("me-name");
+    const venmoEl = document.getElementById("me-venmo");
+    const statusEl = document.getElementById("me-status");
+    const applyEl = document.getElementById("me-apply");
+    if (!nameEl || nameEl.dataset.wired) return;
+    nameEl.dataset.wired = "1";
+
+    const cur = me();
+    nameEl.value = cur.name;
+    venmoEl.value = cur.venmo;
+
+    function paint() {
+        const v = me();
+        if (!v.name && !v.venmo) {
+            statusEl.className = "me-status warn";
+            statusEl.textContent = "Not set — anything you add will have no seller and no way to pay you.";
+        } else if (!v.venmo) {
+            statusEl.className = "me-status warn";
+            statusEl.textContent = v.name + " — no Venmo yet, so your items will show as unpayable.";
+        } else {
+            statusEl.className = "me-status ok";
+            statusEl.textContent = (v.name || "(no name)") + " — paid at venmo.com/" + v.venmo;
+        }
+    }
+    function save() {
+        setMe({ name: nameEl.value.trim(), venmo: venmoEl.value.trim().replace(/^@/, "") });
+        paint();
+    }
+    nameEl.addEventListener("input", save);
+    venmoEl.addEventListener("input", save);
+    paint();
+
+    applyEl.addEventListener("click", () => {
+        const v = me();
+        if (!v.name && !v.venmo) {
+            statusEl.className = "me-status warn";
+            statusEl.textContent = "Fill in a name or a Venmo first.";
+            return;
+        }
+        const mine = items.filter(it =>
+            it.seller && it.seller.name && v.name &&
+            it.seller.name.toLowerCase() === v.name.toLowerCase());
+        const orphans = items.filter(it => !it.seller || (!it.seller.name && !it.seller.venmo));
+        const targets = mine.length ? mine : orphans;
+        if (!targets.length) {
+            statusEl.className = "me-status warn";
+            statusEl.textContent = "Nothing to apply to: no item is in your name and none is unclaimed.";
+            return;
+        }
+        if (!confirm("Set the seller on " + targets.length +
+                     " item(s) to " + (v.name || "(no name)") +
+                     (v.venmo ? " / venmo " + v.venmo : "") + "?")) return;
+        targets.forEach(it => { it.seller = { name: v.name, venmo: v.venmo }; });
+        markDirty();
+        renderAll();
+        statusEl.className = "me-status ok";
+        statusEl.textContent = "Applied to " + targets.length + " item(s). Export to write it to items.json.";
+    });
 }
 
 // ===== Items loading =====
@@ -729,6 +876,43 @@ function itemCard(item, idx) {
     row.appendChild(fieldInput("Button Text", "buttonText", item));
     body.appendChild(row);
 
+    // ===== Who gets paid =====
+    // Every item carries its own seller, so a page listing several people's
+    // work pays each of them rather than everything going to one account.
+    if (!item.seller || typeof item.seller !== "object") item.seller = { name: "", venmo: "" };
+    const sellerBox = document.createElement("div");
+    sellerBox.className = "checkout-area seller-area";
+    const sellerHead = document.createElement("div");
+    sellerHead.className = "field-label";
+    sellerHead.textContent = "Who gets paid for this";
+    sellerBox.appendChild(sellerHead);
+
+    const sellerRow = document.createElement("div");
+    sellerRow.className = "field-row";
+    const payNote = document.createElement("div");
+    payNote.className = "pay-note";
+    function paintPayNote() {
+        const v = (item.seller.venmo || "").replace(/^@/, "");
+        const amt = (String(item.price || "").replace(/,/g, "").match(/\d+(?:\.\d{1,2})?/) || [""])[0];
+        if (!v) {
+            payNote.className = "pay-note warn";
+            payNote.textContent = item.price
+                ? "Priced, but no Venmo — the store will show “this seller has not added a Venmo yet”."
+                : "No Venmo set. Add one and the PAY button on the store will go to it.";
+            return;
+        }
+        payNote.className = "pay-note ok";
+        payNote.textContent = "PAY opens venmo.com/" + v + "?txn=pay" +
+            (amt ? "&amount=" + amt : "") + " — " +
+            (amt ? "amount from the price field." : "no number in the price, so Venmo will ask for the amount.");
+    }
+    sellerRow.appendChild(fieldSub("Seller name", item.seller, "name", "Who made it", paintPayNote));
+    sellerRow.appendChild(fieldSub("Their Venmo", item.seller, "venmo", "username (no @)", paintPayNote));
+    sellerBox.appendChild(sellerRow);
+    paintPayNote();
+    sellerBox.appendChild(payNote);
+    body.appendChild(sellerBox);
+
     // Checkout
     const checkout = document.createElement("div");
     checkout.className = "checkout-area";
@@ -817,6 +1001,24 @@ function fieldInput(label, prop, item, cls) {
     return f;
 }
 
+/* The same thing, one level down, for the seller each item carries. */
+function fieldSub(label, obj, prop, placeholder, oninput) {
+    const f = document.createElement("div");
+    f.className = "field";
+    f.innerHTML = `<div class="field-label">${label}</div>`;
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = obj[prop] || "";
+    inp.placeholder = placeholder || label;
+    inp.addEventListener("input", () => {
+        obj[prop] = inp.value.trim();
+        markDirty();
+        if (oninput) oninput();
+    });
+    f.appendChild(inp);
+    return f;
+}
+
 function fieldTextarea(label, prop, item) {
     const f = document.createElement("div");
     f.className = "field";
@@ -848,6 +1050,9 @@ function addItem() {
         checkoutValue: "",
         buttonText: "BUY",
         available: true,
+        // Stamped with whoever is signed in here, so an upload is paid to the
+        // person who made it without them having to remember to set it.
+        seller: { name: me().name, venmo: me().venmo },
     });
     markDirty();
     renderAll();

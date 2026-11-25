@@ -16,7 +16,11 @@
       "platforms": "Windows x64 · MPC Sample (Melodee)",
       "demo": "mindbloom",
       "source": "mindbloom",
-      "build": "mindbloom-9"
+      "build": "mindbloom-9",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "mischief",
@@ -34,7 +38,11 @@
       "platforms": "Windows x64 · MPC Sample (Melodee)",
       "demo": "mischief",
       "source": "mischief",
-      "build": "mischief-1"
+      "build": "mischief-1",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "hydra",
@@ -52,7 +60,11 @@
       "platforms": "Windows x64 · MPC Sample (Melodee)",
       "demo": "hydra",
       "source": "hydra",
-      "build": "hydra-3"
+      "build": "hydra-3",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "blackwidow",
@@ -70,7 +82,11 @@
       "platforms": "Windows x64 · MPC Sample (Melodee)",
       "demo": "blackwidow",
       "source": "blackwidow",
-      "build": "blackwidow-2"
+      "build": "blackwidow-2",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "etherradio",
@@ -88,7 +104,11 @@
       "platforms": "Windows x64",
       "demo": "etherradio",
       "source": "ether-radio",
-      "build": "ether-radio-7"
+      "build": "ether-radio-7",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "spectraeye",
@@ -106,7 +126,11 @@
       "platforms": "Windows x64 · MPC Sample (Melodee)",
       "demo": "spectraeye",
       "source": "spectraeye",
-      "build": "spectraeye-1"
+      "build": "spectraeye-1",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "syrupvox",
@@ -124,7 +148,11 @@
       "platforms": "Windows x64 · MPC Sample (Melodee)",
       "demo": "syrupvox",
       "source": "syrup-vox",
-      "build": "syrup-vox-2"
+      "build": "syrup-vox-2",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "euclidrings",
@@ -142,7 +170,11 @@
       "platforms": "Windows x64",
       "demo": "euclidrings",
       "source": "euclid",
-      "build": "euclid-rings-2"
+      "build": "euclid-rings-2",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "grainstorm",
@@ -160,7 +192,11 @@
       "platforms": "Windows x64",
       "demo": "grainstorm",
       "source": "add-loop-and-grain",
-      "build": "loop-grain-5"
+      "build": "loop-grain-5",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "looprepeat",
@@ -178,7 +214,11 @@
       "platforms": "Windows x64",
       "demo": "looprepeat",
       "source": "add-loop-and-grain",
-      "build": "loop-grain-5"
+      "build": "loop-grain-5",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "snaptoc",
@@ -196,7 +236,11 @@
       "platforms": "macOS · Windows · Linux",
       "demo": "snaptoc",
       "source": "main",
-      "build": ""
+      "build": "",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "kelp",
@@ -214,7 +258,11 @@
       "platforms": "macOS · Windows",
       "demo": "kelp",
       "source": "add-kelp",
-      "build": ""
+      "build": "",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "osclink",
@@ -232,7 +280,11 @@
       "platforms": "Windows x64 · MPC Sample (Melodee)",
       "demo": "osclink",
       "source": "osc-link",
-      "build": ""
+      "build": "",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     },
     {
       "id": "commission",
@@ -250,7 +302,11 @@
       "platforms": "",
       "demo": "",
       "source": "",
-      "build": ""
+      "build": "",
+      "seller": {
+        "name": "LucidSoup",
+        "venmo": ""
+      }
     }
   ]
 }
