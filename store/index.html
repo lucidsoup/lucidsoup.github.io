@@ -224,6 +224,15 @@ dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(3px); }
 .dlg-body { padding: 16px; }
 .x { background: none; border: 0; font-size: 22px; line-height: 1; padding: 4px 8px; }
 .sheet { display: grid; grid-template-columns: 300px 1fr; gap: 22px; }
+/* A bundle sells on the difference, so the difference is printed, not
+   implied. The struck number is never announced twice: the tile carries an
+   aria-label that says it in words. */
+.el-top .was { color: var(--dim); font-weight: 400; margin-right: 5px; text-decoration-thickness: 1px; }
+.price .save {
+  display: block; margin-top: 2px; font-family: var(--mono); font-size: 12px;
+  font-weight: 400; letter-spacing: .04em; color: var(--neon-c);
+}
+.price .save s { color: var(--dim); margin-right: 2px; }
 @media (max-width: 720px) { .sheet { grid-template-columns: 1fr; } }
 .big { border: 1px solid var(--c); aspect-ratio: 1; display: grid; place-items: center; position: relative;
   background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--c) 28%, transparent), transparent 65%); }

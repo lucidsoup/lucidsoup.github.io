@@ -37,7 +37,7 @@ const money = (c) => new Intl.NumberFormat("en-US", { style: "currency", currenc
 const size = (b) => !b ? "" : b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`;
 const PLATFORM = { mac: "🍎", windows: "🪟", linux: "🐧", any: "" };
 const fileLabel = (f) => (PLATFORM[f.platform] ? PLATFORM[f.platform] + " " : "") + f.label;
-const KIND = { plugin: "Plugin", sample_pack: "Sample pack", tool: "Tool", firmware: "Firmware", max_device: "Max for Live", drambo_rack: "Drambo rack" };
+const KIND = { plugin: "Plugin", sample_pack: "Sample pack", tool: "Tool", firmware: "Firmware", max_device: "Max for Live", drambo_rack: "Drambo rack", bundle: "Everything" };
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } },
@@ -48,10 +48,19 @@ async function api(path, init = {}) {
   if (!res.ok) throw new Error(body.error || "Something went wrong — please try again.");
   return body;
 }
+/* What a thing used to cost, when it is a bundle of things that still sell
+   one at a time. Only shown when the catalogue says so and the saving is
+   real — a struck-through number that is not actually higher is a lie, and
+   the one check that stops it is cheaper than the apology. */
+const saving = (v) => (v.compare_at_cents && v.compare_at_cents > v.price_cents ? v.compare_at_cents - v.price_cents : 0);
+
 const head = (title, dlg) => h("div", { class: "dlg-head" }, h("h2", {}, title), h("button", { class: "x", "aria-label": "Close", onclick: () => dlg.close() }, "×"));
 
 // ---------------------------------------------------------------- classes (categories) and their colours
 const CLASSES = [
+  // White, and first: a bundle is not one class beside the others, it is all
+  // of them in one box.
+  ["Bundles", "#ffffff"],
   ["Instruments", "#ff00e6"],
   ["DJ & Performance", "#00ffd5"],
   ["Utilities", "#aaff00"],
@@ -99,7 +108,7 @@ function tiltOf(slug) {
 async function loadCatalog() {
   if (!LIVE) return DEMO;
   const url = `${API}/rest/v1/products?select=id,slug,title,tagline,description,images,category,kind,formats,preview_url,sort,status,symbol,specs,` +
-    `variants(id,name,image,price_cents),product_files(id,label,platform,bytes,sort)&status=in.(active,soon)&kind=neq.physical&order=sort.asc,created_at.desc`;
+    `variants(id,name,image,price_cents,compare_at_cents),product_files(id,label,platform,bytes,sort)&status=in.(active,soon)&kind=neq.physical&order=sort.asc,created_at.desc`;
   const res = await fetch(url, { headers: { apikey: CFG.supabaseAnonKey, Authorization: `Bearer ${CFG.supabaseAnonKey}` } });
   if (!res.ok) throw new Error(`catalog ${res.status}`);
   const rows = await res.json();
@@ -280,9 +289,10 @@ function shown(p) {
 function element(p) {
   const c = classColor(p.category);
   const v = p.variants[0];
-  const tile = h("button", { class: "el", "aria-label": `${p.title}, ${p.category || KIND[p.kind] || ""}, ${v.price_cents ? money(v.price_cents) : "free"}${buyable(p) ? "" : ", in the lab"}`,
+  const tile = h("button", { class: "el", "aria-label": `${p.title}, ${p.category || KIND[p.kind] || ""}, ${v.price_cents ? money(v.price_cents) : "free"}${saving(v) ? `, down from ${money(v.compare_at_cents)}` : ""}${buyable(p) ? "" : ", in the lab"}`,
     onclick: () => openProduct(p.slug, true) },
-    h("div", { class: "el-top" }, h("span", {}, atomic(p)), h("b", {}, v.price_cents ? money(v.price_cents) : "FREE")),
+    h("div", { class: "el-top" }, h("span", {}, atomic(p)),
+      h("b", {}, saving(v) ? h("s", { class: "was" }, money(v.compare_at_cents)) : null, v.price_cents ? money(v.price_cents) : "FREE")),
     h("div", { class: "el-sym", "aria-hidden": "true" }, symbolOf(p)),
     h("div", { class: "el-name" }, p.title),
     h("div", { class: "el-sub" }, h("span", {}, KIND[p.kind] || ""),
@@ -383,7 +393,10 @@ function openProduct(slug, push) {
         h("div", {},
           h("h3", {}, p.title),
           p.tagline ? h("p", { class: "tagline" }, p.tagline) : null,
-          free ? h("div", { class: "price free" }, "FREE") : h("div", { class: "price" }, money(v.price_cents)),
+          free ? h("div", { class: "price free" }, "FREE")
+               : h("div", { class: "price" }, money(v.price_cents),
+                   saving(v) ? h("span", { class: "save" }, h("s", {}, money(v.compare_at_cents)),
+                     " \u00b7 save " + money(saving(v))) : null),
           p.variants.length > 1 ? h("div", { class: "fmts", role: "group", "aria-label": "Options" }, p.variants.map((x) =>
             h("button", { class: "chip", "aria-pressed": String(x.id === v.id), onclick: () => { v = x; draw(); } }, `${x.name} · ${x.price_cents ? money(x.price_cents) : "free"}`))) : null,
           p.formats?.length ? h("div", { class: "fmts" }, p.formats.map((f) => h("span", { class: "fmt" }, f))) : null,
