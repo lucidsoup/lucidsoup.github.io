@@ -62,6 +62,10 @@ const CLASSES = [
   // of them in one box.
   ["Bundles", "#ffffff"],
   ["Instruments", "#ff00e6"],
+  // Green: the shop had no class for an effect, and four of these are
+  // nothing else. Lime is next door and cyan is one over, so this sits
+  // between them — the one hue the table was not already using.
+  ["Effects", "#00e676"],
   ["DJ & Performance", "#00ffd5"],
   ["Utilities", "#aaff00"],
   ["Sample Packs", "#ff6a3d"],
