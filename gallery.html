@@ -3,8 +3,8 @@
 <head>
     <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
     <link rel="apple-touch-icon" href="/icons/soup-180.png">
-    <link rel="stylesheet" href="/lucid.css">
-    <link rel="stylesheet" href="/stack.css">
+    <link rel="stylesheet" href="/lucid.css?v=20261125a">
+    <link rel="stylesheet" href="/stack.css?v=20261125a">
 <meta charset="UTF-8">
 <!-- Content Security Policy. GitHub Pages cannot send headers, so this is a
      <meta>, which means frame-ancestors is not available here — clickjacking
@@ -291,7 +291,11 @@
     }
     #hud-top {
         top: 0; left: 0; right: 0;
+        /* The menu button is pinned to this corner on every page, so the
+           readout has to stop short of it: without this, "altitude 0
+           flights" ran underneath it on a phone. */
         padding: 14px 16px;
+        padding-right: calc(16px + var(--lucid-chrome-slot, 52px));
         display: flex; align-items: flex-start; justify-content: space-between;
         gap: 12px;
         background: linear-gradient(rgba(0,0,0,.72), transparent);
@@ -1630,7 +1634,9 @@ function paintHUD(room, surfaces) {
 
     // The Stack: every room and every page on one tower, for anyone who would
     // rather not walk the labyrinth to find a thing they already know the name
-    // of. It is the same index the rest of the site carries.
+    // of. The rooms are the reason it is here rather than only in the menu in
+    // the corner: the menu lists the site's pages, and this lists the rooms
+    // too, which is what you want while you are standing in one.
     var idx = document.createElement('button');
     idx.id = 'stack-open';
     idx.className = 'exit-chip';
@@ -2066,8 +2072,8 @@ window.lucidGallery = {
 };
 })();
 </script>
-<script src="/lucid.js" defer></script>
+<script src="/lucid.js?v=20261125a" defer></script>
 </main>
-<script src="/stack.js?v=20261123c" defer></script>
+<script src="/stack.js?v=20261125a" defer></script>
 </body>
 </html>

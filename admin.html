@@ -473,7 +473,7 @@
 
     <div class="admin-main">
         <div class="admin-help">
-            <strong>The storefront is not on the site.</strong> There is no Shop section, nothing links to one, and nothing reads <code>items.json</code> but this page &mdash; so what you edit here is the shop as it will be, not anything a visitor can see today. Putting it back means restoring the section and the grid in <code>index.html</code> and the route to it in <code>soup.js</code> and <code>stack.js</code>; all of it is in the commit that took it out.
+            <strong>This is not the shop.</strong> The shop a visitor sees is the Soup Lab, at <a href="/store/">/store/</a>, and it keeps its catalogue in a database &mdash; you edit it in the <a href="/store/admin.html">Control Room</a>, which is also where uploads and prices live. Nothing reads <code>items.json</code> but this page, so what you edit here is seen by nobody. It is kept because it is the only editor that works with no database and no sign-in, and because the file is still in the repository.
             <br><br>
             <strong>How it works:</strong> Edit any field below — changes save automatically to your browser as you type. When you're done, click <strong>SAVE / EXPORT JSON</strong> to download an updated <code>items.json</code>, then upload that file to the root of your repository.
         </div>

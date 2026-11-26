@@ -66,199 +66,496 @@
     ];
 
     var BITS = [
-        { id: 'portfolio',      label: 'Visuals',    sub: 'reel',          hash: 'portfolio',      kind: 'media',  d: 96, ring: 0, a: .00 , veg: 'mushroom' },
-        { id: 'shader-library', label: 'Shaders',    sub: 'live',          hash: 'shader-library', kind: 'shader', d: 92, ring: 0, a: .34 , veg: 'broccoli' },
-        { id: 'synthsoup',      label: 'SynthSoup',  sub: 'synth · firmware', hash: 'synthsoup', shape: 'eye', d: 92, ring: 0, a: .67 , veg: 'tomato' },
+        { id: 'portfolio',      label: 'Visuals',    sub: 'reel',          hash: 'portfolio',      kind: 'media',  d: 96, ring: 0, a: .00 },
+        { id: 'shader-library', label: 'Shaders',    sub: 'live',          hash: 'shader-library', kind: 'shader', d: 92, ring: 0, a: .34 },
+        { id: 'synthsoup',      label: 'SynthSoup',  sub: 'synth \u00b7 firmware', hash: 'synthsoup', shape: 'egg', d: 100, ring: 0, a: .67 },
 
-        { id: 'drumseek',       label: 'DrumSeek',   sub: 'sequencer',     hash: 'drumseek',       shape: 'grid',   d: 74, ring: 1, a: .09 , veg: 'potato' },
-        { id: 'sp404',          label: 'SP-404',     sub: 'converter',     href: 'sp404.html',     shape: 'cube',   d: 74, ring: 1, a: .29 , veg: 'garlic' },
-        { id: 'plugins',        label: 'Plugins',    sub: 'clap · vst3',   href: 'plugins.html',   shape: 'faders', d: 72, ring: 1, a: .49 , veg: 'carrot' },
-        { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'ring',   d: 70, ring: 1, a: .69 , veg: 'pumpkin' },
-        { id: 'playground',     label: 'Playground', sub: 'audio \u2192 visuals', href: 'playground.html', shape: 'scope', d: 72, ring: 1, a: .89 , veg: 'pepper' },
+        { id: 'drumseek',       label: 'DrumSeek',   sub: 'sequencer',     hash: 'drumseek',       shape: 'corn',   d: 84, ring: 1, a: .09 },
+        { id: 'sp404',          label: 'SP-404',     sub: 'converter',     href: 'sp404.html',     shape: 'tofu',   d: 82, ring: 1, a: .29 },
+        { id: 'plugins',        label: 'Plugins',    sub: 'clap \u00b7 vst3',   href: 'plugins.html',   shape: 'enoki',  d: 82, ring: 1, a: .49 },
+        { id: 'blackboxfx',     label: 'BlackboxFX', sub: 'control',       hash: 'blackboxfx',     shape: 'leek',   d: 80, ring: 1, a: .69 },
+        { id: 'playground',     label: 'Playground', sub: 'audio \u2192 visuals', href: 'playground.html', shape: 'noodle', d: 82, ring: 1, a: .89 },
 
-        { id: 'watch',          label: 'Watchlist',  sub: 'what to watch', href: 'watch.html',     shape: 'reel',   d: 68, ring: 2, a: .72 , veg: 'radish' },
-        { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'spiral', d: 74, ring: 2, a: .17 , veg: 'cabbage' },
-        { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'star', d: 58, ring: 2, a: .42 , veg: 'carrot' },
-        { id: 'store',          label: 'Soup Lab',   sub: 'store',         href: 'store/',         shape: 'flask',  d: 66, ring: 2, a: .04 , veg: 'eggplant' },
-        { id: 'about',          label: 'About',      sub: '',              hash: 'about',          shape: 'pea',    d: 56, ring: 2, a: .67 , veg: 'pea' },
-        { id: 'contact',        label: 'Contact',    sub: '',              hash: 'contact',        shape: 'leaf',   d: 56, ring: 2, a: .92 , veg: 'cabbage' }
+        { id: 'store',          label: 'Soup Lab',   sub: 'store',         href: 'store/',         shape: 'garlic', d: 80, ring: 2, a: .04 },
+        { id: 'watch',          label: 'Watchlist',  sub: 'what to watch', href: 'watch.html',     shape: 'lotus',  d: 78, ring: 2, a: .72 },
+        { id: 'gallery',        label: 'The Gallery',sub: 'the long way',  href: 'gallery.html',   shape: 'fusilli', d: 82, ring: 2, a: .17 },
+        { id: 'play',           label: 'Play',       sub: 'in the browser', href: 'synthsoup/webapp/play/', shape: 'anise', d: 68, ring: 2, a: .42 },
+        { id: 'about',          label: 'About',      sub: '',              hash: 'about',          shape: 'pea',    d: 66, ring: 2, a: .67 },
+        { id: 'contact',        label: 'Contact',    sub: '',              hash: 'contact',        shape: 'bay',    d: 68, ring: 2, a: .92 }
     ];
 
     /* ---------------- the pieces themselves ----------------
+       Every piece is something you could find in a bowl of soup, and every
+       piece still says what its page is. That is not a pun stretched over a
+       menu: a lotus root slice has a ring of holes in it, which is a film
+       reel; enoki stalks are three sliders with knobs on; a leek cut across
+       is concentric rings; noodles are a waveform. The ingredient and the
+       icon are the same drawing.
+
+       They used to be glyphs on coloured discs, which read as app icons
+       sitting on top of the broth rather than as anything floating in it.
+       Three things changed that, and all three are about light rather than
+       about drawing:
+
+         1. The silhouette is the ingredient. A circle crops everything to the
+            same outline, and outline is most of what the eye uses to tell a
+            pea from a bay leaf at 60 pixels.
+         2. Everything below the waterline is tinted and blurred by the broth.
+            This is done with a filter over a clipped copy of the artwork, so
+            it works whatever the piece is drawn out of — fills, strokes, a
+            gradient — without anyone having to describe its silhouette twice.
+         3. Each piece floats at its own depth. A pea sits low in the liquid, a
+            bay leaf lies on the film at the top, a tofu cube is waterlogged
+            and a star anise barely touches. One shared waterline on thirteen
+            pieces looks like a printing error; different ones look like
+            buoyancy.
+
        Drawn rather than photographed, because a photo of a carrot on this site
        would be the only photograph of a carrot on this site. */
     var V = '0 0 100 100';
-    function svg(body, bg) {
-        return '<svg viewBox="' + V + '" aria-hidden="true" style="background:' + bg + '">' + body + '</svg>';
+
+    /* What the broth does to the part of a piece that is under it: most of the
+       light gone, what is left pulled towards the violet the soup actually is.
+       Done as a colour matrix rather than a flat overlay so a bright carrot
+       still reads as brighter than a dark seed once both are submerged. */
+    var SUBMERGED = '.38 .02 .08 0 .030  .04 .34 .07 0 .015  .09 .06 .50 0 .085  0 0 0 .97 0';
+    /* And at the line itself, surface tension pulls a bright rim up the side
+       of anything floating. It is two pixels of pale lilac and it is the
+       single thing that makes a piece look wet. */
+    var DEEP = '.22 .01 .06 0 .024  .02 .19 .05 0 .012  .06 .04 .33 0 .070  0 0 0 .97 0';
+    var MENISCUS = '.70 .08 .10 0 .20  .62 .72 .10 0 .19  .70 .14 .78 0 .24  0 0 0 .62 0';
+
+    var ingN = 0;
+    /* `line` is where the broth cuts this piece, in the same 0-100 space the
+       artwork is drawn in: smaller sits deeper. `art` gets a unique prefix
+       because thirteen of these share one document and ids are global. */
+    function ing(line, art) {
+        var k = 'ig' + (++ingN) + '-';
+        var a = art(k);
+        return '<svg viewBox="' + V + '" class="ing" aria-hidden="true">' +
+            '<defs>' +
+                (a.defs || '') +
+                '<g id="' + k + 'ART">' + a.art + '</g>' +
+                '<clipPath id="' + k + 'WET"><rect x="-30" y="' + line + '" width="160" height="160"/></clipPath>' +
+                '<clipPath id="' + k + 'LIP"><rect x="-30" y="' + (line - 1.7).toFixed(2) + '" width="160" height="3.2"/></clipPath>' +
+                '<filter id="' + k + 'SUB" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">' +
+                    '<feColorMatrix type="matrix" values="' + SUBMERGED + '"/>' +
+                    '<feGaussianBlur stdDeviation=".75"/></filter>' +
+                '<filter id="' + k + 'MEN" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">' +
+                    '<feColorMatrix type="matrix" values="' + MENISCUS + '"/></filter>' +
+                '<clipPath id="' + k + 'DIP"><rect x="-30" y="' + (line + 15) + '" width="160" height="160"/></clipPath>' +
+                '<filter id="' + k + 'DPF" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">' +
+                    '<feColorMatrix type="matrix" values="' + DEEP + '"/>' +
+                    '<feGaussianBlur stdDeviation="1.15"/></filter>' +
+            '</defs>' +
+            '<use href="#' + k + 'ART"/>' +
+            '<g clip-path="url(#' + k + 'WET)" filter="url(#' + k + 'SUB)"><use href="#' + k + 'ART"/></g>' +
+            '<g clip-path="url(#' + k + 'DIP)" filter="url(#' + k + 'DPF)"><use href="#' + k + 'ART"/></g>' +
+            '<g clip-path="url(#' + k + 'LIP)" filter="url(#' + k + 'MEN)"><use href="#' + k + 'ART"/></g>' +
+            '</svg>';
     }
-    /* ---------------- vegetables ----------------
-       Every piece is cut to a vegetable: `body` is the silhouette, used as a
-       mask so the artwork, video or shader inside keeps showing through it;
-       `rim` is the vegetable's own colour round the edge, and `art` is drawn
-       over the top (a tomato's calyx, a mushroom's gills) at low opacity so the
-       image underneath still reads. All in a 100 × 100 box. */
-    var VEG = {
-        carrot: { rim: '#ff8a1f', body: 'M54.7 6.3Q59.5 8.6 64.7 8.6Q70.0 8.6 73.2 12.7Q76.5 16.8 81.2 19.0Q86.0 21.3 87.1 26.4Q88.3 31.6 91.6 35.7Q94.8 39.8 93.7 44.9Q92.5 50.0 93.7 55.1Q94.8 60.2 91.6 64.3Q88.3 68.4 87.1 73.6Q86.0 78.7 81.2 81.0Q76.5 83.2 73.2 87.3Q70.0 91.4 64.7 91.4Q59.5 91.4 54.7 93.7Q50.0 96.0 45.3 93.7Q40.5 91.4 35.3 91.4Q30.0 91.4 26.8 87.3Q23.5 83.2 18.8 81.0Q14.0 78.7 12.9 73.6Q11.7 68.4 8.4 64.3Q5.2 60.2 6.3 55.1Q7.5 50.0 6.3 44.9Q5.2 39.8 8.4 35.7Q11.7 31.6 12.9 26.4Q14.0 21.3 18.8 19.0Q23.5 16.8 26.8 12.7Q30.0 8.6 35.3 8.6Q40.5 8.6 45.3 6.3Q50.0 4.0 54.7 6.3Z',
-            art: '<circle cx="50" cy="50" r="30" fill="none" stroke="#ffb35c" stroke-width="2" opacity=".55"/>' +
-                 '<circle cx="50" cy="50" r="12" fill="#ffb35c" opacity=".35"/>' },
-        mushroom: { rim: '#e9d8c2',
-            body: 'M6 50C6 22 28 6 50 6s44 16 44 44c0 7-6 9-12 8l-16-2 2 28c0 8-7 12-18 12S32 92 32 84l2-28-16 2C12 59 6 57 6 50z',
-            art: '<path d="M34 57c10 3 22 3 32 0" fill="none" stroke="#fff3e2" stroke-width="2.5" opacity=".6"/>' +
-                 '<path d="M36 58l-2 26c0 7 7 11 16 11s16-4 16-11l-2-26" fill="#f3e6d3" opacity=".42"/>' +
-                 '<circle cx="30" cy="28" r="6" fill="#fff3e2" opacity=".35"/><circle cx="64" cy="20" r="4" fill="#fff3e2" opacity=".35"/>' },
-        broccoli: { rim: '#4fa83a',
-            body: 'M40 62h20l5 32c0 3-3 5-15 5s-15-2-15-5zM28 58a22 22 0 1 1 6-40 24 24 0 0 1 40 6 20 20 0 0 1-2 38 22 22 0 0 1-44-4z',
-            art: '<path d="M41 62h18l4 30c0 2-3 4-13 4s-13-2-13-4z" fill="#9ed36b" opacity=".5"/>' +
-                 '<g fill="#2f7a2a" opacity=".3"><circle cx="30" cy="38" r="5"/><circle cx="52" cy="24" r="5"/><circle cx="72" cy="40" r="5"/><circle cx="48" cy="46" r="4"/></g>' },
-        tomato: { rim: '#ff3b30',
-            body: 'M50 16c26 0 44 16 44 40S76 96 50 96 6 80 6 56s18-40 44-40z',
-            art: '<path d="M50 24l5-12 3 13 13-5-8 11 13 4-15 2-11 6-11-6-15-2 13-4-8-11 13 5 3-13z" fill="#3fa63a" opacity=".85"/>' },
-        potato: { rim: '#c9955a',
-            body: 'M18 28C30 6 70 4 86 24c14 18 10 52-10 66C56 102 18 94 8 70 2 54 8 40 18 28z',
-            art: '<g fill="#8a5a2b" opacity=".35"><circle cx="30" cy="34" r="3"/><circle cx="66" cy="28" r="2.5"/><circle cx="72" cy="66" r="3"/><circle cx="38" cy="74" r="2.5"/></g>' },
-        pepper: { rim: '#ffd21f',
-            body: 'M50 10c10 0 14 8 22 8 14 0 24 14 22 32-2 22-14 44-44 44S8 72 6 50C4 32 14 18 28 18c8 0 12-8 22-8z',
-            art: '<path d="M50 20c-4 10-4 24 0 34m0-34c10 6 22 14 28 26M50 20C40 26 28 34 22 46" fill="none" stroke="#fff6c2" stroke-width="2.5" opacity=".45"/>' },
-        pumpkin: { rim: '#ff7a1a',
-            body: 'M50 18c6-8 12-10 14-6-2 2-4 4-4 8 18-2 34 10 36 32 2 26-16 44-46 44S2 78 4 52c2-22 18-34 36-32 2-2 6-2 10-2z',
-            art: '<path d="M50 24c-8 20-8 48 0 68M50 24c8 20 8 48 0 68M30 26c-10 18-8 44 4 62M70 26c10 18 8 44-4 62" fill="none" stroke="#ffb36a" stroke-width="2.5" opacity=".45"/>' +
-                 '<path d="M48 22c2-6 8-12 14-12" fill="none" stroke="#3f7a2a" stroke-width="5" stroke-linecap="round"/>' },
-        radish: { rim: '#ff2d7a',
-            body: 'M50 26c24 0 40 16 38 36-2 18-18 30-34 32l-4 6-4-6C30 92 14 80 12 62c-2-20 14-36 38-36zM44 28C38 14 30 6 22 4c10 0 18 6 24 18 2-12 8-20 18-22-6 6-10 16-10 28z',
-            art: '<path d="M44 28C38 14 30 6 22 4c10 0 18 6 24 18 2-12 8-20 18-22-6 6-10 16-10 28z" fill="#3fa63a" opacity=".9"/>' },
-        cabbage: { rim: '#7ed957',
-            body: 'M50 6c14 0 18 8 26 10 10 2 18 12 16 22 6 8 4 22-4 28 0 12-10 22-22 22-6 6-26 6-32 0C22 88 12 78 12 66 4 60 2 46 8 38 6 28 14 18 24 16c8-2 12-10 26-10z',
-            art: '<path d="M50 94V30M50 60L28 40M50 48l20-16M50 74l22-14" fill="none" stroke="#e8ffd0" stroke-width="2.5" stroke-linecap="round" opacity=".5"/>' },
-        pea: { rim: '#6fbd3a', body: 'M50 6a44 44 0 1 1 0 88 44 44 0 0 1 0-88z', art: '' },
-        eggplant: { rim: '#8b3fd6',
-            body: 'M60 6c6 0 10 4 10 10 0 4 4 8 8 12 14 14 14 38 0 54-16 18-46 18-62 2C2 70 4 50 18 36c10-10 22-14 30-16 2-8 6-14 12-14z',
-            art: '<path d="M48 20c4-6 10-10 18-8 2 6 0 12-4 16-6-2-10-4-14-8z" fill="#3fa63a" opacity=".95"/>' +
-                 '<path d="M26 44c-8 10-10 24-4 34" fill="none" stroke="#d9b8ff" stroke-width="3" stroke-linecap="round" opacity=".5"/>' },
-        garlic: { rim: '#f3ecdf',
-            body: 'M50 4c4 6 6 12 6 18 18 6 36 22 36 44 0 18-18 30-42 30S8 84 8 66c0-22 18-38 36-44 0-6 2-12 6-18z',
-            art: '<path d="M50 26c-6 18-6 44 0 66M50 26c6 18 6 44 0 66M32 34c-10 14-10 40 0 56M68 34c10 14 10 40 0 56" fill="none" stroke="#fffaf0" stroke-width="2" opacity=".5"/>' }
-    };
-    function vegMask(d) {
-        return 'url("data:image/svg+xml,' + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="' + d + '"/></svg>') + '")';
+
+    /* A linear gradient, written out because thirteen pieces want twenty of
+       them and each needs its own id. */
+    function grad(id, x1, y1, x2, y2, stops) {
+        return '<linearGradient id="' + id + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '">' +
+            stops.map(function (s) {
+                return '<stop offset="' + s[0] + '" stop-color="' + s[1] + '"/>';
+            }).join('') + '</linearGradient>';
     }
-    function dressVeg(shape, name) {
-        var v = VEG[name];
-        if (!v) return;
-        var m = vegMask(v.body);
-        shape.classList.add('veg');
-        shape.style.webkitMaskImage = m;
-        shape.style.maskImage = m;
-        var over = document.createElement('div');
-        over.className = 'bit-veg';
-        over.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true">' + v.art +
-            '<path d="' + v.body + '" fill="none" stroke="' + v.rim + '" stroke-width="7" stroke-linejoin="round"/></svg>';
-        shape.appendChild(over);
+    function rgrad(id, cx, cy, r, stops) {
+        return '<radialGradient id="' + id + '" cx="' + cx + '" cy="' + cy + '" r="' + r + '">' +
+            stops.map(function (s) {
+                return '<stop offset="' + s[0] + '" stop-color="' + s[1] + '"' +
+                    (s[2] != null ? ' stop-opacity="' + s[2] + '"' : '') + '/>';
+            }).join('') + '</radialGradient>';
     }
+
     var SHAPES = {
-        grid: function () {
-            return svg('<g stroke="#0e0820" stroke-width="5" opacity=".75">' +
-                '<path d="M26 6v88M50 6v88M74 6v88M6 26h88M6 50h88M6 74h88"/></g>',
-                'linear-gradient(145deg,#ffb347,#d4603a)');
+        /* SynthSoup — a halved soft-boiled egg. It is the one piece that was
+           already an eye, and an egg is the thing in a bowl of ramen that
+           looks back at you, so it stays an eye and becomes food. */
+        egg: function () {
+            return ing(62, function (k) {
+                return {
+                    defs:
+                        rgrad(k + 'w', '.40', '.34', '.72', [['0', '#fffdf6'], ['.62', '#f6ecd9'], ['1', '#ddcdb0']]) +
+                        rgrad(k + 'y', '.38', '.33', '.78', [['0', '#ffd978'], ['.45', '#f7b23e'], ['1', '#d4791c']]),
+                    art:
+                        '<ellipse cx="50" cy="52" rx="43" ry="38" fill="url(#' + k + 'w)"/>' +
+                        '<ellipse cx="50" cy="52" rx="43" ry="38" fill="none" stroke="#c9b48f" stroke-width="1.1" opacity=".55"/>' +
+                        '<ellipse cx="50" cy="53" rx="21" ry="19" fill="url(#' + k + 'y)"/>' +
+                        // The yolk of a jammy egg is darker and wetter at its edge.
+                        '<ellipse cx="50" cy="53" rx="21" ry="19" fill="none" stroke="#b45f12" stroke-width="1.6" opacity=".5"/>' +
+                        '<ellipse cx="50" cy="60" rx="15" ry="9" fill="#c9780f" opacity=".30"/>' +
+                        '<ellipse cx="43" cy="45" rx="6.5" ry="4.6" fill="#fff2c2" opacity=".62"/>' +
+                        '<ellipse cx="33" cy="33" rx="9" ry="6" fill="#ffffff" opacity=".52" transform="rotate(-24 33 33)"/>'
+                };
+            });
         },
-        // A film reel: the watchlist. Sprocket holes rather than a play
-        // triangle, because a triangle reads as "press this" and this is a
-        // list of things to go and find.
-        reel: function () {
-            return svg('<circle cx="50" cy="50" r="38" fill="none" stroke="#0e0820" stroke-width="7" opacity=".8"/>' +
-                '<circle cx="50" cy="50" r="9" fill="#0e0820" opacity=".8"/>' +
-                '<g fill="#0e0820" opacity=".7">' +
-                '<circle cx="50" cy="26" r="7"/><circle cx="71" cy="38" r="7"/>' +
-                '<circle cx="71" cy="62" r="7"/><circle cx="50" cy="74" r="7"/>' +
-                '<circle cx="29" cy="62" r="7"/><circle cx="29" cy="38" r="7"/></g>',
-                'linear-gradient(145deg,#ffd27a,#d44fb0)');
+
+        /* DrumSeek — a round of corn on the cob. Kernels in rows is a step
+           sequencer, which is what the piece used to draw as a bare grid. */
+        corn: function () {
+            return ing(65, function (k) {
+                var rows = '', c, r2;
+                // Five rows of kernels, each row shorter towards the rim, laid
+                // out on the circle rather than on a square so the cob reads
+                // as round rather than as a grid with the corners cut off.
+                for (var ry = -2; ry <= 2; ry++) {
+                    var y = 50 + ry * 15.5;
+                    var halfw = Math.sqrt(Math.max(0, 1 - (ry / 2.55) * (ry / 2.55))) * 36;
+                    var n = Math.max(1, Math.round(halfw / 9.2));
+                    for (var rx = -n; rx <= n; rx++) {
+                        var x = 50 + rx * (halfw / (n + .5));
+                        if (Math.abs(rx) === n && n > 1) continue;
+                        c = (ry + rx) % 2 ? '#f6c73e' : '#ffd96b';
+                        r2 = 7.4 - Math.abs(ry) * .5;
+                        rows += '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="' + r2.toFixed(1) +
+                            '" ry="' + (r2 * .86).toFixed(1) + '" fill="' + c + '"/>' +
+                            '<ellipse cx="' + (x - 1.6).toFixed(1) + '" cy="' + (y - 2).toFixed(1) +
+                            '" rx="2.5" ry="1.8" fill="#fff3bd" opacity=".55"/>';
+                    }
+                }
+                return {
+                    defs: rgrad(k + 'c', '.40', '.34', '.74', [['0', '#f5d06a'], ['1', '#b9781b']]) +
+                        '<clipPath id="' + k + 'cob"><circle cx="50" cy="50" r="39"/></clipPath>',
+                    art:
+                        '<circle cx="50" cy="50" r="40" fill="url(#' + k + 'c)"/>' +
+                        // Kernels are laid out on a square lattice and the cob
+                        // is round, so the ones at the edge have to be cut by
+                        // the rim rather than hang over it.
+                        '<g clip-path="url(#' + k + 'cob)">' + rows + '</g>' +
+                        '<circle cx="50" cy="50" r="40" fill="none" stroke="#9c6316" stroke-width="2" opacity=".5"/>'
+                };
+            });
         },
-        cube: function () {
-            return svg('<g fill="none" stroke="#f6ecff" stroke-width="4" stroke-linejoin="round" opacity=".9">' +
-                '<path d="M50 14 84 33v34L50 86 16 67V33z"/><path d="M50 14v34l34 19M50 48 16 33M50 48v38"/></g>',
-                'linear-gradient(145deg,#f3e6ff,#9b7bff)');
+
+        /* SP-404 — a cube of tofu. The old icon was a wireframe cube for a
+           converter; this is the same cube with something in it. */
+        tofu: function () {
+            return ing(57, function (k) {
+                return {
+                    defs:
+                        grad(k + 't', '0', '0', '1', '1', [['0', '#fffaf0'], ['1', '#efe2cb']]) +
+                        grad(k + 'l', '0', '0', '0', '1', [['0', '#f2e6d2'], ['1', '#cdbda2']]) +
+                        grad(k + 'r', '0', '0', '0', '1', [['0', '#e2d4bd'], ['1', '#b7a68c']]),
+                    art:
+                        // Three faces: the lit top, and two sides falling away.
+                        '<path d="M50 14 84 32 50 50 16 32z" fill="url(#' + k + 't)"/>' +
+                        '<path d="M16 32 50 50v36L16 68z" fill="url(#' + k + 'l)"/>' +
+                        '<path d="M84 32 50 50v36l34-18z" fill="url(#' + k + 'r)"/>' +
+                        '<path d="M50 14 84 32 50 50 16 32zM16 32v36l34 18 34-18V32M50 50v36" fill="none" ' +
+                            'stroke="#9e8f74" stroke-width="1.2" stroke-linejoin="round" opacity=".55"/>' +
+                        // Tofu is slightly translucent and the broth soaks the
+                        // cut faces; a couple of soft blooms is all that takes.
+                        '<ellipse cx="38" cy="30" rx="11" ry="5" fill="#ffffff" opacity=".5"/>' +
+                        '<ellipse cx="33" cy="60" rx="8" ry="11" fill="#c7b394" opacity=".35"/>'
+                };
+            });
         },
-        eye: function () {
-            return svg('<ellipse cx="50" cy="50" rx="42" ry="26" fill="#120a22"/>' +
-                '<circle cx="50" cy="50" r="20" fill="#6fe3e8"/>' +
-                '<circle cx="50" cy="50" r="9" fill="#0b0618"/>' +
-                '<circle cx="43" cy="43" r="4" fill="#fff" opacity=".85"/>',
-                'linear-gradient(145deg,#ff6fd8,#9dff4f)');
+
+        /* Plugins — a bundle of enoki. Long pale stalks with a small cap on
+           each, at three different heights, which is a bank of faders. */
+        enoki: function () {
+            return ing(75, function (k) {
+                var st = [[30, 34], [50, 22], [70, 44]];
+                var s = '';
+                st.forEach(function (p) {
+                    var x = p[0], top = p[1];
+                    s += '<path d="M' + (x - 4.4) + ' 92 C' + (x - 5.6) + ' ' + (top + 26) + ' ' +
+                        (x - 3.2) + ' ' + (top + 12) + ' ' + (x - 3.6) + ' ' + (top + 5) +
+                        ' L' + (x + 3.6) + ' ' + (top + 5) + ' C' + (x + 3.2) + ' ' + (top + 12) + ' ' +
+                        (x + 5.6) + ' ' + (top + 26) + ' ' + (x + 4.4) + ' 92 Z" fill="url(#' + k + 's)"/>';
+                    s += '<ellipse cx="' + x + '" cy="' + (top + 3) + '" rx="8.6" ry="6.4" fill="url(#' + k + 'c)"/>';
+                    s += '<ellipse cx="' + (x - 2.6) + '" cy="' + (top + .8) + '" rx="3.4" ry="2.1" fill="#fffdf4" opacity=".6"/>';
+                    s += '<path d="M' + (x - 8.4) + ' ' + (top + 3.6) + 'a8.6 6.4 0 0 0 16.8 .8" fill="none" ' +
+                        'stroke="#bda98a" stroke-width="1.1" opacity=".55"/>';
+                });
+                return {
+                    defs:
+                        grad(k + 's', '0', '0', '1', '0', [['0', '#fbf5e8'], ['.5', '#f3ead6'], ['1', '#d9ccb2']]) +
+                        rgrad(k + 'c', '.38', '.30', '.80', [['0', '#fffcf2'], ['1', '#d8c8a9']]),
+                    art: s
+                };
+            });
         },
-        ring: function () {
-            return svg('<circle cx="50" cy="50" r="33" fill="none" stroke="#0d0820" stroke-width="13" opacity=".72"/>' +
-                '<circle cx="50" cy="50" r="33" fill="none" stroke="#fff" stroke-width="2" opacity=".35"/>',
-                'linear-gradient(145deg,#8ae04b,#2f7a3a)');
+
+        /* BlackboxFX — a cut leek. Concentric rings, which is what the old
+           icon was, and what a leek actually is. */
+        leek: function () {
+            return ing(73, function (k) {
+                var r = '', cols = ['#e9f4d3', '#cfe7a8', '#b4d886', '#9bc96a', '#86b956'];
+                // Each sheath is a little off-centre and a little oval, which
+                // is the difference between a cut leek and a dartboard.
+                var off = [[0, 0, 1, 1], [1.4, -1, .98, 1.02], [-1.2, 1.6, 1.03, .97],
+                           [2.2, .8, .96, 1.04], [-1.6, -1.4, 1.01, .99]];
+                for (var i = 0; i < 5; i++) {
+                    var rr = 38 - i * 7, o = off[i];
+                    var a = 'cx="' + (50 + o[0]) + '" cy="' + (50 + o[1]) + '" rx="' +
+                        (rr * o[2]).toFixed(1) + '" ry="' + (rr * o[3]).toFixed(1) + '"';
+                    r += '<ellipse ' + a + ' fill="' + cols[i] + '"/>';
+                    r += '<ellipse ' + a + ' fill="none" stroke="#6f9c43" stroke-width=".9" opacity=".55"/>';
+                }
+                return {
+                    defs: null,
+                    art:
+                        '<circle cx="50" cy="50" r="40" fill="#7fae4f"/>' + r +
+                        '<circle cx="50" cy="50" r="4.4" fill="#f4fbe6"/>' +
+                        '<path d="M22 30a40 40 0 0 1 22-13" fill="none" stroke="#ffffff" stroke-width="3" ' +
+                            'stroke-linecap="round" opacity=".38"/>'
+                };
+            });
         },
-        film: function () {
-            return svg('<circle cx="50" cy="50" r="40" fill="#1b1030"/>' +
-                '<g fill="#cdb6ff">' +
-                '<circle cx="50" cy="16" r="6"/><circle cx="50" cy="84" r="6"/>' +
-                '<circle cx="16" cy="50" r="6"/><circle cx="84" cy="50" r="6"/>' +
-                '<circle cx="26" cy="26" r="5"/><circle cx="74" cy="26" r="5"/>' +
-                '<circle cx="26" cy="74" r="5"/><circle cx="74" cy="74" r="5"/></g>' +
-                '<circle cx="50" cy="50" r="14" fill="none" stroke="#cdb6ff" stroke-width="4"/>',
-                'linear-gradient(145deg,#8f6bff,#3a1d6e)');
-        },
+
+        /* Playground — noodles. Three strands of a wave, which is the
+           oscilloscope the piece used to draw, and the most soup thing there
+           is. */
         noodle: function () {
-            return svg('<g fill="none" stroke="#fff3fb" stroke-width="9" stroke-linecap="round" opacity=".92">' +
-                '<path d="M10 30c14-16 26 16 40 0s26-16 40 0"/>' +
-                '<path d="M10 54c14-16 26 16 40 0s26-16 40 0"/>' +
-                '<path d="M10 78c14-16 26 16 40 0s26-16 40 0"/></g>',
-                'linear-gradient(145deg,#ff9ad8,#b3338a)');
+            return ing(69, function (k) {
+                var w = function (y, o) {
+                    return '<path d="M6 ' + y + 'c11-13 21 13 32 0s21-13 32 0 21 13 24 4" fill="none" ' +
+                        'stroke="' + o + '" stroke-width="9" stroke-linecap="round"/>';
+                };
+                return {
+                    defs: grad(k + 'n', '0', '0', '0', '1', [['0', '#fbe9bd'], ['1', '#d9ae63']]),
+                    art:
+                        w(34, '#c79a4e') + w(34, 'url(#' + k + 'n)') +
+                        w(56, '#c79a4e') + w(56, 'url(#' + k + 'n)') +
+                        w(78, '#c79a4e') + w(78, 'url(#' + k + 'n)') +
+                        // A wet line along the top of each strand.
+                        '<path d="M8 31c11-13 21 13 32 0s21-13 32 0" fill="none" stroke="#fff6dd" ' +
+                            'stroke-width="2.4" stroke-linecap="round" opacity=".55"/>' +
+                        '<path d="M8 53c11-13 21 13 32 0s21-13 32 0" fill="none" stroke="#fff6dd" ' +
+                            'stroke-width="2.4" stroke-linecap="round" opacity=".42"/>'
+                };
+            });
         },
-        spiral: function () {
-            // The labyrinth, which is what it leads to.
-            return svg('<path d="M50 14a36 36 0 1 1-25.5 61.4A28 28 0 1 0 50 26a24 24 0 1 0 17 41 16 16 0 1 1-20.6-24.3" ' +
-                'fill="none" stroke="#f0e6ff" stroke-width="6" stroke-linecap="round" opacity=".92"/>',
-                'linear-gradient(145deg,#b79bff,#4b2f9e)');
+
+        /* Watchlist — a slice of lotus root. A disc with a ring of holes
+           through it: the film reel the piece already was, and a thing that
+           is genuinely floating in soup somewhere right now. */
+        lotus: function () {
+            return ing(67, function (k) {
+                var h = '<circle cx="50" cy="50" r="8" fill="#2b1b3f" opacity=".82"/>';
+                for (var i = 0; i < 7; i++) {
+                    var a = (i / 7) * Math.PI * 2 - Math.PI / 2;
+                    var x = 50 + Math.cos(a) * 22, y = 50 + Math.sin(a) * 22;
+                    h += '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="7.6" ry="7" ' +
+                        'fill="#2b1b3f" opacity=".82"/>';
+                    h += '<ellipse cx="' + x.toFixed(1) + '" cy="' + (y - 1.4).toFixed(1) + '" rx="7.6" ry="6.4" ' +
+                        'fill="none" stroke="#b9a582" stroke-width="1.2" opacity=".5"/>';
+                }
+                return {
+                    defs: rgrad(k + 'l', '.38', '.32', '.76', [['0', '#fbf4e4'], ['.6', '#eadfc6'], ['1', '#c3b08c']]),
+                    art:
+                        '<circle cx="50" cy="50" r="40" fill="url(#' + k + 'l)"/>' + h +
+                        '<circle cx="50" cy="50" r="40" fill="none" stroke="#a8936d" stroke-width="2" opacity=".6"/>' +
+                        '<path d="M20 34a40 40 0 0 1 20-14" fill="none" stroke="#fffdf4" stroke-width="3.4" ' +
+                            'stroke-linecap="round" opacity=".45"/>'
+                };
+            });
         },
-        star: function () {
-            return svg('<path d="M50 8l10 24 26-6-16 21 16 21-26-6-10 24-10-24-26 6 16-21-16-21 26 6z" ' +
-                'fill="#2a0a28" opacity=".8"/>', 'linear-gradient(145deg,#ffe36f,#d44fb0)');
+
+        /* The Gallery — fusilli. A spiral that takes the long way round,
+           which is what the label under it says. Drawn as an actual helix:
+           the points are computed, the half of each turn facing away is
+           drawn dark and first, and the half facing you is drawn light over
+           it. Stacked arcs were tried and read as a pile of pancakes, which
+           is the trouble with faking a twist rather than winding one. */
+        fusilli: function () {
+            return ing(59, function (k) {
+                var R = 20, y0 = 13, y1 = 89, turns = 4;
+                var N = 150, pts = [];
+                for (var i = 0; i <= N; i++) {
+                    var u = i / N, t = u * turns * Math.PI * 2;
+                    pts.push({
+                        x: 50 + Math.cos(t) * R,
+                        y: y0 + u * (y1 - y0),
+                        front: Math.sin(t) > 0
+                    });
+                }
+                // Split the helix where it passes behind itself, so the two
+                // sides can be painted in the right order.
+                var runs = [], cur = [pts[0]];
+                for (i = 1; i <= N; i++) {
+                    cur.push(pts[i]);
+                    if (pts[i].front !== pts[i - 1].front || i === N) {
+                        runs.push({ front: pts[i - 1].front, pts: cur });
+                        cur = [pts[i]];
+                    }
+                }
+                function d(run) {
+                    return 'M' + run.pts.map(function (p) {
+                        return p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+                    }).join('L');
+                }
+                var back = '', front = '';
+                runs.forEach(function (r) {
+                    var path = d(r);
+                    if (r.front) {
+                        front += '<path d="' + path + '" fill="none" stroke="#b07f34" stroke-width="15" stroke-linecap="round"/>' +
+                                 '<path d="' + path + '" fill="none" stroke="url(#' + k + 'f)" stroke-width="12" stroke-linecap="round"/>' +
+                                 '<path d="' + path + '" fill="none" stroke="#fff3d4" stroke-width="2.6" stroke-linecap="round" opacity=".45" transform="translate(-2.2 -2.6)"/>';
+                    } else {
+                        back += '<path d="' + path + '" fill="none" stroke="#7d5520" stroke-width="13" stroke-linecap="round"/>' +
+                                '<path d="' + path + '" fill="none" stroke="#a87c3c" stroke-width="9" stroke-linecap="round"/>';
+                    }
+                });
+                return {
+                    defs: grad(k + 'f', '0', '0', '1', '0',
+                        [['0', '#e3bd77'], ['.42', '#f7e0ae'], ['1', '#cf9f52']]),
+                    art: back + front
+                };
+            });
         },
-        scope: function () {
-            return svg('<circle cx="50" cy="50" r="33" fill="none" stroke="#1a0b2e" stroke-width="6" opacity=".6"/>' +
-                '<path d="M20 50c5-18 9-18 14 0s9 18 14 0 9-18 14 0 9 18 14 0" fill="none" ' +
-                'stroke="#eafff2" stroke-width="5" stroke-linecap="round"/>' +
-                '<circle cx="50" cy="50" r="33" fill="none" stroke="#9dffcf" stroke-width="2.5" opacity=".5"/>',
-                'linear-gradient(145deg,#59e0ff,#2a3bb8)');
+
+        /* Play — star anise. The star the piece already was, and a spice that
+           is in the pot before anything else. */
+        anise: function () {
+            return ing(78, function (k) {
+                var p = '', seeds = '';
+                for (var i = 0; i < 8; i++) {
+                    var a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+                    var ca = Math.cos(a), sa = Math.sin(a);
+                    var tipx = 50 + ca * 44, tipy = 50 + sa * 44;
+                    var lx = 50 + Math.cos(a - .34) * 17, ly = 50 + Math.sin(a - .34) * 17;
+                    var rx = 50 + Math.cos(a + .34) * 17, ry = 50 + Math.sin(a + .34) * 17;
+                    p += '<path d="M' + lx.toFixed(1) + ' ' + ly.toFixed(1) + 'Q' + (50 + ca * 30).toFixed(1) + ' ' +
+                        (50 + sa * 30).toFixed(1) + ' ' + tipx.toFixed(1) + ' ' + tipy.toFixed(1) +
+                        'Q' + (50 + ca * 30).toFixed(1) + ' ' + (50 + sa * 30).toFixed(1) + ' ' +
+                        rx.toFixed(1) + ' ' + ry.toFixed(1) + 'Z" fill="url(#' + k + 'p)"/>';
+                    seeds += '<ellipse cx="' + (50 + ca * 27).toFixed(1) + '" cy="' + (50 + sa * 27).toFixed(1) +
+                        '" rx="5" ry="3.6" fill="#c08b4a" transform="rotate(' +
+                        (a * 180 / Math.PI).toFixed(1) + ' ' + (50 + ca * 27).toFixed(1) + ' ' +
+                        (50 + sa * 27).toFixed(1) + ')"/>';
+                }
+                return {
+                    defs: rgrad(k + 'p', '.42', '.36', '.78', [['0', '#8c5330'], ['1', '#4a2514']]),
+                    art: p + seeds + '<circle cx="50" cy="50" r="9" fill="#5e3119"/>' +
+                        '<circle cx="50" cy="50" r="4.2" fill="#8a5a2e"/>' +
+                        '<circle cx="46" cy="46" r="2.4" fill="#d8a86d" opacity=".5"/>'
+                };
+            });
         },
-        faders: function () {
-            return svg('<g stroke="#140a24" stroke-width="7" stroke-linecap="round" opacity=".55">' +
-                '<path d="M30 20v60M50 20v60M70 20v60"/></g>' +
-                '<g fill="#fdf6ff">' +
-                '<rect x="20" y="52" width="20" height="9" rx="4.5"/>' +
-                '<rect x="40" y="30" width="20" height="9" rx="4.5"/>' +
-                '<rect x="60" y="62" width="20" height="9" rx="4.5"/></g>',
-                'linear-gradient(145deg,#c0a0ff,#5a32b8)');
-        },
+
+        /* About — peas. Three of them, sitting low, because peas do. */
         pea: function () {
-            return svg('<circle cx="35" cy="42" r="19" fill="#6fbd3a"/><circle cx="63" cy="38" r="15" fill="#8ae04b"/>' +
-                '<circle cx="52" cy="66" r="17" fill="#5aa832"/>' +
-                '<circle cx="30" cy="36" r="5" fill="#d9ffb8" opacity=".75"/>',
-                'linear-gradient(145deg,#a7f06a,#3f7a28)');
+            return ing(58, function (k) {
+                return {
+                    defs:
+                        rgrad(k + 'a', '.34', '.30', '.80', [['0', '#c6f08a'], ['.55', '#8dd155'], ['1', '#3f7c25']]) +
+                        rgrad(k + 'b', '.34', '.30', '.80', [['0', '#d8f6a4'], ['.55', '#9ddc63'], ['1', '#4a8a2c']]),
+                    art:
+                        '<circle cx="34" cy="44" r="23" fill="url(#' + k + 'a)"/>' +
+                        '<circle cx="68" cy="39" r="18" fill="url(#' + k + 'b)"/>' +
+                        '<circle cx="55" cy="70" r="20" fill="url(#' + k + 'a)"/>' +
+                        '<ellipse cx="27" cy="34" rx="7" ry="4.6" fill="#f2ffd8" opacity=".62" transform="rotate(-28 27 34)"/>' +
+                        '<ellipse cx="63" cy="31" rx="5" ry="3.4" fill="#f2ffd8" opacity=".55" transform="rotate(-28 63 31)"/>' +
+                        '<ellipse cx="48" cy="62" rx="6" ry="4" fill="#f2ffd8" opacity=".5" transform="rotate(-28 48 62)"/>'
+                };
+            });
         },
-        // The Soup Lab store: a glass flask of neon soup that sloshes,
-        // bubbles and shifts colour (motion lives in soup.css, .flask-*).
-        flask: function () {
-            return svg('<defs><clipPath id="flask-in"><path d="M45 16v22L25 76a7 7 0 0 0 6 10h38a7 7 0 0 0 6-10L55 38V16z"/></clipPath></defs>' +
-                '<g clip-path="url(#flask-in)">' +
-                '<path class="flask-soup" d="M10 60q10-6 20 0t20 0 20 0 20 0 20 0V100H10z" fill="#aaff00"/>' +
-                '<path class="flask-soup flask-soup2" d="M0 64q10-6 20 0t20 0 20 0 20 0 20 0V100H0z" fill="#00ffd5" opacity=".55"/>' +
-                '<circle class="flask-bub" cx="44" cy="84" r="3.6" fill="#fdf6ff"/>' +
-                '<circle class="flask-bub flask-bub2" cx="56" cy="86" r="2.6" fill="#fdf6ff"/>' +
-                '<circle class="flask-bub flask-bub3" cx="50" cy="88" r="2" fill="#fdf6ff"/></g>' +
-                '<path d="M40 14h20M45 14v24L25 76a7 7 0 0 0 6 10h38a7 7 0 0 0 6-10L55 38V14" fill="none" ' +
-                'stroke="#f0e6ff" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>' +
-                '<circle class="flask-bub flask-pop" cx="50" cy="12" r="2.4" fill="#ff00e6"/>',
-                'linear-gradient(145deg,#ff00e6,#00b8a0)').replace('<svg ', '<svg class="flask-svg" ');
+
+        /* Store — a bulb of garlic. One skin over a dozen separate cloves,
+           which is the honest shape for a page that is a collection. */
+        garlic: function () {
+            return ing(64, function (k) {
+                var cloves = '';
+                /* Five cloves across the front. They have to overlap and they
+                   have to be fat at the bottom, or the bulb comes out as a
+                   flower: the first version spaced them out and that is
+                   exactly what it looked like. The outer ones are narrower
+                   and start lower, which is the foreshortening. */
+                for (var i = -2; i <= 2; i++) {
+                    var x = 50 + i * 11.5;
+                    var w = 13.5 - Math.abs(i) * 2.2;
+                    var top = 30 + Math.abs(i) * 8;
+                    // Blunt tips, not points: a clove is rounded at the top and
+                    // a row of sharp ones reads as a flower, which is what the
+                    // first two attempts at this looked like.
+                    cloves += '<path d="M' + (x - 2.6) + ' ' + (top + 2) +
+                        ' Q' + x + ' ' + (top - 2.4) + ' ' + (x + 2.6) + ' ' + (top + 2) +
+                        ' C' + (x + w) + ' ' + (top + 15) + ' ' + (x + w * 1.15) + ' 70 ' + (x + w * 0.35) + ' 84' +
+                        ' Q' + x + ' 89 ' + (x - w * 0.35) + ' 84' +
+                        ' C' + (x - w * 1.15) + ' 70 ' + (x - w) + ' ' + (top + 15) + ' ' + (x - 2.6) + ' ' + (top + 2) +
+                        ' Z" fill="url(#' + k + 'c)" stroke="#c0ad92" stroke-width="1" stroke-opacity=".55"/>';
+                }
+                return {
+                    defs:
+                        grad(k + 'c', '0', '0', '1', '1', [['0', '#fffdf7'], ['.55', '#f3e9d6'], ['1', '#d3c3a7']]) +
+                        rgrad(k + 'n', '.5', '.5', '.6', [['0', '#b59b76'], ['1', '#8a7352']]),
+                    art:
+                        // The base the cloves sit in, so the bottom is a bulb
+                        // rather than five separate points.
+                        '<ellipse cx="50" cy="78" rx="34" ry="13" fill="url(#' + k + 'c)"/>' +
+                        cloves +
+                        // The neck, where the stem was cut off.
+                        '<path d="M45 32 Q50 8 55 32 Z" fill="url(#' + k + 'n)"/>' +
+                        '<ellipse cx="50" cy="31" rx="7.5" ry="3" fill="#9c845f" opacity=".85"/>' +
+                        '<ellipse cx="36" cy="56" rx="4" ry="11" fill="#ffffff" opacity=".35" transform="rotate(-9 36 56)"/>'
+                };
+            });
         },
-        leaf: function () {
-            return svg('<path d="M18 80C18 40 46 16 84 16c0 40-26 64-66 64z" fill="#2f7a3a"/>' +
-                '<path d="M18 80C34 58 56 38 84 16" fill="none" stroke="#d9ffb8" stroke-width="4" opacity=".8"/>',
-                'linear-gradient(145deg,#8ae04b,#1f5a2a)');
+
+        /* Contact — a bay leaf, lying on the film at the top where a bay leaf
+           always is. */
+        bay: function () {
+            return ing(81, function (k) {
+                return {
+                    defs: grad(k + 'l', '0', '1', '1', '0', [['0', '#2d5c33'], ['.55', '#467f3c'], ['1', '#6ba055']]),
+                    art:
+                        '<path d="M14 82C14 44 42 14 86 12c2 42-28 72-72 70z" fill="url(#' + k + 'l)"/>' +
+                        '<path d="M14 82C32 60 56 36 86 12" fill="none" stroke="#dcf7bb" stroke-width="2.6" opacity=".8"/>' +
+                        '<g stroke="#bce894" stroke-width="1.5" opacity=".55" fill="none">' +
+                        '<path d="M30 70q10-14 6-26M44 58q12-14 9-27M58 45q13-13 11-25M22 76q7-12 4-21"/></g>' +
+                        '<path d="M14 82C14 44 42 14 86 12" fill="none" stroke="#9fd77a" stroke-width="1.6" opacity=".5"/>'
+                };
+            });
         }
+    };
+
+    /* The two live pieces — the reel and the shader — stay round, because a
+       round thing in soup is a slice and a slice is allowed to be a window.
+       They get a rind so they belong to the same bowl. */
+    /* These two are drawn flat, with no waterline of their own: they sit in
+       the live pieces' round slot, which already carries one. */
+    function flat(art) {
+        var k = 'fl' + (++ingN) + '-';
+        var a = art(k);
+        return '<svg viewBox="' + V + '" class="ing" aria-hidden="true">' +
+            '<defs>' + (a.defs || '') + '</defs>' + a.art + '</svg>';
+    }
+    SHAPES.tomato = function () {
+        return flat(function (k) {
+            var seg = '';
+            for (var i = 0; i < 6; i++) {
+                var a0 = (i / 6) * Math.PI * 2 - Math.PI / 2;
+                var x = 50 + Math.cos(a0) * 22, y = 50 + Math.sin(a0) * 22;
+                seg += '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="11" ry="8" ' +
+                    'fill="#ffd9c0" opacity=".6" transform="rotate(' + (a0 * 180 / Math.PI + 90).toFixed(1) +
+                    ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>';
+            }
+            return {
+                defs: rgrad(k + 't', '.38', '.32', '.78', [['0', '#ff8d6b'], ['.6', '#e8452f'], ['1', '#a81f1c']]),
+                art: '<circle cx="50" cy="50" r="48" fill="url(#' + k + 't)"/>' + seg +
+                    '<circle cx="50" cy="50" r="9" fill="#ffe3cd" opacity=".75"/>' +
+                    '<circle cx="50" cy="50" r="48" fill="none" stroke="#7d1414" stroke-width="4" opacity=".55"/>'
+            };
+        });
+    };
+    SHAPES.carrot = function () {
+        return flat(function (k) {
+            return {
+                defs: rgrad(k + 'c', '.38', '.32', '.80', [['0', '#ffbe63'], ['.55', '#f08a28'], ['1', '#b8540f']]),
+                art: '<circle cx="50" cy="50" r="48" fill="url(#' + k + 'c)"/>' +
+                    '<circle cx="50" cy="50" r="30" fill="#ffd291" opacity=".55"/>' +
+                    '<circle cx="50" cy="50" r="13" fill="#fde6c0" opacity=".7"/>' +
+                    '<g stroke="#c96a16" stroke-width="2" opacity=".45" fill="none">' +
+                    '<path d="M50 20v12M50 68v12M20 50h12M68 50h12"/></g>' +
+                    '<circle cx="50" cy="50" r="48" fill="none" stroke="#9c4a0c" stroke-width="4" opacity=".5"/>'
+            };
+        });
     };
 
     function el(tag, cls, html) {
@@ -414,7 +711,7 @@
         slot.appendChild(c);
         var gl;
         try { gl = c.getContext('webgl', { alpha: false, antialias: false, depth: false }); } catch (e) { gl = null; }
-        if (!gl) { c.remove(); slot.innerHTML = SHAPES.spiral(); return; }
+        if (!gl) { c.remove(); slot.innerHTML = SHAPES.tomato(); return; }
 
         fetch('shaders/manifest.json?t=' + Date.now())
             .then(function (r) { return r.ok ? r.json() : null; })
@@ -423,7 +720,7 @@
                 if (!list || !list.length) throw new Error('no shaders');
                 run(list[Math.floor(Math.random() * list.length)].glsl);
             })
-            .catch(function () { c.remove(); slot.innerHTML = SHAPES.spiral(); });
+            .catch(function () { c.remove(); slot.innerHTML = SHAPES.tomato(); });
 
         function run(src) {
             var PRE = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\n' +
@@ -437,12 +734,12 @@
             }
             var vs = sh(gl.VERTEX_SHADER, 'attribute vec2 p; void main(){ gl_Position = vec4(p,0.0,1.0); }');
             var fs = sh(gl.FRAGMENT_SHADER, PRE + src + POST);
-            if (!vs || !fs) { c.remove(); slot.innerHTML = SHAPES.spiral(); return; }
+            if (!vs || !fs) { c.remove(); slot.innerHTML = SHAPES.tomato(); return; }
             var pr = gl.createProgram();
             gl.attachShader(pr, vs); gl.attachShader(pr, fs);
             gl.bindAttribLocation(pr, 0, 'p');
             gl.linkProgram(pr);
-            if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { c.remove(); slot.innerHTML = SHAPES.spiral(); return; }
+            if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { c.remove(); slot.innerHTML = SHAPES.tomato(); return; }
             gl.useProgram(pr);
             var b = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, b);
@@ -472,7 +769,7 @@
     }
 
     function fillMedia(slot) {
-        slot.innerHTML = SHAPES.film();
+        slot.innerHTML = SHAPES.carrot();
         if (!window.lucidMedia) return;
         window.lucidMedia().then(function (data) {
             var works = (data.works || []).filter(function (w) { return w && w.featured && (w.preview || w.poster); });
@@ -550,13 +847,18 @@
             // diameter when the bowl is at its full 880, and shrinks with it.
             // The floor stops a piece becoming a dot on a small phone.
             shape.style.setProperty('--d', 'max(30px, ' + (b.d / 880 * 100).toFixed(3) + 'cqw)');
-            if (b.kind === 'shader') fillShader(shape);
-            else if (b.kind === 'media') fillMedia(shape);
-            else shape.innerHTML = (SHAPES[b.shape] || SHAPES.pea)();
+            // Two slots are windows onto something live and stay round; the
+            // rest are ingredients and keep their own outline, which is the
+            // whole reason you can tell them apart at sixty pixels.
+            if (b.kind === 'shader') { shape.classList.add('is-live'); fillShader(shape); }
+            else if (b.kind === 'media') { shape.classList.add('is-live'); fillMedia(shape); }
+            else {
+                shape.classList.add('is-drawn');
+                shape.innerHTML = (SHAPES[b.shape] || SHAPES.pea)();
+            }
             // The waterline goes in after the artwork and before the gloss,
             // which .bit-shape::after paints last.
             shape.appendChild(el('div', 'bit-water'));
-            dressVeg(shape, b.veg);
             disc.appendChild(shape);
             disc.appendChild(el('div', 'bit-ring'));
             float.appendChild(disc);

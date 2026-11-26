@@ -12,6 +12,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Rubik+Wet+Paint&display=swap">
+<!-- The rest of the site's chrome: the way back and the menu. Only the chrome,
+     not lucid.css — this page is its own design system. -->
+<link rel="stylesheet" href="/lucid-chrome.css?v=20261125a">
+<script src="/lucid.js?v=20261125a" defer></script>
 <script src="config.js" defer></script>
 <script src="admin.js" defer></script>
 <style>
@@ -92,6 +96,7 @@ header.top h1 {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+header.top .chrome-slot { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 header.top .who { margin-left: auto; color: var(--dim); font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 nav.tabs { display: flex; gap: 6px; }
 nav.tabs button[aria-pressed="true"] { border-color: var(--b); color: var(--b); }
@@ -175,6 +180,10 @@ legend { padding: 0 6px; color: var(--b); font-size: 12px; letter-spacing: .1em;
     <button data-tab="team" aria-pressed="false">Team</button>
   </nav>
   <div class="who" id="who"></div>
+  <!-- The site's way back and its menu are mounted in here rather than
+       pinned over the corner, which on a phone landed on the title and on
+       the Items/Team tabs. -->
+  <div class="chrome-slot" data-lucid-chrome-slot></div>
   <div class="drip-bar" aria-hidden="true">
     <i style="--x:8%;--t:4.2s"></i><i style="--x:23%;--t:5.5s;--d:1.3s;--c2:#ff00e6"></i><i style="--x:41%;--t:3.8s;--d:2.1s;--c2:#aaff00"></i>
     <i style="--x:58%;--t:6s;--d:.6s"></i><i style="--x:74%;--t:4.6s;--d:2.8s;--c2:#ff00e6"></i><i style="--x:91%;--t:5.1s;--d:1.7s;--c2:#aaff00"></i>

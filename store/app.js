@@ -37,7 +37,7 @@ const money = (c) => new Intl.NumberFormat("en-US", { style: "currency", currenc
 const size = (b) => !b ? "" : b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${Math.round(b / 1e6)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`;
 const PLATFORM = { mac: "🍎", windows: "🪟", linux: "🐧", any: "" };
 const fileLabel = (f) => (PLATFORM[f.platform] ? PLATFORM[f.platform] + " " : "") + f.label;
-const KIND = { plugin: "Plugin", sample_pack: "Sample pack", tool: "Tool", firmware: "Firmware", max_device: "Max for Live", drambo_rack: "Drambo rack" };
+const KIND = { plugin: "Plugin", sample_pack: "Sample pack", tool: "Tool", firmware: "Firmware", max_device: "Max for Live", drambo_rack: "Drambo rack", bundle: "Everything" };
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } },
@@ -48,11 +48,24 @@ async function api(path, init = {}) {
   if (!res.ok) throw new Error(body.error || "Something went wrong — please try again.");
   return body;
 }
+/* What a thing used to cost, when it is a bundle of things that still sell
+   one at a time. Only shown when the catalogue says so and the saving is
+   real — a struck-through number that is not actually higher is a lie, and
+   the one check that stops it is cheaper than the apology. */
+const saving = (v) => (v.compare_at_cents && v.compare_at_cents > v.price_cents ? v.compare_at_cents - v.price_cents : 0);
+
 const head = (title, dlg) => h("div", { class: "dlg-head" }, h("h2", {}, title), h("button", { class: "x", "aria-label": "Close", onclick: () => dlg.close() }, "×"));
 
 // ---------------------------------------------------------------- classes (categories) and their colours
 const CLASSES = [
+  // White, and first: a bundle is not one class beside the others, it is all
+  // of them in one box.
+  ["Bundles", "#ffffff"],
   ["Instruments", "#ff00e6"],
+  // Green: the shop had no class for an effect, and four of these are
+  // nothing else. Lime is next door and cyan is one over, so this sits
+  // between them — the one hue the table was not already using.
+  ["Effects", "#00e676"],
   ["DJ & Performance", "#00ffd5"],
   ["Utilities", "#aaff00"],
   ["Sample Packs", "#ff6a3d"],
@@ -99,7 +112,7 @@ function tiltOf(slug) {
 async function loadCatalog() {
   if (!LIVE) return DEMO;
   const url = `${API}/rest/v1/products?select=id,slug,title,tagline,description,images,category,kind,formats,preview_url,sort,status,symbol,specs,` +
-    `variants(id,name,image,price_cents),product_files(id,label,platform,bytes,sort)&status=in.(active,soon)&kind=neq.physical&order=sort.asc,created_at.desc`;
+    `variants(id,name,image,price_cents,compare_at_cents),product_files(id,label,platform,bytes,sort)&status=in.(active,soon)&kind=neq.physical&order=sort.asc,created_at.desc`;
   const res = await fetch(url, { headers: { apikey: CFG.supabaseAnonKey, Authorization: `Bearer ${CFG.supabaseAnonKey}` } });
   if (!res.ok) throw new Error(`catalog ${res.status}`);
   const rows = await res.json();
@@ -280,9 +293,10 @@ function shown(p) {
 function element(p) {
   const c = classColor(p.category);
   const v = p.variants[0];
-  const tile = h("button", { class: "el", "aria-label": `${p.title}, ${p.category || KIND[p.kind] || ""}, ${v.price_cents ? money(v.price_cents) : "free"}${buyable(p) ? "" : ", in the lab"}`,
+  const tile = h("button", { class: "el", "aria-label": `${p.title}, ${p.category || KIND[p.kind] || ""}, ${v.price_cents ? money(v.price_cents) : "free"}${saving(v) ? `, down from ${money(v.compare_at_cents)}` : ""}${buyable(p) ? "" : ", in the lab"}`,
     onclick: () => openProduct(p.slug, true) },
-    h("div", { class: "el-top" }, h("span", {}, atomic(p)), h("b", {}, v.price_cents ? money(v.price_cents) : "FREE")),
+    h("div", { class: "el-top" }, h("span", {}, atomic(p)),
+      h("b", {}, saving(v) ? h("s", { class: "was" }, money(v.compare_at_cents)) : null, v.price_cents ? money(v.price_cents) : "FREE")),
     h("div", { class: "el-sym", "aria-hidden": "true" }, symbolOf(p)),
     h("div", { class: "el-name" }, p.title),
     h("div", { class: "el-sub" }, h("span", {}, KIND[p.kind] || ""),
@@ -357,12 +371,21 @@ function openProduct(slug, push) {
   dlg.style.setProperty("--c", c);
 
   function draw() {
+    // Picking a different format rebuilds the sheet, which throws away the
+    // "Try it" button but not the audio behind it.
+    stopSimulation();
     const inCart = cart.some((l) => l.variant_id === v.id);
     const free = v.price_cents === 0;
     const specs = Object.entries(p.specs || {});
     let action;
     if (!buyable(p)) {
-      action = h("div", { class: "notice" }, "◉ IN THE LAB — this specimen is catalogued but its files aren't released yet. Check back soon.");
+      // Two different "not yet": nothing has been built, or it is built and
+      // sitting right there in the Contents list below. Telling somebody the
+      // files do not exist while naming two of them reads as a shop that does
+      // not know what it has.
+      action = h("div", { class: "notice" }, p.product_files?.length
+        ? "◉ IN THE LAB — the build is finished and listed below; this specimen just isn't on sale yet. Check back soon."
+        : "◉ IN THE LAB — this specimen is catalogued but its files aren't released yet. Check back soon.");
     } else if (free) {
       action = freeForm(p);
     } else {
@@ -380,12 +403,16 @@ function openProduct(slug, push) {
         h("div", {},
           h("h3", {}, p.title),
           p.tagline ? h("p", { class: "tagline" }, p.tagline) : null,
-          free ? h("div", { class: "price free" }, "FREE") : h("div", { class: "price" }, money(v.price_cents)),
+          free ? h("div", { class: "price free" }, "FREE")
+               : h("div", { class: "price" }, money(v.price_cents),
+                   saving(v) ? h("span", { class: "save" }, h("s", {}, money(v.compare_at_cents)),
+                     " \u00b7 save " + money(saving(v))) : null),
           p.variants.length > 1 ? h("div", { class: "fmts", role: "group", "aria-label": "Options" }, p.variants.map((x) =>
             h("button", { class: "chip", "aria-pressed": String(x.id === v.id), onclick: () => { v = x; draw(); } }, `${x.name} · ${x.price_cents ? money(x.price_cents) : "free"}`))) : null,
           p.formats?.length ? h("div", { class: "fmts" }, p.formats.map((f) => h("span", { class: "fmt" }, f))) : null,
           action,
           buyable(p) ? h("p", { class: "small" }, free ? "Free download · no account needed" : "Instant download after payment · yours to keep") : null,
+          simulation(p),
           specs.length ? h("table", { class: "labdata" }, h("caption", {}, "Lab data"),
             h("tbody", {}, specs.map(([k, val]) => h("tr", {}, h("th", { scope: "row" }, k), h("td", {}, String(val)))))) : null,
           p.product_files?.length ? [h("div", { class: "cap" }, "Contents"), h("ul", { class: "files" }, p.product_files.map((f) =>
@@ -395,6 +422,56 @@ function openProduct(slug, push) {
   draw();
   setSeo(p);
   if (!dlg.open) dlg.showModal();
+}
+
+// The order they were built in, which is also the order they make sense in:
+// the measuring tools, then the effects, then the instruments and the links.
+const BENCH = ["spectraeye", "looprepeat", "syrupvox", "grainstorm", "mischief", "etherradio",
+               "mindbloom", "blackwidow", "hydra", "euclidrings", "kelp", "snaptoc", "osclink"];
+
+// ---------------------------------------------------------------- the simulation
+/* Every plugin in here has a simulation built in demos.js: the real signal
+   path, in Web Audio, in the page — not a video of one. It is wired by name
+   (lucidDemos.find), so a specimen only offers one if a simulation for it
+   actually exists.
+
+   It mounts on a click rather than with the sheet. Two reasons: an AudioContext
+   started without a gesture is suspended by every browser, and opening a
+   specimen sheet should not start making noise at somebody. */
+/* Whatever is playing, anywhere on the page. A simulation holds an oscillator
+   bank and a requestAnimationFrame loop; hiding the dialog it lives in stops
+   neither, so closing a sheet with a running simulation left it playing to an
+   empty screen. One at a time, and it is stopped before the next starts. */
+let running = null;
+function stopSimulation() {
+  if (!running) return;
+  try { running.dispose(); } catch (err) { /* already gone */ }
+  running = null;
+}
+
+function simulation(p) {
+  const D = window.lucidDemos;
+  const id = D && D.find ? (D.find(p.title) || D.find(p.slug)) : null;
+  if (!id) return null;
+
+  const host = h("div", { class: "demo-host" });
+  const panel = h("div", { class: "demo", hidden: true },
+    h("div", { class: "demo-bar" }, h("h3", {}, "Simulation", h("small", {}, "runs in this page \u00b7 nothing is downloaded"))),
+    host);
+  const open = h("button", { class: "btn", type: "button" }, "\u25b6 Try it in the page");
+  open.addEventListener("click", () => {
+    open.remove();
+    panel.hidden = false;
+    host.replaceChildren(h("p", { class: "demo-none" }, "Starting the simulation\u2026"));
+    try {
+      running = D.mount(id, host);
+    } catch (err) {
+      // A simulation that will not start is a broken toy, not a broken shop:
+      // say so here and leave the rest of the sheet alone.
+      host.replaceChildren(h("p", { class: "demo-none" }, "The simulation could not start in this browser. The plugin itself is unaffected."));
+    }
+  });
+  return h("div", { class: "demo-wrap" }, open, panel);
 }
 
 // ---------------------------------------------------------------- cart (one of each: they're downloads)
@@ -552,6 +629,42 @@ function policies() {
   };
 }
 
+/* ---- the bench ----
+   Every simulation, whether or not a product in the catalogue is named after
+   it. Thirteen of these exist; at the time of writing the catalogue names two
+   of them, so without this the other eleven would be built, working and
+   unreachable. A specimen sheet is still the better place to meet one — this
+   is the way in for the rest. */
+function openBench(pick) {
+  const D = window.lucidDemos;
+  const dlg = $("#bench");
+  if (!D || !D.find) {
+    dlg.replaceChildren(head("The bench", dlg),
+      h("div", { class: "dlg-body" }, h("p", { class: "demo-none" }, "The simulations could not be loaded.")));
+    return void dlg.showModal();
+  }
+  const ids = BENCH.filter((id) => D.has(id));
+  let current = pick && ids.includes(pick) ? pick : ids[0];
+
+  function draw() {
+    stopSimulation();
+    const host = h("div", { class: "demo-host" });
+    dlg.replaceChildren(head("The bench", dlg),
+      h("div", { class: "dlg-body" },
+        h("p", { class: "small" }, "The real signal path of each plugin, running in this page. Nothing is downloaded and nothing is bought."),
+        h("div", { class: "fmts", role: "group", "aria-label": "Choose a simulation" }, ids.map((id) =>
+          h("button", { class: "chip", "aria-pressed": String(id === current), onclick: () => { current = id; draw(); } }, D.titleOf(id)))),
+        h("div", { class: "demo" }, host)));
+    try {
+      running = D.mount(current, host);
+    } catch (err) {
+      host.replaceChildren(h("p", { class: "demo-none" }, "That simulation could not start in this browser."));
+    }
+  }
+  draw();
+  if (!dlg.open) dlg.showModal();
+}
+
 // ---------------------------------------------------------------- wiring
 function wire() {
   document.querySelectorAll("[data-policy]").forEach((b) => b.addEventListener("click", () => {
@@ -562,8 +675,12 @@ function wire() {
   }));
   // Close dialogs by clicking the backdrop.
   document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
+  document.querySelectorAll("[data-bench]").forEach((b) => b.addEventListener("click", () => openBench()));
   $("#btn-cart").addEventListener("click", openCart);
   $("#btn-library").addEventListener("click", openLibrary);
+  // A dialog closing is the only signal that the thing inside it is finished.
+  $("#bench").addEventListener("close", stopSimulation);
+  $("#pdp").addEventListener("close", stopSimulation);
   $("#pdp").addEventListener("close", () => {
     if (new URLSearchParams(location.search).has("p")) history.pushState({}, "", location.pathname);
     setSeo(null);

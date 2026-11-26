@@ -1,3 +1,4 @@
+@import url("/lucid-chrome.css?v=20261125a");
 /* ===========================================================================
    lucid.css — the one thing every page on this site shares.
 
@@ -50,6 +51,7 @@
     /* Type */
     --lucid-display:   'Orbitron', 'Arial Black', sans-serif;
     --lucid-mono:      ui-monospace, SFMono-Regular, Menlo, 'Courier New', monospace;
+    --lucid-sans:      system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
     /* Rhythm */
     --lucid-radius:    3px;
@@ -89,81 +91,7 @@
                          inset 0 0 40px rgba(155, 123, 255, .045),
                          0 14px 40px rgba(0, 0, 0, .34);
 
-    /* How far down the page has to start to clear the fixed chrome in the
-       corner. Every page that draws a title across the full width needs this
-       number, and every page had been guessing at it separately — which is how
-       the SynthSoup wordmark ended up underneath the index button. One number,
-       stated where the chrome itself is defined, so it cannot drift. */
-    --lucid-chrome-clear: 48px;   /* 12 top + 27 tall + 9 of air */
 }
-
-/* ===== the way back =====
-   Every page that does not already carry one gets the same return, to the bowl
-   on the front page. Before this, the entrance was the only page that linked
-   anywhere, so each tool was a dead end. */
-.lucid-return {
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    z-index: 2147483000;          /* above whatever the page has */
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border: 1px solid rgba(139, 108, 245, .40);
-    border-radius: var(--lucid-radius);
-    background: rgba(5, 5, 10, .82);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    color: var(--lucid-accent);
-    font-family: var(--lucid-mono);
-    font-size: 10px;
-    letter-spacing: var(--lucid-track);
-    text-transform: uppercase;
-    text-decoration: none;
-    line-height: 1;
-    opacity: .78;
-    transition: opacity .2s ease, border-color .2s ease, background .2s ease;
-}
-.lucid-return:hover,
-.lucid-return:focus-visible {
-    opacity: 1;
-    color: var(--lucid-accent-2);
-    border-color: rgba(138, 224, 75, .8);
-    background: rgba(138, 224, 75, .14);
-    outline: none;
-}
-.lucid-return::before {
-    content: '';
-    width: 11px; height: 6px;
-    /* A bowl, seen from the side: the mark the front page is named by. */
-    border: 1px solid currentColor;
-    border-top: 0;
-    border-radius: 0 0 50% 50% / 0 0 100% 100%;
-}
-@media (max-width: 640px) {
-    :root { --lucid-chrome-clear: 41px; }   /* 8 top + 25 tall + 8 of air */
-    .lucid-return { font-size: 9px; padding: 7px 10px; top: 8px; right: 8px; }
-}
-
-/* Installed to a home screen there is no browser chrome, so the page starts
-   at the very top of the glass — under the clock and the notch. Everything
-   pinned to a corner has to come in by the safe area or it lands beneath
-   them. Zero on every desktop, so this costs nothing anywhere else. */
-.lucid-return {
-    top: calc(12px + env(safe-area-inset-top, 0px));
-    right: calc(12px + env(safe-area-inset-right, 0px));
-}
-@media (max-width: 640px) {
-    .lucid-return {
-        top: calc(8px + env(safe-area-inset-top, 0px));
-        right: calc(8px + env(safe-area-inset-right, 0px));
-    }
-}
-@media (prefers-reduced-motion: reduce) {
-    .lucid-return { transition: none; }
-}
-
 
 /* ===== the broth =====
    A slow drift of colour behind every page that does not already own its
@@ -272,27 +200,6 @@ canvas:focus-visible, [tabindex="-1"]:focus-visible { box-shadow: none !importan
     white-space: nowrap;
 }
 
-/* ----- the way past the chrome ----------------------------------------
-   Injected by lucid.js into every page, so a keyboard does not have to walk
-   the whole stack bar to reach the content. Off-screen until focused. */
-.lucid-skip {
-    position: fixed;
-    top: 0; left: 50%;
-    transform: translate(-50%, -140%);
-    z-index: 2147483001;                /* over the chrome, which is ...000 */
-    padding: 10px 18px;
-    background: #05040f;
-    color: var(--lucid-focal, #6fe3e8);
-    border: 1px solid var(--lucid-focal, #6fe3e8);
-    border-radius: 0 0 var(--lucid-radius, 3px) var(--lucid-radius, 3px);
-    font-family: var(--lucid-mono, ui-monospace, Menlo, Consolas, monospace);
-    font-size: 12px;
-    letter-spacing: var(--lucid-track, .18em);
-    text-transform: uppercase;
-    text-decoration: none;
-    transition: transform .14s ease;
-}
-.lucid-skip:focus { transform: translate(-50%, 0); }
 
 /* ----- for anyone who has asked the OS to calm things down -------------
    A blanket, on purpose. The audit found animation still running under
@@ -422,13 +329,15 @@ select { min-height: 24px; }
    all at once, which is the closest a line can get to surface tension.
    Underline, not colour alone, so the link is still identifiable to anyone
    who cannot pick it out by hue. */
-a:not(.lucid-return):not(.lucid-skip):not(.lucid-index):not([class*="btn"]) {
+a:not(.lucid-return):not(.lucid-skip):not([class*="btn"]):not(.lucid-menu a) {
     text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
     text-underline-offset: .22em;
     text-decoration-thickness: from-font;
     transition: text-decoration-color .18s ease, text-shadow .18s ease;
 }
-a:not(.lucid-return):not(.lucid-skip):not(.lucid-index):not([class*="btn"]):hover {
+a:not(.lucid-return):not(.lucid-skip):not([class*="btn"]):not(.lucid-menu a):hover {
     text-decoration-color: currentColor;
     text-shadow: 0 0 14px color-mix(in srgb, currentColor 55%, transparent);
 }
+
+

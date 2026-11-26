@@ -3,9 +3,9 @@
 <head>
     <link rel="icon" type="image/svg+xml" href="/icons/soup.svg">
     <link rel="apple-touch-icon" href="/icons/soup-180.png">
-    <link rel="stylesheet" href="/lucid.css">
-    <link rel="stylesheet" href="/stack.css">
-    <link rel="stylesheet" href="/soup.css?v=20261123c">
+    <link rel="stylesheet" href="/lucid.css?v=20261125a">
+    <link rel="stylesheet" href="/stack.css?v=20261125a">
+    <link rel="stylesheet" href="/soup.css?v=20261125a">
     <meta charset="UTF-8">
     <!-- Content Security Policy. GitHub Pages cannot send headers, so this is a
          <meta>, which means frame-ancestors is not available here — clickjacking
@@ -77,52 +77,30 @@
            the screens. Measured, not guessed: 72 / 56 / 58. */
         :root { --nav-h: 72px; }
         html { scroll-padding-top: var(--nav-h); }
-        nav { position: fixed; top: 0; width: 100%; padding: 1rem clamp(.75rem, 3vw, 2rem); background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); z-index: 1000; transition: background .3s ease; }
-        /* Gap scales with the viewport: at a fixed 2rem the eight links wrapped
-           to a second row between about 770 and 960px. */
-        nav ul { display: flex; justify-content: center; align-items: center; list-style: none; gap: clamp(.85rem, 2vw, 2rem); }
-        nav li { margin: 0; }
-        nav a, nav li > button { color: #fff; text-decoration: none; font: inherit; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; background: none; border: 0; cursor: pointer; }
-        nav a:hover, nav li > button:hover { color: var(--lucid-accent, #8b6cf5); }
-        nav a::after, nav li > button::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0)); transition: width .3s ease; }
-        nav a:hover::after, nav li > button:hover::after { width: 100%; }
+        /* The bar lays the name out against the menu button, which lucid.js
+           puts in here rather than in the fixed corner: a control floating
+           on top of a header bar is the thing that hides what the bar says. */
+        nav { position: fixed; top: 0; width: 100%; padding: 1rem clamp(.75rem, 3vw, 2rem); background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); z-index: 1000; transition: background .3s ease; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        /* The bar held a list of links once, then two, and now the name: the
+           menu in the corner is where the list went. These are what is left,
+           and they still dress the name. */
+        nav a { color: #fff; text-decoration: none; font: inherit; font-weight: 300; letter-spacing: 1px; transition: color .3s ease; position: relative; padding: .45rem .6rem; display: inline-block; background: none; border: 0; cursor: pointer; }
+        nav a:hover { color: var(--lucid-accent, #8b6cf5); }
+        nav a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: linear-gradient(90deg, var(--lucid-accent, #8b6cf5), var(--lucid-accent-3, #d44fb0)); transition: width .3s ease; }
+        nav a:hover::after { width: 100%; }
 
-        /* Burger. Laid out with flex + gap rather than margins so the bar pitch
-           (height 3 + gap 4 = 7px) matches the +/-7px rotations below exactly. */
-        .nav-toggle {
-            display: none;                      /* flex, at <=600px */
-            flex-direction: column; justify-content: center; align-items: center; gap: 4px;
-            position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
-            width: 46px; height: 40px; padding: 0; cursor: pointer; z-index: 1002;
-            /* Given a real button shell: on a dark page over a moving shader,
-               three bare hairlines read as decoration rather than a control. */
-            background: rgba(139, 108, 245,.08);
-            border: 1px solid rgba(139, 108, 245,.45);
-            border-radius: 9px;
-            box-shadow: 0 0 12px rgba(139, 108, 245,.18);
-            -webkit-tap-highlight-color: transparent;
-            transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+        /* The name, which is also the way home from a focused section. */
+        .nav-brand {
+            font-family: 'Orbitron', monospace;
+            font-size: 13px; font-weight: 700; letter-spacing: .22em;
+            text-transform: uppercase; text-decoration: none;
+            color: #fff; padding: .45rem .6rem; display: inline-block;
         }
-        .nav-toggle .bar {
-            display: block; width: 22px; height: 3px; border-radius: 2px; background: #fff;
-            box-shadow: 0 0 6px rgba(139, 108, 245,.65);
-            transition: transform .25s ease, opacity .25s ease;
-        }
-        .nav-toggle:active { background: rgba(139, 108, 245,.22); }
-        nav.menu-open .nav-toggle {
-            background: rgba(139, 108, 245,.2);
-            border-color: rgba(139, 108, 245,.9);
-            box-shadow: 0 0 16px rgba(139, 108, 245,.35);
-        }
-        nav.menu-open .nav-toggle .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-        nav.menu-open .nav-toggle .bar:nth-child(2) { opacity: 0; }
-        nav.menu-open .nav-toggle .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+        .nav-brand:hover { color: var(--lucid-accent, #8b6cf5); }
 
         /* A section exists only when the gallery sent you to it. `hidden` alone
            loses to the display rules below, so it is forced here. */
         [hidden] { display: none !important; }
-        /* The second nav item is only meaningful once you are inside a section. */
-        .only-focused { display: none; }
         .back-to-gallery {
             position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
             z-index: 1200; text-decoration: none;
@@ -142,7 +120,6 @@
         /* The back link is fixed to the bottom, so a focused section needs room
            underneath it or the link sits on top of the last control. */
         body.focused { padding-bottom: 76px; }
-        body.focused .only-focused { display: list-item; }
 
         .hero { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: transparent; position: relative; overflow: hidden; }
         .hero-content { z-index: 2; position: relative; display: flex; flex-direction: column; align-items: center; gap: 2rem; }
@@ -878,7 +855,6 @@
                height the tap target actually fits inside. */
             :root { --nav-h: 58px; }
             nav { min-height: 58px; }
-            .nav-toggle { display: flex; }
             nav ul { display: none; position: absolute; right: 1rem; top: calc(100% + 0.5rem); background: rgba(0,0,0,0.95); flex-direction: column; gap: 0; padding: .5rem; border-radius: 8px; min-width: 160px; box-shadow: 0 6px 20px rgba(0,0,0,.6); }
             nav ul li { margin: 0; }
             nav ul a, nav ul li > button { display: block; width: 100%; text-align: left; padding: .75rem 1rem; }
@@ -900,20 +876,14 @@
 
     <!-- All website content -->
     <div id="content-wrapper">
-        <nav id="navbar">
-            <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-label="Open navigation menu">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-            </button>
-            <!-- Two items, and neither is a category. Everything the site has
-                 is in the bowl on the front page; the Stack is the jump between
-                 pages once you are deep in one. The gallery is in the bowl like
-                 everything else — it is a place to go, not a gate to pass. -->
-            <ul>
-                <li class="only-focused"><a href="/" id="nav-home">The Soup</a></li>
-                <li><button type="button" id="nav-stack">The Stack</button></li>
-            </ul>
+        <!-- The bar carries the name and nothing else. It used to hold two
+             items behind a burger — "The Soup", hidden unless you were already
+             inside a section, and "The Stack" — which is a menu that tells you
+             about two of the site's fifteen destinations. The menu in the
+             corner, which lucid.js puts on every page, lists all of them and
+             says which one you are looking at. -->
+        <nav id="navbar" aria-label="Masthead" data-lucid-chrome-slot>
+            <a href="/" id="nav-home" class="nav-brand">LucidSoup</a>
         </nav>
 
         <main id="main" tabindex="-1">
@@ -944,6 +914,7 @@
                         <li><a href="#about">About</a></li>
                         <li><a href="#contact">Contact</a></li>
                         <li><a href="gallery.html">The Gallery</a></li>
+                        <li><a href="watch.html">Watchlist</a></li>
                     </ul>
                 </div>
             </div>
@@ -1439,37 +1410,6 @@
                 window.scrollY > 100 ? 'rgba(0,0,0,.95)' : 'rgba(0,0,0,.9)';
         });
 
-        (function(){
-            var nav = document.getElementById('navbar');
-            var toggle = document.getElementById('nav-toggle');
-            var links = nav.querySelectorAll('ul a');
-
-            function setExpanded(val){
-                toggle.setAttribute('aria-expanded', String(val));
-                if(val){ nav.classList.add('menu-open'); }
-                else { nav.classList.remove('menu-open'); }
-            }
-
-            toggle.addEventListener('click', function(e){
-                var expanded = toggle.getAttribute('aria-expanded') === 'true';
-                setExpanded(!expanded);
-            });
-
-            links.forEach(function(a){
-                a.addEventListener('click', function(){
-                    setExpanded(false);
-                });
-            });
-
-            document.addEventListener('keydown', function(e){
-                if(e.key === 'Escape') setExpanded(false);
-            });
-
-            document.addEventListener('click', function(e){
-                if(!nav.contains(e.target)) setExpanded(false);
-            });
-        })();
-
         // ===== ROUTING =====
         // The sections are not a page you scroll any more. Exactly one is shown,
         // and only when the gallery has sent you to it by name; with no hash you
@@ -1505,17 +1445,6 @@
 
         window.addEventListener('hashchange', routeSections);
         routeSections();
-
-        // The Stack is the site's index: a tower of plates with every page on it.
-        // Two ways in from here, because the entrance is where someone who does
-        // not want to go hunting arrives.
-        var navStack = document.getElementById('nav-stack');
-        if (navStack) {
-            navStack.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (window.lucidStack) window.lucidStack.open(navStack);
-            });
-        }
 
         // Both ways out of a section come back up to the bowl. Clearing the
         // hash with location.hash = '' leaves a bare '#' behind and does not
@@ -3396,8 +3325,8 @@
     })();
     </script>
 
-<script src="/lucid.js" defer></script>
-<script src="/stack.js?v=20261123c" defer></script>
-<script src="/soup.js?v=20261123c" defer></script>
+<script src="/lucid.js?v=20261125a" defer></script>
+<script src="/stack.js?v=20261125a" defer></script>
+<script src="/soup.js?v=20261125a" defer></script>
 </body>
 </html>
