@@ -379,7 +379,13 @@ function openProduct(slug, push) {
     const specs = Object.entries(p.specs || {});
     let action;
     if (!buyable(p)) {
-      action = h("div", { class: "notice" }, "◉ IN THE LAB — this specimen is catalogued but its files aren't released yet. Check back soon.");
+      // Two different "not yet": nothing has been built, or it is built and
+      // sitting right there in the Contents list below. Telling somebody the
+      // files do not exist while naming two of them reads as a shop that does
+      // not know what it has.
+      action = h("div", { class: "notice" }, p.product_files?.length
+        ? "◉ IN THE LAB — the build is finished and listed below; this specimen just isn't on sale yet. Check back soon."
+        : "◉ IN THE LAB — this specimen is catalogued but its files aren't released yet. Check back soon.");
     } else if (free) {
       action = freeForm(p);
     } else {
