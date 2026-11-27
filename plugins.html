@@ -16,15 +16,20 @@
          An injected <script src="..."> is refused, as is a <base> that would
          re-point every relative URL, and <object>/<embed> entirely.
 
-         What it does not buy: every page here has inline <script>, so
-         'unsafe-inline' has to stay and injected *inline* script would still run.
-         Removing it needs nonces, which need a server. connect-src and media-src
+         Every page's own JavaScript is in a file beside it rather than inline,
+         so 'unsafe-inline' is gone from script-src and injected inline script
+         is refused too. That was the gap this comment used to describe — it
+         said removing it needed nonces and a server, and it did not: moving
+         seventeen blocks into files did it, and no page writes script into
+         itself at runtime. It stays in style-src, where a <style> block in
+         almost every page still needs it; CSS injection is a smaller problem
+         than script injection, not no problem. connect-src and media-src
          stay wide because the whole point of the playground and the converter is
          fetching media the visitor names, including from their own service on
          localhost. wss: is listed separately because an `https:` source does
      NOT admit a wss: socket in Chrome — DrumSeek's peer connection was
      blocked until it was added, which a page load alone never showed. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'; upgrade-insecure-requests">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plugin Host — LucidSoup</title>
     <meta name="description" content="Run your own CLAP and VST3 plugins from a browser. A small program loads the plugin on your machine and serves the page that drives it; render a selection, hear it, save a WAV. Nothing is uploaded.">
@@ -303,26 +308,7 @@ make
     </div>
 </div>
 
-<script>
-// Copy buttons. The clipboard API needs a secure context, which this page has;
-// if it is ever refused, say so rather than appearing to have worked.
-document.querySelectorAll('.copy').forEach(function (b) {
-    b.addEventListener('click', function () {
-        var text = b.getAttribute('data-copy');
-        var done = function (msg) {
-            var was = b.textContent;
-            b.textContent = msg;
-            setTimeout(function () { b.textContent = was; }, 1400);
-        };
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(function () { done('copied'); },
-                                                     function () { done('select it'); });
-        } else {
-            done('select it');
-        }
-    });
-});
-</script>
+<script src="/plugins.js?v=20261127a"></script>
 <script src="/lucid.js?v=20261125a" defer></script>
 <script src="/stack.js?v=20261125a" defer></script>
 </body>

@@ -24,7 +24,7 @@
      localhost. wss: is listed separately because an `https:` source does
      NOT admit a wss: socket in Chrome — DrumSeek's peer connection was
      blocked until it was added, which a page load alone never showed. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'; upgrade-insecure-requests">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SynthSoup</title>
 <meta name="description" content="SynthSoup: custom firmware for the M-VAVE FM-1 with wavetables, a C64 SID, granular and tape delays, a shimmer reverb and on-device sampling. Play it in your browser.">
@@ -233,14 +233,6 @@ footer { color: var(--dim); font-size: 13px; display: grid; gap: 6px; text-align
 <script src="/lucid.js?v=20261125a" defer></script>
 <script src="/stack.js?v=20261125a" defer></script>
 <script src="assets/splat.js?v=8ae715e553"></script>
-<script>
-  // the boxes as liquid splatters (assets/splat.js): the screen's frame, the tracks, the install box
-  (() => {
-    const { splatBox } = window.SoupSplat;
-    splatBox(document.querySelector(".screen .frame"), 7, { fill: "#07040c", stroke: "var(--rule)", amp: 10, drip: 28, splash: 6 });
-    document.querySelectorAll(".tracks li").forEach((li, i) => splatBox(li, 31 + i, { fill: "var(--panel)", amp: 7, drip: 18, splash: 3 }));
-    splatBox(document.querySelector(".install"), 61, { fill: "var(--panel)", stroke: "var(--rule)", amp: 12, drip: 30, splash: 6 });
-  })();
-</script>
+<script src="/synthsoup/index.js?v=20261127a"></script>
 </body>
 </html>

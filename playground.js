@@ -1,0 +1,2779 @@
+(function () {
+    'use strict';
+
+    /* =====================================================================
+       1. Ears
+
+       One AudioContext, one analyser, and whatever source is currently
+       feeding it. Everything downstream reads four smoothed bands and a beat
+       envelope, so the scenes never need to know whether the sound arrived
+       from a tab, a cable or a file.
+       ===================================================================== */
+    var Ears = (function () {
+        var ctx = null, analyser = null, node = null, stream = null, el = null;
+        var freq = null, wave = null;
+        var kind = 'none';
+        var label = 'no sound';
+        var onchange = function () {};
+
+        // Smoothed 0..1 values the renderer reads. `raw` is before auto-gain,
+        // which the meter needs so a hot signal still shows as hot.
+        var band = { level: 0, bass: 0, mid: 0, high: 0 };
+        var raw   = { level: 0, bass: 0, mid: 0, high: 0 };
+        // The ceiling each band is normalised against. It rises instantly and
+        // falls slowly, so a quiet stream opens up over a second or two
+        // instead of drawing a flat line, and a loud one does not clip.
+        var ceil  = { level: .15, bass: .15, mid: .15, high: .15 };
+
+        var beat = 0, beatAt = 0, bpm = 0, quietSince = 0;
+        var hist = [], taps = [];
+        var cfg = { gain: 1, sens: 1, attack: .5, release: .12 };
+
+        var player = null, playerNode = null;
+
+        function ensure() {
+            if (ctx) return ctx;
+            var AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return null;
+            ctx = new AC();
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 2048;
+            // Smoothing is done by hand below, per band, with separate attack
+            // and release. The analyser's own single constant cannot do that,
+            // so it is left off rather than fighting it.
+            analyser.smoothingTimeConstant = 0;
+            freq = new Uint8Array(analyser.frequencyBinCount);
+            wave = new Uint8Array(analyser.fftSize);
+            return ctx;
+        }
+
+        /* Unlock, and why it has to happen in the click rather than after it.
+
+           A browser only lets audio start from a user gesture. Chrome counts
+           the gesture as sticky: once you have clicked anything, a play()
+           thirty seconds later is still allowed. Safari does not work that
+           way — resume() has to be reached while the gesture is still being
+           handled, and a resume() that happens after an await lands on a
+           context that stays suspended. Nothing throws. The page carries on
+           with a running render loop, a connected source and an analyser
+           reading zeroes, which looks exactly like a page that does not
+           work. Fetching a link through the service takes seconds, so this
+           was always going to be the shape of it off Chrome.
+
+           So: resume the context and bump a silent buffer through it the
+           moment the button is pressed, before anything async happens. */
+        function unlock() {
+            var c = ensure();
+            if (!c) return Promise.resolve();
+            try {
+                var b = c.createBufferSource();
+                b.buffer = c.createBuffer(1, 1, 22050);
+                b.connect(c.destination);
+                b.start(0);
+            } catch (e) { /* older engines; resume alone has to do */ }
+            // Same for the element: one element, primed inside the gesture
+            // and reused for every file and link after it, so its permission
+            // to play is established once and never asked for again.
+            ensurePlayer();
+            try { var pr = player.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+            return c.resume().catch(function () {});
+        }
+
+        /* One <audio>, for every file and every link.
+
+           createMediaElementSource can only be called once per element, so a
+           fresh element per source would need a fresh node each time and
+           leak both. One element, one node, wired once; changing source is
+           changing src. */
+        function ensurePlayer() {
+            var c = ensure();
+            if (!c) return null;
+            if (player) return player;
+            // A <video>, not an <audio>: it plays audio-only files exactly the
+            // same way, and when the file does have a picture that picture
+            // becomes a source the scenes can sample. Kept in the document
+            // and one pixel across, because a detached element is not
+            // guaranteed to decode frames.
+            player = document.createElement('video');
+            player.setAttribute('playsinline', '');
+            player.preload = 'auto';
+            player.crossOrigin = 'anonymous';
+            player.style.cssText = 'position:fixed;left:-4px;top:-4px;width:2px;height:2px;opacity:0.01;pointer-events:none';
+            document.body.appendChild(player);
+            playerNode = c.createMediaElementSource(player);
+            playerNode.connect(analyser);
+            // A file or a link is the one thing you are meant to hear: a tab
+            // and an input are already audible and routing those to the
+            // speakers would double them.
+            playerNode.connect(c.destination);
+            return player;
+        }
+
+        // Load a source into the one player and wait for it to be playable.
+        function loadInto(src, timeout) {
+            var a = ensurePlayer();
+            if (!a) return Promise.reject(new Error('No Web Audio in this browser.'));
+            return new Promise(function (res, rej) {
+                var done = false;
+                function off() {
+                    a.removeEventListener('error', bad);
+                    a.removeEventListener('canplay', good);
+                }
+                function bad() { if (done) return; done = true; clearTimeout(t); off(); rej(new Error('refused')); }
+                function good() { if (done) return; done = true; clearTimeout(t); off(); res(a); }
+                var t = setTimeout(function () {
+                    if (done) return; done = true; off(); rej(new Error('timeout'));
+                }, timeout || 12000);
+                a.addEventListener('error', bad);
+                a.addEventListener('canplay', good);
+                a.src = src;
+                a.load();
+            });
+        }
+
+        var lastBlob = '';
+        function stop() {
+            if (node) { try { node.disconnect(); } catch (e) {} node = null; }
+            if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+            // The player and its node stay: they are what holds the right to
+            // play, and the node can never be made again for this element.
+            if (player) { try { player.pause(); } catch (e) {} }
+            if (lastBlob) { URL.revokeObjectURL(lastBlob); lastBlob = ''; }
+            el = null;
+        }
+
+        /* A tab, via getDisplayMedia. Four things bite here, in order:
+
+           - Chrome refuses an audio-only request, so video has to be asked
+             for even though this page never draws it.
+
+           - That video track must then be DISABLED, not stopped. Stopping it
+             is the obvious move — nobody is looking at the picture — and in
+             Chrome it can tear down the whole capture session, taking the
+             audio track with it. The symptom is a share that is granted and
+             then immediately silent, which is what this page did until
+             somebody tried it in Chrome. Disabled, the track produces
+             nothing and costs nothing, and the session stays up.
+
+           - The audio checkbox is off by default and is only offered in the
+             picker's "Chrome Tab" pane at all: pick a window or the whole
+             screen and there is no audio to be had, which the message below
+             has to say, because "share audio" is not a thing the user can
+             find on the pane they are looking at.
+
+           - Firefox and Safari have no tab audio whatsoever. No feature test
+             sees that — getDisplayMedia exists in both — so the caller
+             checks the engine instead. */
+        function fromTab() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia)
+                return Promise.reject(new Error('This browser cannot hand over a tab at all.'));
+            return navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+            }).then(function (s) {
+                var a = s.getAudioTracks();
+                if (!a.length) {
+                    s.getTracks().forEach(function (t) { t.stop(); });
+                    throw new Error('NOAUDIO');
+                }
+                s.getVideoTracks().forEach(function (t) {
+                    t.enabled = false;
+                    // The share dies with this track, so notice when it does.
+                    t.addEventListener('ended', function () { if (kind === 'tab') setNone('the tab stopped sharing'); });
+                });
+                attachStream(s, 'tab', labelOf(a[0], 'a tab'));
+                a[0].addEventListener('ended', function () { if (kind === 'tab') setNone('the tab stopped sharing'); });
+            });
+        }
+        /* iOS will not hand over a microphone while the audio session is a
+           playback one, and refuses with "AudioSession category is not
+           compatible with audio capture".
+
+           This page is what puts it there. unlock() plays a silent buffer and
+           primes the <audio> element inside the opening gesture, because
+           Safari will not start a context any other way — and that is exactly
+           what makes WebKit infer a playback session. The fix for autoplay is
+           the cause of this one.
+
+           So say what the session is for before asking. Only 'play-and-record'
+           and 'auto' permit capture; everything else ends the track. And put
+           it back afterwards, because on a phone play-and-record routes output
+           to the earpiece and makes everything quieter — which is right while
+           a microphone is open and wrong the moment it closes.
+
+           navigator.audioSession is Safari 16.4 and up. Everywhere else this
+           is all a no-op, which is correct: no other engine has the problem. */
+        var sessionWas = null;
+        function captureSession() {
+            var a = navigator.audioSession;
+            if (!a) return;
+            if (sessionWas === null) sessionWas = a.type;
+            try { a.type = 'play-and-record'; } catch (e) { /* read-only on old builds */ }
+        }
+        function releaseSession() {
+            var a = navigator.audioSession;
+            if (!a || sessionWas === null) return;
+            try { a.type = sessionWas; } catch (e) {}
+            sessionWas = null;
+        }
+        function isSessionRefusal(e) {
+            return /audiosession|category/i.test(String((e && e.message) || ''));
+        }
+
+        function labelOf(track, dflt) {
+            var l = track && track.label;
+            return (l && l !== 'System Audio' && l.length > 1) ? l : dflt;
+        }
+
+        function fromInput(deviceId) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+                return Promise.reject(new Error('This browser has no audio input API.'));
+            var c = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+            if (deviceId) c.deviceId = { exact: deviceId };
+            function took(s) {
+                var t = s.getAudioTracks()[0];
+                attachStream(s, 'input', (t && t.label) ? t.label : 'an input');
+                if (t) t.addEventListener('ended', function () { if (kind === 'input') setNone('the input went away'); });
+            }
+            captureSession();
+            return navigator.mediaDevices.getUserMedia({ audio: c }).then(took, function (e) {
+                // Some WebKit builds refuse 'play-and-record' and allow 'auto'.
+                // One retry, and only for a refusal that is about the session —
+                // a denied permission is not going to change its mind.
+                if (navigator.audioSession && isSessionRefusal(e)) {
+                    try { navigator.audioSession.type = 'auto'; } catch (ignored) {}
+                    return navigator.mediaDevices.getUserMedia({ audio: c })
+                        .then(took, function (e2) { releaseSession(); throw e2; });
+                }
+                releaseSession();
+                throw e;
+            });
+        }
+
+        /* A link.
+
+           Tab sharing only carries audio in Chrome, Edge and Opera, which
+           leaves everyone else with no way to hear a site that is not this
+           one. A pasted address covers it, in two steps:
+
+             1. Try the link in an <audio> element with crossOrigin set. A
+                direct media URL — an mp3, a podcast enclosure, an Icecast
+                stream — plays straight through with no server involved, and
+                an endless radio stream is the best thing you can give this
+                page. crossOrigin must be set even though it causes the
+                failure below, because without it a cross-origin element
+                still "plays" and createMediaElementSource silently returns
+                silence. A refusal is better than a dead meter.
+             2. Anything else — a YouTube or SoundCloud page, a video with
+                the audio buried in it — goes to the same service the SP-404
+                converter uses, which pulls the audio out and hands back a
+                file. It sleeps when nobody is converting, so the first
+                request after a quiet spell can take most of a minute; that
+                is a counter on screen, not a hang. */
+        /* Which audio service to ask.
+
+           The SP-404 converter already lets you point at one of your own,
+           and keeps it under lucid.svc.* — site-wide keys, by the look of
+           the prefix, but this page was ignoring them and calling the shared
+           instance regardless. So somebody who stood up their own server to
+           escape the shared rate limit escaped it on one page out of two.
+           Same keys, same meaning, read in one place. */
+        var RIPPER_BUILT_IN = 'https://vst-library.fly.dev';
+        var ripperOverride = '';          // test hook; wins over everything
+
+        function svcCfg() {
+            if (ripperOverride) return { url: ripperOverride, key: '', mine: true };
+            var url = '', key = '', off = false;
+            try {
+                url = (localStorage.getItem('lucid.svc.url') || '').trim().replace(/\/+$/, '');
+                key = localStorage.getItem('lucid.svc.key') || '';
+                off = localStorage.getItem('lucid.svc.off') === '1';
+            } catch (e) { /* private window: fall through to the shared one */ }
+            if (url) return { url: url, key: key, mine: true };
+            if (off) return { url: '', key: '', off: true };
+            return { url: RIPPER_BUILT_IN, key: '', mine: false };
+        }
+
+        function startPlayer(name, how, loop) {
+            var c = ensure();
+            player.loop = !!loop;
+            el = player;
+            kind = how;
+            label = name.length > 26 ? name.slice(0, 25) + '\u2026' : name;
+            return c.resume().then(function () { return player.play(); })
+                .then(function () { onchange(); });
+        }
+
+        function viaRipper(target, host, step) {
+            var cfg = svcCfg();
+            if (cfg.off) {
+                return Promise.reject(new Error('The audio service is switched off in your settings, ' +
+                    'so there is nothing to hand this link to. Turn it back on, point this at a service ' +
+                    'of your own, or share the tab instead.'));
+            }
+            var url = cfg.url + '/rip?format=m4a&url=' + encodeURIComponent(target);
+            var opts = cfg.key ? { headers: { authorization: 'Bearer ' + cfg.key } } : {};
+            var began = Date.now(), WAKE = 90000;
+            function ask() {
+                return fetch(url, opts).catch(function () {
+                    var waited = Date.now() - began;
+                    if (waited > WAKE) {
+                        throw new Error(cfg.mine
+                            ? 'Your own service at ' + cfg.url + ' did not answer in ninety seconds. ' +
+                              'Check it is running and that it allows this site as an origin.'
+                            : 'The audio service did not answer in ninety seconds. ' +
+                              'It may be down rather than asleep \u2014 try again in a few minutes.');
+                    }
+                    var sec = Math.round(waited / 1000);
+                    step('waking the audio service\u2026 ' + sec + 's. It sleeps when nobody is ' +
+                         'using it and the first one after that takes a moment.');
+                    return new Promise(function (go) { setTimeout(go, 3000); }).then(ask);
+                });
+            }
+            return ask().then(function (r) {
+                if (!r.ok) {
+                    return r.json().catch(function () { return {}; }).then(function (j) {
+                        throw new Error(j.error || ('The audio service answered HTTP ' + r.status + '.'));
+                    });
+                }
+                step('got it \u2014 loading\u2026');
+                var title = '';
+                try { title = decodeURIComponent(r.headers.get('x-rip-title') || ''); } catch (e) {}
+                return r.blob().then(function (b) {
+                    stop();
+                    lastBlob = URL.createObjectURL(b);
+                    return loadInto(lastBlob, 20000)
+                        .then(function () { return startPlayer(title || host, 'link', true); });
+                });
+            });
+        }
+
+        function fromUrl(raw, step) {
+            step = step || function () {};
+            var c = ensure();
+            if (!c) return Promise.reject(new Error('No Web Audio in this browser.'));
+            var clean = String(raw || '').trim();
+            if (!clean) return Promise.reject(new Error('Paste a web address first.'));
+            if (!/^https?:\/\//i.test(clean)) clean = 'https://' + clean.replace(/^\/+/, '');
+            var u;
+            try { u = new URL(clean); } catch (e) { u = null; }
+            // URL() is forgiving enough to accept "not a url at all" as a
+            // host, and then the page spends nine seconds on an <audio> that
+            // will never load and ninety more waking a service for it. A
+            // hostname has dots and no spaces; check before any of that.
+            if (!u || !/^[a-z0-9.-]+$/i.test(u.hostname) || u.hostname.indexOf('.') < 1) {
+                return Promise.reject(new Error('That does not look like a web address. Paste the ' +
+                    'whole thing, including the part before the first slash.'));
+            }
+            var host = u.hostname.replace(/^www\./, '');
+            step('trying the link\u2026');
+            stop();
+            return loadInto(clean, 10000)
+                .then(function () { return startPlayer(host, 'link', true); })
+                .catch(function () {
+                    step('that link will not play straight through \u2014 asking the audio service\u2026');
+                    return viaRipper(clean, host, step);
+                });
+        }
+
+        function fromFile(file) {
+            var c = ensure();
+            if (!c) return Promise.reject(new Error('No Web Audio in this browser.'));
+            stop();
+            lastBlob = URL.createObjectURL(file);
+            return loadInto(lastBlob, 20000)
+                .then(function () { return startPlayer(file.name, 'file', true); });
+        }
+
+        function attachStream(s, k, name) {
+            var c = ensure();
+            if (!c) throw new Error('No Web Audio in this browser.');
+            // Switching to anything that is not an input gives the session
+            // back; switching between inputs keeps it.
+            if (k !== 'input') releaseSession();
+            stop();
+            stream = s;
+            node = c.createMediaStreamSource(s);
+            node.connect(analyser);
+            kind = k;
+            label = name.length > 26 ? name.slice(0, 25) + '…' : name;
+            c.resume();
+            onchange();
+        }
+
+        function setNone(why) {
+            // Whatever the reason the sound stopped, the microphone is not
+            // open any more, so the phone should go back to playing out loud.
+            releaseSession();
+            stop();
+            kind = 'none';
+            label = why || 'no sound';
+            onchange();
+        }
+
+        // Hz to bin. Doing this from the real sample rate rather than a fixed
+        // table matters: a 48k context and a 44.1k one put the same frequency
+        // in different bins, and a hard-coded split puts the crossover in the
+        // wrong place on one of them.
+        function bin(hz) {
+            if (!ctx || !analyser) return 0;
+            var n = Math.round(hz / (ctx.sampleRate / 2) * analyser.frequencyBinCount);
+            return Math.max(0, Math.min(analyser.frequencyBinCount - 1, n));
+        }
+        // Half the mean, half the peak, and the reason is the width of the
+        // bands. Treble spans 2k-12k, which is sixty times as many bins as
+        // the 20-160 bass band, so a mean buries anything narrow: a hi-hat
+        // that pins its own bins reads 0.01 next to a kick's 0.77, and the
+        // band looks dead when it is not. A pure peak overreacts to one
+        // bright bin instead, so take both — loud-and-narrow and
+        // loud-and-wide then both register, which is what an eye expects.
+        function slice(lo, hi) {
+            var a = bin(lo), b = bin(hi), s = 0, n = 0, m = 0;
+            for (var i = a; i <= b; i++) { s += freq[i]; if (freq[i] > m) m = freq[i]; n++; }
+            if (!n) return 0;
+            return (0.5 * (s / n) + 0.5 * m) / 255;
+        }
+
+        function smooth(prev, next) {
+            var k = next > prev ? cfg.attack : cfg.release;
+            return prev + (next - prev) * k;
+        }
+
+        function read(dt) {
+            if (!analyser) { beat *= .9; return band; }
+            analyser.getByteFrequencyData(freq);
+            analyser.getByteTimeDomainData(wave);
+
+            var sum = 0;
+            for (var i = 0; i < wave.length; i += 4) { var v = (wave[i] - 128) / 128; sum += v * v; }
+            var rms = Math.sqrt(sum / (wave.length / 4));
+
+            raw.level = rms;
+            raw.bass  = slice(20, 160);
+            raw.mid   = slice(160, 2000);
+            raw.high  = slice(2000, 12000);
+
+            // A connected source that carries nothing looks exactly like a
+            // broken page: the scenes drift on their clock and no control
+            // does anything. Time the silence so the interface can say which
+            // it is, with the reason that actually applies to this source.
+            if (kind === 'none') {
+                quietSince = 0;
+            } else if (rms > 0.0015 || raw.bass > 0.02 || raw.mid > 0.02 || raw.high > 0.02) {
+                quietSince = 0;
+            } else if (!quietSince) {
+                quietSince = performance.now();
+            }
+
+            var decay = Math.pow(.5, dt / 2.5);          // ceiling halves every 2.5s
+            ['level', 'bass', 'mid', 'high'].forEach(function (k) {
+                var r = raw[k] * cfg.gain;
+                // A floor under the ceiling, so silence does not divide by
+                // nothing and turn dither into a full-scale signal. Low
+                // enough that a genuinely quiet band still opens up.
+                ceil[k] = Math.max(r, Math.max(.02, ceil[k] * decay));
+                var n = Math.min(1, (r / ceil[k]) * cfg.sens);
+                band[k] = smooth(band[k], n);
+            });
+
+            // Beat: bass energy against its own rolling mean. A plain
+            // threshold fires continuously on loud music and never on quiet
+            // music; measuring against the recent average makes it a question
+            // of contrast, which is what a kick actually is.
+            hist.push(raw.bass);
+            if (hist.length > 43) hist.shift();
+            var mean = 0;
+            for (var j = 0; j < hist.length; j++) mean += hist[j];
+            mean /= Math.max(1, hist.length);
+            var now = performance.now();
+            if (hist.length > 12 && raw.bass > mean * 1.38 && raw.bass > .06 && now - beatAt > 240) {
+                if (beatAt) {
+                    taps.push(now - beatAt);
+                    if (taps.length > 12) taps.shift();
+                    var sorted = taps.slice().sort(function (a, b) { return a - b; });
+                    var med = sorted[Math.floor(sorted.length / 2)];
+                    if (med > 200 && med < 1500) bpm = Math.round(60000 / med);
+                }
+                beatAt = now;
+                beat = 1;
+            }
+            beat *= Math.pow(.02, dt);                   // ~decays over 250ms
+            return band;
+        }
+
+        return {
+            band: band, raw: raw, cfg: cfg,
+            get kind() { return kind; },
+            get label() { return label; },
+            get beat() { return beat; },
+            get bpm() { return bpm; },
+            get rate() { return ctx ? ctx.sampleRate : 0; },
+            get quietFor() { return quietSince ? (performance.now() - quietSince) / 1000 : 0; },
+            get spectrum() { return freq; },
+            get waveform() { return wave; },
+            // What the video side needs from here: the shared player, and the
+            // tab's own stream when one was handed over.
+            get element() { return player; },
+            get stream() { return stream; },
+            // The analyser itself, so anything can be patched into it from a
+            // console — which is also how the test suite feeds it a tone it
+            // already knows the answer for.
+            get analyser() { return analyser; },
+            read: read, fromTab: fromTab, fromInput: fromInput, fromFile: fromFile, fromUrl: fromUrl,
+            set ripper(v) { ripperOverride = v; },
+            get service() { return svcCfg(); },
+            none: setNone, ensure: ensure, unlock: unlock,
+            // A source can be attached and still not be making a sound,
+            // which from the outside looks exactly like a broken page. This
+            // is the difference, stated.
+            get blocked() {
+                if (kind === 'none') return false;
+                if (ctx && ctx.state !== 'running') return true;
+                return (kind === 'link' || kind === 'file') && !!(player && player.paused);
+            },
+            start: function () {
+                var c = ensure();
+                if (!c) return Promise.resolve();
+                return c.resume().then(function () {
+                    if ((kind === 'link' || kind === 'file') && player) return player.play();
+                });
+            },
+            resume: function () { return ctx ? ctx.resume() : Promise.resolve(); },
+            set onchange(f) { onchange = f; }
+        };
+    })();
+
+    /* =====================================================================
+       1b. Eyes
+
+       A picture to go with the sound, from a camera, from the tab that is
+       already being shared, or from whatever the player is holding — a
+       dropped film, or a link that turned out to have a picture in it.
+
+       Nothing here uploads anything either. The frame goes from the element
+       into a texture and no further.
+       ===================================================================== */
+    var Vid = (function () {
+        var want = 'none', camEl = null, camStream = null, tabEl = null;
+        var lastAt = -1, broken = false, lab = '';
+        var onchange = function () {};
+
+        function hidden() {
+            var v = document.createElement('video');
+            v.setAttribute('playsinline', '');
+            v.muted = true;                 // a camera has no sound to add
+            v.autoplay = true;
+            v.style.cssText = 'position:fixed;left:-4px;top:-4px;width:2px;height:2px;opacity:0.01;pointer-events:none';
+            document.body.appendChild(v);
+            return v;
+        }
+
+        function dropCam() {
+            if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
+            if (camEl) { try { camEl.pause(); } catch (e) {} camEl.srcObject = null; }
+        }
+
+        function camera(deviceId) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+                return Promise.reject(new Error('This browser has no camera API.'));
+            var c = { width: { ideal: 1280 }, height: { ideal: 720 } };
+            if (deviceId) c.deviceId = { exact: deviceId };
+            return navigator.mediaDevices.getUserMedia({ video: c }).then(function (st) {
+                dropCam();
+                camStream = st;
+                if (!camEl) camEl = hidden();
+                camEl.srcObject = st;
+                var t = st.getVideoTracks()[0];
+                lab = (t && t.label) || 'camera';
+                if (t) t.addEventListener('ended', function () { if (want === 'camera') use('none'); });
+                broken = false;
+                use('camera');
+                return camEl.play().catch(function () {});
+            });
+        }
+
+        /* The tab's picture. The audio fix keeps that video track alive and
+           disabled; turning it on is all this needs, which is a nice return
+           on having had to keep it. */
+        function tab() {
+            var st = Ears.stream;
+            if (!st || !st.getVideoTracks().length) return false;
+            st.getVideoTracks().forEach(function (t) { t.enabled = true; });
+            if (!tabEl) tabEl = hidden();
+            if (tabEl.srcObject !== st) tabEl.srcObject = st;
+            tabEl.play().catch(function () {});
+            lab = 'the shared tab';
+            broken = false;
+            use('tab');
+            return true;
+        }
+
+        function current() {
+            if (want === 'camera') return camEl;
+            if (want === 'tab') return tabEl;
+            if (want === 'media') return Ears.element;
+            return null;
+        }
+
+        function ready(v) {
+            return !!(v && v.readyState >= 2 && v.videoWidth > 0 && v.videoHeight > 0);
+        }
+
+        function use(k) {
+            want = k;
+            if (k !== 'camera') dropCam();
+            if (k !== 'tab' && tabEl) {
+                var st = Ears.stream;
+                // Back off again so a tab being listened to is not also being
+                // decoded for a picture nobody is using.
+                if (st) st.getVideoTracks().forEach(function (t) { t.enabled = false; });
+            }
+            if (k === 'media') lab = 'the file or link';
+            if (k === 'none') lab = '';
+            lastAt = -1;
+            onchange();
+        }
+
+        return {
+            get kind() { return want; },
+            get label() { return lab; },
+            get broken() { return broken; },
+            live: function () { return !broken && ready(current()); },
+            size: function () {
+                var v = current();
+                return ready(v) ? [v.videoWidth, v.videoHeight] : [16, 9];
+            },
+            // Only hand back an element when it has moved on, so the upload
+            // (the most expensive call in the frame) is not repeated for a
+            // picture that has not changed.
+            frame: function () {
+                var v = current();
+                if (!ready(v) || broken) return null;
+                var at = v.currentTime;
+                if (want !== 'camera' && want !== 'tab' && at === lastAt) return null;
+                lastAt = at;
+                return v;
+            },
+            ok: function () { broken = false; },
+            fail: function (e) {
+                // A cross-origin film with no CORS headers taints the canvas
+                // and texImage2D throws. Nothing to do but stop asking.
+                broken = true;
+                console.warn('[playground] video frame refused:', e && e.message);
+                onchange();
+            },
+            camera: camera, tab: tab, use: use, hasTab: function () {
+                var st = Ears.stream; return !!(st && st.getVideoTracks().length);
+            },
+            devices: function () {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return Promise.resolve([]);
+                return navigator.mediaDevices.enumerateDevices().then(function (ds) {
+                    return ds.filter(function (d) { return d.kind === 'videoinput'; });
+                }).catch(function () { return []; });
+            },
+            set onchange(f) { onchange = f; }
+        };
+    })();
+
+    /* =====================================================================
+       2. The picture
+
+       Three passes a frame: the scene into a buffer, a composite that mixes
+       that with the previous frame (the feedback, which is what makes a
+       still scene feel like a performance) and grades it, then a blit to the
+       screen. Written against WebGL1 and GLSL ES 1.00 on purpose: every
+       browser that can run the audio side can run this, with no fallback to
+       maintain.
+       ===================================================================== */
+    var VERT = 'attribute vec2 p; varying vec2 vUv;' +
+               'void main(){ vUv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }';
+
+    var PRELUDE = [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform vec2  uRes;',
+        'uniform float uTime;',
+        'uniform vec4  uBands;',      // level, bass, mid, high
+        'uniform float uBeat;',
+        'uniform float uSpeed, uScale, uWarp, uGlow, uHue;',
+        'uniform sampler2D uFFT;',
+        'uniform sampler2D uWave;',
+        'uniform sampler2D uVideo;',
+        'uniform float uHasVid;',
+        'uniform vec2  uVidSize;',
+        '#define LEVEL uBands.x',
+        '#define BASS  uBands.y',
+        '#define MID   uBands.z',
+        '#define HIGH  uBands.w',
+        'const float TAU = 6.28318530718;',
+        'mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }',
+        // The site's ramp, the same three neons the shader library uses, so a
+        // scene here and a shader from the library read as the same place.
+        'vec3 ramp(float t){',
+        '  t = fract(t) * 3.0;',
+        '  vec3 m = vec3(1.00, 0.06, 0.94), c = vec3(0.00, 1.00, 1.00), g = vec3(0.22, 1.00, 0.08);',
+        '  if (t < 1.0) return mix(m, c, t);',
+        '  if (t < 2.0) return mix(c, g, t - 1.0);',
+        '  return mix(g, m, t - 2.0);',
+        '}',
+        'vec3 pal(float t){ return ramp(t + uHue); }',
+        'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+        'float noise(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  f = f * f * (3.0 - 2.0 * f);',
+        '  return mix(mix(hash(i), hash(i + vec2(1,0)), f.x),',
+        '             mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);',
+        '}',
+        'float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a * noise(p); p *= 2.02; a *= 0.5; } return v; }',
+        // The analyser's bins, uploaded as a 256x1 texture, so a scene can
+        // draw the actual spectrum instead of only four numbers from it.
+        'float fft(float x){ return texture2D(uFFT, vec2(clamp(x, 0.0, 1.0), 0.5)).r; }',
+        // And the waveform, which is a different thing: the bins say how much
+        // of each frequency there is, this says what the cone is doing. An
+        // oscilloscope cannot be drawn from a spectrum.
+        'float wave(float x){ return texture2D(uWave, vec2(clamp(x, 0.0, 1.0), 0.5)).r * 2.0 - 1.0; }',
+        // Live picture, fitted to cover the frame whatever shape either is.
+        // uv is in short-axis units, so it goes through the aspect twice:
+        // once to reach 0..1 across the frame, once for the source's own.
+        'vec2 vidUV(vec2 uv){',
+        '  vec2 t = uv * (min(uRes.x, uRes.y) / uRes) * 0.5 + 0.5;',
+        '  float fa = uRes.x / max(uRes.y, 1.0);',
+        '  float va = uVidSize.x / max(uVidSize.y, 1.0);',
+        '  vec2 k = fa > va ? vec2(1.0, va / fa) : vec2(fa / va, 1.0);',
+        '  return (t - 0.5) / k + 0.5;',
+        '}',
+        'vec3 vid(vec2 uv){',
+        '  if (uHasVid < 0.5) return vec3(0.0);',
+        '  vec2 t = vidUV(uv);',
+        '  if (t.x < 0.0 || t.x > 1.0 || t.y < 0.0 || t.y > 1.0) return vec3(0.0);',
+        '  return texture2D(uVideo, t).rgb;',
+        '}',
+        ''
+    ].join('\n');
+
+    // Every scene is tone-mapped here rather than in its own code, the way
+    // the shader library's pieces each end with col/(1+col). Without it a
+    // glow term like 0.003/(d*d + 0.0003) peaks near 10, the feedback then
+    // carries that forward, and the middle of the frame is a white hole —
+    // which is exactly what Lattice, Fluid and Shards did. Bounding each
+    // scene first also means the feedback pass is mixing comparable things.
+    var TAIL = '\nvoid main(){ vec2 uv = (gl_FragCoord.xy * 2.0 - uRes) / min(uRes.x, uRes.y);' +
+               ' vec3 c = max(scene(uv), 0.0); c = c / (1.0 + c);' +
+               ' gl_FragColor = vec4(c, 1.0); }';
+
+    var SCENES = [
+        { id: 'tunnel', name: 'Tunnel', note: 'bass drives', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            // Slices on the highs: a hi-hat opens the kaleidoscope out and a
+            // dark passage closes it back down to a plain tube.
+            '  float slices = 3.0 + floor(3.0 + HIGH * 9.0);' +
+            '  float a = atan(uv.y, uv.x);' +
+            '  float r = length(uv) * (1.0 / max(uScale, 0.05));' +
+            '  a = mod(a + TAU / (slices * 2.0), TAU / slices) - TAU / (slices * 2.0);' +
+            '  vec2 q = vec2(cos(a), sin(a)) * r;' +
+            // Dividing by r is the tunnel: it sends the far end to infinity.
+            '  vec2 tu = vec2(atan(q.y, q.x) / TAU, 0.35 / max(length(q), 0.04) + t * (0.35 + BASS * 1.4));' +
+            '  tu.x += sin(tu.y * 2.0 + t) * 0.12 * uWarp;' +
+            '  float g = 0.5 + 0.5 * sin(tu.y * TAU * 3.0 + tu.x * TAU * 6.0);' +
+            '  g = pow(g, 3.0 - BASS * 1.6);' +
+            '  float depth = smoothstep(0.0, 1.1, length(q));' +
+            // 0.12 put the whole visible depth inside a tenth of the ramp, so
+            // the tube came out one colour and the feedback smeared it flat.
+            '  vec3 col = pal(tu.y * 0.26 + tu.x * 0.5 + t * 0.05) * g * (0.35 + LEVEL * 1.5);' +
+            '  col += pal(t * 0.1 + 0.4) * uGlow * 0.045 / (dot(q, q) + 0.03) * (0.4 + BASS);' +
+            '  col *= depth;' +
+            '  return col;' +
+            '}' },
+
+        { id: 'fluid', name: 'Fluid', note: 'blobs', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  float f = 0.0, tw = 0.0;' +
+            '  vec3 tint = vec3(0.0);' +
+            // Six metaballs on their own orbits. Each one is sized by a slice
+            // of the spectrum, so the mass of the thing follows the mix
+            // rather than a single level.
+            '  for (int i = 0; i < 6; i++){' +
+            '    float fi = float(i);' +
+            '    float e = fft((fi + 0.5) / 6.0);' +
+            '    vec2 c = vec2(cos(t * (0.3 + fi * 0.11) + fi * 2.1), sin(t * (0.26 + fi * 0.13) + fi * 1.3));' +
+            '    c *= 0.55 + 0.3 * sin(t * 0.21 + fi) + uWarp * 0.25 * sin(t * 0.7 + fi * 3.0);' +
+            // Six balls this size overlap everywhere: the field clears the
+            // threshold across the whole frame and the scene is one wash
+            // instead of blobs. A metaball only reads as a blob while there
+            // is black between it and the next one.
+            '    float rad = 0.07 + e * 0.13 + BASS * 0.05;' +
+            '    float w = rad * rad / max(dot(uv - c, uv - c), 1e-4);' +
+            '    f += w;' +
+            // The field is the plain sum, but the colour is weighted by the
+            // square: a straight average of six hues off a three-colour ramp
+            // is grey nearly everywhere, which is what the blobs came out as.
+            // Squaring lets the nearest ball win its own territory.
+            '    tint += pal(fi / 6.0 + t * 0.05) * w * w;' +
+            '    tw += w * w;' +
+            '  }' +
+            '  tint /= max(tw, 1e-4);' +
+            '  float edge = smoothstep(0.88, 1.12, f);' +
+            '  float rim = smoothstep(0.86, 1.02, f) - smoothstep(1.02, 1.45, f);' +
+            '  vec3 col = tint * edge * (0.3 + LEVEL * 1.15);' +
+            '  col += tint * rim * (0.9 + uGlow * 1.5);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'spectrum', name: 'Spectrum', note: 'the readout', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv *= rot(t * 0.07);' +
+            '  float a = atan(uv.y, uv.x) / TAU + 0.5;' +
+            '  float r = length(uv) / max(uScale, 0.05);' +
+            // Mirrored around the vertical so the ring reads as one figure
+            // rather than a strip with a seam down one side.
+            '  float x = abs(a * 2.0 - 1.0);' +
+            '  float bars = 72.0;' +
+            '  float cell = floor(x * bars) / bars;' +
+            '  float e = fft(pow(cell, 0.6));' +
+            '  float inner = 0.30 + BASS * 0.07;' +
+            '  float h = inner + e * (0.55 + uWarp * 0.4);' +
+            '  float gap = abs(fract(x * bars) - 0.5) * 2.0;' +
+            '  float bar = step(r, h) * step(inner, r) * smoothstep(0.95, 0.4, gap);' +
+            '  vec3 col = pal(cell * 0.7 + t * 0.05) * bar * (0.5 + e * 1.6);' +
+            // The ring itself, so there is something to look at in silence.
+            '  col += pal(t * 0.1) * (0.004 + uGlow * 0.006) / (abs(r - inner) + 0.004);' +
+            '  col += pal(t * 0.1 + 0.3) * uBeat * 0.02 / (abs(r - h) + 0.02);' +
+            '  col *= 1.0 - smoothstep(0.95, 1.45, r);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'warp', name: 'Warp', note: 'domain-warped', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed * 0.5;' +
+            '  uv /= max(uScale, 0.05);' +
+            // Inigo Quilez's fbm-of-fbm: the field is sampled at a position
+            // that is itself a field, which is what gives the curdled look.
+            '  vec2 q = vec2(fbm(uv + t * 0.2), fbm(uv + vec2(5.2, 1.3) - t * 0.15));' +
+            '  vec2 s = vec2(fbm(uv + 3.4 * q + vec2(1.7, 9.2) + BASS * 1.2),' +
+            '                fbm(uv + 3.4 * q + vec2(8.3, 2.8) + MID * 1.2));' +
+            '  float v = fbm(uv + (2.0 + uWarp * 3.0) * s + t * 0.1);' +
+            '  vec3 col = pal(v * 1.4 + t * 0.1 + length(q) * 0.3);' +
+            '  col *= (0.25 + v * 1.5) * (0.35 + LEVEL * 1.4);' +
+            '  col += pal(v + 0.35) * pow(v, 6.0) * (0.6 + uGlow * 2.5) * (0.4 + HIGH * 2.0);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'rings', name: 'Rings', note: 'per band', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  float r = length(uv) / max(uScale, 0.05);' +
+            '  float a = atan(uv.y, uv.x);' +
+            '  vec3 col = vec3(0.0);' +
+            // Eight rings, each owning a slice of the spectrum and breathing
+            // on it. Radius carries frequency, so the picture is laid out
+            // the way the sound is.
+            '  for (int i = 0; i < 8; i++){' +
+            '    float fi = float(i);' +
+            '    float e = fft(pow((fi + 0.5) / 8.0, 0.7));' +
+            '    float rad = 0.16 + fi * 0.11 + e * 0.07;' +
+            '    float wob = 0.02 * uWarp * sin(a * (3.0 + fi) + t * (0.7 + fi * 0.2));' +
+            '    float d = abs(r - rad - wob);' +
+            '    col += pal(fi / 8.0 + t * 0.05) * (0.002 + e * 0.012 + uGlow * 0.004) / (d + 0.004);' +
+            '  }' +
+            '  col *= 0.6 * (0.3 + LEVEL * 1.2);' +
+            '  col += pal(t * 0.2) * uBeat * 0.04 / (r + 0.1);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'plasma', name: 'Plasma', note: 'the old one', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  float v = sin(uv.x * 3.0 + t);' +
+            '  v += sin((uv.y + t * 0.6) * 3.0);' +
+            '  v += sin((uv.x + uv.y + t * 0.4) * 2.5);' +
+            '  vec2 c = uv + vec2(sin(t * 0.33), cos(t * 0.27)) * (0.6 + uWarp);' +
+            '  v += sin(length(c) * (5.0 + BASS * 7.0) - t * 1.6);' +
+            '  v *= 0.25;' +
+            '  vec3 col = pal(v + t * 0.04 + MID * 0.2) * (0.4 + LEVEL * 1.3);' +
+            // A hard edge through the field, so it is not only soft gradient.
+            '  float band = smoothstep(0.02, 0.0, abs(fract(v * 3.0) - 0.5) - 0.42);' +
+            '  col += pal(v + 0.3) * band * (0.4 + uGlow * 1.2) * (0.3 + HIGH * 1.6);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'scope', name: 'Scope', note: 'the waveform', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  vec3 col = vec3(0.0);' +
+            // Lissajous: the waveform against a delayed copy of itself, which
+            // is the figure an oscilloscope in X-Y mode draws.
+            '  float lag = 0.02 + uWarp * 0.06;' +
+            '  for (int i = 0; i < 48; i++){' +
+            '    float f = float(i) / 48.0;' +
+            '    vec2 p = vec2(wave(f), wave(fract(f + lag)));' +
+            '    p *= 0.8;' +
+            '    p *= rot(t * 0.1);' +
+            '    float d = length(uv - p);' +
+            '    col += pal(f + t * 0.06) * (0.0006 + uGlow * 0.0014) / (d * d + 0.0008);' +
+            '  }' +
+            // And the trace itself across the frame, the plain reading.
+            '  float y = wave(uv.x * 0.5 + 0.5) * 0.55;' +
+            '  col += pal(0.4 + t * 0.05) * (0.0015 + uGlow * 0.002) / (abs(uv.y - y) + 0.01);' +
+            '  col *= 0.5 * (0.35 + LEVEL * 1.2);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'terrain', name: 'Terrain', note: 'a landscape', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            // A horizon with a perspective floor under it: dividing by the
+            // height below the horizon is the whole projection.
+            '  float h = uv.y + 0.35;' +
+            '  if (h > -0.02) {' +
+            '    vec3 sky = pal(0.15 + t * 0.03 + uv.y * 0.3) * (0.05 + HIGH * 0.25);' +
+            '    sky += pal(t * 0.05) * uGlow * 0.04 / (abs(h) + 0.02);' +
+            '    return sky;' +
+            '  }' +
+            '  float z = 0.5 / -h;' +
+            '  vec2 g = vec2(uv.x * z, z + t * (1.5 + BASS * 4.0)) / max(uScale, 0.05);' +
+            '  float ridge = fbm(g * 0.6) * (0.6 + uWarp * 1.2);' +
+            '  float lines = abs(fract(g.y * 0.5 + ridge) - 0.5);' +
+            '  float cross = abs(fract(g.x * 0.5) - 0.5);' +
+            '  float w = min(lines, cross);' +
+            '  float fade = exp(-z * 0.08);' +
+            '  vec3 col = pal(ridge * 0.6 + t * 0.04) * (0.004 + uGlow * 0.006) / (w + 0.01) * fade;' +
+            '  col *= 0.5 * (0.3 + LEVEL * 1.4);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'swarm', name: 'Swarm', note: 'flow field', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  vec3 col = vec3(0.0);' +
+            // Forty dots walking a noise field. Each one is integrated from
+            // its own seed, so they travel together without touching.
+            '  for (int i = 0; i < 40; i++){' +
+            '    float fi = float(i);' +
+            '    vec2 p = vec2(hash(vec2(fi, 1.0)), hash(vec2(fi, 7.0))) * 2.0 - 1.0;' +
+            '    float ph = t * (0.25 + 0.3 * hash(vec2(fi, 3.0)));' +
+            '    for (int k = 0; k < 4; k++){' +
+            '      float n = fbm(p * 1.4 + ph);' +
+            '      p += vec2(cos(n * 6.28318), sin(n * 6.28318)) * (0.09 + uWarp * 0.1);' +
+            '    }' +
+            '    float e = fft(fract(fi * 0.137));' +
+            '    float d = length(uv - p);' +
+            '    col += pal(fi / 40.0 + t * 0.05) * (0.00035 + e * 0.0016 + uGlow * 0.0007) / (d * d + 0.0006);' +
+            '  }' +
+            '  col *= 0.7 * (0.3 + LEVEL * 1.3);' +
+            '  return col;' +
+            '}' },
+
+        { id: 'strobe', name: 'Strobe', note: 'hard cuts', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv *= rot(floor(t * 0.5 + uBeat) * 0.3);' +
+            '  float n = 4.0 + floor(BASS * 8.0);' +
+            '  float x = uv.x / max(uScale, 0.05) * n;' +
+            '  float cell = floor(x);' +
+            '  float e = fft(fract(cell * 0.173));' +
+            // Each column is on or off, not shaded: the point of this one is
+            // that it has no midtones to muddy on a big surface. The travelling
+            // term is what keeps it a scene rather than a black rectangle when
+            // nothing is playing — audio adds columns, it does not supply the
+            // only ones.
+            '  float roll = 0.5 + 0.5 * sin(cell * 1.7 + t * 2.2);' +
+            '  float on = step(0.45, e * 1.2 + uBeat * 0.4 + roll * 0.55);' +
+            '  float edge = smoothstep(0.5, 0.42, abs(fract(x) - 0.5));' +
+            '  float band = step(abs(uv.y), 0.2 + e * 0.8 + uWarp * 0.3);' +
+            '  vec3 col = pal(cell * 0.07 + t * 0.03) * on * edge * band;' +
+            '  col *= 0.6 + LEVEL * 1.1 + uGlow * 0.3;' +
+            '  return col;' +
+            '}' },
+
+        /* The two below are the picture rather than a generated scene, which
+           is what makes the mixer worth having: pick one on a deck and the
+           crossfader puts live video against a shader with no extra code. */
+        { id: 'video', name: 'Video', note: 'the input', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  uv += vec2(fbm(uv * 2.0 + t * 0.2), fbm(uv * 2.0 - t * 0.2)) * 0.25 * uWarp - 0.125 * uWarp;' +
+            '  vec3 c = vid(uv);' +
+            '  if (uHasVid < 0.5) {' +
+            // No camera, no tab, no film. The first version of this was a
+            // hairline at a mean of 0.002 — technically not black and
+            // practically invisible, which is the same as broken. It is a
+            // breathing iris now, bright enough to read as "waiting".
+            '    float r = length(uv);' +
+            '    float d = abs(r - 0.42 - 0.04 * sin(uTime * 1.6));' +
+            '    vec3 c = pal(uTime * 0.08) * 0.05 / (d + 0.035);' +
+            '    c += pal(uTime * 0.08 + 0.35) * 0.09 * smoothstep(0.42, 0.0, r);' +
+            '    return c;' +
+            '  }' +
+            '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));' +
+            // Tint toward the palette by luma, so it belongs with the rest.
+            '  c = mix(c, pal(l + uHue + LEVEL * 0.1) * (0.3 + l * 1.4), uGlow * 0.45);' +
+            '  c *= 0.75 + LEVEL * 0.7;' +
+            '  return c;' +
+            '}' },
+
+        { id: 'vidkaleido', name: 'Mirror', note: 'input, folded', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  float slices = 3.0 + floor(3.0 + HIGH * 7.0);' +
+            '  float a = atan(uv.y, uv.x) + t * 0.1;' +
+            '  float r = length(uv) / max(uScale, 0.05) * (1.0 - BASS * 0.2);' +
+            '  a = mod(a + 3.14159 / slices, 6.28318 / slices) - 3.14159 / slices;' +
+            '  vec2 q = vec2(cos(a), sin(a)) * r;' +
+            '  q += vec2(sin(r * 6.0 - t), cos(r * 6.0 + t)) * 0.06 * uWarp;' +
+            '  vec3 c = vid(q * 0.9);' +
+            '  if (uHasVid < 0.5) {' +
+            // Same again: the folded placeholder has to be visible too.
+            '    float d = abs(q.x) + abs(q.y);' +
+            '    vec3 c = pal(d * 0.6 + t * 0.1) * 0.05 / (abs(d - 0.45) + 0.045);' +
+            '    c += pal(d + t * 0.1 + 0.3) * 0.07 * smoothstep(0.7, 0.0, d);' +
+            '    return c;' +
+            '  }' +
+            '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));' +
+            '  c = mix(c, pal(l * 0.7 + r * 0.3 + t * 0.03), uGlow * 0.5);' +
+            '  c *= 0.7 + LEVEL * 0.8;' +
+            '  return c;' +
+            '}' },
+
+        { id: 'shards', name: 'Shards', note: 'cuts on beat', src:
+            'vec3 scene(vec2 uv){' +
+            '  float t = uTime * uSpeed;' +
+            '  uv /= max(uScale, 0.05);' +
+            '  uv *= rot(t * 0.05 + uBeat * 0.12);' +
+            '  vec2 g = floor(uv * 3.0), f = fract(uv * 3.0);' +
+            '  float best = 8.0, second = 8.0, id = 0.0;' +
+            '  for (int y = -1; y <= 1; y++) { for (int x = -1; x <= 1; x++){' +
+            '    vec2 o = vec2(float(x), float(y));' +
+            '    vec2 p = o + 0.5 + 0.5 * sin(t * 0.6 + TAU * vec2(hash(g + o), hash(g + o + 17.0)))' +
+            '             * (0.4 + uWarp * 0.6);' +
+            '    float d = length(p - f);' +
+            '    if (d < best){ second = best; best = d; id = hash(g + o); } else if (d < second) second = d;' +
+            '  } }' +
+            // The gap between nearest and next-nearest is the cell wall. It
+            // is the one voronoi measure that does not bunch up at the seeds.
+            '  float wall = second - best;' +
+            '  float face = smoothstep(0.0, 0.14 + uBeat * 0.1, wall);' +
+            '  vec3 col = pal(id + t * 0.05 + BASS * 0.25) * face * (0.3 + LEVEL * 1.5);' +
+            '  col += pal(id + 0.4) * (1.0 - face) * (0.6 + uGlow * 2.2) * (0.3 + HIGH * 1.8);' +
+            '  col *= 1.0 - 0.35 * smoothstep(0.4, 1.6, length(uv));' +
+            '  return col;' +
+            '}' }
+    ];
+
+    var COMP = [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D uScene, uPrev;',
+        'uniform vec2  uRes;',
+        'uniform float uFeed, uFbZoom, uFbRot, uHueShift, uSat, uContrast, uGrain, uMirror, uTime;',
+        'mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }',
+        'vec3 hueshift(vec3 c, float h){',
+        '  const vec3 k = vec3(0.57735);',
+        '  float ca = cos(h * 6.28318);',
+        '  return c * ca + cross(k, c) * sin(h * 6.28318) + k * dot(k, c) * (1.0 - ca);',
+        '}',
+        'void main(){',
+        '  vec2 uv = vUv;',
+        // Mirroring is a composite job, not a scene one: folding here means
+        // the feedback trails fold with it and the symmetry stays exact.
+        '  if (uMirror > 0.5) uv.x = 0.5 + abs(uv.x - 0.5);',
+        '  if (uMirror > 1.5) uv.y = 0.5 + abs(uv.y - 0.5);',
+        '  vec3 scene = texture2D(uScene, uv).rgb;',
+        // The previous frame, sampled through a small zoom and spin. That
+        // offset is the whole trick: without it the feedback is a dissolve,
+        // with it the trails travel.
+        '  vec2 c = vUv - 0.5;',
+        '  c.x *= uRes.x / uRes.y;',
+        '  c = rot(uFbRot) * c * (1.0 - uFbZoom);',
+        '  c.x /= uRes.x / uRes.y;',
+        '  vec3 prev = texture2D(uPrev, c + 0.5).rgb;',
+        // Adding the scene to the decayed previous frame is the obvious way
+        // to do this and it runs away: for a steady scene the sum converges
+        // on scene/(1-feed), so at the default 0.62 a half-lit frame settles
+        // at 2.6x and the tone curve hands back a white rectangle. Four of
+        // the six scenes washed out that way. max() cannot: it is bounded by
+        // the brighter of the two, so the trail decays geometrically wherever
+        // the scene goes dark and sits still where it does not. The small
+        // product term puts the glow back where trail and scene overlap, and
+        // is bounded by 1 because both are.
+        '  vec3 trail = prev * uFeed;',
+        '  vec3 col = max(scene, trail) + scene * trail * 0.5;',
+        '  col = col / (1.0 + col * 0.3);',
+        '  col = hueshift(col, uHueShift);',
+        '  float l = dot(col, vec3(0.2126, 0.7152, 0.0722));',
+        '  col = mix(vec3(l), col, uSat);',
+        '  col = clamp((col - 0.5) * uContrast + 0.5, 0.0, 1.0);',
+        '  if (uGrain > 0.001){',
+        '    float n = fract(sin(dot(gl_FragCoord.xy + uTime, vec2(12.9898, 78.233))) * 43758.5453);',
+        '    col += (n - 0.5) * uGrain * 0.22;',
+        '  }',
+        '  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);',
+        '}'
+    ].join('\n');
+
+    /* The mixer.
+
+       Two decks, each rendering a scene of its own, and one pass that puts
+       them together. It is a pass rather than a flag because every blend
+       below needs both pictures at once, and because a crossfade that can
+       be patched to the beat is the difference between a page of toys and
+       something you can play. Deck B is skipped entirely at x=0: every mode
+       here returns A untouched there, so the second scene costs nothing
+       until it is wanted. */
+    var MIX = [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D uA, uB;',
+        'uniform float uX, uMode;',
+        'void main(){',
+        '  vec3 a = texture2D(uA, vUv).rgb;',
+        '  vec3 b = texture2D(uB, vUv).rgb;',
+        '  float x = clamp(uX, 0.0, 1.0);',
+        '  vec3 r;',
+        '  if (uMode < 0.5)      r = mix(a, b, x);',                 // fade
+        '  else if (uMode < 1.5) r = a + b * x;',                    // add
+        '  else if (uMode < 2.5) r = 1.0 - (1.0 - a) * (1.0 - b * x);', // screen
+        '  else if (uMode < 3.5) r = mix(a, a * b, x);',             // multiply
+        '  else if (uMode < 4.5) r = mix(a, abs(a - b), x);',        // difference
+        '  else if (uMode < 5.5) r = mix(a, max(a, b), x);',         // lighten
+        '  else                  r = x < 0.5 ? a : b;',              // cut
+        '  gl_FragColor = vec4(clamp(r, 0.0, 1.0), 1.0);',
+        '}'
+    ].join('\n');
+
+    var BLIT = [
+        'precision highp float;',
+        'varying vec2 vUv;',
+        'uniform sampler2D uTex;',
+        'uniform float uFade;',
+        'void main(){ gl_FragColor = vec4(texture2D(uTex, vUv).rgb * uFade, 1.0); }'
+    ].join('\n');
+
+    /* ---- GL plumbing ---- */
+    var canvas = document.getElementById('stage');
+    var gl = canvas.getContext('webgl', { alpha: false, antialias: false, powerPreference: 'high-performance' })
+          || canvas.getContext('experimental-webgl', { alpha: false, antialias: false });
+
+    var GLFail = !gl;
+    var quad, sceneProgs = {}, compProg, blitProg, mixProg, fftTex, waveTex, vidTex;
+    var fbA, fbB, mixFB, accum = [], W = 1, H = 1;
+
+    function compile(type, src) {
+        var sh = gl.createShader(type);
+        gl.shaderSource(sh, src);
+        gl.compileShader(sh);
+        if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+            console.error('[playground] shader:', gl.getShaderInfoLog(sh), '\n', src);
+            gl.deleteShader(sh);
+            return null;
+        }
+        return sh;
+    }
+    function link(fsrc) {
+        var vs = compile(gl.VERTEX_SHADER, VERT), fs = compile(gl.FRAGMENT_SHADER, fsrc);
+        if (!vs || !fs) return null;
+        var pr = gl.createProgram();
+        gl.attachShader(pr, vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
+        gl.deleteShader(vs); gl.deleteShader(fs);
+        if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) {
+            console.error('[playground] link:', gl.getProgramInfoLog(pr));
+            return null;
+        }
+        // Cache every uniform up front. Calling getUniformLocation per frame
+        // is a string lookup across the driver boundary, 20-odd times a
+        // frame, for values that never move.
+        var u = {}, n = gl.getProgramParameter(pr, gl.ACTIVE_UNIFORMS);
+        for (var i = 0; i < n; i++) {
+            var info = gl.getActiveUniform(pr, i);
+            u[info.name] = gl.getUniformLocation(pr, info.name);
+        }
+        pr.u = u;
+        return pr;
+    }
+    function target(w, h) {
+        var t = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        // CLAMP_TO_EDGE, not repeat: the feedback zoom samples outside the
+        // frame every pass, and wrapping drags the opposite edge into shot.
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        var f = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return { tex: t, fb: f };
+    }
+
+    function initGL() {
+        quad = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+
+        var built = 0;
+        SCENES.forEach(function (s) {
+            var pr = link(PRELUDE + s.src + TAIL);
+            if (pr) { sceneProgs[s.id] = pr; built++; }
+        });
+        compProg = link(COMP);
+        blitProg = link(BLIT);
+        mixProg = link(MIX);
+
+        function lut(n) {
+            var t = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, t);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, n, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array(n));
+            return t;
+        }
+        fftTex = lut(256);
+        waveTex = lut(512);
+
+        // One pixel of grey until a camera or a film arrives, so a scene that
+        // samples the video never reads an unbound texture.
+        vidTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, vidTex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([20, 20, 28, 255]));
+        // Video frames arrive the other way up from how GL wants them.
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+        window.__pg = window.__pg || {};
+        window.__pg.scenesBuilt = built;
+        window.__pg.compOk = !!compProg && !!blitProg && !!mixProg;
+        return built === SCENES.length && !!compProg && !!blitProg && !!mixProg;
+    }
+
+    function resize() {
+        var scale = state.val.renderScale || 1;
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var w = Math.max(16, Math.round(window.innerWidth * dpr * scale));
+        var h = Math.max(16, Math.round(window.innerHeight * dpr * scale));
+        if (w === W && h === H) return;
+        W = w; H = h;
+        canvas.width = W; canvas.height = H;
+        canvas.style.width = '100%'; canvas.style.height = '100%';
+        if (!gl) return;
+        [fbA, fbB, mixFB].concat(accum).forEach(function (t) {
+            if (t) { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fb); }
+        });
+        fbA = target(W, H); fbB = target(W, H); mixFB = target(W, H);
+        accum = [target(W, H), target(W, H)];
+        // A fresh buffer is undefined, not black, and the feedback pass reads
+        // it on the very first frame.
+        accum.concat([fbA, fbB, mixFB]).forEach(function (t) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, t.fb);
+            gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+        });
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    function draw(pr) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        var loc = gl.getAttribLocation(pr, 'p');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    /* =====================================================================
+       3. State and controls
+
+       Every knob is declared once, in a table, and the panel, the keyboard,
+       the save file and the modulation all read from the same declaration.
+       Adding a control means adding a row here, not editing four places and
+       forgetting the fourth.
+       ===================================================================== */
+    var SOURCES = [
+        { k: 'none',  n: 'free' },
+        { k: 'level', n: 'level' },
+        { k: 'bass',  n: 'bass' },
+        { k: 'mid',   n: 'mid' },
+        { k: 'high',  n: 'high' },
+        { k: 'beat',  n: 'beat' }
+    ];
+
+    var MACROS = [
+        { k: 'speed', n: 'Speed', min: 0,    max: 3,   step: .01, def: 1,   mod: 'none', dep: 0 },
+        { k: 'scale', n: 'Scale', min: .25,  max: 2.5, step: .01, def: 1,   mod: 'bass', dep: .25 },
+        { k: 'warp',  n: 'Warp',  min: 0,    max: 2,   step: .01, def: .5,  mod: 'mid',  dep: .3 },
+        { k: 'glow',  n: 'Glow',  min: 0,    max: 2,   step: .01, def: .7,  mod: 'high', dep: .4 },
+        { k: 'hue',   n: 'Hue',   min: 0,    max: 1,   step: .005, def: 0,  mod: 'none', dep: 0 }
+    ];
+
+    var POSTS = [
+        { k: 'feed',     n: 'Feedback',  min: 0,   max: .96, step: .01, def: .62, mod: 'none', dep: 0 },
+        { k: 'fbZoom',   n: 'Fb zoom',   min: -.06, max: .06, step: .001, def: .012, mod: 'beat', dep: .2 },
+        { k: 'fbRot',    n: 'Fb spin',   min: -.05, max: .05, step: .001, def: .004, mod: 'none', dep: 0 },
+        { k: 'hueShift', n: 'Hue shift', min: 0,   max: 1,   step: .005, def: 0,   mod: 'none', dep: 0 },
+        { k: 'sat',      n: 'Saturation', min: 0,  max: 2,   step: .01, def: 1.15, mod: 'none', dep: 0 },
+        { k: 'contrast', n: 'Contrast',  min: .5,  max: 2.2, step: .01, def: 1.12, mod: 'none', dep: 0 },
+        { k: 'grain',    n: 'Grain',     min: 0,   max: 1,   step: .01, def: .08, mod: 'none', dep: 0 },
+        { k: 'mirror',   n: 'Mirror',    min: 0,   max: 2,   step: 1,   def: 0,   mod: null, dep: 0, fmt: function (v) { return ['off', 'half', 'quad'][v | 0]; } }
+    ];
+
+    var LISTEN = [
+        { k: 'gain',    n: 'Gain',    min: .25, max: 6,  step: .05, def: 1,   mod: null, dep: 0 },
+        { k: 'sens',    n: 'Drive',   min: .25, max: 3,  step: .05, def: 1,   mod: null, dep: 0 },
+        { k: 'attack',  n: 'Attack',  min: .05, max: 1,  step: .01, def: .5,  mod: null, dep: 0 },
+        { k: 'release', n: 'Release', min: .02, max: .6, step: .01, def: .12, mod: null, dep: 0 },
+        { k: 'renderScale', n: 'Render', min: .4, max: 1, step: .05, def: 1, mod: null, dep: 0,
+          fmt: function (v) { return Math.round(v * 100) + '%'; } }
+    ];
+
+    var MIXC = [
+        { k: 'xfade', n: 'A — B', min: 0, max: 1, step: .005, def: 0, mod: 'none', dep: 0 },
+        { k: 'blend', n: 'Blend', min: 0, max: 6, step: 1, def: 0, mod: null, dep: 0,
+          fmt: function (v) { return ['fade', 'add', 'screen', 'multiply', 'difference', 'lighten', 'cut'][v | 0]; } },
+        { k: 'hueB',  n: 'B hue', min: -.5, max: .5, step: .005, def: .33, mod: 'none', dep: 0 }
+    ];
+
+    var ALL = MACROS.concat(MIXC).concat(POSTS).concat(LISTEN);
+    var state = { scene: SCENES[0].id, sceneB: SCENES[1].id, deck: 'a',
+                  blackout: false, freeze: false, val: {}, mod: {}, dep: {}, midi: {} };
+    function defaults() {
+        state.scene = SCENES[0].id;
+        state.sceneB = SCENES[1].id;
+        ALL.forEach(function (c) { state.val[c.k] = c.def; state.mod[c.k] = c.mod || 'none'; state.dep[c.k] = c.dep || 0; });
+    }
+    defaults();
+
+    var SAVE = 'lucid.playground.v1';
+    function save() {
+        try {
+            localStorage.setItem(SAVE, JSON.stringify({ scene: state.scene, sceneB: state.sceneB,
+                val: state.val, mod: state.mod, dep: state.dep, midi: state.midi }));
+        } catch (e) { /* private window, blocked storage: the rig still works */ }
+    }
+    function load() {
+        try {
+            var raw = localStorage.getItem(SAVE);
+            if (!raw) return;
+            var d = JSON.parse(raw);
+            if (d && typeof d === 'object') {
+                if (d.scene && sceneExists(d.scene)) state.scene = d.scene;
+                if (d.sceneB && sceneExists(d.sceneB)) state.sceneB = d.sceneB;
+                if (d.midi && typeof d.midi === 'object') state.midi = d.midi;
+                ALL.forEach(function (c) {
+                    if (d.val && typeof d.val[c.k] === 'number' && isFinite(d.val[c.k]))
+                        state.val[c.k] = Math.max(c.min, Math.min(c.max, d.val[c.k]));
+                    if (d.mod && typeof d.mod[c.k] === 'string') state.mod[c.k] = d.mod[c.k];
+                    if (d.dep && typeof d.dep[c.k] === 'number' && isFinite(d.dep[c.k])) state.dep[c.k] = d.dep[c.k];
+                });
+            }
+        } catch (e) { /* a corrupt save is not worth a broken page */ }
+    }
+    function sceneExists(id) { return SCENES.some(function (s) { return s.id === id; }); }
+
+    // A modulated value is the knob plus a share of its own range, so depth
+    // means the same thing on every control whatever its units.
+    function at(k) {
+        var c = byKey[k];
+        var v = state.val[k];
+        var src = state.mod[k], d = state.dep[k];
+        if (src && src !== 'none' && d) {
+            var s = src === 'beat' ? Ears.beat : (Ears.band[src] || 0);
+            v += s * d * (c.max - c.min);
+        }
+        return Math.max(c.min, Math.min(c.max, v));
+    }
+    var byKey = {};
+    ALL.forEach(function (c) { byKey[c.k] = c; });
+
+    /* ---- the panel ---- */
+    function fmt(c, v) { return c.fmt ? c.fmt(v) : (c.step >= 1 ? String(v | 0) : v.toFixed(c.step < .01 ? 3 : 2)); }
+
+    function buildRow(c, host) {
+        var row = document.createElement('div');
+        row.className = 'row';
+        row.dataset.k = c.k;
+        var top = document.createElement('div');
+        top.className = 'row-top';
+        var lab = document.createElement('label');
+        lab.textContent = c.n;
+        lab.htmlFor = 'c-' + c.k;
+        var cc = document.createElement('span');
+        cc.className = 'cc';
+        lab.appendChild(cc);
+        // The name is also the target when MIDI learn is armed. It stays a
+        // plain label the rest of the time, so nothing new to learn unless
+        // there is a controller plugged in.
+        lab.addEventListener('click', function (e) {
+            if (!MIDI.learn) return;
+            e.preventDefault();
+            if (e.shiftKey) {
+                Object.keys(state.midi).forEach(function (m) { if (state.midi[m] === c.k) delete state.midi[m]; });
+                syncPanel(); save();
+                return;
+            }
+            arm(c.k);
+        });
+        var out = document.createElement('output');
+        out.textContent = fmt(c, state.val[c.k]);
+        top.appendChild(lab); top.appendChild(out);
+
+        var sl = document.createElement('input');
+        sl.type = 'range'; sl.id = 'c-' + c.k;
+        sl.min = c.min; sl.max = c.max; sl.step = c.step; sl.value = state.val[c.k];
+        sl.addEventListener('input', function () {
+            state.val[c.k] = parseFloat(sl.value);
+            out.textContent = fmt(c, state.val[c.k]);
+            if (c.k === 'renderScale') resize();
+            if (c.k === 'gain' || c.k === 'sens' || c.k === 'attack' || c.k === 'release') Ears.cfg[c.k] = state.val[c.k];
+            save();
+        });
+
+        row.appendChild(top); row.appendChild(sl);
+
+        if (c.mod !== null) {
+            var mod = document.createElement('div');
+            mod.className = 'mod' + (state.mod[c.k] === 'none' ? ' off' : '');
+            mod.dataset.k = c.k;
+            var sel = document.createElement('select');
+            sel.setAttribute('aria-label', c.n + ' modulation source');
+            SOURCES.forEach(function (s) {
+                var o = document.createElement('option');
+                o.value = s.k; o.textContent = s.n;
+                if (s.k === state.mod[c.k]) o.selected = true;
+                sel.appendChild(o);
+            });
+            var dep = document.createElement('input');
+            dep.type = 'range'; dep.min = -1; dep.max = 1; dep.step = .01; dep.value = state.dep[c.k];
+            dep.setAttribute('aria-label', c.n + ' modulation depth');
+            sel.addEventListener('change', function () {
+                state.mod[c.k] = sel.value;
+                mod.classList.toggle('off', sel.value === 'none');
+                if (sel.value !== 'none' && !state.dep[c.k]) { state.dep[c.k] = .35; dep.value = .35; }
+                save();
+            });
+            dep.addEventListener('input', function () { state.dep[c.k] = parseFloat(dep.value); save(); });
+            mod.appendChild(sel); mod.appendChild(dep);
+            row.appendChild(mod);
+        }
+        host.appendChild(row);
+        return { slider: sl, out: out, c: c };
+    }
+
+    var rows = {};
+    function buildPanel() {
+        var sceneHost = document.getElementById('scenes');
+        SCENES.forEach(function (s, i) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'scene-btn';
+            b.dataset.scene = s.id;
+            b.appendChild(document.createTextNode(s.name));
+            var sm = document.createElement('small');
+            sm.textContent = s.note;
+            b.appendChild(sm);
+            b.title = s.name + (i < 9 ? ' — key ' + (i + 1) : '');
+            b.addEventListener('click', function (e) {
+                // Shift loads the other deck, so B can be set up without
+                // leaving the deck you are playing.
+                pickScene(s.id, e.shiftKey ? (state.deck === 'a' ? 'b' : 'a') : state.deck);
+            });
+            sceneHost.appendChild(b);
+        });
+        [].forEach.call(document.querySelectorAll('#deckpick button'), function (b) {
+            b.addEventListener('click', function () { setDeck(b.dataset.deck); });
+        });
+        MIXC.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('mixer')); });
+        MACROS.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('macros')); });
+        POSTS.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('posts')); });
+        LISTEN.forEach(function (c) { rows[c.k] = buildRow(c, document.getElementById('listen')); });
+        for (var i = 0; i < 24; i++) document.getElementById('meters').appendChild(document.createElement('i'));
+    }
+
+    function pickScene(id, deck) {
+        if (!sceneExists(id)) return;
+        if ((deck || state.deck) === 'b') state.sceneB = id; else state.scene = id;
+        markScenes();
+        save();
+    }
+    function markScenes() {
+        [].forEach.call(document.querySelectorAll('.scene-btn'), function (b) {
+            b.classList.toggle('on-a', b.dataset.scene === state.scene);
+            b.classList.toggle('on-b', b.dataset.scene === state.sceneB);
+            b.classList.toggle('on', b.dataset.scene === (state.deck === 'b' ? state.sceneB : state.scene));
+        });
+    }
+    function setDeck(d) {
+        state.deck = d === 'b' ? 'b' : 'a';
+        [].forEach.call(document.querySelectorAll('#deckpick button'), function (b) {
+            b.classList.toggle('on', b.dataset.deck === state.deck);
+        });
+        markScenes();
+    }
+
+    function syncPanel() {
+        var bound = {};
+        Object.keys(state.midi).forEach(function (m) { bound[state.midi[m]] = m.replace(/^cc/, 'CC '); });
+        ALL.forEach(function (c) {
+            var r = rows[c.k];
+            if (!r) return;
+            r.slider.value = state.val[c.k];
+            r.out.textContent = fmt(c, state.val[c.k]);
+            var cc = r.slider.parentNode.querySelector('.cc');
+            if (cc) cc.textContent = bound[c.k] || '';
+        });
+        [].forEach.call(document.querySelectorAll('.mod'), function (m) {
+            var k = m.dataset.k;
+            if (!k || !byKey[k]) return;
+            m.querySelector('select').value = state.mod[k];
+            m.querySelector('input').value = state.dep[k];
+            m.classList.toggle('off', state.mod[k] === 'none');
+        });
+        ['gain', 'sens', 'attack', 'release'].forEach(function (k) { Ears.cfg[k] = state.val[k]; });
+    }
+
+    /* =====================================================================
+       4. The loop
+       ===================================================================== */
+    function U(pr, n) { return (pr && pr.u && pr.u[n]) || null; }
+
+    var sceneTime = 0, last = 0, fps = 0, fpsAcc = 0, fpsN = 0;
+    // The out panel shows the same number the readout does, rather than its
+    // own worse guess at it.
+    var lastFps = 0;
+    var fftBytes = new Uint8Array(256), waveBytes = new Uint8Array(512);
+
+    function drawDeck(into, sceneId, hueOffset) {
+        var pr = sceneProgs[sceneId] || sceneProgs[SCENES[0].id];
+        if (!pr) return;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, into.fb);
+        gl.viewport(0, 0, W, H);
+        gl.useProgram(pr);
+        gl.uniform2f(U(pr, 'uRes'), W, H);
+        gl.uniform1f(U(pr, 'uTime'), sceneTime);
+        gl.uniform4f(U(pr, 'uBands'), Ears.band.level, Ears.band.bass, Ears.band.mid, Ears.band.high);
+        gl.uniform1f(U(pr, 'uBeat'), Ears.beat);
+        gl.uniform1f(U(pr, 'uSpeed'), 1);
+        gl.uniform1f(U(pr, 'uScale'), at('scale'));
+        gl.uniform1f(U(pr, 'uWarp'), at('warp'));
+        gl.uniform1f(U(pr, 'uGlow'), at('glow'));
+        gl.uniform1f(U(pr, 'uHue'), at('hue') + (hueOffset || 0));
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fftTex);
+        gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, waveTex);
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, vidTex);
+        gl.uniform1i(U(pr, 'uFFT'), 0);
+        gl.uniform1i(U(pr, 'uWave'), 1);
+        gl.uniform1i(U(pr, 'uVideo'), 2);
+        gl.uniform1f(U(pr, 'uHasVid'), Vid.live() ? 1 : 0);
+        var sz = Vid.size();
+        gl.uniform2f(U(pr, 'uVidSize'), sz[0], sz[1]);
+        draw(pr);
+    }
+
+    function frame(now) {
+        requestAnimationFrame(frame);
+        var dt = last ? Math.min(.1, (now - last) / 1000) : 1 / 60;
+        last = now;
+        fpsAcc += dt; fpsN++;
+        if (fpsAcc > .5) { fps = Math.round(fpsN / fpsAcc); fpsAcc = 0; fpsN = 0; }
+
+        Ears.read(dt);
+        paintMeters();
+
+        if (GLFail) return;
+        // Speed scales the clock rather than multiplying it inside the
+        // shader: multiplying makes every change of speed jump the phase,
+        // which on a feedback scene looks like a glitch rather than a ramp.
+        if (!state.freeze) sceneTime += dt * at('speed');
+
+        if (!compProg || !blitProg || !mixProg || !fbA) return;
+
+        if (!state.freeze) {
+            var spec = Ears.spectrum, wv = Ears.waveform;
+            if (spec && spec.length) {
+                var stride = spec.length / 256;
+                for (var i = 0; i < 256; i++) fftBytes[i] = spec[Math.min(spec.length - 1, (i * stride) | 0)];
+            } else { fftBytes.fill(0); }
+            if (wv && wv.length) {
+                var ws = wv.length / 512;
+                for (var j = 0; j < 512; j++) waveBytes[j] = wv[Math.min(wv.length - 1, (j * ws) | 0)];
+            } else { waveBytes.fill(128); }
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, fftTex);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.LUMINANCE, gl.UNSIGNED_BYTE, fftBytes);
+            gl.bindTexture(gl.TEXTURE_2D, waveTex);
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 512, 1, gl.LUMINANCE, gl.UNSIGNED_BYTE, waveBytes);
+
+            // The picture, if there is one. A frame is only uploaded when the
+            // element has advanced, because texImage2D from a video is the
+            // most expensive thing in this loop by some way.
+            var vsrc = Vid.frame();
+            if (vsrc) {
+                gl.bindTexture(gl.TEXTURE_2D, vidTex);
+                try {
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, vsrc);
+                    Vid.ok();
+                } catch (e) { Vid.fail(e); }
+            }
+
+            drawDeck(fbA, state.scene, 0);
+            // Every blend returns A untouched at x=0, so the second scene is
+            // only worth rendering once the fader has left the end stop.
+            var x = at('xfade');
+            var useB = x > 0.002;
+            if (useB) drawDeck(fbB, state.sceneB, at('hueB'));
+            else { gl.bindFramebuffer(gl.FRAMEBUFFER, fbB.fb); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, mixFB.fb);
+            gl.viewport(0, 0, W, H);
+            gl.useProgram(mixProg);
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fbA.tex);
+            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fbB.tex);
+            gl.uniform1i(U(mixProg, 'uA'), 0);
+            gl.uniform1i(U(mixProg, 'uB'), 1);
+            gl.uniform1f(U(mixProg, 'uX'), x);
+            gl.uniform1f(U(mixProg, 'uMode'), Math.round(at('blend')));
+            draw(mixProg);
+
+            // feedback and grade, into the back buffer
+            gl.bindFramebuffer(gl.FRAMEBUFFER, accum[1].fb);
+            gl.useProgram(compProg);
+            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mixFB.tex);
+            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, accum[0].tex);
+            gl.uniform1i(U(compProg, 'uScene'), 0);
+            gl.uniform1i(U(compProg, 'uPrev'), 1);
+            gl.uniform2f(U(compProg, 'uRes'), W, H);
+            gl.uniform1f(U(compProg, 'uFeed'), at('feed'));
+            gl.uniform1f(U(compProg, 'uFbZoom'), at('fbZoom'));
+            gl.uniform1f(U(compProg, 'uFbRot'), at('fbRot'));
+            gl.uniform1f(U(compProg, 'uHueShift'), at('hueShift'));
+            gl.uniform1f(U(compProg, 'uSat'), at('sat'));
+            gl.uniform1f(U(compProg, 'uContrast'), at('contrast'));
+            gl.uniform1f(U(compProg, 'uGrain'), at('grain'));
+            gl.uniform1f(U(compProg, 'uMirror'), Math.round(at('mirror')));
+            gl.uniform1f(U(compProg, 'uTime'), sceneTime);
+            draw(compProg);
+            accum.reverse();
+        }
+
+        // pass 3 — to the screen
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, W, H);
+        gl.useProgram(blitProg);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, accum[0].tex);
+        gl.uniform1i(U(blitProg, 'uTex'), 0);
+        gl.uniform1f(U(blitProg, 'uFade'), state.blackout ? 0 : 1);
+        draw(blitProg);
+
+        // The canvas holds the finished frame at exactly this point, which is
+        // the only moment it is worth reading back.
+        if (typeof Send !== 'undefined' && Send.on) Send.push(canvas);
+    }
+
+    /* ---- the meters and the readout ---- */
+    var meterBars = null, beatlamp, readout;
+    function paintMeters() {
+        if (!meterBars) meterBars = document.querySelectorAll('#meters i');
+        var spec = Ears.spectrum;
+        for (var i = 0; i < meterBars.length; i++) {
+            var v = 0;
+            if (spec && spec.length) {
+                // Log-ish spread, so the bass is not one bar and everything
+                // above 2 kHz the other twenty-three.
+                var a = Math.pow(i / meterBars.length, 2) * (spec.length * .55) | 0;
+                var b = Math.pow((i + 1) / meterBars.length, 2) * (spec.length * .55) | 0;
+                var s = 0, n = 0;
+                for (var j = a; j <= Math.max(a, b); j++) { s += spec[j]; n++; }
+                v = n ? (s / n) / 255 : 0;
+            }
+            v = Math.min(1, v * Ears.cfg.gain * 1.6);
+            meterBars[i].style.height = (2 + v * 18).toFixed(1) + 'px';
+            meterBars[i].classList.toggle('hot', v > .72);
+        }
+        beatlamp.classList.toggle('on', Ears.beat > .5);
+        paintWarning();
+        var bits = [];
+        bits.push(showing());
+        if (Ears.bpm) bits.push('<b>' + Ears.bpm + '</b> bpm');
+        if (Ears.rate) bits.push((Ears.rate / 1000).toFixed(1) + 'k');
+        bits.push('<b>' + fps + '</b> fps');
+        lastFps = fps;
+        readout.innerHTML = bits.join(' &middot; ');
+    }
+
+    var warnEl = null, warnShown = '', unblockEl = null;
+    function paintWarning() {
+        if (!warnEl) warnEl = document.getElementById('warn');
+        if (!unblockEl) unblockEl = document.getElementById('unblock');
+        // Blocked is a different thing from quiet, and it has a cure.
+        var blocked = Ears.blocked;
+        unblockEl.hidden = !blocked;
+        if (blocked) { warnEl.hidden = true; warnShown = ''; return; }
+        var quiet = Ears.quietFor;
+        var chip = document.getElementById('source-chip');
+        if (quiet < 4) {
+            if (warnShown) { warnEl.hidden = true; warnShown = ''; warnEl.innerHTML = ''; }
+            if (chip) chip.classList.remove('dead');
+            return;
+        }
+        if (chip && Ears.kind !== 'none') chip.classList.add('dead');
+        var k = Ears.kind;
+        if (warnShown === k) return;
+        warnShown = k;
+        var why;
+        if (k === 'tab') {
+            why = '<b>That tab is sharing, but nothing is coming through.</b> Check it is actually ' +
+                  'playing, and that you picked it from the <b>Chrome Tab</b> list in the share dialog ' +
+                  '— a window or the whole screen is offered no audio at all, so the tick box for it ' +
+                  'is not even on those panes.';
+        } else if (k === 'input') {
+            why = '<b>That input is open, but silent.</b> If it is a loopback device, check your sound ' +
+                  'output is still pointed at it; if it is a microphone, check it is not muted.';
+        } else if (k === 'link' || k === 'file') {
+            why = '<b>It is loaded, but silent so far.</b> It may be paused, or the part playing now ' +
+                  'may simply be quiet.';
+        } else {
+            return;
+        }
+        warnEl.innerHTML = why;
+        warnEl.hidden = false;
+    }
+
+    document.getElementById('unblock').addEventListener('click', function () {
+        Ears.start().then(function () { document.getElementById('unblock').hidden = true; });
+    });
+
+    /* What is on screen, which is not the same as what deck A holds. Naming
+       only A meant that with the fader up the readout said one scene while
+       the picture showed another, and the only way to find out was to know
+       the shaders by sight. */
+    function sceneName(id) {
+        for (var i = 0; i < SCENES.length; i++) if (SCENES[i].id === id) return SCENES[i].name;
+        return id;
+    }
+    function showing() {
+        var x = at('xfade');
+        var a = sceneName(state.scene), b = sceneName(state.sceneB);
+        if (x <= 0.002) return '<b>' + a + '</b>';
+        if (x >= 0.998) return '<b>' + b + '</b>';
+        return '<b>' + a + '</b> ' + Math.round((1 - x) * 100) + '/' + Math.round(x * 100) +
+               ' <b>' + b + '</b>';
+    }
+
+    /* =====================================================================
+       5. Where the sound comes from
+       ===================================================================== */
+    var ua = navigator.userAgent;
+    var isFirefox = /Firefox\//.test(ua);
+    var isSafari = /Safari\//.test(ua) && !/Chrome|Chromium|Edg|OPR|CriOS|FxiOS/.test(ua);
+    var isMobile = /Android|iPhone|iPad|iPod/i.test(ua) ||
+                   (/Macintosh/.test(ua) && navigator.maxTouchPoints > 2);
+    // getDisplayMedia exists in Firefox and Safari; its audio does not. No
+    // feature test can see that, so this is the one place the page has to go
+    // by the engine, and it says so to the user rather than silently failing.
+    var tabAudio = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) && !isFirefox && !isSafari && !isMobile;
+
+    var gate = document.getElementById('gate');
+    var gateErr = document.getElementById('gate-err');
+    var devicePick = document.getElementById('devicepick');
+    var deviceSel = document.getElementById('device-select');
+    var filepick = document.getElementById('filepick');
+
+    // The card is taller than most windows and this sits at the bottom of
+    // it, so an answer nobody scrolls to is the same as no answer.
+    function reveal() {
+        if (gateErr.hidden) return;
+        try { gateErr.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { gateErr.scrollIntoView(false); }
+    }
+    function say(msg) { gateErr.textContent = msg; gateErr.hidden = !msg; reveal(); }
+    function sayRich(html) { gateErr.innerHTML = html; gateErr.hidden = !html; wireOuts(); reveal(); }
+    // A dead end should offer the way out, not just name itself.
+    function wireOuts() {
+        [].forEach.call(gateErr.querySelectorAll('[data-go]'), function (b) {
+            b.addEventListener('click', function () {
+                var id = b.getAttribute('data-go');
+                var t = document.getElementById(id);
+                if (t) t.click();
+            });
+        });
+    }
+
+    /* yt-dlp's own words, turned into something you can act on.
+
+       "ERROR: Unsupported URL: https://tundra.fm/" is accurate and useless:
+       it says what the extractor thinks without saying what you should do,
+       and what you should do is the whole question. A site that streams
+       through its own player, with no page per track, will never be
+       readable by an extractor — but it is perfectly shareable as a tab,
+       and that is one click away from here. */
+    function explain(raw, host) {
+        var m = String(raw || '').replace(/^ERROR:\s*/i, '').trim();
+        var outs = '<div class="outs">' +
+            (tabAudio ? '<button type="button" data-go="src-tab">Share the tab instead</button>' : '') +
+            '<button type="button" data-go="src-input">Use an input instead</button>' +
+            '</div>';
+        if (/sign in to confirm|not a bot|--cookies|confirm you.?re not/i.test(m)) {
+            return '<b>' + esc(host) + ' is blocking the server, not you.</b> It asks anything running ' +
+                'in a data centre to prove it is a person, and the service has no account and never ' +
+                'will \u2014 handing it one would mean putting your cookies on a machine other people ' +
+                'share. Your own browser is already signed in and already trusted, which is exactly ' +
+                'what sharing the tab uses:' + outs +
+                '<small>SoundCloud, Bandcamp and Mixcloud are usually happy to be read; YouTube is the ' +
+                'one that pushes back hardest.</small>';
+        }
+        if (/unsupported url|no suitable extractor|unable to extract/i.test(m)) {
+            return '<b>' + esc(host) + ' is not a site the audio service can read.</b> It knows ' +
+                'YouTube, SoundCloud, Bandcamp, Mixcloud, Vimeo and a thousand others, but a station ' +
+                'that streams through its own player has no page per track for it to read. ' +
+                'Two things that do work on a site like that:' + outs +
+                '<small>Or paste the address of the audio file itself, if the site will show you one.</small>';
+        }
+        if (/private|sign in|log in|login|members.only|account/i.test(m)) {
+            return '<b>That one needs an account.</b> The service is not signed in to anything and ' +
+                'will not be. Play it in a tab and share that instead:' + outs;
+        }
+        if (/drm|protected|encrypted/i.test(m)) {
+            return '<b>That is DRM-protected</b>, so nothing can pull the audio out of it. ' +
+                'Play it and share the tab:' + outs;
+        }
+        if (/unavailable|not found|404|unable to download webpage|failed to resolve/i.test(m)) {
+            return '<b>Could not reach that page.</b> Check the address, or play it in a tab and ' +
+                'share that:' + outs;
+        }
+        if (/live stream|endless/i.test(m)) {
+            return '<b>' + esc(m) + '</b> A live stream is better shared as a tab anyway \u2014 it ' +
+                'starts instantly and never ends:' + outs;
+        }
+        if (/limit|too many/i.test(m)) return esc(m);
+        return '<b>' + esc(m) + '</b>' + outs;
+    }
+    function esc(x) {
+        return String(x).replace(/[&<>"]/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+        });
+    }
+    function openGate() { gate.classList.remove('gone'); }
+    function closeGate() { gate.classList.add('gone'); say(''); }
+
+    function markSource() {
+        var chip = document.getElementById('source-chip');
+        document.getElementById('source-name').textContent = Ears.label;
+        chip.classList.toggle('live', Ears.kind !== 'none');
+        chip.classList.toggle('dead', Ears.kind === 'none');
+    }
+    Ears.onchange = markSource;
+
+    function listDevices() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return Promise.resolve([]);
+        return navigator.mediaDevices.enumerateDevices().then(function (ds) {
+            return ds.filter(function (d) { return d.kind === 'audioinput'; });
+        }).catch(function () { return []; });
+    }
+
+    /* The audio service panel. It writes the same three localStorage keys
+       the SP-404 converter reads, so a service you stand up is a service
+       both pages use — the alternative is setting it twice and forgetting
+       which page you set. */
+    var svcWhich = document.getElementById('svcwhich');
+    var svcBox   = document.getElementById('svcbox');
+    var svcUrl   = document.getElementById('svcurl');
+    var svcKey   = document.getElementById('svckey');
+    var svcSay   = document.getElementById('svcsay');
+
+    function svcStore(url, key, off) {
+        try {
+            if (url === null) localStorage.removeItem('lucid.svc.url'); else localStorage.setItem('lucid.svc.url', url);
+            if (key === null) localStorage.removeItem('lucid.svc.key'); else localStorage.setItem('lucid.svc.key', key);
+            localStorage.setItem('lucid.svc.off', off ? '1' : '0');
+        } catch (e) { /* private window: the setting just will not stick */ }
+    }
+    function svcNote(msg, cls) {
+        svcSay.textContent = msg || '';
+        svcSay.className = cls || '';
+    }
+    function svcRefresh() {
+        var c = Ears.service;
+        svcWhich.textContent = c.off ? 'No audio service — links the browser cannot read will not play.'
+                             : c.mine ? 'Using your own service at ' + c.url
+                             : 'Using the shared service — twenty clips an hour per address.';
+        try {
+            svcUrl.value = localStorage.getItem('lucid.svc.url') || '';
+            svcKey.value = localStorage.getItem('lucid.svc.key') || '';
+        } catch (e) {}
+    }
+    document.getElementById('svctoggle').addEventListener('click', function () {
+        svcBox.hidden = !svcBox.hidden;
+        if (!svcBox.hidden) svcUrl.focus();
+    });
+    document.getElementById('svcsave').addEventListener('click', function () {
+        var u = svcUrl.value.trim().replace(/\/+$/, '');
+        svcStore(u || null, svcKey.value || null, false);
+        svcRefresh();
+        svcNote(u ? 'Saved. This browser will use it here and on the SP-404 converter.'
+                  : 'Cleared — back to the shared service.', 'good');
+    });
+    document.getElementById('svcclear').addEventListener('click', function () {
+        svcStore(null, null, false);
+        svcUrl.value = ''; svcKey.value = '';
+        svcRefresh();
+        svcNote('Back to the shared service.', 'good');
+    });
+    document.getElementById('svccheck').addEventListener('click', function () {
+        var u = svcUrl.value.trim().replace(/\/+$/, '');
+        if (!u) { svcNote('Put an address in first.', 'bad'); return; }
+        svcNote('Asking ' + u + '…');
+        var opts = svcKey.value ? { headers: { authorization: 'Bearer ' + svcKey.value } } : {};
+        fetch(u + '/health', opts).then(function (r) {
+            return r.json().catch(function () { return null; }).then(function (j) {
+                if (!r.ok || !j) throw new Error('answered HTTP ' + r.status);
+                // keyOk false means it wants a key and this one is wrong, which
+                // is worth saying now rather than on the first link.
+                if (j.needsToken && !j.keyOk) { svcNote('It answered, but that key is wrong.', 'bad'); return; }
+                svcNote('Answered. yt-dlp ' + (j.ytdlp || '?') + ', ' +
+                        (j.ratePerHour ? j.ratePerHour + ' clips an hour per address' : 'no per-address limit') +
+                        '. Press Save to use it.', 'good');
+            });
+        }).catch(function (e) {
+            svcNote('No answer from ' + u + '. ' +
+                    'Check it is running, that it is reachable over https, and that RIPPER_ORIGIN lists ' +
+                    location.origin + '. (' + ((e && e.message) || 'network error') + ')', 'bad');
+        });
+    });
+
+    var linkform = document.getElementById('linkform');
+    var linkurl = document.getElementById('linkurl');
+    var linkgo = document.getElementById('linkgo');
+    linkform.addEventListener('submit', function (e) {
+        e.preventDefault();
+        say('');
+        linkgo.disabled = true;
+        Ears.unlock();          // inside the click, before the network
+        // say() doubles as the progress line: fetching through the service
+        // can take most of a minute on a cold start, and a counter that is
+        // climbing is the difference between waiting and hung.
+        var host = '';
+        try { host = new URL(/^https?:/i.test(linkurl.value.trim()) ? linkurl.value.trim()
+                     : 'https://' + linkurl.value.trim()).hostname.replace(/^www\./, ''); } catch (e) {}
+        Ears.fromUrl(linkurl.value, say).then(function () {
+            linkgo.disabled = false;
+            closeGate();
+        }).catch(function (err) {
+            linkgo.disabled = false;
+            var m = (err && err.message) || 'That link would not play.';
+            if (/does not look like a web address/.test(m)) say(m);
+            else sayRich(explain(m, host || 'that address'));
+        });
+    });
+
+    document.getElementById('src-tab').addEventListener('click', function () {
+        say('');
+        Ears.unlock();
+        Ears.fromTab().then(closeGate).catch(function (e) {
+            if (e && e.message === 'NOAUDIO') {
+                say('That tab came through without audio. Two things to check when you share it again: ' +
+                    'pick it from the "Chrome Tab" list rather than a window or the whole screen, because ' +
+                    'only tabs are offered audio — and tick "Also share tab audio" in the bottom corner, ' +
+                    'which is off until you tick it.');
+            } else if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) {
+                say('No tab was shared. Nothing has changed — pick a source when you are ready.');
+            } else {
+                say('Could not take audio from a tab here: ' + ((e && e.message) || 'the browser refused') + '.');
+            }
+        });
+    });
+
+    document.getElementById('src-input').addEventListener('click', function () {
+        say('');
+        Ears.unlock();
+        Ears.fromInput(deviceSel.value || null).then(function () {
+            return listDevices().then(function (ds) {
+                deviceSel.innerHTML = '';
+                ds.forEach(function (d, i) {
+                    var o = document.createElement('option');
+                    o.value = d.deviceId;
+                    o.textContent = d.label || ('Input ' + (i + 1));
+                    deviceSel.appendChild(o);
+                });
+                // Only worth showing once there is a choice to make.
+                devicePick.hidden = ds.length < 2;
+                if (ds.length < 2) closeGate();
+                else say('Listening. Pick a different input below if this is the wrong one, or press Done.');
+            });
+        }).catch(function (e) {
+            if (e && e.name === 'NotAllowedError') say('Permission for the microphone was refused, so there is nothing to listen to.');
+            else if (e && e.name === 'NotFoundError') say('This machine reports no audio inputs at all.');
+            else if (isSessionRefusalMsg(e)) say('iOS is holding the audio session for playback and will not ' +
+                'open an input while it is. Reload this page and choose the input before playing anything else.');
+            else say('Could not open an input: ' + String((e && e.message) || 'the browser refused').replace(/\.*$/, '') + '.');
+        });
+    });
+    function isSessionRefusalMsg(e) {
+        return /audiosession|category/i.test(String((e && e.message) || ''));
+    }
+    // Choosing from the list IS the choice, so the card goes away. The chip
+    // in the corner reopens it, which is how you get back to swap inputs.
+    deviceSel.addEventListener('change', function () {
+        Ears.fromInput(deviceSel.value).then(closeGate)
+            .catch(function () { say('That input would not open.'); });
+    });
+    document.getElementById('device-done').addEventListener('click', closeGate);
+
+    document.getElementById('src-file').addEventListener('click', function () { say(''); Ears.unlock(); filepick.click(); });
+    filepick.addEventListener('change', function () {
+        if (filepick.files && filepick.files[0]) takeFile(filepick.files[0]);
+    });
+    function takeFile(f) {
+        Ears.unlock();
+        Ears.fromFile(f).then(closeGate).catch(function (e) {
+            say('That file would not play: ' + ((e && e.message) || 'unsupported') + '.');
+            openGate();
+        });
+    }
+    ['dragover', 'drop'].forEach(function (ev) {
+        document.addEventListener(ev, function (e) {
+            e.preventDefault();
+            if (ev === 'drop' && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0])
+                takeFile(e.dataTransfer.files[0]);
+        });
+    });
+
+    document.getElementById('src-none').addEventListener('click', function () { Ears.none('no sound'); closeGate(); });
+    document.getElementById('source-chip').addEventListener('click', openGate);
+    // A full-screen overlay that cannot be dismissed with Escape is a trap.
+    // Closing with nothing chosen is the same as picking "nothing, for now" —
+    // a real option on this card — and the chip reopens it either way.
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        // In clean output there is nothing else on screen to dismiss, and no
+        // visible control to turn it off with, so Escape has to be the way out.
+        if (document.body.classList.contains('clean')) { setClean(false); return; }
+        if (gate.classList.contains('gone')) return;
+        if (Ears.kind === 'none') Ears.none('no sound');
+        closeGate();
+    });
+
+    /* =====================================================================
+       5b. The picture, and a controller to drive it with
+       ===================================================================== */
+    var camsel = document.getElementById('camsel');
+    var vidnote = document.getElementById('vidnote');
+
+    /* NDI and Spout.
+
+       Neither exists in a browser and neither can. NDI is a protocol on the
+       network with no web API, and Spout is a DirectX shared texture — a
+       Windows GPU handle, which a sandboxed tab has no business holding. Any
+       page claiming otherwise has a native program behind it.
+
+       What does work, on the machine you already have: every one of those
+       worlds can present itself as a webcam, and a webcam is something this
+       page can open. NDI Tools ships NDI Virtual Input; OBS turns a Spout or
+       Syphon sender into its Virtual Camera. So this tile is the camera path
+       with the right device found for you, which is the only part that was
+       actually hard — the useful device is never the first one, and on most
+       machines it is called something you would not guess.
+
+       Ranked rather than matched, because a rig can have several: a real NDI
+       input beats OBS's catch-all, which beats anything merely "virtual". */
+    function rankShare(ds) {
+        return ds.map(function (d) {
+            var n = d.label || '';
+            var score = /\bndi\b/i.test(n)                         ? 4
+                      : /\b(spout|syphon)\b/i.test(n)              ? 4
+                      : /\bobs\b/i.test(n)                         ? 3
+                      : /(virtual|camtwist|vmix|resolume|e2esoft)/i.test(n) ? 2 : 0;
+            return { d: d, score: score };
+        }).filter(function (x) { return x.score > 0; })
+          .sort(function (a, b) { return b.score - a.score; });
+    }
+
+    /* enumerateDevices hands back empty labels until the page has been
+       granted a camera once, and without labels there is nothing to rank on.
+       So: ask, stop the tracks immediately, then look. The throwaway stream
+       is the price of knowing what the devices are called. */
+    function nameDevices() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.resolve([]);
+        return navigator.mediaDevices.getUserMedia({ video: true }).then(function (st) {
+            st.getTracks().forEach(function (t) { t.stop(); });
+        }).catch(function () { /* refused: fall through and rank what we can */ })
+          .then(function () { return Vid.devices(); });
+    }
+
+    function fillCams(ds, chosenId) {
+        camsel.innerHTML = '';
+        ds.forEach(function (d, i) {
+            var o = document.createElement('option');
+            o.value = d.deviceId; o.textContent = d.label || ('Camera ' + (i + 1));
+            camsel.appendChild(o);
+        });
+        if (chosenId) camsel.value = chosenId;
+    }
+
+    var SHARE_SETUP =
+        '<b>Nothing here is sending yet.</b> NDI and Spout cannot reach a browser directly — ' +
+        'they need one bridge, set up once, and then this tile finds it every time:<br>' +
+        '&middot; <b>NDI</b> &mdash; install NDI Tools and run <b>NDI Virtual Input</b>, then pick your source in it.<br>' +
+        '&middot; <b>Spout</b> (Windows) or <b>Syphon</b> (Mac) &mdash; add it as a source in OBS, then ' +
+        '<b>Start Virtual Camera</b>.<br>' +
+        'Either way it turns up here as a camera, and this tile will pick it.';
+
+    // The share tile opens a camera, so Vid.kind says 'camera' for both of
+    // them and the kind alone cannot say which button to light.
+    var vidPick = null;
+    // markVid() is Vid.onchange and rewrites the note on every change, which
+    // wiped the share tile's message as soon as it was set. This is the note
+    // the share flow owns; anything else the user does clears it.
+    var vidMsg = null;
+    function markVid() {
+        [].forEach.call(document.querySelectorAll('#vidpick button'), function (b) {
+            var k = b.dataset.vid, on;
+            if (k === 'share')       on = Vid.kind === 'camera' && vidPick === 'share';
+            else if (k === 'camera') on = Vid.kind === 'camera' && vidPick !== 'share';
+            else                     on = k === Vid.kind;
+            b.classList.toggle('on', on);
+        });
+        camsel.hidden = Vid.kind !== 'camera' || camsel.options.length < 2;
+        if (vidMsg) { vidnote.innerHTML = vidMsg; return; }
+        var using = state.scene === 'video' || state.scene === 'vidkaleido' ||
+                    state.sceneB === 'video' || state.sceneB === 'vidkaleido';
+        if (Vid.broken) {
+            vidnote.innerHTML = '<b>That picture cannot be read.</b> A film from another site with no ' +
+                'CORS headers taints the frame and the browser will not hand it over. A local file works.';
+        } else if (Vid.kind === 'none') {
+            vidnote.innerHTML = 'Pick <b>Video</b> or <b>Mirror</b> on a deck to see it.';
+        } else if (!using) {
+            vidnote.innerHTML = Vid.label + ' is open — now put <b>Video</b> or <b>Mirror</b> on a deck.';
+        } else {
+            vidnote.textContent = 'Showing ' + Vid.label + '.';
+        }
+    }
+    Vid.onchange = markVid;
+
+    [].forEach.call(document.querySelectorAll('#vidpick button'), function (b) {
+        b.addEventListener('click', function () {
+            var k = b.dataset.vid;
+            vidPick = k;
+            vidMsg = null;
+            if (k === 'share') {
+                vidnote.textContent = 'Looking for an NDI or Spout bridge…';
+                nameDevices().then(function (ds) {
+                    var hit = rankShare(ds)[0];
+                    if (!hit) {
+                        fillCams(ds, null);
+                        vidPick = null;
+                        vidMsg = SHARE_SETUP;
+                        markVid();
+                        return;
+                    }
+                    return Vid.camera(hit.d.deviceId).then(function () {
+                        fillCams(ds, hit.d.deviceId);
+                        vidMsg = 'Taking <b>' + esc(hit.d.label) + '</b>. ' +
+                                 'Put <b>Video</b> or <b>Mirror</b> on a deck to see it.';
+                        markVid();
+                    });
+                }).catch(function (e) {
+                    vidPick = null;
+                    vidMsg = (e && e.name === 'NotAllowedError')
+                        ? 'Camera access was refused, and a bridge arrives as a camera.'
+                        : 'That bridge would not open: ' + esc(String((e && e.message) || 'unavailable')) + '.';
+                    markVid();
+                });
+            } else if (k === 'camera') {
+                Vid.camera(camsel.value || null).then(function () {
+                    return Vid.devices().then(function (ds) {
+                        camsel.innerHTML = '';
+                        ds.forEach(function (d, i) {
+                            var o = document.createElement('option');
+                            o.value = d.deviceId; o.textContent = d.label || ('Camera ' + (i + 1));
+                            camsel.appendChild(o);
+                        });
+                        markVid();
+                    });
+                }).catch(function (e) {
+                    vidnote.textContent = (e && e.name === 'NotAllowedError')
+                        ? 'The camera was refused.' : 'No camera here: ' + ((e && e.message) || 'unavailable') + '.';
+                });
+            } else if (k === 'tab') {
+                if (!Vid.tab()) {
+                    vidnote.innerHTML = 'No tab is shared yet. Share one from the source card first ' +
+                        '— the same share carries both the sound and the picture.';
+                }
+            } else {
+                Vid.use(k);
+            }
+        });
+    });
+    camsel.addEventListener('change', function () {
+        vidMsg = null;
+        Vid.camera(camsel.value).catch(function () {});
+    });
+
+    /* MIDI.
+
+       Learn rather than a fixed map, because no two controllers agree on
+       anything: arm it, click the name of the knob you want, move the one
+       on the desk, and the two are bound. Bindings are saved with the rest
+       of the rig, so the desk comes back the way you left it. */
+    var MIDI = { access: null, input: null, learn: false, armed: null };
+    var midiOn = document.getElementById('midi-on');
+    var midiLearn = document.getElementById('midi-learn');
+    var midisel = document.getElementById('midisel');
+    var midinote = document.getElementById('midinote');
+
+    function midiSay(h) { midinote.innerHTML = h; }
+
+    midiOn.addEventListener('click', function () {
+        if (!navigator.requestMIDIAccess) {
+            midiSay('<b>This browser has no Web MIDI.</b> Chrome, Edge and Opera have it; Safari does not. ' +
+                    'Everything else here still works.');
+            return;
+        }
+        navigator.requestMIDIAccess({ sysex: false }).then(function (acc) {
+            MIDI.access = acc;
+            midiOn.classList.add('on');
+            listMidi();
+            acc.onstatechange = listMidi;
+        }).catch(function (e) {
+            midiSay('MIDI was refused: ' + ((e && e.message) || 'no access') + '.');
+        });
+    });
+
+    function listMidi() {
+        if (!MIDI.access) return;
+        var ins = [];
+        MIDI.access.inputs.forEach(function (i) { ins.push(i); });
+        midisel.innerHTML = '';
+        ins.forEach(function (i) {
+            var o = document.createElement('option');
+            o.value = i.id; o.textContent = i.name || i.id;
+            midisel.appendChild(o);
+        });
+        midisel.hidden = ins.length === 0;
+        if (!ins.length) { midiSay('No MIDI inputs found. Plug something in and press Connect again.'); return; }
+        bindInput(ins[0].id);
+    }
+    midisel.addEventListener('change', function () { bindInput(midisel.value); });
+
+    function bindInput(id) {
+        if (!MIDI.access) return;
+        if (MIDI.input) MIDI.input.onmidimessage = null;
+        MIDI.input = null;
+        MIDI.access.inputs.forEach(function (i) { if (i.id === id) MIDI.input = i; });
+        if (!MIDI.input) return;
+        midisel.value = id;
+        MIDI.input.onmidimessage = onMidi;
+        midiSay('Listening to <b>' + (MIDI.input.name || id) + '</b>. Hit Learn, click a knob’s name, ' +
+                'then move the hardware.');
+    }
+
+    function onMidi(e) {
+        var d = e.data;
+        if (!d || d.length < 2) return;
+        var status = d[0] & 0xf0, a = d[1], b = d.length > 2 ? d[2] : 0;
+        if (status === 0xb0) {                       // control change
+            var key = 'cc' + a;
+            if (MIDI.learn && MIDI.armed) {
+                state.midi[key] = MIDI.armed;
+                arm(null);
+                setLearn(false);
+                syncPanel();
+                save();
+                midiSay('Bound <b>CC ' + a + '</b>. Learn again for the next one.');
+                return;
+            }
+            var target = state.midi[key];
+            if (target && byKey[target]) {
+                var c = byKey[target];
+                var v = c.min + (b / 127) * (c.max - c.min);
+                state.val[target] = c.step >= 1 ? Math.round(v) : v;
+                var r = rows[target];
+                if (r) { r.slider.value = state.val[target]; r.out.textContent = fmt(c, state.val[target]); }
+                if (target === 'renderScale') resize();
+                if (byKey[target] && ['gain', 'sens', 'attack', 'release'].indexOf(target) >= 0)
+                    Ears.cfg[target] = state.val[target];
+            }
+        } else if (status === 0x90 && b > 0) {       // note on
+            // Notes pick scenes on the deck you are editing, lowest note
+            // first, so a pad row maps onto the grid in order.
+            var n = a % 24;
+            if (n < SCENES.length) pickScene(SCENES[n].id);
+        }
+    }
+
+    function arm(k) {
+        MIDI.armed = k;
+        [].forEach.call(document.querySelectorAll('.row'), function (r) {
+            r.classList.toggle('armed', !!k && r.dataset.k === k);
+        });
+    }
+    function setLearn(on) {
+        MIDI.learn = !!on;
+        midiLearn.classList.toggle('on', MIDI.learn);
+        document.body.classList.toggle('learning', MIDI.learn);
+        if (!MIDI.learn) arm(null);
+    }
+    midiLearn.addEventListener('click', function () {
+        setLearn(!MIDI.learn);
+        if (MIDI.learn) midiSay('Click the name of a knob, then move the one on the desk. ' +
+                                'Shift-click a name to forget its binding.');
+    });
+
+    /* =====================================================================
+       6. Output, keys, start
+       ===================================================================== */
+    var dock = document.getElementById('dock');
+    var hud = document.getElementById('hud');
+    var dockToggle = document.getElementById('dock-toggle');
+
+    function setDock(shut) {
+        dock.classList.toggle('shut', shut);
+        document.body.classList.toggle('dock-shut', shut);
+        dockToggle.setAttribute('aria-expanded', String(!shut));
+        document.getElementById('t-hide').classList.toggle('on', shut);
+    }
+    dockToggle.addEventListener('click', function () { setDock(false); });
+    document.getElementById('dock-close').addEventListener('click', function () { setDock(true); });
+    document.getElementById('t-hide').addEventListener('click', function () { setDock(!dock.classList.contains('shut')); });
+
+    document.getElementById('t-full').addEventListener('click', goFull);
+
+    /* ---- sending the picture to soupsend -------------------------------
+       soupsend is a small program in soupsend/ that takes these frames and
+       publishes them as NDI, or as Spout on Windows. A browser can do neither
+       and never will: NDI is a protocol on the network with no web API, and
+       Spout is a DirectX shared texture.
+
+       It only works when this page is being served BY soupsend, from
+       127.0.0.1. That is not a limitation of the helper, it is the only
+       arrangement browsers allow: Safari refuses an http://127.0.0.1
+       subresource inside an https:// page outright, and Chrome 142 gates it
+       behind a permission prompt. Same origin and both problems vanish — so
+       soupsend serves the page, and the Send control appears only there.
+
+       The readback is a drawImage into a 2D canvas rather than gl.readPixels:
+       the scale happens on the GPU, the readback is at the smaller size, and
+       a 2D canvas is already top-left origin, so nothing has to be flipped on
+       the way out. */
+    var Send = (function () {
+        var ws = null, cv = null, c2 = null, want = false, sent = 0, dropped = 0;
+        var lastSend = 0, note = '';
+        // One buffer, reused. The first version allocated a fresh 4MB array
+        // and copied into it every frame, which is 12MB of churn per frame
+        // once getImageData's own allocation is counted — and the sends then
+        // could not keep up with a renderer running at 15fps. The server was
+        // never the problem: it takes 539 MB/s.
+        var out = null;
+        // The last pixel actually sent, so a test can prove the colours
+        // arrive the right way round rather than merely arrive.
+        var lastPx = null;
+
+        function local() {
+            return location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+        }
+        function token() {
+            var m = /(^|[?&])send=([0-9a-f]{8,64})/.exec(location.search || '');
+            if (m) { try { localStorage.setItem('lucid.send.token', m[2]); } catch (e) {} return m[2]; }
+            try { return localStorage.getItem('lucid.send.token') || ''; } catch (e) { return ''; }
+        }
+        function state() {
+            if (!local()) return 'elsewhere';
+            if (!ws) return want ? 'connecting' : 'off';
+            return ws.readyState === 1 ? 'on' : 'connecting';
+        }
+        function start() {
+            var t = token();
+            if (!t) { note = 'No token. Open the address soupsend printed.'; want = false; return; }
+            want = true; sent = 0; dropped = 0; note = '';
+            try {
+                ws = new WebSocket('ws://' + location.host + '/stream?t=' + encodeURIComponent(t));
+                ws.binaryType = 'arraybuffer';
+            } catch (e) { note = 'Could not open a connection to soupsend.'; want = false; ws = null; return; }
+            ws.onopen  = function () { note = ''; paintOutFeed(); };
+            ws.onclose = function () { ws = null; if (want) note = 'soupsend closed the connection.'; want = false; paintOutFeed(); };
+            ws.onerror = function () { note = 'soupsend is not answering on this port.'; };
+        }
+        function stop() {
+            want = false;
+            if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+            paintOutFeed();
+        }
+
+        return {
+            get on() { return state() === 'on'; },
+            get state() { return state(); },
+            get note() { return note; },
+            get sent() { return sent; },
+            get dropped() { return dropped; },
+            get local() { return local(); },
+            get lastPx() { return lastPx; },
+            width: (function () {
+                try { return parseInt(localStorage.getItem('lucid.send.width'), 10) || 960; }
+                catch (e) { return 960; }
+            })(),
+            setWidth: function (px) {
+                this.width = px;
+                try { localStorage.setItem('lucid.send.width', String(px)); } catch (e) {}
+            },
+            toggle: function () { if (want || ws) stop(); else { start(); paintOutFeed(); } },
+
+            // Called at the end of every rendered frame.
+            push: function (src) {
+                if (!ws || ws.readyState !== 1 || !src) return;
+                var now = performance.now();
+                if (now - lastSend < 1000 / 30) return;        // 30 is plenty for a projector
+                // Backpressure. Without this a slow sink turns into unbounded
+                // memory in the tab rather than dropped frames.
+                if (ws.bufferedAmount > 8 * 1024 * 1024) { dropped++; return; }
+                lastSend = now;
+
+                var w = src.width, h = src.height;
+                // The readback is the expensive part — reading fewer pixels is
+                // the only lever that helps. 960 wide is a good projector feed
+                // and half the bytes of 1280.
+                var scale = Math.min(1, Send.width / w);
+                w = Math.max(2, Math.round(w * scale) & ~1);
+                h = Math.max(2, Math.round(h * scale) & ~1);
+                if (!cv) { cv = document.createElement('canvas'); c2 = cv.getContext('2d', { willReadFrequently: true }); }
+                if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+                try { c2.drawImage(src, 0, 0, w, h); } catch (e) { return; }
+                var img;
+                try { img = c2.getImageData(0, 0, w, h); } catch (e) { note = 'The frame could not be read back.'; return; }
+
+                var need = 16 + img.data.length;
+                if (!out || out.length !== need) out = new Uint8Array(need);
+                out[0] = 83; out[1] = 79; out[2] = 85; out[3] = 80;   // 'SOUP'
+                out[4] = 1; out[5] = 1;
+                out[6] = w & 255; out[7] = (w >> 8) & 255;
+                out[8] = h & 255; out[9] = (h >> 8) & 255;
+                var pts = now >>> 0;
+                out[10] = pts & 255; out[11] = (pts >>> 8) & 255;
+                out[12] = (pts >>> 16) & 255; out[13] = (pts >>> 24) & 255;
+                out.set(img.data, 16);
+                lastPx = [img.data[0], img.data[1], img.data[2], img.data[3]];
+                // send() copies, so the same buffer is safe to reuse next frame.
+                try {
+                    ws.send(out); sent++;
+                    // Keyed by timestamp and exposed for the end-to-end test,
+                    // which matches the pixel sent against the pixel that
+                    // arrived. Closing a socket discards whatever is still
+                    // buffered, so "the last one each end saw" are not the
+                    // same frame and cannot be compared directly.
+                    window.__SendPx = window.__SendPx || {};
+                    window.__SendPx[pts] = lastPx;
+                    window.__SendSent = sent;
+                } catch (e) { dropped++; }
+            },
+        };
+    })();
+
+    /* ---- the out panel -------------------------------------------------
+       Nothing in a browser can publish NDI or Spout, so every route out of
+       here ends in something else capturing this window. That makes two
+       things worth showing, and neither was visible before: what is actually
+       leaving — size and rate, which is what the receiving end gets — and
+       whether the frame is clean enough to send, because a captured window
+       with the control panel still in it is the mistake you notice on the
+       projector and not before.
+
+       Spout is DirectX and Syphon is Metal, so each is offered only where it
+       exists rather than listed and then explained away. */
+    function outPlatform() {
+        var pf = (navigator.userAgentData && navigator.userAgentData.platform) || '';
+        var ua = navigator.userAgent || '';
+        if (/win/i.test(pf) || /Windows/i.test(ua)) return 'win';
+        if (/mac/i.test(pf) || /Mac OS X|Macintosh/i.test(ua)) return 'mac';
+        return 'other';
+    }
+    var OUT_PLAT = outPlatform();
+
+    var OUT_ROUTES = [
+        { nm: 'NDI', on: true, tag: 'any machine',
+          ds: 'Install <em>DistroAV</em> (it was obs-ndi) into OBS, add a <em>Window Capture</em> of ' +
+              'this tab, then Tools &rarr; <em>NDI Output Settings</em> &rarr; tick <em>Main Output</em>. ' +
+              'Only then does a source appear for Resolume to find. If it does not: NDI finds machines ' +
+              'by multicast, which plenty of networks drop \u2014 add the sending machine by hand in ' +
+              '<em>NDI Access Manager</em>, and check the firewall is not holding OBS.' },
+        { nm: 'Spout', on: OUT_PLAT === 'win', tag: 'Windows only',
+          ds: 'OBS with the <em>Spout2</em> plugin &rarr; Tools &rarr; <em>Spout Output</em>. ' +
+              'Never touches the network, so it is the one to use with Resolume or TouchDesigner ' +
+              'on this same machine.' },
+        { nm: 'Syphon', on: OUT_PLAT === 'mac', tag: 'macOS only',
+          ds: 'OBS with <em>Syphon Output</em>. The same idea as Spout on the other operating ' +
+              'system \u2014 a texture handed between apps without leaving the GPU.' },
+        { nm: 'Straight capture', on: true, tag: 'no OBS',
+          ds: 'Resolume, TouchDesigner and VDMX can take a window or a display directly. ' +
+              'Fewer moving parts, no network, and no second encode.' },
+    ];
+
+    // The readback is what costs, not the network, so the number of pixels
+    // read back is the only lever worth giving anyone.
+    function sizePick() {
+        var opts = [640, 960, 1280, 1920].map(function (w) {
+            return '<option value="' + w + '"' + (w === Send.width ? ' selected' : '') + '>' + w + ' wide</option>';
+        }).join('');
+        return '<select id="sendsize" aria-label="Send width">' + opts + '</select>';
+    }
+
+    function sendRow() {
+        var st = Send.state, body, cls, tag;
+        if (st === 'elsewhere') {
+            cls = ' off'; tag = 'needs soupsend';
+            body = 'The only route that leaves OBS out. Build <em>soupsend/</em> in this repository, ' +
+                   'run it, and open the address it prints &mdash; it serves this page itself, because ' +
+                   'a page on a public site is not allowed to reach a local program: Safari refuses it ' +
+                   'outright and Chrome asks permission. From its own address, this row becomes a button.';
+        } else if (st === 'on') {
+            cls = ' here'; tag = 'sending';
+            body = 'Sending to soupsend &mdash; <em>' + Send.sent + '</em> frames' +
+                   (Send.dropped ? ', ' + Send.dropped + ' dropped to keep up' : '') + '. ' +
+                   '<button type="button" class="tog on" id="sendbtn">Stop sending</button> ' +
+                   sizePick();
+        } else {
+            cls = ' here'; tag = st === 'connecting' ? 'connecting' : 'ready';
+            body = (Send.note ? '<em>' + Send.note + '</em> ' : '') +
+                   'soupsend is serving this page, so the frames can go straight to it. ' +
+                   '<button type="button" class="tog" id="sendbtn">Start sending</button> ' +
+                   sizePick();
+        }
+        return '<div class="outroute' + cls + '">' +
+               '<span class="nm">soupsend</span><span class="tag">' + tag + '</span>' +
+               '<span class="ds">' + body + '</span></div>';
+    }
+
+    function paintRoutes() {
+        var el = document.getElementById('outroutes');
+        if (!el) return;
+        el.innerHTML = sendRow() + OUT_ROUTES.map(function (r) {
+            return '<div class="outroute' + (r.on ? ' here' : ' off') + '">' +
+                   '<span class="nm">' + r.nm + '</span>' +
+                   '<span class="tag">' + r.tag + '</span>' +
+                   '<span class="ds">' + (r.on ? r.ds : 'Not on this machine \u2014 ' + r.tag + '.') + '</span>' +
+                   '</div>';
+        }).join('');
+        var b = document.getElementById('sendbtn');
+        if (b) b.addEventListener('click', function () { Send.toggle(); paintRoutes(); });
+        var z = document.getElementById('sendsize');
+        if (z) z.addEventListener('change', function () { Send.setWidth(parseInt(this.value, 10)); });
+    }
+
+    function paintOutFeed() {
+        var el = document.getElementById('outfeed');
+        if (!el) return;
+        var cv = document.getElementById('stage');
+        var w = (cv && cv.width) || 0, h = (cv && cv.height) || 0;
+        var clean = document.body.classList.contains('clean');
+        var full = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        // "Leaving at 1280x1000, 15 fps" read as a live feed and it is not
+        // one: this page publishes nothing, and there is no way for it to
+        // know whether anything is capturing the window — being captured has
+        // no API. So it states what this window IS, and says plainly that
+        // nothing is carrying it, because the alternative is someone hunting
+        // a source in Resolume that was never being sent.
+        el.innerHTML =
+            '<span class="warn">this page sends nothing by itself</span>' +
+            '<span>window is <b>' + w + '&times;' + h + '</b> at <b>' + lastFps + '</b> fps</span>' +
+            '<span class="' + (clean ? 'good' : 'warn') + '">' +
+                (clean ? 'frame is clean to capture' : 'panel would be captured too') + '</span>' +
+            '<span>' + (full ? 'fullscreen' : 'windowed') + '</span>' +
+            '<span><a href="?clean=1" id="cleanlink" target="_blank" rel="noopener">open a clean window</a></span>';
+    }
+
+    /* Clean output. "Hide panel" was never meant for a camera pointed at the
+       screen: it leaves the source chip, the way back and the stack button
+       drawn, and every one of them lands in the captured frame. This takes
+       all of it, and the pointer with it.
+
+       Also reachable as ?clean=1, so a second window can be opened straight
+       into it and captured while this one stays usable. */
+    function setClean(on) {
+        document.body.classList.toggle('clean', on);
+        document.getElementById('t-clean').classList.toggle('on', on);
+        paintOutFeed();
+    }
+    paintRoutes();
+    paintOutFeed();
+    // A second is plenty: these are figures you glance at while patching, not
+    // something to animate.
+    setInterval(function () { paintOutFeed(); paintRoutes(); }, 1000);
+    document.addEventListener('fullscreenchange', paintOutFeed);
+    document.addEventListener('webkitfullscreenchange', paintOutFeed);
+    document.getElementById('t-clean').addEventListener('click', function () {
+        setClean(!document.body.classList.contains('clean'));
+    });
+    try {
+        if (/(^|[?&])clean=1(&|$)/.test(location.search)) setClean(true);
+    } catch (e) {}
+    function goFull() {
+        var el = document.documentElement;
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            (el.requestFullscreen || el.webkitRequestFullscreen || function () {}).call(el);
+        } else {
+            (document.exitFullscreen || document.webkitExitFullscreen || function () {}).call(document);
+        }
+    }
+    function onFs() {
+        var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        document.getElementById('t-full').classList.toggle('on', on);
+    }
+    document.addEventListener('fullscreenchange', onFs);
+    document.addEventListener('webkitfullscreenchange', onFs);
+
+    document.getElementById('t-freeze').addEventListener('click', function () {
+        state.freeze = !state.freeze;
+        this.classList.toggle('on', state.freeze);
+    });
+    function setBlack(on) {
+        state.blackout = on;
+        document.getElementById('t-black').classList.toggle('on', on);
+    }
+    document.getElementById('t-black').addEventListener('click', function () { setBlack(!state.blackout); });
+
+    document.getElementById('t-random').addEventListener('click', randomise);
+    function randomise() {
+        pickScene(SCENES[(Math.random() * SCENES.length) | 0].id, 'a');
+        pickScene(SCENES[(Math.random() * SCENES.length) | 0].id, 'b');
+        MACROS.concat(MIXC).concat(POSTS).forEach(function (c) {
+            if (c.k === 'mirror') { state.val[c.k] = Math.random() < .7 ? 0 : (Math.random() < .5 ? 1 : 2); return; }
+            if (c.k === 'blend') { state.val[c.k] = (Math.random() * 7) | 0; return; }
+            // Most of the time one deck is enough; the fader only gets
+            // interesting when it is somewhere in the middle, not at random.
+            if (c.k === 'xfade') { state.val[c.k] = Math.random() < .45 ? 0 : (0.2 + Math.random() * 0.6); return; }
+            // Feedback stays in the half of its range that still reads as a
+            // trail. Rolled across the whole range it lands on 0.95 often
+            // enough to white the screen out mid-set, which is not a look.
+            var lo = c.k === 'feed' ? .3 : c.min, hi = c.k === 'feed' ? .8 : c.max;
+            state.val[c.k] = lo + Math.random() * (hi - lo);
+        });
+        MACROS.concat(MIXC).concat(POSTS).forEach(function (c) {
+            if (c.mod === null) return;
+            var pick = SOURCES[(Math.random() * SOURCES.length) | 0];
+            state.mod[c.k] = pick.k;
+            state.dep[c.k] = pick.k === 'none' ? 0 : (Math.random() * 1.2 - .45);
+        });
+        syncPanel(); save();
+    }
+    document.getElementById('t-reset').addEventListener('click', function () {
+        defaults(); syncPanel(); pickScene(state.scene); resize(); save();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        var t = e.target;
+        if (t && (/^(input|textarea|select)$/i.test(t.tagName || '') || t.isContentEditable)) return;
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (window.lucidStack && window.lucidStack.isOpen && window.lucidStack.isOpen()) return;
+        var n = parseInt(e.key, 10);
+        if (n >= 1 && n <= SCENES.length) { pickScene(SCENES[n - 1].id); e.preventDefault(); return; }
+        switch (e.key) {
+            case '[': nudgeX(-0.08); e.preventDefault(); return;
+            case ']': nudgeX(0.08); e.preventDefault(); return;
+            case '\\': nudgeX(at('xfade') > 0.5 ? -1 : 1); e.preventDefault(); return;
+            case 'a': case 'A': setDeck('a'); return;
+            case 'b': case 'B': setDeck('b'); return;
+        }
+        switch (e.key.toLowerCase()) {
+            case ' ': setBlack(!state.blackout); e.preventDefault(); break;
+            case 'f': goFull(); break;
+            case 'h': setDock(!dock.classList.contains('shut')); break;
+            case 'r': randomise(); break;
+            case 's': openGate(); break;
+            case 'c': setClean(!document.body.classList.contains('clean')); break;
+        }
+    });
+
+    function nudgeX(d) {
+        var c = byKey.xfade;
+        state.val.xfade = Math.max(c.min, Math.min(c.max, state.val.xfade + d));
+        var r = rows.xfade;
+        if (r) { r.slider.value = state.val.xfade; r.out.textContent = fmt(c, state.val.xfade); }
+        save();
+    }
+
+    /* ---- start ---- */
+    beatlamp = document.getElementById('beatlamp');
+    readout = document.getElementById('readout');
+
+    load();
+    buildPanel();
+    syncPanel();
+    setDeck(state.deck);
+    markSource();
+    markVid();
+
+    var note = document.getElementById('gate-note');
+    var tabBtn = document.getElementById('src-tab');
+    if (!tabActuallyPossible()) {
+        tabBtn.disabled = true;
+        document.getElementById('src-tab-d').innerHTML = whyNoTab();
+    }
+    function tabActuallyPossible() { return tabAudio; }
+    function whyNoTab() {
+        if (isMobile) return 'Not on a phone or tablet: no mobile browser can hand a tab’s audio to a page. Use a file, or do this on a desktop.';
+        if (isSafari) return 'Safari cannot do this — it shares a tab’s picture but never its sound. ' +
+                             '<em>Paste the address above instead</em>, which works here, or use an input below: ' +
+                             'BlackHole routed from your output catches the whole machine.';
+        if (isFirefox) return 'Firefox cannot do this — its tab sharing carries no audio. ' +
+                              '<em>Paste the address above instead</em>, or use an input below.';
+        return 'This browser has no tab sharing at all. Paste an address above, or use an input or a file below.';
+    }
+    // Where tab sharing is not an option, the link field is the answer, so
+    // put the cursor in it rather than making them go looking.
+    if (!tabAudio) { try { linkurl.focus({ preventScroll: true }); } catch (e) {} }
+    svcRefresh();
+    note.innerHTML = 'Only tab sharing is browser-specific — Chrome, Edge and Opera, on a desktop. ' +
+        'A link, an input and a file work anywhere. Nothing you play is uploaded or recorded; a link ' +
+        'that will not play on its own is fetched by the same service the SP-404 converter uses, which ' +
+        'reads the page and hands back the audio.';
+
+    if (GLFail) {
+        say('This browser could not open a WebGL context, so there is nothing to draw on. The audio side would work, but the picture will not.');
+        openGate();
+    } else {
+        resize();
+        var ok = initGL();
+        if (!ok) say('Some of the scenes would not compile on this graphics driver. The ones that did are still in the list.');
+        window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', resize);
+        requestAnimationFrame(frame);
+    }
+
+    // A small hook so the page can be driven and measured from outside, which
+    // is the only way to prove the analysis chain is right rather than
+    // plausible: feed it a known tone and check the band it lands in.
+    window.__pg = window.__pg || {};
+    window.__pg.state = state;
+    window.__pg.scenes = SCENES.map(function (s) { return s.id; });
+    window.__pg.ears = Ears;
+    window.__pg.pickScene = pickScene;
+    window.__pg.at = at;
+    window.__pg.tabAudio = tabAudio;
+    window.__pg.setRipper = function (u) { Ears.ripper = u; };
+    window.__pg.vid = Vid;
+    window.__pg.midi = MIDI;
+    window.__pg.onMidi = onMidi;
+    window.__pg.pickScene = pickScene;
+    window.__pg.setDeck = setDeck;
+    window.__pg.setLearn = setLearn;
+    window.__pg.blends = ['fade', 'add', 'screen', 'multiply', 'difference', 'lighten', 'cut'];
+    window.__pg.pixels = function () {
+        if (!gl || !accum[0]) return null;
+        var px = new Uint8Array(W * H * 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, accum[0].fb);
+        gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        var sum = 0, max = 0;
+        for (var i = 0; i < px.length; i += 4) {
+            var l = px[i] + px[i + 1] + px[i + 2];
+            sum += l; if (l > max) max = l;
+        }
+        return { mean: sum / (px.length / 4) / 765, max: max / 765 };
+    };
+})();
