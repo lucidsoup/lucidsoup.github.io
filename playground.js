@@ -2151,7 +2151,12 @@
         } else if (Vid.kind === 'none') {
             vidnote.innerHTML = 'Pick <b>Video</b> or <b>Mirror</b> on a deck to see it.';
         } else if (!using) {
-            vidnote.innerHTML = Vid.label + ' is open — now put <b>Video</b> or <b>Mirror</b> on a deck.';
+            // Vid.label is a MediaStreamTrack label: the name of a camera, or
+            // of the window or tab the visitor chose to share. The page does
+            // not write it and cannot assume it is plain text, so it is
+            // escaped. The line below already used textContent for the same
+            // value; this one wanted the bold markup and forgot.
+            vidnote.innerHTML = esc(Vid.label) + ' is open — now put <b>Video</b> or <b>Mirror</b> on a deck.';
         } else {
             vidnote.textContent = 'Showing ' + Vid.label + '.';
         }
