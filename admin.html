@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-no-frame>
 <head>
     <meta charset="UTF-8">
+<script src="/secure.js?v=20261127a"></script>
     <!-- Content Security Policy. GitHub Pages cannot send headers, so this is a
          <meta>, which means frame-ancestors is not available here — clickjacking
          still needs a real header this host will not send.
@@ -19,7 +20,7 @@
          localhost. wss: is listed separately because an `https:` source does
      NOT admit a wss: socket in Chrome — DrumSeek's peer connection was
      blocked until it was added, which a page load alone never showed. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https: http:; connect-src 'self' blob: data: https: http: wss:; worker-src 'self' blob:; frame-src 'self'; upgrade-insecure-requests">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LucidSoup — Shop Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">

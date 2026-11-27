@@ -19,7 +19,12 @@
 -- raised below. The save is correctly refused either way. Making the function
 -- call public.product_has_real_file() would fix the wording.
 create or replace function public.product_has_real_file(p_id uuid)
-returns boolean language sql stable as $$
+returns boolean language sql stable
+-- search_path = '' so nothing resolves implicitly: without it a caller can
+-- point `product_files` at a table of their own and the guard says yes for a
+-- product with no file. Every name below is schema-qualified because of it.
+set search_path = ''
+as $$
   select exists (
     select 1 from public.product_files f
     join storage.objects o on o.bucket_id = 'library' and o.name = f.storage_path
@@ -28,7 +33,9 @@ returns boolean language sql stable as $$
 $$;
 
 create or replace function public.check_active_product_files()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql
+set search_path = ''
+as $$
 begin
   if new.status = 'active'
      and new.kind <> 'physical'

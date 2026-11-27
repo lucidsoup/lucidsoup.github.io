@@ -18,6 +18,12 @@ on:
     paths: ['ripper/**', '.github/workflows/deploy-ripper.yml']
   workflow_dispatch:
 
+# This job reads its own source and talks to Fly. It has no business
+# writing to the repository, so it cannot: without this block it would
+# get whatever the repository default is, which is usually read/write.
+permissions:
+  contents: read
+
 concurrency:
   group: deploy-ripper
   cancel-in-progress: false
@@ -26,7 +32,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to the commit, not the tag: v4 is a label its owner can move,
+      # and this job holds a deploy token.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
       # Reports which of the three secrets this job can see, and nothing about
       # what is in them. The first run of this workflow went green and skipped
@@ -76,7 +84,10 @@ jobs:
 
       - name: Install flyctl
         if: steps.gate.outputs.go == 'yes'
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        # @master was whatever that branch pointed at on the day the job ran,
+        # in a job holding a Fly deploy token. Pinned to a commit; bump it
+        # deliberately.
+        uses: superfly/flyctl-actions/setup-flyctl@98172f70657cb3e15db199af139be99bd3e61200  # master, 2026-11
 
       - name: Create the app if it is not there yet
         if: steps.gate.outputs.go == 'yes'
@@ -128,11 +139,15 @@ jobs:
         working-directory: ripper
         run: |
           app=$(awk -F'"' '/^app *=/{print $2}' fly.toml)
-          args=""
-          [ -n "$RIPPER_TOKEN" ]  && args="$args RIPPER_TOKEN=$RIPPER_TOKEN"
-          [ -n "$RIPPER_ORIGIN" ] && args="$args RIPPER_ORIGIN=$RIPPER_ORIGIN"
-          if [ -n "$args" ]; then
-            flyctl secrets set $args -a "$app" --stage
+          # One argument per secret, each quoted. The previous version built a
+          # single unquoted string and let the shell split it, so a value with
+          # a space in it arrived as two arguments and the secret was quietly
+          # set to the half before the space.
+          set --
+          if [ -n "$RIPPER_TOKEN" ];  then set -- "$@" "RIPPER_TOKEN=$RIPPER_TOKEN"; fi
+          if [ -n "$RIPPER_ORIGIN" ]; then set -- "$@" "RIPPER_ORIGIN=$RIPPER_ORIGIN"; fi
+          if [ "$#" -gt 0 ]; then
+            flyctl secrets set "$@" -a "$app" --stage
           fi
           if [ -z "$RIPPER_TOKEN" ]; then
             # RIPPER_ORIGIN is pinned in fly.toml, so the service is already
