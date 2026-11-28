@@ -16,3 +16,7 @@ pluginhost/test/*.vst3
 icons/preview-*.png
 soupsend/*.o
 soupsend/soupsend
+
+# Agent harness: local session state
+.claude/state/
+.claude/settings.local.json
