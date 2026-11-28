@@ -21,17 +21,17 @@
                 loc.hostname === '::1' || loc.hostname === '[::1]' || loc.hostname === '';
 
     /* ---- 1. plain HTTP → HTTPS -------------------------------------------
-       As of writing, http://www.lucidsoup.com/ answers 200 in cleartext with
-       no redirect and no HSTS, because "Enforce HTTPS" is off in
-       Settings → Pages. That includes /store/admin.html, which is where an
-       editor types their passphrase and where a fourteen-day session token
-       lives in localStorage afterwards.
+       Enforce HTTPS is on now, so GitHub answers plain http with a 301 to
+       https at the edge and this rarely fires. It is kept because it costs a
+       few bytes, because it still works if that setting is ever turned back
+       off, and because it covers the site wherever else it is served from.
 
-       This closes the window from the second request onwards. It cannot close
-       the first one: that request still leaves the browser in the clear, and
-       whoever is on the wire can answer it with their own page instead of
-       this file and never run this line. Switching on Enforce HTTPS is what
-       actually fixes it, and then HSTS stops even the first request. */
+       Neither this nor the 301 closes the first request. That one still
+       leaves the browser in cleartext, and anyone on the wire can answer it
+       with their own page rather than the redirect. Only HSTS closes it, and
+       GitHub Pages does not send Strict-Transport-Security on a custom
+       domain — measured, not assumed. Closing it means a proxy in front that
+       can set headers. */
     if (loc.protocol === 'http:' && !local) {
         loc.replace('https://' + loc.host + loc.pathname + loc.search + loc.hash);
         return;
