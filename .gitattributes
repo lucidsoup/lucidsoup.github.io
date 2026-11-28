@@ -1,0 +1,3 @@
+# Agent harness: hook scripts must keep LF line ends for bash on Windows
+.claude/hooks/*.sh text eol=lf
+scripts/agent/*.sh text eol=lf
